@@ -1,0 +1,46 @@
+name: finora
+description: Finora — personal finance manager (Flutter port of the native Android app).
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.4
+  google_sign_in: ^6.2.1
+
+  # State management (ViewModel-like ChangeNotifiers)
+  provider: ^6.1.2
+
+  # Charts (Vico equivalent)
+  fl_chart: ^0.69.0
+
+  # Voice & AI multimodal
+  speech_to_text: ^7.0.0
+  image_picker: ^1.1.2
+
+  # Utilities
+  intl: ^0.19.0
+  cached_network_image: ^3.4.1
+  shared_preferences: ^2.3.2
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/banks/
+    - assets/branding/
+

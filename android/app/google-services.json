@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "264825318501",
+    "project_id": "gen-lang-client-0843862000",
+    "storage_bucket": "gen-lang-client-0843862000.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:264825318501:android:8384e8e6523ab704026a8c",
+        "android_client_info": {
+          "package_name": "com.finora.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "264825318501-onco05065cncfvo8fml0avnrmml3d99i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.finora.app",
+            "certificate_hash": "fbbefab1d8e9a5f75d2677999fda5180a3215220"
+          }
+        },
+        {
+          "client_id": "264825318501-c7qn98v0a5dek137ra2111pt16b9s748.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtYOb7OFp3BAwYIn6lQWNtvU5wXdBdhv0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "264825318501-c7qn98v0a5dek137ra2111pt16b9s748.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
