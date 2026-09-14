@@ -44,6 +44,7 @@ class TransactionScreen extends StatefulWidget {
 
 class _TransactionScreenState extends State<TransactionScreen> {
   bool _showBalances = true;
+  bool _isSearchExpanded = false;
   late final TextEditingController _searchController;
   StreamSubscription<String>? _eventsSub;
 
@@ -51,6 +52,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
   void initState() {
     super.initState();
     final initialQuery = context.read<TransactionProvider>().searchQuery;
+    _isSearchExpanded = initialQuery.isNotEmpty;
     _searchController = TextEditingController(text: initialQuery);
     _searchController.addListener(_onSearchChanged);
 
@@ -542,6 +544,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
+        final activeLabel = provider.activeDateFilterLabel;
         return Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -578,26 +581,47 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ),
               const SizedBox(height: 16),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF005FEA).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.calendar_month_rounded,
-                      color: Color(0xFF005FEA),
-                      size: 20,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF005FEA).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.calendar_month_rounded,
+                          color: Color(0xFF005FEA),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Chọn kỳ thời gian',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Chọn kỳ thời gian',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF005FEA).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      activeLabel,
+                      style: const TextStyle(
+                        color: Color(0xFF005FEA),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -620,7 +644,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   return ChoiceChip(
                     label: Text(opt.label),
                     selected: isSelected,
-                    selectedColor: const Color(0xFF0F172A),
+                    selectedColor: const Color(0xFF005FEA),
                     backgroundColor: isDark
                         ? const Color(0xFF1E293B)
                         : const Color(0xFFF1F5F9),
@@ -640,6 +664,190 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     },
                   );
                 }).toList(),
+              ),
+              const SizedBox(height: 16),
+              // Custom Date Picker & Date Range Picker
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: provider.customDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2035),
+                        );
+                        if (picked != null) {
+                          provider.setCustomDate(picked);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: provider.selectedDateFilter ==
+                                  DateFilterOption.customDate
+                              ? const Color(0xFF005FEA).withValues(alpha: 0.12)
+                              : (isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF8FAFC)),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: provider.selectedDateFilter ==
+                                    DateFilterOption.customDate
+                                ? const Color(0xFF005FEA)
+                                : (isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0)),
+                            width: provider.selectedDateFilter ==
+                                    DateFilterOption.customDate
+                                ? 1.5
+                                : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event_rounded,
+                                size: 18, color: Color(0xFF005FEA)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Tùy chọn ngày',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? Colors.white60
+                                          : const Color(0xFF64748B),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    provider.selectedDateFilter ==
+                                                DateFilterOption.customDate &&
+                                            provider.customDate != null
+                                        ? '${provider.customDate!.day.toString().padLeft(2, '0')}/${provider.customDate!.month.toString().padLeft(2, '0')}/${provider.customDate!.year}'
+                                        : 'Chọn ngày...',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final initialRange = (provider.customStartDate !=
+                                    null &&
+                                provider.customEndDate != null)
+                            ? DateTimeRange(
+                                start: provider.customStartDate!,
+                                end: provider.customEndDate!)
+                            : DateTimeRange(
+                                start: DateTime.now()
+                                    .subtract(const Duration(days: 7)),
+                                end: DateTime.now(),
+                              );
+                        final range = await showDateRangePicker(
+                          context: context,
+                          initialDateRange: initialRange,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2035),
+                        );
+                        if (range != null) {
+                          provider.setCustomRange(range.start, range.end);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: provider.selectedDateFilter ==
+                                  DateFilterOption.customRange
+                              ? const Color(0xFF0284C7).withValues(alpha: 0.12)
+                              : (isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF8FAFC)),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: provider.selectedDateFilter ==
+                                    DateFilterOption.customRange
+                                ? const Color(0xFF0284C7)
+                                : (isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0)),
+                            width: provider.selectedDateFilter ==
+                                    DateFilterOption.customRange
+                                ? 1.5
+                                : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.date_range_rounded,
+                                size: 18, color: Color(0xFF0284C7)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Từ khoảng ngày',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? Colors.white60
+                                          : const Color(0xFF64748B),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    provider.selectedDateFilter ==
+                                                DateFilterOption.customRange &&
+                                            provider.customStartDate != null
+                                        ? '${provider.customStartDate!.day.toString().padLeft(2, '0')}/${provider.customStartDate!.month.toString().padLeft(2, '0')} - ${provider.customEndDate?.day.toString().padLeft(2, '0')}/${provider.customEndDate?.month.toString().padLeft(2, '0')}'
+                                        : 'Từ - Đến...',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1289,30 +1497,341 @@ class _TransactionScreenState extends State<TransactionScreen> {
     required String? selectedWalletId,
     required TransactionProvider provider,
   }) {
-    final typeIndex = selectedType == 'income'
-        ? 1
-        : selectedType == 'expense'
-            ? 2
-            : 0;
-
     final hasActiveFilter =
         (selectedMemberTag != null && selectedMemberTag != 'all') ||
             selectedWalletId != null ||
             provider.selectedDateFilter != DateFilterOption.thisMonth;
 
+    if (_isSearchExpanded) {
+      return Row(
+        children: [
+          // Expanded Search Input
+          Expanded(
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: const Color(0xFF005FEA),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF005FEA).withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.search_rounded,
+                    color: Color(0xFF005FEA),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Tìm kiếm ghi chú, danh mục, tiền...',
+                        hintStyle: TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 13,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      provider.setSearchQuery('');
+                      setState(() => _isSearchExpanded = false);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 14,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Quick Member Filter Button
+          GestureDetector(
+            onTap: _openOwnerFilterModal,
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: (selectedMemberTag != null && selectedMemberTag != 'all')
+                    ? (selectedMemberTag == 'wife'
+                        ? const Color(0xFFDB2777).withValues(alpha: 0.14)
+                        : const Color(0xFF0284C7).withValues(alpha: 0.14))
+                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: (selectedMemberTag != null &&
+                          selectedMemberTag != 'all')
+                      ? (selectedMemberTag == 'wife'
+                          ? const Color(0xFFDB2777)
+                          : const Color(0xFF0284C7))
+                      : (isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    selectedMemberTag == 'wife'
+                        ? Icons.female_rounded
+                        : (selectedMemberTag == 'husband'
+                            ? Icons.male_rounded
+                            : Icons.people_alt_rounded),
+                    size: 16,
+                    color: selectedMemberTag == 'wife'
+                        ? const Color(0xFFDB2777)
+                        : (selectedMemberTag == 'husband'
+                            ? const Color(0xFF0284C7)
+                            : (isDark
+                                ? Colors.white70
+                                : const Color(0xFF64748B))),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    memberLabel,
+                    style: TextStyle(
+                      color: selectedMemberTag == 'wife'
+                          ? const Color(0xFFDB2777)
+                          : (selectedMemberTag == 'husband'
+                              ? const Color(0xFF0284C7)
+                              : (isDark
+                                  ? Colors.white
+                                  : const Color(0xFF334155))),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Filter Button [ 🎚 ]
+          GestureDetector(
+            onTap: _openFilterSheet,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: hasActiveFilter
+                    ? const Color(0xFF005FEA)
+                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: hasActiveFilter
+                      ? const Color(0xFF005FEA)
+                      : (isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
+                  width: 1.2,
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.tune_rounded,
+                    color: hasActiveFilter
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : const Color(0xFF005FEA)),
+                    size: 18,
+                  ),
+                  if (hasActiveFilter)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFBBF24),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
-        // 1. Search Bar (Expanded)
-        Expanded(
+        // 1. Search Icon Button (taps to expand)
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() => _isSearchExpanded = true);
+          },
           child: Container(
+            width: 40,
             height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
+                color: provider.searchQuery.isNotEmpty
+                    ? const Color(0xFF005FEA)
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.search_rounded,
+              size: 19,
+              color: provider.searchQuery.isNotEmpty
+                  ? const Color(0xFF005FEA)
+                  : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+
+        // 2. Type Switcher [ Tất cả | Thu | Chi | Chuyển | Đầu tư | Trả thẻ ]
+        Expanded(
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color:
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
                 color:
                     isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                width: 1,
+              ),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildTypeItem(
+                    label: 'Tất cả',
+                    isSelected: selectedType == null,
+                    selectedColor: const Color(0xFF005FEA),
+                    isDark: isDark,
+                    onTap: () => provider.setSelectedType(null),
+                  ),
+                  _buildTypeItem(
+                    label: 'Thu',
+                    isSelected: selectedType == 'income',
+                    selectedColor: const Color(0xFF059669),
+                    isDark: isDark,
+                    onTap: () => provider.setSelectedType('income'),
+                  ),
+                  _buildTypeItem(
+                    label: 'Chi',
+                    isSelected: selectedType == 'expense',
+                    selectedColor: const Color(0xFFDC2626),
+                    isDark: isDark,
+                    onTap: () => provider.setSelectedType('expense'),
+                  ),
+                  _buildTypeItem(
+                    label: 'Chuyển',
+                    isSelected: selectedType == 'transfer',
+                    selectedColor: const Color(0xFF0284C7),
+                    isDark: isDark,
+                    onTap: () => provider.setSelectedType('transfer'),
+                  ),
+                  _buildTypeItem(
+                    label: 'Đầu tư',
+                    isSelected: selectedType == 'investment',
+                    selectedColor: const Color(0xFFD97706),
+                    isDark: isDark,
+                    onTap: () => provider.setSelectedType('investment'),
+                  ),
+                  _buildTypeItem(
+                    label: 'Trả thẻ',
+                    isSelected: selectedType == 'credit_card_payment',
+                    selectedColor: const Color(0xFF0891B2),
+                    isDark: isDark,
+                    onTap: () => provider.setSelectedType('credit_card_payment'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+
+        // 3. Quick Member Filter Button [ 👥 Vợ chồng / 👨 Chồng / 👩 Vợ ]
+        GestureDetector(
+          onTap: _openOwnerFilterModal,
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: (selectedMemberTag != null && selectedMemberTag != 'all')
+                  ? (selectedMemberTag == 'wife'
+                      ? const Color(0xFFDB2777).withValues(alpha: 0.14)
+                      : const Color(0xFF0284C7).withValues(alpha: 0.14))
+                  : (isDark ? const Color(0xFF1E293B) : Colors.white),
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color: (selectedMemberTag != null &&
+                        selectedMemberTag != 'all')
+                    ? (selectedMemberTag == 'wife'
+                        ? const Color(0xFFDB2777)
+                        : const Color(0xFF0284C7))
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
                 width: 1.2,
               ),
               boxShadow: [
@@ -1324,103 +1843,45 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ],
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFF94A3B8),
-                  size: 18,
+                Icon(
+                  selectedMemberTag == 'wife'
+                      ? Icons.female_rounded
+                      : (selectedMemberTag == 'husband'
+                          ? Icons.male_rounded
+                          : Icons.people_alt_rounded),
+                  size: 16,
+                  color: selectedMemberTag == 'wife'
+                      ? const Color(0xFFDB2777)
+                      : (selectedMemberTag == 'husband'
+                          ? const Color(0xFF0284C7)
+                          : (isDark
+                              ? Colors.white70
+                              : const Color(0xFF64748B))),
                 ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'Tìm kiếm...',
-                      hintStyle: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.normal,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                const SizedBox(width: 4),
+                Text(
+                  memberLabel,
+                  style: TextStyle(
+                    color: selectedMemberTag == 'wife'
+                        ? const Color(0xFFDB2777)
+                        : (selectedMemberTag == 'husband'
+                            ? const Color(0xFF0284C7)
+                            : (isDark
+                                ? Colors.white
+                                : const Color(0xFF334155))),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (_searchController.text.isNotEmpty)
-                  GestureDetector(
-                    onTap: () {
-                      _searchController.clear();
-                      setState(() {});
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 16,
-                        color: Color(0xFF94A3B8),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
 
-        // 2. Type Switcher [ Tất cả | Thu | Chi ]
-        Container(
-          height: 40,
-          padding: const EdgeInsets.all(3.5),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(
-              color:
-                  isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTypeItem(
-                label: 'Tất cả',
-                isSelected: typeIndex == 0,
-                selectedColor: const Color(0xFF005FEA),
-                isDark: isDark,
-                onTap: () => provider.setSelectedType(null),
-              ),
-              _buildTypeItem(
-                label: 'Thu',
-                isSelected: typeIndex == 1,
-                selectedColor: const Color(0xFF059669),
-                isDark: isDark,
-                onTap: () => provider.setSelectedType('income'),
-              ),
-              _buildTypeItem(
-                label: 'Chi',
-                isSelected: typeIndex == 2,
-                selectedColor: const Color(0xFFDC2626),
-                isDark: isDark,
-                onTap: () => provider.setSelectedType('expense'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // 3. Filter Button [ 🎚 ] with active indicator
+        // 4. Advanced Filter Button [ 🎚 ]
         GestureDetector(
           onTap: _openFilterSheet,
           child: Container(
@@ -1972,34 +2433,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
 }
 
 /// Filter Sheet Bottom Sheet
-class _FilterSheet extends StatefulWidget {
+class _FilterSheet extends StatelessWidget {
   const _FilterSheet();
-
-  @override
-  State<_FilterSheet> createState() => _FilterSheetState();
-}
-
-class _FilterSheetState extends State<_FilterSheet> {
-  late final TextEditingController _searchController;
-
-  @override
-  void initState() {
-    super.initState();
-    final provider = context.read<TransactionProvider>();
-    _searchController = TextEditingController(text: provider.searchQuery);
-    _searchController.addListener(_onSearchChanged);
-  }
-
-  void _onSearchChanged() {
-    context.read<TransactionProvider>().setSearchQuery(_searchController.text);
-  }
-
-  @override
-  void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -2021,82 +2456,97 @@ class _FilterSheetState extends State<_FilterSheet> {
             top: AppSpacing.md,
             bottom: AppSpacing.lg + MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.15)
-                        : Colors.black.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(2),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                'Bộ lọc nâng cao',
-                style: AppTypography.title2.copyWith(
-                  color: primaryTextColor,
-                  fontWeight: FontWeight.bold,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Bộ lọc nâng cao',
+                      style: AppTypography.title2.copyWith(
+                        color: primaryTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        provider.applyFilters(
+                          type: 'all',
+                          walletId: null,
+                          memberTag: 'all',
+                          date: DateFilterOption.thisMonth,
+                        );
+                      },
+                      child: const Text(
+                        'Đặt lại',
+                        style: TextStyle(
+                          color: Color(0xFF005FEA),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Search
-              Text(
-                'Tìm kiếm',
-                style: AppTypography.caption2.copyWith(
-                  color: secondaryTextColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              GlassTextField(
-                controller: _searchController,
-                hint: 'Tìm kiếm ghi chú, danh mục...',
-                suffix: const Icon(Icons.search, size: 20),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Date range
-              Text(
-                'Khoảng thời gian',
-                style: AppTypography.caption2.copyWith(
-                  color: secondaryTextColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: DateFilterOption.values.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(width: AppSpacing.xs),
-                  itemBuilder: (_, i) {
-                    final option = DateFilterOption.values[i];
-                    return FilterChipX(
-                      label: option.label,
-                      selected: provider.selectedDateFilter == option,
-                      onTap: () => context
-                          .read<TransactionProvider>()
-                          .setSelectedDateFilter(option),
-                    );
-                  },
-                ),
-              ),
-
-              // Wallets
-              if (provider.wallets.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
+
+                // 1. Member Section (Chồng / Vợ / Tất cả)
                 Text(
-                  'Tài khoản / Ví',
+                  'Thành viên',
+                  style: AppTypography.caption2.copyWith(
+                    color: secondaryTextColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    FilterChipX(
+                      label: 'Tất cả',
+                      icon: Icons.people_alt_rounded,
+                      selected: provider.selectedMemberTag == null ||
+                          provider.selectedMemberTag == 'all',
+                      onTap: () => provider.setSelectedMemberTag(null),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    FilterChipX(
+                      label: 'Chồng',
+                      icon: Icons.male_rounded,
+                      color: const Color(0xFF0284C7),
+                      selected: provider.selectedMemberTag == 'husband',
+                      onTap: () => provider.setSelectedMemberTag('husband'),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    FilterChipX(
+                      label: 'Vợ',
+                      icon: Icons.female_rounded,
+                      color: const Color(0xFFDB2777),
+                      selected: provider.selectedMemberTag == 'wife',
+                      onTap: () => provider.setSelectedMemberTag('wife'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // 2. Transaction Type Section (Tất cả, Thu, Chi, Chuyển, Đầu tư, Trả thẻ)
+                Text(
+                  'Phân loại giao dịch',
                   style: AppTypography.caption2.copyWith(
                     color: secondaryTextColor,
                     fontWeight: FontWeight.bold,
@@ -2105,44 +2555,348 @@ class _FilterSheetState extends State<_FilterSheet> {
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      FilterChipX(
+                        label: 'Tất cả',
+                        color: const Color(0xFF005FEA),
+                        selected: provider.selectedType == null,
+                        onTap: () => provider.setSelectedType(null),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      FilterChipX(
+                        label: 'Thu nhập',
+                        color: const Color(0xFF059669),
+                        selected: provider.selectedType == 'income',
+                        onTap: () => provider.setSelectedType('income'),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      FilterChipX(
+                        label: 'Chi tiêu',
+                        color: const Color(0xFFDC2626),
+                        selected: provider.selectedType == 'expense',
+                        onTap: () => provider.setSelectedType('expense'),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      FilterChipX(
+                        label: 'Chuyển tiền',
+                        color: const Color(0xFF0284C7),
+                        selected: provider.selectedType == 'transfer',
+                        onTap: () => provider.setSelectedType('transfer'),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      FilterChipX(
+                        label: 'Đầu tư',
+                        color: const Color(0xFFD97706),
+                        selected: provider.selectedType == 'investment',
+                        onTap: () => provider.setSelectedType('investment'),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      FilterChipX(
+                        label: 'Trả thẻ',
+                        color: const Color(0xFF0891B2),
+                        selected:
+                            provider.selectedType == 'credit_card_payment',
+                        onTap: () =>
+                            provider.setSelectedType('credit_card_payment'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // 3. Date Filter Section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Khoảng thời gian',
+                      style: AppTypography.caption2.copyWith(
+                        color: secondaryTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      provider.activeDateFilterLabel,
+                      style: const TextStyle(
+                        color: Color(0xFF005FEA),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 40,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: provider.wallets.length + 1,
+                    itemCount: [
+                      DateFilterOption.today,
+                      DateFilterOption.yesterday,
+                      DateFilterOption.thisWeek,
+                      DateFilterOption.lastWeek,
+                      DateFilterOption.thisMonth,
+                      DateFilterOption.lastMonth,
+                      DateFilterOption.thisYear,
+                      DateFilterOption.allTime,
+                    ].length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(width: AppSpacing.xs),
                     itemBuilder: (_, i) {
-                      if (i == 0) {
-                        return FilterChipX(
-                          label: 'Tất cả ví',
-                          selected: provider.selectedWalletId == null,
-                          onTap: () => context
-                              .read<TransactionProvider>()
-                              .setSelectedWalletId(null),
-                        );
-                      }
-                      final wallet = provider.wallets[i - 1];
+                      final option = [
+                        DateFilterOption.today,
+                        DateFilterOption.yesterday,
+                        DateFilterOption.thisWeek,
+                        DateFilterOption.lastWeek,
+                        DateFilterOption.thisMonth,
+                        DateFilterOption.lastMonth,
+                        DateFilterOption.thisYear,
+                        DateFilterOption.allTime,
+                      ][i];
                       return FilterChipX(
-                        label: wallet.name,
-                        selected: provider.selectedWalletId == wallet.id,
-                        onTap: () => context
-                            .read<TransactionProvider>()
-                            .setSelectedWalletId(wallet.id),
+                        label: option.label,
+                        selected: provider.selectedDateFilter == option,
+                        onTap: () => provider.setSelectedDateFilter(option),
                       );
                     },
                   ),
                 ),
-              ],
+                const SizedBox(height: 10),
 
-              const SizedBox(height: AppSpacing.xl),
-              PrimaryButton(
-                expand: true,
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text(
-                  'Áp dụng',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                // Custom Single Date & Date Range Picker Actions
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: provider.customDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2035),
+                          );
+                          if (picked != null) {
+                            provider.setCustomDate(picked);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: provider.selectedDateFilter ==
+                                    DateFilterOption.customDate
+                                ? const Color(0xFF005FEA)
+                                    .withValues(alpha: 0.12)
+                                : (isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF8FAFC)),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: provider.selectedDateFilter ==
+                                      DateFilterOption.customDate
+                                  ? const Color(0xFF005FEA)
+                                  : (isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFE2E8F0)),
+                              width: provider.selectedDateFilter ==
+                                      DateFilterOption.customDate
+                                  ? 1.5
+                                  : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.event_rounded,
+                                  size: 18, color: Color(0xFF005FEA)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Tùy chọn ngày',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: isDark
+                                            ? Colors.white60
+                                            : const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      provider.selectedDateFilter ==
+                                                  DateFilterOption.customDate &&
+                                              provider.customDate != null
+                                          ? '${provider.customDate!.day.toString().padLeft(2, '0')}/${provider.customDate!.month.toString().padLeft(2, '0')}/${provider.customDate!.year}'
+                                          : 'Chọn ngày...',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final initialRange = (provider.customStartDate !=
+                                      null &&
+                                  provider.customEndDate != null)
+                              ? DateTimeRange(
+                                  start: provider.customStartDate!,
+                                  end: provider.customEndDate!)
+                              : DateTimeRange(
+                                  start: DateTime.now()
+                                      .subtract(const Duration(days: 7)),
+                                  end: DateTime.now(),
+                                );
+                          final range = await showDateRangePicker(
+                            context: context,
+                            initialDateRange: initialRange,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2035),
+                          );
+                          if (range != null) {
+                            provider.setCustomRange(range.start, range.end);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: provider.selectedDateFilter ==
+                                    DateFilterOption.customRange
+                                ? const Color(0xFF0284C7)
+                                    .withValues(alpha: 0.12)
+                                : (isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF8FAFC)),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: provider.selectedDateFilter ==
+                                      DateFilterOption.customRange
+                                  ? const Color(0xFF0284C7)
+                                  : (isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFE2E8F0)),
+                              width: provider.selectedDateFilter ==
+                                      DateFilterOption.customRange
+                                  ? 1.5
+                                  : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.date_range_rounded,
+                                  size: 18, color: Color(0xFF0284C7)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Từ khoảng ngày',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: isDark
+                                            ? Colors.white60
+                                            : const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      provider.selectedDateFilter ==
+                                                  DateFilterOption.customRange &&
+                                              provider.customStartDate != null
+                                          ? '${provider.customStartDate!.day.toString().padLeft(2, '0')}/${provider.customStartDate!.month.toString().padLeft(2, '0')} - ${provider.customEndDate?.day.toString().padLeft(2, '0')}/${provider.customEndDate?.month.toString().padLeft(2, '0')}'
+                                          : 'Từ - Đến...',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.md),
+
+                // 4. Wallets / Accounts Section
+                if (provider.wallets.isNotEmpty) ...[
+                  Text(
+                    'Tài khoản / Ví',
+                    style: AppTypography.caption2.copyWith(
+                      color: secondaryTextColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 40,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: provider.wallets.length + 1,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(width: AppSpacing.xs),
+                      itemBuilder: (_, i) {
+                        if (i == 0) {
+                          return FilterChipX(
+                            label: 'Tất cả ví',
+                            selected: provider.selectedWalletId == null,
+                            onTap: () => provider.setSelectedWalletId(null),
+                          );
+                        }
+                        final wallet = provider.wallets[i - 1];
+                        return FilterChipX(
+                          label: wallet.name,
+                          selected: provider.selectedWalletId == wallet.id,
+                          onTap: () => provider.setSelectedWalletId(wallet.id),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+
+                PrimaryButton(
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Áp dụng bộ lọc',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
