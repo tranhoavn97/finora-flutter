@@ -4129,10 +4129,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isExpense = TransactionVisuals.isOutflow(tx.type) &&
         !TransactionVisuals.isTransfer(tx.type);
     final isIncome = TransactionVisuals.isInflow(tx.type);
-    final color = isExpense
-        ? const Color(0xFFDC2626)
-        : (isIncome ? const Color(0xFF059669) : const Color(0xFF0284C7));
-    final prefix = isExpense ? '-' : (isIncome ? '+' : '');
+    final isTransfer = TransactionVisuals.isTransfer(tx.type);
+    final isInvestment = tx.type.toLowerCase() == 'investment';
+
+    final Color color;
+    final String prefix;
+    if (isExpense) {
+      color = const Color(0xFFDC2626); // Đỏ: đã chi
+      prefix = '-';
+    } else if (isIncome) {
+      color = const Color(0xFF059669); // Xanh lá: thu nhập
+      prefix = '+';
+    } else if (isTransfer) {
+      color = const Color(0xFF005FEA); // Xanh dương Royal: chuyển tiền
+      prefix = '';
+    } else if (isInvestment) {
+      color = const Color(0xFF0284C7); // Xanh Sky Cyan: đầu tư
+      prefix = '';
+    } else {
+      color = isDark ? Colors.white70 : const Color(0xFF475569);
+      prefix = '';
+    }
     final txDate = _parseTxDate(tx.date);
 
     final isWife = tx.creatorTag == 'Vợ' ||
@@ -4270,24 +4287,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ],
                               ),
                             ),
-                          Text(
-                            DateFormat('HH:mm').format(txDate),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark
-                                  ? Colors.white54
-                                  : const Color(0xFF94A3B8),
-                            ),
-                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                // 3. Amount & Status Badge
+                // 3. Amount & Time (Right corner)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     FittedBox(
                       fit: BoxFit.scaleDown,
@@ -4302,54 +4311,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isExpense
-                            ? const Color(0xFFDC2626)
-                                .withValues(alpha: isDark ? 0.20 : 0.08)
-                            : (isIncome
-                                ? const Color(0xFF059669)
-                                    .withValues(alpha: isDark ? 0.20 : 0.08)
-                                : const Color(0xFF0284C7)
-                                    .withValues(alpha: isDark ? 0.20 : 0.08)),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(
-                          color: isExpense
-                              ? const Color(0xFFDC2626)
-                                  .withValues(alpha: isDark ? 0.35 : 0.18)
-                              : (isIncome
-                                  ? const Color(0xFF059669)
-                                      .withValues(alpha: isDark ? 0.35 : 0.18)
-                                  : const Color(0xFF0284C7)
-                                      .withValues(alpha: isDark ? 0.35 : 0.18)),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 4.5,
-                            height: 4.5,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: color,
-                            ),
-                          ),
-                          const SizedBox(width: 3.5),
-                          Text(
-                            isExpense
-                                ? 'Đã chi'
-                                : (isIncome ? 'Thu về' : 'Chuyển'),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      DateFormat('HH:mm').format(txDate),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.white54
+                            : const Color(0xFF94A3B8),
                       ),
                     ),
                   ],
