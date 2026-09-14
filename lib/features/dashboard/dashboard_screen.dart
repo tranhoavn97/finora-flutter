@@ -939,99 +939,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildQuickActionsRow(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isDark
-              ? const Color(0xFF334155).withValues(alpha: 0.8)
-              : const Color(0xFFE2E8F0),
-          width: 1.2,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: _buildQuickActionItem(
+            label: 'Ghi chép',
+            icon: Icons.add_rounded,
+            color: const Color(0xFF0284C7),
+            bgColor: const Color(0xFFE0F2FE),
+            isDark: isDark,
+            isHero: true,
+            onTap: () => _push(AddTransactionPage(userId: widget.userId)),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
+        Expanded(
+          child: _buildQuickActionItem(
+            label: 'Ví & Thẻ',
+            icon: Icons.account_balance_wallet_rounded,
+            color: const Color(0xFF10B981),
+            bgColor: const Color(0xFFDCFCE7),
+            isDark: isDark,
+            onTap: () {
+              if (widget.onViewWallets != null) {
+                widget.onViewWallets!();
+              } else {
+                _push(WalletScreen(userId: widget.userId));
+              }
+            },
           ),
-          if (!isDark)
-            BoxShadow(
-              color: const Color(0xFF005FEA).withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildQuickActionItem(
-              label: 'Ghi chép',
-              icon: Icons.edit_calendar_rounded,
-              color: const Color(0xFF005FEA),
-              bgColor: const Color(0xFFE0F2FE),
-              isDark: isDark,
-              isHero: true,
-              onTap: () => _push(AddTransactionPage(userId: widget.userId)),
-            ),
+        ),
+        Expanded(
+          child: _buildQuickActionItem(
+            label: 'Báo cáo',
+            icon: Icons.auto_graph_rounded,
+            color: const Color(0xFFD97706),
+            bgColor: const Color(0xFFFEF3C7),
+            isDark: isDark,
+            onTap: () => _push(ReportScreen(userId: widget.userId)),
           ),
-          _buildDockDivider(isDark),
-          Expanded(
-            child: _buildQuickActionItem(
-              label: 'Ví & Thẻ',
-              icon: Icons.account_balance_wallet_rounded,
-              color: const Color(0xFF0EA5E9),
-              bgColor: const Color(0xFFE0F2FE),
-              isDark: isDark,
-              onTap: () {
-                if (widget.onViewWallets != null) {
-                  widget.onViewWallets!();
-                } else {
-                  _push(WalletScreen(userId: widget.userId));
-                }
-              },
-            ),
+        ),
+        Expanded(
+          child: _buildQuickActionItem(
+            label: 'AI Finora',
+            icon: Icons.auto_awesome_rounded,
+            color: const Color(0xFF2563EB),
+            bgColor: const Color(0xFFDBEAFE),
+            isDark: isDark,
+            onTap: () => _push(AiAdvisorScreen(userId: widget.userId)),
           ),
-          _buildDockDivider(isDark),
-          Expanded(
-            child: _buildQuickActionItem(
-              label: 'Báo cáo',
-              icon: Icons.donut_large_rounded,
-              color: const Color(0xFFD97706),
-              bgColor: const Color(0xFFFEF3C7),
-              isDark: isDark,
-              onTap: () => _push(ReportScreen(userId: widget.userId)),
-            ),
-          ),
-          _buildDockDivider(isDark),
-          Expanded(
-            child: _buildQuickActionItem(
-              label: 'AI Finora',
-              icon: Icons.auto_awesome_rounded,
-              color: const Color(0xFF10B981),
-              bgColor: const Color(0xFFD1FAE5),
-              isDark: isDark,
-              onTap: () => _push(AiAdvisorScreen(userId: widget.userId)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDockDivider(bool isDark) {
-    return Container(
-      width: 1,
-      height: 28,
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF334155).withValues(alpha: 0.6)
-            : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(1),
-      ),
+        ),
+      ],
     );
   }
 
@@ -4703,17 +4661,13 @@ class _QuickActionItemWidget extends StatefulWidget {
 
 class _QuickActionItemWidgetState extends State<_QuickActionItemWidget> {
   bool _isPressed = false;
-  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final color = widget.color;
-    final isHero = widget.isHero;
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -4728,115 +4682,65 @@ class _QuickActionItemWidgetState extends State<_QuickActionItemWidget> {
           scale: _isPressed ? 0.90 : 1.0,
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOutCubic,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-            decoration: BoxDecoration(
-              color: _isHovered
-                  ? (isDark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : const Color(0xFFF8FAFC))
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        isDark
-                            ? color.withValues(alpha: isHero ? 0.35 : 0.25)
-                            : (isHero
-                                ? const Color(0xFFE0F2FE)
-                                : widget.bgColor.withValues(alpha: 0.95)),
-                        isDark ? const Color(0xFF1E293B) : Colors.white,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: isDark
-                          ? color.withValues(alpha: isHero ? 0.50 : 0.30)
-                          : (isHero
-                              ? color.withValues(alpha: 0.35)
-                              : color.withValues(alpha: 0.20)),
-                      width: isHero ? 1.5 : 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(
-                            alpha: isDark
-                                ? (isHero ? 0.25 : 0.14)
-                                : (isHero ? 0.20 : 0.10)),
-                        blurRadius: isHero ? 10 : 8,
-                        offset: const Offset(0, 3),
-                      ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      isDark
+                          ? color.withValues(alpha: 0.30)
+                          : widget.bgColor.withValues(alpha: 0.85),
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
                     ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Subtle top light sheen
-                      Positioned(
-                        top: 2,
-                        left: 5,
-                        right: 5,
-                        height: 1.5,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white
-                                .withValues(alpha: isDark ? 0.20 : 0.55),
-                            borderRadius: BorderRadius.circular(1),
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        widget.icon,
-                        color: isDark ? (isHero ? Colors.white : color) : color,
-                        size: 22,
-                      ),
-                      if (isHero)
-                        Positioned(
-                          top: 5.5,
-                          right: 5.5,
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF005FEA),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isDark
-                                    ? const Color(0xFF1E293B)
-                                    : Colors.white,
-                                width: 1.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.22)
+                        : Colors.white,
+                    width: 2.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: isDark ? 0.26 : 0.16),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    widget.icon,
+                    color: color,
+                    size: widget.icon == Icons.add_rounded ? 30 : 25,
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: isHero ? FontWeight.w800 : FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF1E293B),
-                    letterSpacing: -0.2,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  letterSpacing: -0.2,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
