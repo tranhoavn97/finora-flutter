@@ -3795,88 +3795,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           )
         else
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color:
-                    isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.035),
-                  blurRadius: 18,
-                  offset: const Offset(0, 4),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int i = 0; i < displayList.length; i++) ...[
+                if (i == 0 ||
+                    DateFormat('dd/MM/yyyy')
+                            .format(_parseTxDate(displayList[i].date)) !=
+                        DateFormat('dd/MM/yyyy')
+                            .format(_parseTxDate(displayList[i - 1].date)))
+                  _buildTimelineDateHeader(
+                    _parseTxDate(displayList[i].date),
+                    isDark,
+                    isFirstDate: i == 0,
+                  ),
+                _buildTimelineTransactionItem(
+                  displayList[i],
+                  isDark,
+                  isLastOverall: i == displayList.length - 1,
                 ),
               ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (int i = 0; i < displayList.length; i++) ...[
-                    if (i == 0 ||
-                        DateFormat('dd/MM/yyyy')
-                                .format(_parseTxDate(displayList[i].date)) !=
-                            DateFormat('dd/MM/yyyy')
-                                .format(_parseTxDate(displayList[i - 1].date)))
-                      _buildTimelineDateHeader(
-                        _parseTxDate(displayList[i].date),
-                        isDark,
-                        isFirstDate: i == 0,
-                      ),
-                    _buildTimelineTransactionItem(
-                      displayList[i],
-                      isDark,
-                      isLastOverall: i == displayList.length - 1,
-                    ),
-                  ],
-                  if (transactions.length > 8) ...[
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : const Color(0xFFF1F5F9),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        if (widget.onViewAllTransactions != null) {
-                          widget.onViewAllTransactions!();
-                        }
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Xem tất cả ${transactions.length} giao dịch',
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF005FEA),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                CupertinoIcons.chevron_right,
-                                size: 14,
-                                color: Color(0xFF005FEA),
-                              ),
-                            ],
-                          ),
+              if (transactions.length > 8) ...[
+                Padding(
+                  padding: const EdgeInsets.only(left: 32, top: 4, bottom: 8),
+                  child: InkWell(
+                    onTap: () {
+                      if (widget.onViewAllTransactions != null) {
+                        widget.onViewAllTransactions!();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(100),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155).withValues(alpha: 0.6)
+                              : const Color(0xFFE2E8F0),
+                          width: 1,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black
+                                .withValues(alpha: isDark ? 0.15 : 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Xem tất cả ${transactions.length} giao dịch',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF005FEA),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            CupertinoIcons.chevron_right,
+                            size: 14,
+                            color: Color(0xFF005FEA),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ],
-              ),
-            ),
+                  ),
+                ),
+              ],
+            ],
           ),
       ],
     );
@@ -3887,26 +3880,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool isDark, {
     required bool isFirstDate,
   }) {
-    return Stack(
-      children: [
-        // Connecting vertical rail through date header
-        Positioned(
-          left: 36,
-          top: isFirstDate ? 25 : 0,
-          bottom: 0,
-          width: 2,
-          child: Container(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 42,
-                height: 26,
-                child: Center(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 32,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Timeline vertical rail line through date header
+                Positioned(
+                  left: 15,
+                  top: isFirstDate ? 12 : 0,
+                  bottom: 0,
+                  width: 2,
+                  child: Container(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                // Date milestone marker
+                Positioned(
+                  top: 6,
+                  left: 10,
                   child: Container(
                     width: 12,
                     height: 12,
@@ -3914,12 +3912,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: const Color(0xFF005FEA),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        color:
+                            isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                         width: 2.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF005FEA).withValues(alpha: 0.35),
+                          color:
+                              const Color(0xFF005FEA).withValues(alpha: 0.40),
                           blurRadius: 6,
                           spreadRadius: 1,
                         ),
@@ -3927,52 +3927,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F172A).withValues(alpha: 0.65)
-                      : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF334155).withValues(alpha: 0.6)
-                        : const Color(0xFFE2E8F0),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.calendar_today_rounded,
-                      size: 11,
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 8),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 3.5),
+                    decoration: BoxDecoration(
                       color: isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      _formatRecentDateLabel(date),
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.1,
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
                         color: isDark
-                            ? const Color(0xFFE2E8F0)
-                            : const Color(0xFF475569),
+                            ? const Color(0xFF334155).withValues(alpha: 0.7)
+                            : const Color(0xFFE2E8F0),
+                        width: 1,
                       ),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 11,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _formatRecentDateLabel(date),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.1,
+                            color: isDark
+                                ? const Color(0xFFE2E8F0)
+                                : const Color(0xFF475569),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -3981,21 +3990,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool isDark, {
     required bool isLastOverall,
   }) {
-    return Stack(
-      children: [
-        // Timeline vertical rail
-        Positioned(
-          left: 36,
-          top: 0,
-          bottom: isLastOverall ? null : 0,
-          height: isLastOverall ? 30 : null,
-          width: 2,
-          child: Container(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+    final isExpense = TransactionVisuals.isOutflow(tx.type) &&
+        !TransactionVisuals.isTransfer(tx.type);
+    final isIncome = TransactionVisuals.isInflow(tx.type);
+    final nodeColor = isIncome
+        ? const Color(0xFF059669)
+        : (isExpense ? const Color(0xFF005FEA) : const Color(0xFF0284C7));
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Left timeline rail: vertical line + branch connector + node dot
+          SizedBox(
+            width: 32,
+            child: Stack(
+              children: [
+                // Continuous vertical line
+                Positioned(
+                  left: 15,
+                  top: 0,
+                  bottom: isLastOverall ? null : 0,
+                  height: isLastOverall ? 33 : null,
+                  width: 2,
+                  child: Container(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                // Horizontal branch connector to the separated transaction card
+                Positioned(
+                  left: 16,
+                  top: 31,
+                  right: 0,
+                  height: 2,
+                  child: Container(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                // Timeline node dot
+                Positioned(
+                  left: 11,
+                  top: 27,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: nodeColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: nodeColor.withValues(alpha: 0.35),
+                          blurRadius: 5,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        _buildTransactionRowItem(tx, isDark),
-      ],
+          // Right column: Separated individual transaction card
+          Expanded(
+            child: _buildTransactionCard(tx, isDark),
+          ),
+        ],
+      ),
     );
   }
 
@@ -4014,7 +4084,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return dateStr;
   }
 
-  Widget _buildTransactionRowItem(TransactionModel tx, bool isDark) {
+  Widget _buildTransactionCard(TransactionModel tx, bool isDark) {
     final categories = context.watch<MoreProvider>().categories;
     final matchingCategory = categories.cast<dynamic>().firstWhere(
           (category) =>
@@ -4049,230 +4119,305 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isHusband = !isWife;
     final isAi = tx.tags.contains('Finora AI') || tx.creatorTag == 'AI';
 
-    return InkWell(
-      onTap: () => _push(
-          TransactionDetailScreen(userId: widget.userId, transaction: tx)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8.5),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 42,
-              height: 42,
-              child: Center(
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      width: 2.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: TransactionIconWidget(
-                    type: tx.type,
-                    categoryIcon: resolvedCategoryIcon,
-                    categoryName: resolvedCategoryName ?? tx.note,
-                    categoryColor: resolvedCategoryColor,
-                    merchantId: tx.merchantId,
-                    size: 38,
-                  ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF334155).withValues(alpha: 0.7)
+              : const Color(0xFFF1F5F9),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _push(
+              TransactionDetailScreen(userId: widget.userId, transaction: tx)),
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                // 1. Category Icon: placed safely INSIDE the card, not intersected by the timeline rail
+                TransactionIconWidget(
+                  type: tx.type,
+                  categoryIcon: resolvedCategoryIcon,
+                  categoryName: resolvedCategoryName ?? tx.note,
+                  categoryColor: resolvedCategoryColor,
+                  merchantId: tx.merchantId,
+                  size: 40,
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tx.note?.isNotEmpty == true
-                        ? tx.note!
-                        : (tx.categoryName ?? 'Giao dịch'),
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 3,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                const SizedBox(width: 12),
+                // 2. Note & Detail Tags
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Tag Ví
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Text(
+                        tx.note?.isNotEmpty == true
+                            ? tx.note!
+                            : (tx.categoryName ?? 'Giao dịch'),
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                          height: 1.25,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 5),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Icon(
-                            Icons.account_balance_wallet_outlined,
-                            size: 11,
-                            color: isDark
-                                ? Colors.white70
-                                : const Color(0xFF64748B),
+                          // Tag Ví chính xác theo ví
+                          _buildWalletTag(tx, isDark),
+                          // Tag Vợ / Chồng
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: isHusband
+                                  ? (isDark
+                                      ? const Color(0xFF0284C7)
+                                          .withValues(alpha: 0.22)
+                                      : const Color(0xFFE0F2FE))
+                                  : (isDark
+                                      ? const Color(0xFFDB2777)
+                                          .withValues(alpha: 0.22)
+                                      : const Color(0xFFFCE7F3)),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              isHusband ? 'Chồng' : 'Vợ',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: isHusband
+                                    ? (isDark
+                                        ? const Color(0xFF38BDF8)
+                                        : const Color(0xFF0284C7))
+                                    : (isDark
+                                        ? const Color(0xFFF472B6)
+                                        : const Color(0xFFDB2777)),
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 3),
+                          if (isAi)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF005FEA)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.auto_awesome_rounded,
+                                      size: 9, color: Color(0xFF0284C7)),
+                                  SizedBox(width: 2),
+                                  Text(
+                                    'AI',
+                                    style: TextStyle(
+                                      color: Color(0xFF0284C7),
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           Text(
-                            tx.walletName ?? 'Ví chính',
+                            DateFormat('HH:mm').format(txDate),
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w600,
                               color: isDark
-                                  ? Colors.white70
-                                  : const Color(0xFF475569),
+                                  ? Colors.white54
+                                  : const Color(0xFF94A3B8),
                             ),
                           ),
                         ],
                       ),
-                      // Tag Vợ / Chồng
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: isHusband
-                              ? (isDark
-                                  ? const Color(0xFF0284C7)
-                                      .withValues(alpha: 0.22)
-                                  : const Color(0xFFE0F2FE))
-                              : (isDark
-                                  ? const Color(0xFFDB2777)
-                                      .withValues(alpha: 0.22)
-                                  : const Color(0xFFFCE7F3)),
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                        child: Text(
-                          isHusband ? 'Chồng' : 'Vợ',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: isHusband
-                                ? (isDark
-                                    ? const Color(0xFF38BDF8)
-                                    : const Color(0xFF0284C7))
-                                : (isDark
-                                    ? const Color(0xFFF472B6)
-                                    : const Color(0xFFDB2777)),
-                          ),
-                        ),
-                      ),
-                      if (isAi)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF005FEA).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.auto_awesome_rounded,
-                                  size: 9, color: Color(0xFF0284C7)),
-                              SizedBox(width: 2),
-                              Text(
-                                'AI',
-                                style: TextStyle(
-                                  color: Color(0xFF0284C7),
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      Text(
-                        DateFormat('HH:mm').format(txDate),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color:
-                              isDark ? Colors.white54 : const Color(0xFF94A3B8),
-                        ),
-                      ),
                     ],
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    prefix + Formatters.formatCurrency(tx.amount),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: color,
-                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isExpense
-                        ? const Color(0xFFDC2626)
-                            .withValues(alpha: isDark ? 0.20 : 0.08)
-                        : (isIncome
-                            ? const Color(0xFF059669)
-                                .withValues(alpha: isDark ? 0.20 : 0.08)
-                            : const Color(0xFF0284C7)
-                                .withValues(alpha: isDark ? 0.20 : 0.08)),
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(
-                      color: isExpense
-                          ? const Color(0xFFDC2626)
-                              .withValues(alpha: isDark ? 0.35 : 0.18)
-                          : (isIncome
-                              ? const Color(0xFF059669)
-                                  .withValues(alpha: isDark ? 0.35 : 0.18)
-                              : const Color(0xFF0284C7)
-                                  .withValues(alpha: isDark ? 0.35 : 0.18)),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 4.5,
-                        height: 4.5,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: color,
-                        ),
-                      ),
-                      const SizedBox(width: 3.5),
-                      Text(
-                        isExpense ? 'Đã chi' : (isIncome ? 'Thu về' : 'Chuyển'),
+                const SizedBox(width: 8),
+                // 3. Amount & Status Badge
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        prefix + Formatters.formatCurrency(tx.amount),
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
                           color: color,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isExpense
+                            ? const Color(0xFFDC2626)
+                                .withValues(alpha: isDark ? 0.20 : 0.08)
+                            : (isIncome
+                                ? const Color(0xFF059669)
+                                    .withValues(alpha: isDark ? 0.20 : 0.08)
+                                : const Color(0xFF0284C7)
+                                    .withValues(alpha: isDark ? 0.20 : 0.08)),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: isExpense
+                              ? const Color(0xFFDC2626)
+                                  .withValues(alpha: isDark ? 0.35 : 0.18)
+                              : (isIncome
+                                  ? const Color(0xFF059669)
+                                      .withValues(alpha: isDark ? 0.35 : 0.18)
+                                  : const Color(0xFF0284C7)
+                                      .withValues(alpha: isDark ? 0.35 : 0.18)),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 4.5,
+                            height: 4.5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: color,
+                            ),
+                          ),
+                          const SizedBox(width: 3.5),
+                          Text(
+                            isExpense
+                                ? 'Đã chi'
+                                : (isIncome ? 'Thu về' : 'Chuyển'),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildWalletTag(TransactionModel tx, bool isDark) {
+    final wallets = context.watch<TransactionProvider>().wallets;
+    final wId = tx.walletId ?? tx.fromWalletId;
+    final wName = tx.walletName ?? tx.fromWalletName;
+    final matchingWallet = wallets.cast<Wallet?>().firstWhere(
+          (w) =>
+              (wId?.isNotEmpty == true && w?.id == wId) ||
+              (wName?.isNotEmpty == true && w?.name == wName),
+          orElse: () => null,
+        );
+
+    final displayName = matchingWallet?.name ?? wName ?? 'Ví chính';
+    final rawBankCode = matchingWallet?.bankCode ?? matchingWallet?.type;
+
+    var effectiveCode = rawBankCode;
+    if (effectiveCode == null || effectiveCode.isEmpty) {
+      final clean =
+          displayName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (clean.contains('tietkiem') ||
+          clean.contains('tiếtkiệm') ||
+          clean.contains('mb')) {
+        effectiveCode = 'mbbank';
+      } else if (clean.contains('tcb') || clean.contains('techcom')) {
+        effectiveCode = 'tcb';
+      }
+    }
+
+    final brand = BankIconRegistry.resolve(
+      effectiveCode ?? matchingWallet?.bankName,
+      bankName: displayName,
+    );
+    final isCash = brand.code == 'cash' ||
+        displayName.toLowerCase().contains('tiền mặt') ||
+        displayName.toLowerCase().contains('tien mat');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF0F172A).withValues(alpha: 0.55)
+            : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF334155).withValues(alpha: 0.6)
+              : const Color(0xFFE2E8F0),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isCash)
+            const Text('💵', style: TextStyle(fontSize: 10.5))
+          else if (brand.assetPath != null)
+            ClipOval(
+              child: Image.asset(
+                brand.assetPath!,
+                width: 13,
+                height: 13,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.account_balance_wallet_rounded,
+                  size: 11,
+                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                ),
+              ),
+            )
+          else
+            Icon(
+              Icons.account_balance_wallet_rounded,
+              size: 11,
+              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+            ),
+          const SizedBox(width: 4),
+          Text(
+            displayName,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
+            ),
+          ),
+        ],
       ),
     );
   }
