@@ -15,6 +15,7 @@ import '../../core/design_system/app_colors.dart';
 import '../../core/design_system/app_spacing.dart';
 import '../../core/design_system/app_typography.dart';
 import '../../data/models/transaction.dart';
+import '../../data/models/wallet.dart';
 import '../../state/transaction_provider.dart';
 import '../../data/services/wallet_repository.dart';
 import 'add_transaction_page.dart';
@@ -862,27 +863,68 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
-  /// Groups transactions by date string (e.g. "Hôm nay • 01/09/2026")
+  /// Resolves the corresponding BankBrand for a transaction from its wallet/bank
+  BankBrand _resolveWalletBrand(TransactionModel tx, List<Wallet> wallets) {
+    final targetWalletId = tx.walletId ?? tx.fromWalletId ?? tx.creditCardId;
+    Wallet? matchingWallet;
+    if (targetWalletId != null && targetWalletId.isNotEmpty) {
+      matchingWallet = wallets.cast<Wallet?>().firstWhere(
+        (w) => w?.id == targetWalletId,
+        orElse: () => null,
+      );
+    }
+    if (matchingWallet == null && (tx.walletName != null || tx.fromWalletName != null)) {
+      final matchName = (tx.walletName ?? tx.fromWalletName)!.trim().toLowerCase();
+      matchingWallet = wallets.cast<Wallet?>().firstWhere(
+        (w) =>
+            w != null &&
+            (w.name.trim().toLowerCase() == matchName ||
+                (w.bankName != null &&
+                    w.bankName!.trim().toLowerCase() == matchName)),
+        orElse: () => null,
+      );
+    }
+
+    final code = matchingWallet?.bankCode;
+    final name = matchingWallet?.bankName ??
+        matchingWallet?.name ??
+        tx.walletName ??
+        tx.fromWalletName;
+    return BankIconRegistry.resolve(code, bankName: name);
+  }
+
+  /// Groups transactions by formatted date with Vietnamese weekday (e.g. "Hôm nay, Thứ Sáu • 21/08/2026")
   Map<String, List<TransactionModel>> _groupTransactions(
       List<TransactionModel> txs) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
+    const weekdays = [
+      'Thứ Hai',
+      'Thứ Ba',
+      'Thứ Tư',
+      'Thứ Năm',
+      'Thứ Sáu',
+      'Thứ Bảy',
+      'Chủ Nhật'
+    ];
+
     final map = <String, List<TransactionModel>>{};
     for (final tx in txs) {
       final d = _parseDate(tx.date);
       final dayStart = DateTime(d.year, d.month, d.day);
-
+      final weekdayStr = weekdays[d.weekday - 1];
       final dateStr =
           '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
       String header;
       if (dayStart == today) {
-        header = 'Hôm nay • $dateStr';
+        header = 'Hôm nay, $weekdayStr • $dateStr';
       } else if (dayStart == yesterday) {
-        header = 'Hôm qua • $dateStr';
+        header = 'Hôm qua, $weekdayStr • $dateStr';
       } else {
-        header = dateStr;
+        header = '$weekdayStr, $dateStr';
       }
 
       map.putIfAbsent(header, () => []).add(tx);
@@ -1173,13 +1215,16 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
-  /// Redesigned Spending Card — Finora Royal Blue & Sky Cyan Gradient (No Watermark)
+  /// Redesigned Spending Card — Luxury Finora Royal Blue, Sky Cyan & Midnight Navy (No Watermark)
   Widget _buildCompactSpendingCard({
     required int periodExpense,
     required int periodIncome,
     required String dateLabel,
     required bool isDark,
   }) {
+    final netCashflow = periodIncome - periodExpense;
+    final totalFlow = periodIncome + periodExpense;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1187,32 +1232,32 @@ class _TransactionScreenState extends State<TransactionScreen> {
           colors: [
             Color(0xFF0284C7), // Vibrant Sky Cyan
             Color(0xFF005FEA), // FINORA Royal Blue
-            Color(0xFF1E3A8A), // Deep Navy Sapphire
+            Color(0xFF0F2744), // Midnight Navy Sapphire
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.24),
+          color: Colors.white.withValues(alpha: 0.22),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF005FEA).withValues(alpha: 0.32),
-            blurRadius: 22,
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         child: Stack(
           children: [
             // Ambient decorative corner lights (NO submerged/watermark icon)
             Positioned(
               top: -30,
-              right: -30,
+              right: -20,
               child: Container(
                 width: 130,
                 height: 130,
@@ -1236,7 +1281,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             ),
 
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -1251,16 +1296,16 @@ class _TransactionScreenState extends State<TransactionScreen> {
                           Container(
                             padding: const EdgeInsets.all(5),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.20),
+                              color: Colors.white.withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
                               Icons.account_balance_wallet_rounded,
                               color: Color(0xFFFDE68A),
-                              size: 15,
+                              size: 14,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 7),
                           Text(
                             'TỔNG CHI TIÊU',
                             style: TextStyle(
@@ -1270,7 +1315,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                               letterSpacing: 0.6,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 7),
                           GestureDetector(
                             onTap: () {
                               HapticFeedback.lightImpact();
@@ -1331,19 +1376,73 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Main Amount (Total Expenses)
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _showBalances ? formatVND(periodExpense) : '*** đ',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 29,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.6,
+                  // Main Amount Row + Net cashflow badge
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _showBalances ? formatVND(periodExpense) : '*** đ',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.6,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      if (_showBalances && totalFlow > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: (netCashflow >= 0
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFEF4444))
+                                .withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: (netCashflow >= 0
+                                      ? const Color(0xFF6EE7B7)
+                                      : const Color(0xFFFCA5A5))
+                                  .withValues(alpha: 0.4),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                netCashflow >= 0
+                                    ? Icons.trending_up_rounded
+                                    : Icons.trending_down_rounded,
+                                size: 12,
+                                color: netCashflow >= 0
+                                    ? const Color(0xFF6EE7B7)
+                                    : const Color(0xFFFCA5A5),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                netCashflow >= 0
+                                    ? 'Dư +${formatVND(netCashflow)}'
+                                    : 'Âm -${formatVND(netCashflow.abs())}',
+                                style: TextStyle(
+                                  color: netCashflow >= 0
+                                      ? const Color(0xFF6EE7B7)
+                                      : const Color(0xFFFCA5A5),
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 12),
 
@@ -1387,7 +1486,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                       'Tổng thu vào',
                                       style: TextStyle(
                                         color: Colors.white
-                                            .withValues(alpha: 0.80),
+                                            .withValues(alpha: 0.82),
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -1451,7 +1550,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                                       'Tổng chi ra',
                                       style: TextStyle(
                                         color: Colors.white
-                                            .withValues(alpha: 0.80),
+                                            .withValues(alpha: 0.82),
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -1488,6 +1587,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
   }
 
   /// Unified Single-Row Search, Type Switcher & Filter Toolbar
+  /// Order: [ 6-type switcher ] [ 🔍 Search ] [ 👥 Member ] [ 🎚 Filter ]
   Widget _buildUnifiedToolbarRow({
     required bool isDark,
     required String? selectedType,
@@ -1582,14 +1682,14 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
 
-          // Quick Member Filter Button
+          // Quick Member Filter Button (Icon only - 40x40 circle)
           GestureDetector(
             onTap: _openOwnerFilterModal,
             child: Container(
+              width: 40,
               height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: (selectedMemberTag != null && selectedMemberTag != 'all')
                     ? (selectedMemberTag == 'wife'
@@ -1600,53 +1700,42 @@ class _TransactionScreenState extends State<TransactionScreen> {
                 border: Border.all(
                   color: (selectedMemberTag != null &&
                           selectedMemberTag != 'all')
-                      ? (selectedMemberTag == 'wife'
-                          ? const Color(0xFFDB2777)
-                          : const Color(0xFF0284C7))
-                      : (isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0)),
+                    ? (selectedMemberTag == 'wife'
+                        ? const Color(0xFFDB2777)
+                        : const Color(0xFF0284C7))
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
                   width: 1.2,
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    selectedMemberTag == 'wife'
-                        ? Icons.female_rounded
-                        : (selectedMemberTag == 'husband'
-                            ? Icons.male_rounded
-                            : Icons.people_alt_rounded),
-                    size: 16,
-                    color: selectedMemberTag == 'wife'
-                        ? const Color(0xFFDB2777)
-                        : (selectedMemberTag == 'husband'
-                            ? const Color(0xFF0284C7)
-                            : (isDark
-                                ? Colors.white70
-                                : const Color(0xFF64748B))),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    memberLabel,
-                    style: TextStyle(
-                      color: selectedMemberTag == 'wife'
-                          ? const Color(0xFFDB2777)
-                          : (selectedMemberTag == 'husband'
-                              ? const Color(0xFF0284C7)
-                              : (isDark
-                                  ? Colors.white
-                                  : const Color(0xFF334155))),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
+              child: Center(
+                child: Icon(
+                  selectedMemberTag == 'wife'
+                      ? Icons.female_rounded
+                      : (selectedMemberTag == 'husband'
+                          ? Icons.male_rounded
+                          : Icons.people_alt_rounded),
+                  size: 18,
+                  color: selectedMemberTag == 'wife'
+                      ? const Color(0xFFDB2777)
+                      : (selectedMemberTag == 'husband'
+                          ? const Color(0xFF0284C7)
+                          : (isDark
+                              ? Colors.white70
+                              : const Color(0xFF64748B))),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
 
           // Filter Button [ 🎚 ]
           GestureDetector(
@@ -1701,46 +1790,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
     return Row(
       children: [
-        // 1. Search Icon Button (taps to expand)
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            setState(() => _isSearchExpanded = true);
-          },
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(
-                color: provider.searchQuery.isNotEmpty
-                    ? const Color(0xFF005FEA)
-                    : (isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0)),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.search_rounded,
-              size: 19,
-              color: provider.searchQuery.isNotEmpty
-                  ? const Color(0xFF005FEA)
-                  : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-
-        // 2. Type Switcher [ Tất cả | Thu | Chi | Chuyển | Đầu tư | Trả thẻ ]
+        // 1. Type Switcher [ Tất cả | Thu | Chi | Chuyển | Đầu tư | Trả thẻ ]
         Expanded(
           child: Container(
             height: 40,
@@ -1810,12 +1860,51 @@ class _TransactionScreenState extends State<TransactionScreen> {
         ),
         const SizedBox(width: 6),
 
-        // 3. Quick Member Filter Button [ 👥 Vợ chồng / 👨 Chồng / 👩 Vợ ]
+        // 2. Search Icon Button (placed to the right of tabs)
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() => _isSearchExpanded = true);
+          },
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color: provider.searchQuery.isNotEmpty
+                    ? const Color(0xFF005FEA)
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.search_rounded,
+              size: 19,
+              color: provider.searchQuery.isNotEmpty
+                  ? const Color(0xFF005FEA)
+                  : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+
+        // 3. Member Filter Button [ 👥 / 👨 / 👩 ] (Icon only - 40x40 circle, no text)
         GestureDetector(
           onTap: _openOwnerFilterModal,
           child: Container(
+            width: 40,
             height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               color: (selectedMemberTag != null && selectedMemberTag != 'all')
                   ? (selectedMemberTag == 'wife'
@@ -1842,40 +1931,22 @@ class _TransactionScreenState extends State<TransactionScreen> {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  selectedMemberTag == 'wife'
-                      ? Icons.female_rounded
-                      : (selectedMemberTag == 'husband'
-                          ? Icons.male_rounded
-                          : Icons.people_alt_rounded),
-                  size: 16,
-                  color: selectedMemberTag == 'wife'
-                      ? const Color(0xFFDB2777)
-                      : (selectedMemberTag == 'husband'
-                          ? const Color(0xFF0284C7)
-                          : (isDark
-                              ? Colors.white70
-                              : const Color(0xFF64748B))),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  memberLabel,
-                  style: TextStyle(
-                    color: selectedMemberTag == 'wife'
-                        ? const Color(0xFFDB2777)
-                        : (selectedMemberTag == 'husband'
-                            ? const Color(0xFF0284C7)
-                            : (isDark
-                                ? Colors.white
-                                : const Color(0xFF334155))),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            child: Center(
+              child: Icon(
+                selectedMemberTag == 'wife'
+                    ? Icons.female_rounded
+                    : (selectedMemberTag == 'husband'
+                        ? Icons.male_rounded
+                        : Icons.people_alt_rounded),
+                size: 18,
+                color: selectedMemberTag == 'wife'
+                    ? const Color(0xFFDB2777)
+                    : (selectedMemberTag == 'husband'
+                        ? const Color(0xFF0284C7)
+                        : (isDark
+                            ? Colors.white70
+                            : const Color(0xFF64748B))),
+              ),
             ),
           ),
         ),
@@ -1990,78 +2061,131 @@ class _TransactionScreenState extends State<TransactionScreen> {
     required int dayExpense,
     required bool isDark,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    final isToday = headerText.startsWith('Hôm nay');
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF005FEA).withValues(alpha: 0.18)
-                      : const Color(0xFFE0F2FE),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
+          // Left: Calendar Day Pill Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+            decoration: BoxDecoration(
+              color: isToday
+                  ? (isDark
+                      ? const Color(0xFF005FEA).withValues(alpha: 0.22)
+                      : const Color(0xFFE0F2FE))
+                  : (isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9)),
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color: isToday
+                    ? const Color(0xFF005FEA).withValues(alpha: 0.35)
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
                   Icons.calendar_today_rounded,
                   size: 11,
-                  color: Color(0xFF005FEA),
+                  color: isToday
+                      ? const Color(0xFF005FEA)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                headerText,
-                style: TextStyle(
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
+                const SizedBox(width: 6),
+                Text(
+                  headerText,
+                  style: TextStyle(
+                    color: isToday
+                        ? const Color(0xFF005FEA)
+                        : (isDark ? Colors.white : const Color(0xFF1E293B)),
+                    fontSize: 12,
+                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+
+          // Right: Daily Inflow & Outflow Chips
           if (_showBalances && (dayIncome > 0 || dayExpense > 0))
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (dayIncome > 0)
                   Container(
-                    margin: const EdgeInsets.only(left: 4),
+                    margin: const EdgeInsets.only(left: 5),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6.5, vertical: 2),
+                        horizontal: 7, vertical: 2.5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF059669).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '+${formatVND(dayIncome)}',
-                      style: const TextStyle(
-                        color: Color(0xFF059669),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                      color: const Color(0xFF059669)
+                          .withValues(alpha: isDark ? 0.18 : 0.10),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: const Color(0xFF059669).withValues(alpha: 0.25),
+                        width: 0.8,
                       ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.arrow_downward_rounded,
+                          size: 10,
+                          color: Color(0xFF059669),
+                        ),
+                        const SizedBox(width: 2.5),
+                        Text(
+                          '+${formatVND(dayIncome)}',
+                          style: const TextStyle(
+                            color: Color(0xFF059669),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 if (dayExpense > 0)
                   Container(
-                    margin: const EdgeInsets.only(left: 4),
+                    margin: const EdgeInsets.only(left: 5),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6.5, vertical: 2),
+                        horizontal: 7, vertical: 2.5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDC2626).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '-${formatVND(dayExpense)}',
-                      style: const TextStyle(
-                        color: Color(0xFFDC2626),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                      color: const Color(0xFFDC2626)
+                          .withValues(alpha: isDark ? 0.18 : 0.10),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+                        width: 0.8,
                       ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.arrow_upward_rounded,
+                          size: 10,
+                          color: Color(0xFFDC2626),
+                        ),
+                        const SizedBox(width: 2.5),
+                        Text(
+                          '-${formatVND(dayExpense)}',
+                          style: const TextStyle(
+                            color: Color(0xFFDC2626),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -2084,7 +2208,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
     final sign = isInflow ? '+' : (isTransfer ? '' : '-');
     final amountColor = isTransfer
-        ? const Color(0xFF64748B)
+        ? const Color(0xFF0284C7)
         : (isInflow ? const Color(0xFF059669) : const Color(0xFFDC2626));
 
     final amountStr = _showBalances ? '$sign${formatVND(tx.amount)}' : '*** đ';
@@ -2104,8 +2228,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
         ? tx.categoryName!
         : (tx.categoryName ?? 'Giao dịch');
 
-    // Wallet tag name
+    // Wallet tag name & Bank brand resolution
     final walletName = tx.walletName ?? tx.fromWalletName ?? 'Ví';
+    final wallets = context.read<TransactionProvider>().wallets;
+    final walletBrand = _resolveWalletBrand(tx, wallets);
 
     // Member tag (Chồng or Vợ according to web)
     final isWife = tx.creatorTag == 'Vợ' ||
@@ -2197,14 +2323,68 @@ class _TransactionScreenState extends State<TransactionScreen> {
           ),
           child: Row(
             children: [
-              // Category Icon in circular badge
-              TransactionIconWidget(
-                type: tx.type,
-                categoryIcon: resolvedCategoryIcon,
-                categoryName: liveCategory?.name ?? tx.categoryName ?? tx.note,
-                categoryColor: resolvedCategoryColor,
-                merchantId: tx.merchantId,
-                size: 42,
+              // Category Icon with layered Bank/Wallet Logo Badge
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  TransactionIconWidget(
+                    type: tx.type,
+                    categoryIcon: resolvedCategoryIcon,
+                    categoryName:
+                        liveCategory?.name ?? tx.categoryName ?? tx.note,
+                    categoryColor: resolvedCategoryColor,
+                    merchantId: tx.merchantId,
+                    size: 42,
+                  ),
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: Container(
+                      width: 17,
+                      height: 17,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        border: Border.all(
+                          color:
+                              isDark ? const Color(0xFF1E293B) : Colors.white,
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(100),
+                        child: walletBrand.assetPath != null
+                            ? Image.asset(
+                                walletBrand.assetPath!,
+                                fit: BoxFit.cover,
+                              )
+                            : (walletBrand.code == 'cash'
+                                ? Container(
+                                    color: const Color(0xFF10B981),
+                                    child: const Icon(
+                                      Icons.payments_rounded,
+                                      size: 9,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Container(
+                                    color: const Color(0xFF005FEA),
+                                    child: const Icon(
+                                      Icons.account_balance_rounded,
+                                      size: 8.5,
+                                      color: Colors.white,
+                                    ),
+                                  )),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(width: 12),
 
@@ -2246,10 +2426,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       runSpacing: 3,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        // Wallet Tag Pill
+                        // Wallet Tag Pill with Bank / Wallet Logo
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6.5, vertical: 2),
+                              horizontal: 6.5, vertical: 2.5),
                           decoration: BoxDecoration(
                             color: isDark
                                 ? const Color(0xFF0C4A6E).withValues(alpha: 0.5)
@@ -2264,12 +2444,32 @@ class _TransactionScreenState extends State<TransactionScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.credit_card_rounded,
-                                size: 10,
-                                color: Color(0xFF005FEA),
-                              ),
-                              const SizedBox(width: 3.5),
+                              if (walletBrand.assetPath != null) ...[
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(100),
+                                  child: Image.asset(
+                                    walletBrand.assetPath!,
+                                    width: 11.5,
+                                    height: 11.5,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                const SizedBox(width: 3.5),
+                              ] else if (walletBrand.code == 'cash') ...[
+                                const Icon(
+                                  Icons.payments_rounded,
+                                  size: 11,
+                                  color: Color(0xFF059669),
+                                ),
+                                const SizedBox(width: 3.5),
+                              ] else ...[
+                                const Icon(
+                                  Icons.account_balance_rounded,
+                                  size: 10,
+                                  color: Color(0xFF005FEA),
+                                ),
+                                const SizedBox(width: 3.5),
+                              ],
                               Text(
                                 walletName,
                                 style: const TextStyle(
@@ -2366,42 +2566,44 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ),
               const SizedBox(width: 8),
 
-              // Amount Column
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              // Amount with Inflow / Outflow Arrow Icon Badge
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: isInflow
+                          ? const Color(0xFF059669)
+                              .withValues(alpha: isDark ? 0.25 : 0.12)
+                          : (isTransfer
+                              ? const Color(0xFF0284C7)
+                                  .withValues(alpha: isDark ? 0.25 : 0.12)
+                              : const Color(0xFFDC2626)
+                                  .withValues(alpha: isDark ? 0.25 : 0.12)),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isInflow
+                            ? Icons.arrow_downward_rounded
+                            : (isTransfer
+                                ? Icons.sync_alt_rounded
+                                : Icons.arrow_upward_rounded),
+                        size: 12,
+                        color: amountColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
                   Text(
                     amountStr,
                     style: TextStyle(
                       color: amountColor,
-                      fontSize: 15,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: isInflow
-                          ? const Color(0xFF059669)
-                              .withValues(alpha: isDark ? 0.20 : 0.08)
-                          : (isTransfer
-                              ? const Color(0xFF64748B)
-                                  .withValues(alpha: isDark ? 0.20 : 0.08)
-                              : const Color(0xFFDC2626)
-                                  .withValues(alpha: isDark ? 0.20 : 0.08)),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      isInflow
-                          ? 'thu về'
-                          : (isTransfer ? 'chuyển ví' : 'đã chi'),
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                        color: amountColor,
-                      ),
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ],
