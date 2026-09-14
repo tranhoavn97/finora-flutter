@@ -60,6 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedWealthTab = 0; // 0: Ví & Thẻ, 1: Đầu tư, 2: Cho vay
   DateTime _selectedDate = DateTime.now();
   final String _dateLabel = 'Hôm nay';
+  final ScrollController _recentTxScrollController = ScrollController();
 
   @override
   void initState() {
@@ -70,6 +71,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<MoreProvider>().load(widget.userId);
       context.read<BudgetProvider>().load(widget.userId);
     });
+  }
+
+  @override
+  void dispose() {
+    _recentTxScrollController.dispose();
+    super.dispose();
   }
 
   void _openDateFilter() async {
@@ -3624,7 +3631,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRecentTransactionsSection(
       List<TransactionModel> transactions, bool isDark) {
-    final displayList = transactions.take(8).toList();
+    final displayList = transactions.take(25).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3795,81 +3802,111 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           )
         else
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (int i = 0; i < displayList.length; i++) ...[
-                if (i == 0 ||
-                    DateFormat('dd/MM/yyyy')
-                            .format(_parseTxDate(displayList[i].date)) !=
-                        DateFormat('dd/MM/yyyy')
-                            .format(_parseTxDate(displayList[i - 1].date)))
-                  _buildTimelineDateHeader(
-                    _parseTxDate(displayList[i].date),
-                    isDark,
-                    isFirstDate: i == 0,
-                  ),
-                _buildTimelineTransactionItem(
-                  displayList[i],
-                  isDark,
-                  isLastOverall: i == displayList.length - 1,
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isDark
+                    ? const Color(0xFF334155).withValues(alpha: 0.8)
+                    : const Color(0xFFE2E8F0),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
                 ),
               ],
-              if (transactions.length > 8) ...[
-                Padding(
-                  padding: const EdgeInsets.only(left: 32, top: 4, bottom: 8),
-                  child: InkWell(
-                    onTap: () {
-                      if (widget.onViewAllTransactions != null) {
-                        widget.onViewAllTransactions!();
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(100),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF334155).withValues(alpha: 0.6)
-                              : const Color(0xFFE2E8F0),
-                          width: 1,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 520),
+                    child: RawScrollbar(
+                      controller: _recentTxScrollController,
+                      thumbVisibility: true,
+                      radius: const Radius.circular(10),
+                      thickness: 3.5,
+                      thumbColor: isDark
+                          ? const Color(0xFF475569).withValues(alpha: 0.6)
+                          : const Color(0xFF94A3B8).withValues(alpha: 0.5),
+                      child: SingleChildScrollView(
+                        controller: _recentTxScrollController,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(14, 16, 14, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (int i = 0; i < displayList.length; i++) ...[
+                              if (i == 0 ||
+                                  DateFormat('dd/MM/yyyy')
+                                          .format(_parseTxDate(displayList[i].date)) !=
+                                      DateFormat('dd/MM/yyyy')
+                                          .format(_parseTxDate(displayList[i - 1].date)))
+                                _buildTimelineDateHeader(
+                                  _parseTxDate(displayList[i].date),
+                                  isDark,
+                                  isFirstDate: i == 0,
+                                ),
+                              _buildTimelineTransactionItem(
+                                displayList[i],
+                                isDark,
+                                isLastOverall: i == displayList.length - 1,
+                              ),
+                            ],
+                          ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black
-                                .withValues(alpha: isDark ? 0.15 : 0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Xem tất cả ${transactions.length} giao dịch',
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF005FEA),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            CupertinoIcons.chevron_right,
-                            size: 14,
-                            color: Color(0xFF005FEA),
-                          ),
-                        ],
                       ),
                     ),
                   ),
-                ),
-              ],
-            ],
+                  if (transactions.length > 8) ...[
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFF1F5F9),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        if (widget.onViewAllTransactions != null) {
+                          widget.onViewAllTransactions!();
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Xem tất cả ${transactions.length} giao dịch',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF005FEA),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                CupertinoIcons.chevron_right,
+                                size: 14,
+                                color: Color(0xFF005FEA),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
       ],
     );
@@ -3880,108 +3917,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool isDark, {
     required bool isFirstDate,
   }) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 32,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Timeline vertical rail line through date header
-                Positioned(
-                  left: 15,
-                  top: isFirstDate ? 12 : 0,
-                  bottom: 0,
-                  width: 2,
-                  child: Container(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFCBD5E1),
-                  ),
-                ),
-                // Date milestone marker
-                Positioned(
-                  top: 6,
-                  left: 10,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF005FEA),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color:
-                            isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        width: 2.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              const Color(0xFF005FEA).withValues(alpha: 0.40),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!isFirstDate)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.only(left: 15),
+              width: 2,
+              height: 10,
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
             ),
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 2, bottom: 8),
+        Row(
+          children: [
+            Container(
+              width: 6,
+              height: 2,
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            ),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: const Color(0xFF005FEA)
+                      .withValues(alpha: isDark ? 0.6 : 0.4),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF005FEA)
+                        .withValues(alpha: isDark ? 0.25 : 0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 3.5),
-                    decoration: BoxDecoration(
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    size: 11,
+                    color: Color(0xFF005FEA),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    _formatRecentDateLabel(date),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
                       color: isDark
-                          ? const Color(0xFF1E293B)
-                          : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF334155).withValues(alpha: 0.7)
-                            : const Color(0xFFE2E8F0),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today_rounded,
-                          size: 11,
-                          color: isDark
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _formatRecentDateLabel(date),
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.1,
-                            color: isDark
-                                ? const Color(0xFFE2E8F0)
-                                : const Color(0xFF475569),
-                          ),
-                        ),
-                      ],
+                          ? const Color(0xFFE2E8F0)
+                          : const Color(0xFF1E293B),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                height: 1.5,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1),
+                      (isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1))
+                          .withValues(alpha: 0.1),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(left: 15),
+            width: 2,
+            height: 10,
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -4122,19 +4150,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark
-              ? const Color(0xFF334155).withValues(alpha: 0.7)
-              : const Color(0xFFF1F5F9),
-          width: 1.2,
+              ? const Color(0xFF334155).withValues(alpha: 0.8)
+              : const Color(0xFFE2E8F0),
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.035),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.025),
+            blurRadius: 6,
+            offset: const Offset(0, 1.5),
           ),
         ],
       ),
