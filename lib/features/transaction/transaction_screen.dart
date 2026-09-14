@@ -826,7 +826,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   ),
                   padding: const EdgeInsets.fromLTRB(14, 4, 14, 120),
                   children: [
-                    // 1. Compact Sleek Spending Card (Obsidian & Amethyst Glass)
+                    // 1. Hero Spending Overview Card (Finora Royal Blue & Sky Cyan - No Watermark)
                     _buildCompactSpendingCard(
                       periodExpense: periodExpense,
                       periodIncome: periodIncome,
@@ -835,12 +835,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 2. Pill Search Bar
-                    _buildPillSearchBar(isDark: isDark),
-                    const SizedBox(height: 10),
-
-                    // 3. Horizontal Filter Tabs Row
-                    _buildFilterTabsRow(
+                    // 2. Unified Single-Row Search, Type & Filter Toolbar
+                    _buildUnifiedToolbarRow(
                       isDark: isDark,
                       selectedType: selectedType,
                       memberLabel: memberLabel,
@@ -849,7 +845,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       selectedWalletId: selectedWalletId,
                       provider: provider,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
                     // 4. Grouped Transactions List
                     if (transactions.isEmpty)
@@ -969,7 +965,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
-  /// Compact, refined Spending Card — Liquid Glass Deep Obsidian
+  /// Redesigned Spending Card — Finora Royal Blue & Sky Cyan Gradient (No Watermark)
   Widget _buildCompactSpendingCard({
     required int periodExpense,
     required int periodIncome,
@@ -981,384 +977,310 @@ class _TransactionScreenState extends State<TransactionScreen> {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF0A192F), // Deep Royal Obsidian
-            Color(0xFF0F172A), // Slate Navy
+            Color(0xFF0284C7), // Vibrant Sky Cyan
+            Color(0xFF005FEA), // FINORA Royal Blue
+            Color(0xFF1E3A8A), // Deep Navy Sapphire
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
+          color: Colors.white.withValues(alpha: 0.24),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.28),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF005FEA).withValues(alpha: 0.32),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Corner ambient light
-          Positioned(
-            right: -20,
-            bottom: -20,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF005FEA).withValues(alpha: 0.22),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            // Ambient decorative corner lights (NO submerged/watermark icon)
+            Positioned(
+              top: -30,
+              right: -30,
+              child: Container(
+                width: 130,
+                height: 130,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
               ),
             ),
-          ),
-          // Subtle watermark
-          const Positioned(
-            right: 12,
-            top: 12,
-            child: Opacity(
-              opacity: 0.07,
-              child: Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 78,
-                color: Colors.white,
+            Positioned(
+              bottom: -40,
+              left: -10,
+              child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                ),
               ),
             ),
-          ),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top Row: Tag + Eye on left, Date Filter Pill on right
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4.5),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF005FEA).withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(7),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Top Row: Tag + Eye on left, Date Filter Pill on right
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.20),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Color(0xFFFDE68A),
+                              size: 15,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.account_balance_wallet_outlined,
-                            color: Color(0xFF93C5FD),
-                            size: 13,
+                          const SizedBox(width: 8),
+                          Text(
+                            'TỔNG CHI TIÊU',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 7),
-                        Text(
-                          'TỔNG CHI TIÊU',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            setState(() => _showBalances = !_showBalances);
-                          },
-                          child: MorphIcon(
-                            icon: _showBalances
-                                ? LucideIcons.eye
-                                : LucideIcons.eye_off,
-                            color: Colors.white.withValues(alpha: 0.85),
-                            size: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Quick period badge on right
-                    GestureDetector(
-                      onTap: _openDateFilterModal,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            width: 0.9,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.calendar_month_outlined,
-                              size: 12,
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              setState(() => _showBalances = !_showBalances);
+                            },
+                            child: MorphIcon(
+                              icon: _showBalances
+                                  ? LucideIcons.eye
+                                  : LucideIcons.eye_off,
                               color: Colors.white.withValues(alpha: 0.85),
+                              size: 15,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              dateLabel,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.95),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                          ),
+                        ],
+                      ),
+                      // Quick period badge on right
+                      GestureDetector(
+                        onTap: _openDateFilterModal,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.28),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.calendar_month_outlined,
+                                size: 12,
+                                color: Colors.white.withValues(alpha: 0.90),
                               ),
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 14,
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                dateLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 14,
+                                color: Colors.white.withValues(alpha: 0.80),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Main Amount (Total Expenses)
-                Text(
-                  _showBalances ? formatVND(periodExpense) : '*** đ',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.6,
+                    ],
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                // Bottom Dual-Badge Ribbon (Compact)
-                Row(
-                  children: [
-                    // Thu vào
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 7),
-                        decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF10B981).withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                const Color(0xFF10B981).withValues(alpha: 0.28),
-                            width: 0.9,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(3.5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981)
-                                    .withValues(alpha: 0.22),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.arrow_downward_rounded,
-                                size: 11,
-                                color: Color(0xFF34D399),
-                              ),
-                            ),
-                            const SizedBox(width: 7),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Thu vào',
-                                    style: TextStyle(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.68),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    _showBalances
-                                        ? '+${formatVND(periodIncome)}'
-                                        : '*** đ',
-                                    style: const TextStyle(
-                                      color: Color(0xFF6EE7B7),
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                  // Main Amount (Total Expenses)
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _showBalances ? formatVND(periodExpense) : '*** đ',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 29,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.6,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                  ),
+                  const SizedBox(height: 12),
 
-                    // Chi ra
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 7),
-                        decoration: BoxDecoration(
-                          color:
-                              const Color(0xFFEF4444).withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                const Color(0xFFEF4444).withValues(alpha: 0.28),
-                            width: 0.9,
+                  // Bottom Dual-Badge Ribbon (Compact Frosted Glass)
+                  Row(
+                    children: [
+                      // Thu vào
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 11, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.20),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981)
+                                      .withValues(alpha: 0.35),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_downward_rounded,
+                                  size: 11,
+                                  color: Color(0xFF6EE7B7),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Tổng thu vào',
+                                      style: TextStyle(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.80),
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _showBalances
+                                          ? '+${formatVND(periodIncome)}'
+                                          : '*** đ',
+                                      style: const TextStyle(
+                                        color: Color(0xFF6EE7B7),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(3.5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444)
-                                    .withValues(alpha: 0.22),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.arrow_upward_rounded,
-                                size: 11,
-                                color: Color(0xFFF87171),
-                              ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Chi ra
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 11, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.20),
+                              width: 0.8,
                             ),
-                            const SizedBox(width: 7),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Chi ra',
-                                    style: TextStyle(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.68),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    _showBalances
-                                        ? '-${formatVND(periodExpense)}'
-                                        : '*** đ',
-                                    style: const TextStyle(
-                                      color: Color(0xFFFCA5A5),
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444)
+                                      .withValues(alpha: 0.35),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_upward_rounded,
+                                  size: 11,
+                                  color: Color(0xFFFCA5A5),
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Tổng chi ra',
+                                      style: TextStyle(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.80),
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _showBalances
+                                          ? '-${formatVND(periodExpense)}'
+                                          : '*** đ',
+                                      style: const TextStyle(
+                                        color: Color(0xFFFCA5A5),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPillSearchBar({required bool isDark}) {
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(100),
-        border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-          width: 1.2,
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                fontSize: 13.5,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: const InputDecoration(
-                hintText: 'Tìm theo ghi chú, danh mục, ví...',
-                hintStyle: TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.normal,
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                filled: false,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-          if (_searchController.text.isNotEmpty)
-            GestureDetector(
-              onTap: () => _searchController.clear(),
-              child: const Padding(
-                padding: EdgeInsets.only(right: 6),
-                child: Icon(Icons.close_rounded,
-                    size: 17, color: Color(0xFF94A3B8)),
-              ),
-            ),
-          GestureDetector(
-            onTap: _openFilterSheet,
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF005FEA).withValues(alpha: 0.15)
-                    : const Color(0xFFE0F2FE),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.tune_rounded,
-                  color: Color(0xFF005FEA), size: 18),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildFilterTabsRow({
+  /// Unified Single-Row Search, Type Switcher & Filter Toolbar
+  Widget _buildUnifiedToolbarRow({
     required bool isDark,
     required String? selectedType,
     required String memberLabel,
@@ -1372,130 +1294,230 @@ class _TransactionScreenState extends State<TransactionScreen> {
         : selectedType == 'expense'
             ? 2
             : 0;
-    return Column(
+
+    final hasActiveFilter =
+        (selectedMemberTag != null && selectedMemberTag != 'all') ||
+            selectedWalletId != null ||
+            provider.selectedDateFilter != DateFilterOption.thisMonth;
+
+    return Row(
       children: [
-        BouncyPillTabs(
-          height: 38,
-          labels: const ['Tất cả', 'Thu', 'Chi'],
-          selectedIndex: typeIndex,
-          colors: const [
-            Color(0xFF475569),
-            Color(0xFF059669),
-            Color(0xFFE11D48)
-          ],
-          onChanged: (index) => provider.setSelectedType(
-            index == 1
-                ? 'income'
-                : index == 2
-                    ? 'expense'
-                    : null,
+        // 1. Search Bar (Expanded)
+        Expanded(
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 18,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'Tìm kiếm...',
+                      hintStyle: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.normal,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      filled: false,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                if (_searchController.text.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 16,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(children: [
-            _buildFilterChipPill(
-              label: provider.activeDateFilterLabel,
-              icon: Icons.calendar_month_rounded,
-              isActive:
-                  provider.selectedDateFilter != DateFilterOption.thisMonth,
-              isDark: isDark,
-              onTap: _openDateFilterModal,
+        const SizedBox(width: 8),
+
+        // 2. Type Switcher [ Tất cả | Thu | Chi ]
+        Container(
+          height: 40,
+          padding: const EdgeInsets.all(3.5),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              width: 1,
             ),
-            const SizedBox(width: 8),
-            _buildFilterChipPill(
-              label: memberLabel,
-              icon: Icons.people_alt_rounded,
-              isActive: selectedMemberTag != null && selectedMemberTag != 'all',
-              isDark: isDark,
-              onTap: _openOwnerFilterModal,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTypeItem(
+                label: 'Tất cả',
+                isSelected: typeIndex == 0,
+                selectedColor: const Color(0xFF005FEA),
+                isDark: isDark,
+                onTap: () => provider.setSelectedType(null),
+              ),
+              _buildTypeItem(
+                label: 'Thu',
+                isSelected: typeIndex == 1,
+                selectedColor: const Color(0xFF059669),
+                isDark: isDark,
+                onTap: () => provider.setSelectedType('income'),
+              ),
+              _buildTypeItem(
+                label: 'Chi',
+                isSelected: typeIndex == 2,
+                selectedColor: const Color(0xFFDC2626),
+                isDark: isDark,
+                onTap: () => provider.setSelectedType('expense'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // 3. Filter Button [ 🎚 ] with active indicator
+        GestureDetector(
+          onTap: _openFilterSheet,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: hasActiveFilter
+                  ? const Color(0xFF005FEA)
+                  : (isDark ? const Color(0xFF1E293B) : Colors.white),
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color: hasActiveFilter
+                    ? const Color(0xFF005FEA)
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: hasActiveFilter
+                      ? const Color(0xFF005FEA).withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            _buildFilterChipPill(
-              label: walletLabel,
-              icon: Icons.credit_card_rounded,
-              isActive: selectedWalletId != null,
-              isDark: isDark,
-              onTap: _openWalletFilterModal,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  color: hasActiveFilter
+                      ? Colors.white
+                      : (isDark ? Colors.white70 : const Color(0xFF005FEA)),
+                  size: 18,
+                ),
+                if (hasActiveFilter)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFBBF24), // Amber active dot
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(width: 8),
-            _buildFilterChipPill(
-              label: 'Bộ lọc',
-              icon: Icons.tune_rounded,
-              isActive: false,
-              isDark: isDark,
-              onTap: _openFilterSheet,
-            ),
-          ]),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildFilterChipPill({
+  Widget _buildTypeItem({
     required String label,
-    IconData? icon,
-    required bool isActive,
+    required bool isSelected,
+    required Color selectedColor,
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    // Luxury dark obsidian pill for active state
-    final activeColor =
-        isDark ? const Color(0xFF005FEA) : const Color(0xFF0F172A);
-
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6.5),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive
-              ? activeColor
-              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+          color: isSelected ? selectedColor : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
-          border: Border.all(
-            color: isActive
-                ? activeColor
-                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isActive
-                  ? activeColor.withValues(alpha: 0.2)
-                  : Colors.black.withValues(alpha: 0.02),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: selectedColor.withValues(alpha: 0.28),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 13.5,
-                color: isActive
-                    ? Colors.white
-                    : (isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B)),
-              ),
-              const SizedBox(width: 4.5),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive
-                    ? Colors.white
-                    : (isDark ? Colors.white : const Color(0xFF1E293B)),
-                fontSize: 12.5,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+          ),
         ),
       ),
     );
