@@ -939,49 +939,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildQuickActionsRow(bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildQuickActionItem(
-          label: 'Ghi chép',
-          icon: Icons.edit_calendar_rounded,
-          color: const Color(0xFF005FEA),
-          bgColor: const Color(0xFFE0F2FE),
-          isDark: isDark,
-          isHero: true,
-          onTap: () => _push(AddTransactionPage(userId: widget.userId)),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF334155).withValues(alpha: 0.8)
+              : const Color(0xFFE2E8F0),
+          width: 1.2,
         ),
-        _buildQuickActionItem(
-          label: 'Ví & Thẻ',
-          icon: Icons.account_balance_wallet_rounded,
-          color: const Color(0xFF0EA5E9),
-          bgColor: const Color(0xFFE0F2FE),
-          isDark: isDark,
-          onTap: () {
-            if (widget.onViewWallets != null) {
-              widget.onViewWallets!();
-            } else {
-              _push(WalletScreen(userId: widget.userId));
-            }
-          },
-        ),
-        _buildQuickActionItem(
-          label: 'Báo cáo',
-          icon: Icons.donut_large_rounded,
-          color: const Color(0xFFD97706),
-          bgColor: const Color(0xFFFEF3C7),
-          isDark: isDark,
-          onTap: () => _push(ReportScreen(userId: widget.userId)),
-        ),
-        _buildQuickActionItem(
-          label: 'AI Finora',
-          icon: Icons.auto_awesome_rounded,
-          color: const Color(0xFF10B981),
-          bgColor: const Color(0xFFD1FAE5),
-          isDark: isDark,
-          onTap: () => _push(AiAdvisorScreen(userId: widget.userId)),
-        ),
-      ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+          if (!isDark)
+            BoxShadow(
+              color: const Color(0xFF005FEA).withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildQuickActionItem(
+              label: 'Ghi chép',
+              icon: Icons.edit_calendar_rounded,
+              color: const Color(0xFF005FEA),
+              bgColor: const Color(0xFFE0F2FE),
+              isDark: isDark,
+              isHero: true,
+              onTap: () => _push(AddTransactionPage(userId: widget.userId)),
+            ),
+          ),
+          _buildDockDivider(isDark),
+          Expanded(
+            child: _buildQuickActionItem(
+              label: 'Ví & Thẻ',
+              icon: Icons.account_balance_wallet_rounded,
+              color: const Color(0xFF0EA5E9),
+              bgColor: const Color(0xFFE0F2FE),
+              isDark: isDark,
+              onTap: () {
+                if (widget.onViewWallets != null) {
+                  widget.onViewWallets!();
+                } else {
+                  _push(WalletScreen(userId: widget.userId));
+                }
+              },
+            ),
+          ),
+          _buildDockDivider(isDark),
+          Expanded(
+            child: _buildQuickActionItem(
+              label: 'Báo cáo',
+              icon: Icons.donut_large_rounded,
+              color: const Color(0xFFD97706),
+              bgColor: const Color(0xFFFEF3C7),
+              isDark: isDark,
+              onTap: () => _push(ReportScreen(userId: widget.userId)),
+            ),
+          ),
+          _buildDockDivider(isDark),
+          Expanded(
+            child: _buildQuickActionItem(
+              label: 'AI Finora',
+              icon: Icons.auto_awesome_rounded,
+              color: const Color(0xFF10B981),
+              bgColor: const Color(0xFFD1FAE5),
+              isDark: isDark,
+              onTap: () => _push(AiAdvisorScreen(userId: widget.userId)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDockDivider(bool isDark) {
+    return Container(
+      width: 1,
+      height: 28,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF334155).withValues(alpha: 0.6)
+            : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(1),
+      ),
     );
   }
 
@@ -4653,6 +4703,7 @@ class _QuickActionItemWidget extends StatefulWidget {
 
 class _QuickActionItemWidgetState extends State<_QuickActionItemWidget> {
   bool _isPressed = false;
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -4660,112 +4711,133 @@ class _QuickActionItemWidgetState extends State<_QuickActionItemWidget> {
     final color = widget.color;
     final isHero = widget.isHero;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
-        HapticFeedback.lightImpact();
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _isPressed = false),
-      child: AnimatedScale(
-        scale: _isPressed ? 0.92 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOutCubic,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    isDark
-                        ? color.withValues(alpha: isHero ? 0.38 : 0.26)
-                        : (isHero
-                            ? const Color(0xFFE0F2FE)
-                            : widget.bgColor.withValues(alpha: 0.95)),
-                    isDark ? const Color(0xFF1E293B) : Colors.white,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(19),
-                border: Border.all(
-                  color: isDark
-                      ? color.withValues(alpha: isHero ? 0.55 : 0.32)
-                      : (isHero
-                          ? color.withValues(alpha: 0.40)
-                          : color.withValues(alpha: 0.20)),
-                  width: isHero ? 1.8 : 1.4,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withValues(
-                        alpha: isDark
-                            ? (isHero ? 0.30 : 0.18)
-                            : (isHero ? 0.24 : 0.12)),
-                    blurRadius: isHero ? 14 : 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Subtle top light sheen
-                  Positioned(
-                    top: 2,
-                    left: 6,
-                    right: 6,
-                    height: 1.5,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color:
-                            Colors.white.withValues(alpha: isDark ? 0.25 : 0.6),
-                        borderRadius: BorderRadius.circular(1),
-                      ),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) {
+          setState(() => _isPressed = false);
+          HapticFeedback.lightImpact();
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: AnimatedScale(
+          scale: _isPressed ? 0.90 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOutCubic,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? (isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : const Color(0xFFF8FAFC))
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        isDark
+                            ? color.withValues(alpha: isHero ? 0.35 : 0.25)
+                            : (isHero
+                                ? const Color(0xFFE0F2FE)
+                                : widget.bgColor.withValues(alpha: 0.95)),
+                        isDark ? const Color(0xFF1E293B) : Colors.white,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: isDark
+                          ? color.withValues(alpha: isHero ? 0.50 : 0.30)
+                          : (isHero
+                              ? color.withValues(alpha: 0.35)
+                              : color.withValues(alpha: 0.20)),
+                      width: isHero ? 1.5 : 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(
+                            alpha: isDark
+                                ? (isHero ? 0.25 : 0.14)
+                                : (isHero ? 0.20 : 0.10)),
+                        blurRadius: isHero ? 10 : 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  Icon(
-                    widget.icon,
-                    color: isDark ? (isHero ? Colors.white : color) : color,
-                    size: 26,
-                  ),
-                  if (isHero)
-                    Positioned(
-                      top: 7,
-                      right: 7,
-                      child: Container(
-                        width: 6.5,
-                        height: 6.5,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF005FEA),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color:
-                                isDark ? const Color(0xFF1E293B) : Colors.white,
-                            width: 1.2,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Subtle top light sheen
+                      Positioned(
+                        top: 2,
+                        left: 5,
+                        right: 5,
+                        height: 1.5,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white
+                                .withValues(alpha: isDark ? 0.20 : 0.55),
+                            borderRadius: BorderRadius.circular(1),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      Icon(
+                        widget.icon,
+                        color: isDark ? (isHero ? Colors.white : color) : color,
+                        size: 22,
+                      ),
+                      if (isHero)
+                        Positioned(
+                          top: 5.5,
+                          right: 5.5,
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF005FEA),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white,
+                                width: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  widget.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: isHero ? FontWeight.w800 : FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isHero ? FontWeight.w800 : FontWeight.w700,
-                color: isDark ? Colors.white : const Color(0xFF1E293B),
-                letterSpacing: -0.2,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
