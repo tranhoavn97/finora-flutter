@@ -5,9 +5,9 @@ final NumberFormat _vnd = NumberFormat('#,##0', 'vi_VN');
 String formatVND(int amount) => '${_vnd.format(amount)} ₫';
 
 class Formatters {
-  static String currency(num amount) => _vnd.format(amount);
-  static String formatCurrency(num amount) => '${_vnd.format(amount)} đ';
-  static String date(DateTime date) => DateFormat('dd/MM/yyyy').format(date);
+  static String formatCurrency(num amount) {
+    return '${_vnd.format(amount.toInt())} đ';
+  }
 }
 
 /// Mirrors CategoryIconHelper.resolveIcon — maps icon names to emoji.
@@ -25,6 +25,10 @@ class CategoryIconHelper {
     'trending-down': '📉',
     'receipt': '🧾',
     'shopping-bag': '🛍️',
+    'badge-percent': '🏷️',
+    'party-popper': '🎉',
+    'construction': '🚧',
+    'youtube': '▶️',
     'gift': '🎁',
     'shield': '🛡️',
     'repeat': '🔄',
@@ -124,25 +128,56 @@ class CategoryIconHelper {
     'eye': '👁️',
     'mail': '✉️',
     'map-pin': '📍',
-    // Remaining IDs from the web `CATEGORY_LUCIDE_ICONS` registry. Keeping
-    // these keys exhaustive prevents valid web icons falling back to “Khác”.
-    'smile': '😊',
-    'syringe': '💉',
+    'film': '🎬',
+    'video': '📹',
     'anchor': '⚓',
-    'badge-percent': '🏷️',
     'compass': '🧭',
     'crown': '👑',
     'fish': '🐟',
     'ghost': '👻',
     'glasses': '👓',
     'hard-hat': '⛑️',
-    'image': '🖼️',
     'palette': '🎨',
-    'party-popper': '🎉',
     'tent': '⛺',
-    'video': '🎥',
-    'youtube': '▶️',
-    'construction': '🚧',
+    'smile': '😊',
+    'syringe': '💉',
+    // Brands matching web constants/brandIcons.ts
+    'brand-shopee': '🛍️', 'shopee': '🛍️',
+    'brand-tiktok': '📱', 'tiktok': '📱',
+    'brand-lazada': '🛍️', 'lazada': '🛍️',
+    'brand-winmart': '🏪', 'winmart': '🏪',
+    'brand-grab': '🚗', 'grab': '🚗',
+    'brand-netflix': '📺', 'netflix': '📺',
+    'brand-spotify': '🎵', 'spotify': '🎵',
+    'brand-tiki': '📦', 'tiki': '📦',
+    // E-Wallets & Banks matching web constants/banks.ts
+    'bank-momo': '👛', 'momo': '👛',
+    'bank-zalo': '💬', 'zalo': '💬', 'zalopay': '💬',
+    'bank-vnpay': '💳', 'vnpay': '💳',
+    'bank-shopeepay': '🛍️', 'shopeepay': '🛍️',
+    'bank-viettelmoney': '📱', 'viettelmoney': '📱',
+    'bank-vnptmoney': '📱', 'vnptmoney': '📱', 'vnpt': '📱',
+    'bank-vcb': '🏦', 'vcb': '🏦', 'vietcombank': '🏦',
+    'bank-mbbank': '🏦', 'mbbank': '🏦', 'mb': '🏦',
+    'bank-tcb': '🏦', 'tcb': '🏦', 'techcombank': '🏦',
+    'bank-bidv': '🏦', 'bidv': '🏦',
+    'bank-vtb': '🏦', 'vtb': '🏦', 'vietinbank': '🏦', 'ctg': '🏦',
+    'bank-acb': '🏦', 'acb': '🏦',
+    'bank-vpb': '🏦', 'vpb': '🏦', 'vpbank': '🏦',
+    'bank-tpb': '🏦', 'tpb': '🏦', 'tpbank': '🏦',
+    'bank-stb': '🏦', 'stb': '🏦', 'sacombank': '🏦',
+    'bank-shb': '🏦', 'shb': '🏦',
+    'bank-hdb': '🏦', 'hdb': '🏦', 'hdbank': '🏦',
+    'bank-vib': '🏦', 'vib': '🏦',
+    'bank-msb': '🏦', 'msb': '🏦',
+    'bank-ocb': '🏦', 'ocb': '🏦',
+    'bank-sea': '🏦', 'sea': '🏦', 'seabank': '🏦',
+    'bank-eib': '🏦', 'eib': '🏦', 'eximbank': '🏦',
+    'bank-agri': '🏦', 'agri': '🏦', 'agribank': '🏦',
+    'bank-cake': '🧁',
+    'bank-timo': '🏦', 'timo': '🏦',
+    'bank-cash': '💵', 'cash': '💵', 'tienmat': '💵',
+    // Aliases
     'wa': '💳', 'cr': '💳', 'ba': '💵', 'pi': '🐷', 'ch': '📊', 'ta': '🎯',
     'br': '💼', 'la': '🏦', 'tr': '📈', 're': '🧾', 'sh': '🛍️', 'gi': '🎁',
     'mo': '💬', 'ut': '🍲', 'ca': '🚗', 'ho': '🏠', 'ga': '🎮', 'he': '❤️',
@@ -150,89 +185,162 @@ class CategoryIconHelper {
     'se': '🔍', 'sp': '✨', 'ar': '🔄', 'ha': '🫱🪙', 'ac': '📈', 'it': '🏆',
   };
 
-  static String resolveIcon(String? iconStr) {
-    if (iconStr == null || iconStr.trim().isEmpty) return '💸';
-    final clean = iconStr.trim();
-    final lower = clean.toLowerCase();
-    final mapped = _iconMap[lower];
-    if (mapped != null) return mapped;
+  static String? getAssetPath(String? iconStr) {
+    if (iconStr == null || iconStr.trim().isEmpty) return null;
+    var clean = iconStr.trim().toLowerCase();
+    if (clean.startsWith('bank-')) clean = clean.substring(5);
+    if (clean.startsWith('brand-')) clean = clean.substring(6);
 
-    // Firestore may contain a category name instead of the web icon key.
-    // Resolve names rather than rendering the raw text inside an icon badge.
-    const nameFallbacks = <String, String>{
-      'ăn': '🍜',
-      'food': '🍜',
-      'cafe': '☕',
-      'cà phê': '☕',
-      'mua': '🛍️',
-      'shop': '🛍️',
-      'nhà': '🏠',
-      'điện': '⚡',
-      'nước': '💧',
-      'xăng': '⛽',
-      'xe': '🚗',
-      'di chuyển': '🚗',
-      'giải trí': '🎮',
-      'sức khỏe': '❤️',
-      'y tế': '🩺',
-      'giáo dục': '🎓',
-      'lương': '💵',
-      'thưởng': '🎁',
-      'đầu tư': '📈',
-      'bảo hiểm': '🛡️',
-      'tiết kiệm': '🐷',
-      'hóa đơn': '🧾',
-      'chuyển tiền': '🔄',
+    const assetMap = {
+      'vcb': 'assets/banks/vcb.jpg',
+      'vietcombank': 'assets/banks/vcb.jpg',
+      'tcb': 'assets/banks/tcb.jpg',
+      'techcombank': 'assets/banks/tcb.jpg',
+      'mb': 'assets/banks/mbbank.jpg',
+      'mbbank': 'assets/banks/mbbank.jpg',
+      'vpb': 'assets/banks/vpb.jpg',
+      'vpbank': 'assets/banks/vpb.jpg',
+      'acb': 'assets/banks/acb.jpg',
+      'tpb': 'assets/banks/tpb.jpg',
+      'tpbank': 'assets/banks/tpb.jpg',
+      'bidv': 'assets/banks/bidv.jpg',
+      'ctg': 'assets/banks/vtb.jpg',
+      'vtb': 'assets/banks/vtb.jpg',
+      'vietinbank': 'assets/banks/vtb.jpg',
+      'vib': 'assets/banks/vib.jpg',
+      'stb': 'assets/banks/stb.jpg',
+      'sacombank': 'assets/banks/stb.jpg',
+      'shb': 'assets/banks/shb.jpg',
+      'hdb': 'assets/banks/hdb.jpg',
+      'hdbank': 'assets/banks/hdb.jpg',
+      'msb': 'assets/banks/msb.jpg',
+      'ocb': 'assets/banks/ocb.jpg',
+      'sea': 'assets/banks/sea.jpg',
+      'seabank': 'assets/banks/sea.jpg',
+      'eib': 'assets/banks/eib.jpg',
+      'eximbank': 'assets/banks/eib.jpg',
+      'agri': 'assets/banks/agri.jpg',
+      'agribank': 'assets/banks/agri.jpg',
+      'cake': 'assets/banks/cake.jpg',
+      'timo': 'assets/banks/timo.jpg',
+      'momo': 'assets/banks/momo.jpg',
+      'zalo': 'assets/banks/zalo.jpg',
+      'zalopay': 'assets/banks/zalo.jpg',
+      'vnpay': 'assets/banks/vnpay.jpg',
+      'shopeepay': 'assets/banks/shopeepay.jpg',
+      'viettelmoney': 'assets/banks/viettelmoney.jpg',
+      'vnptmoney': 'assets/banks/vnptmoney.jpg',
+      'shopee': 'assets/banks/shopee.jpg',
+      'lazada': 'assets/banks/lazada.jpg',
+      'tiktok': 'assets/banks/tiktok.jpg',
+      'winmart': 'assets/banks/winmart.png',
     };
-    for (final entry in nameFallbacks.entries) {
-      if (lower.contains(entry.key)) return entry.value;
+
+    return assetMap[clean];
+  }
+
+  static String resolveIcon(String? iconStr, [String? categoryName]) {
+    if (iconStr != null && iconStr.trim().isNotEmpty) {
+      final clean = iconStr.trim();
+      final lower = clean.toLowerCase();
+
+      // If iconStr is an image URL or storage path, NEVER return the URL string as an emoji!
+      if (lower.startsWith('http://') ||
+          lower.startsWith('https://') ||
+          lower.startsWith('//') ||
+          lower.contains('/storage/') ||
+          lower.startsWith('data:image')) {
+        // Fall through to keyword fallback below
+      } else {
+        var mapped = _iconMap[lower];
+        if (mapped != null) return mapped;
+
+        if (lower.startsWith('bank-')) {
+          mapped = _iconMap[lower.substring(5)];
+          if (mapped != null) return mapped;
+        }
+        if (lower.startsWith('brand-')) {
+          mapped = _iconMap[lower.substring(6)];
+          if (mapped != null) return mapped;
+        }
+
+        final lucideIdRegex = RegExp(r'^[a-z0-9_-]+$');
+        if (!lucideIdRegex.hasMatch(lower)) {
+          return clean;
+        }
+      }
     }
 
-    // Preserve a real emoji, but reject object strings, URLs and ordinary text.
-    final hasEmojiLikeRune = clean.runes.any((rune) => rune > 0x2000);
-    if (hasEmojiLikeRune &&
-        !clean.startsWith('{') &&
-        !lower.startsWith('http')) {
-      return clean;
+    // Fallback resolving by category or note name keywords
+    if (categoryName != null && categoryName.trim().isNotEmpty) {
+      final lowerName = categoryName.trim().toLowerCase();
+      if (lowerName.contains('shopee')) return '🛍️';
+      if (lowerName.contains('momo')) return '👛';
+      if (lowerName.contains('zalo')) return '💬';
+      if (lowerName.contains('cà phê') ||
+          lowerName.contains('cafe') ||
+          lowerName.contains('trà')) return '☕';
+      if (lowerName.contains('ăn') ||
+          lowerName.contains('cơm') ||
+          lowerName.contains('phở') ||
+          lowerName.contains('bún')) return '🍜';
+      if (lowerName.contains('chợ') ||
+          lowerName.contains('rau') ||
+          lowerName.contains('siêu thị')) return '🥦';
+      if (lowerName.contains('mua sắm') ||
+          lowerName.contains('shopping') ||
+          lowerName.contains('lazada') ||
+          lowerName.contains('tiki')) return '🛍️';
+      if (lowerName.contains('nhà ở') ||
+          lowerName.contains('tiền nhà') ||
+          lowerName.contains('phòng')) return '🏠';
+      if (lowerName.contains('xăng') || lowerName.contains('đổ xăng'))
+        return '⛽';
+      if (lowerName.contains('đi lại') ||
+          lowerName.contains('di chuyển') ||
+          lowerName.contains('xe') ||
+          lowerName.contains('grab')) return '🛵';
+      if (lowerName.contains('điện') ||
+          lowerName.contains('nước') ||
+          lowerName.contains('hóa đơn')) return '⚡';
+      if (lowerName.contains('thuốc') ||
+          lowerName.contains('sức khỏe') ||
+          lowerName.contains('khám')) return '💊';
+      if (lowerName.contains('học') ||
+          lowerName.contains('giáo dục') ||
+          lowerName.contains('sách')) return '🎓';
+      if (lowerName.contains('game') ||
+          lowerName.contains('chơi') ||
+          lowerName.contains('giải trí')) return '🎮';
+      if (lowerName.contains('lương') ||
+          lowerName.contains('thưởng') ||
+          lowerName.contains('thu nhập')) return '💰';
+      if (lowerName.contains('cho vay') || lowerName.contains('vay'))
+        return '🪙';
+      if (lowerName.contains('trả nợ') || lowerName.contains('nợ')) return '🧾';
+      if (lowerName.contains('khác')) return '💳';
     }
+
     return '💸';
   }
 
-  /// Resolves system transactions before falling back to the category icon.
-  /// Web records often store a generic category for transfers, loans and card
-  /// repayments, so category-only rendering produces the wrong icon.
   static String resolveTransactionIcon({
-    String? transactionType,
+    required String transactionType,
     String? categoryIcon,
     String? categoryName,
     String? note,
   }) {
-    final haystack = [transactionType, categoryName, note]
-        .whereType<String>()
-        .join(' ')
-        .toLowerCase();
-    if (haystack.contains('credit_card_payment') ||
-        haystack.contains('thanh toán thẻ')) return '💳';
-    if (haystack.contains('loan_repayment_received') ||
-        haystack.contains('thu nợ')) return '🪙';
-    if (haystack.contains('debt_repayment') ||
-        haystack.contains('loan_repayment_sent') ||
-        haystack.contains('trả nợ')) return '🧾';
-    if (haystack.contains('borrowing') || haystack.contains('vay nợ')) {
-      return '🤝';
+    switch (transactionType) {
+      case 'transfer':
+        return '⇄';
+      case 'credit_card_payment':
+        return '💳';
+      case 'loan_repayment_received':
+        return '🪙';
+      case 'debt_repayment_paid':
+        return '🧾';
+      default:
+        return resolveIcon(categoryIcon, categoryName ?? note);
     }
-    if (haystack.contains('lending') ||
-        haystack.contains('cho vay') ||
-        transactionType == 'loan') return '🪙';
-    if (haystack.contains('transfer') || haystack.contains('chuyển tiền')) {
-      return '⇄';
-    }
-    if (haystack.contains('investment') || haystack.contains('đầu tư')) {
-      return '📈';
-    }
-    if (haystack.contains('saving') || haystack.contains('tiết kiệm')) {
-      return '🐷';
-    }
-    return resolveIcon(categoryIcon ?? categoryName);
   }
 }
