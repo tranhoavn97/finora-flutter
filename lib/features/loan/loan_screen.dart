@@ -3,12 +3,15 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design_system/app_colors.dart';
+import '../../core/widgets/finora_summary_card.dart';
 import '../../core/design_system/v8/finora_v8.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/finance_models.dart';
 import '../../state/more_provider.dart';
 import '../../state/wallet_provider.dart';
+import '../../state/theme_studio_controller.dart';
+import '../../core/widgets/finora_motion.dart';
 
 class LoanScreen extends StatefulWidget {
   final String userId;
@@ -54,7 +57,7 @@ class _LoanScreenState extends State<LoanScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: Text(
               '${loan.type == 'lent' ? 'Thu hồi nợ' : 'Trả nợ'}: ${loan.personName}'),
           content: Column(
@@ -152,20 +155,39 @@ class _LoanScreenState extends State<LoanScreen> {
     final displayTotal = totalRemaining;
     final totalPaid = filtered.fold<int>(0, (s, l) => s + l.paidAmount);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: AmbientFloatingBackground(
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              FinoraPageHeader(
-                title: 'Khoản vay & Sổ nợ',
-                onBack: () => Navigator.pop(context),
+    return GlassScaffold(
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: 'Khoản vay & Sổ nợ',
+        showBottomDivider: false,
+        onBack: () => Navigator.pop(context),
+        actions: const [],
+      ),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                GlassScaffold.topInset(context, 8),
+                16,
+                8,
               ),
-              const SizedBox(height: 14),
-
-              BouncyPillTabs(
+              child: _buildLoanSummaryCard(
+                isLent: isLent,
+                filteredCount: filtered.length,
+                displayTotal: displayTotal,
+                totalPaid: totalPaid,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+              child: BouncyPillTabs(
                 labels: const ['Cho vay', 'Vay nợ'],
                 selectedIndex: _activeTab == 'lent' ? 0 : 1,
                 colors: const [Color(0xFF059669), Color(0xFFDC2626)],
@@ -173,184 +195,116 @@ class _LoanScreenState extends State<LoanScreen> {
                 onChanged: (i) => setState(
                     () => _activeTab = i == 0 ? 'lent' : 'borrowed'),
               ),
-              const SizedBox(height: 16),
-
-              // 3. Hero Emerald Card: "TỔNG CẦN THU VỀ" (Matching Screenshot)
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    colors: isLent
-                        ? const [Color(0xFF059669), Color(0xFF10B981)]
-                        : const [Color(0xFFDC2626), Color(0xFFEF4444)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isLent
-                              ? const Color(0xFF059669)
-                              : const Color(0xFFDC2626))
-                          .withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          isLent ? 'TỔNG CẦN THU VỀ' : 'TỔNG CẦN TRẢ ĐI',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${filtered.length} ${isLent ? 'khoản cho vay' : 'khoản vay nợ'}',
-                            style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${NumberFormat('#,##0', 'vi_VN').format(displayTotal)} đ',
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${isLent ? 'Đã thu' : 'Đã trả'}: ${NumberFormat('#,##0', 'vi_VN').format(totalPaid)} đ',
-                            style: const TextStyle(
-                                fontSize: 12.5,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500),
-                          ),
-                          Text(
-                            'Còn lại: ${NumberFormat('#,##0', 'vi_VN').format(displayTotal)} đ',
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-
-              // 4. Section: DANH SÁCH CHO VAY
-              // 4. Section: DANH SÁCH CHO VAY + "+ Thêm" button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${isLent ? "DANH SÁCH CHO VAY" : "DANH SÁCH VAY NỢ"} (${filtered.length})',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: secondaryTextColor,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  FinoraButton(
-                    onPressed: _openAdd,
-                    variant: FinoraButtonVariant.compact,
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add_rounded),
-                        SizedBox(width: FinoraV8Space.x1),
-                        Text('Thêm'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Loan Items List
-              if (filtered.isEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Column(children: [
-                    Icon(Icons.handshake_outlined,
-                        size: 36,
-                        color: isLent
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFFEF4444)),
-                    const SizedBox(height: 10),
-                    Text(
-                      isLent
-                          ? 'Chưa có khoản cho vay'
-                          : 'Bạn chưa có khoản vay nợ',
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 8),
-                    FinoraButton(
-                      onPressed: _openAdd,
-                      variant: FinoraButtonVariant.compact,
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add_rounded),
-                          SizedBox(width: FinoraV8Space.x1),
-                          Text('Thêm khoản mới'),
-                        ],
-                      ),
-                    ),
-                  ]),
-                ),
-              ] else ...[
-                for (final loan in filtered) _loanCard(loan, isDark),
-              ],
-            ],
+            ),
           ),
-        ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // 4. Section: DANH SÁCH CHO VAY + "+ Thêm" button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${isLent ? "DANH SÁCH CHO VAY" : "DANH SÁCH VAY NỢ"} (${filtered.length})',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: secondaryTextColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    FinoraAddButton(
+                      onPressed: _openAdd,
+                      tooltip: 'Thêm khoản vay',
+                      size: 34,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Loan Items List
+                if (filtered.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+                          .withValues(
+                              alpha: context
+                                  .watch<ThemeStudioController>()
+                                  .glassOpacity),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Column(children: [
+                      Icon(Icons.handshake_outlined,
+                          size: 36,
+                          color: isLent
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444)),
+                      const SizedBox(height: 10),
+                      Text(
+                        isLent
+                            ? 'Chưa có khoản cho vay'
+                            : 'Bạn chưa có khoản vay nợ',
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      FinoraButton(
+                        onPressed: _openAdd,
+                        variant: FinoraButtonVariant.compact,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_rounded),
+                            SizedBox(width: FinoraV8Space.x1),
+                            Text('Thêm khoản mới'),
+                          ],
+                        ),
+                      ),
+                    ]),
+                  )
+                else
+                  for (int i = 0; i < filtered.length; i++)
+                    FinoraStaggeredItem(
+                      index: i,
+                      child: _loanCard(filtered[i], isDark),
+                    ),
+              ]),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildLoanSummaryCard({
+    required bool isLent,
+    required int filteredCount,
+    required int displayTotal,
+    required int totalPaid,
+  }) {
+    final accent = isLent ? const Color(0xFF34C759) : const Color(0xFFFF9500);
+    return FinoraSummaryCard(
+      title: isLent ? 'TỔNG CẦN THU VỀ' : 'TỔNG CẦN TRẢ ĐI',
+      amount: displayTotal,
+      icon: isLent ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+      accent: accent,
+      subtitle: isLent
+          ? 'Các khoản cho vay đang theo dõi trong sổ'
+          : 'Các khoản vay nợ cần thanh toán đúng hạn',
+      badgeText: '$filteredCount ${isLent ? "khoản cho vay" : "khoản vay nợ"}',
+      badgeColor: accent,
+      metricColors: [accent, const Color(0xFF007AFF)],
+      metrics: [
+        ('Còn lại', displayTotal),
+        (isLent ? 'Đã thu' : 'Đã trả', totalPaid),
+      ],
     );
   }
 
@@ -358,7 +312,7 @@ class _LoanScreenState extends State<LoanScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text('Xác nhận xóa'),
         content: Text(
             'Bạn có chắc chắn muốn xóa khoản vay "${loan.personName}" không?'),
@@ -373,7 +327,10 @@ class _LoanScreenState extends State<LoanScreen> {
                   .deleteLoan(widget.userId, loan.id);
             },
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626)),
+              backgroundColor: const Color(0xFFDC2626),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('Xóa'),
           ),
         ],
@@ -414,7 +371,8 @@ class _LoanScreenState extends State<LoanScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF1E293B) : Colors.white,
+        color: (dark ? const Color(0xFF1E293B) : Colors.white)
+            .withValues(alpha: context.watch<ThemeStudioController>().glassOpacity),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: dark
@@ -668,8 +626,8 @@ class _LoanScreenState extends State<LoanScreen> {
                                 : const Color(0xFF64748B),
                           ),
                         ),
-                        Text(
-                          '${money.format(loan.remainingPrincipal)} đ',
+                        FinoraAnimatedAmount(
+                          amount: loan.remainingPrincipal.toDouble(),
                           style: TextStyle(
                             fontSize: 16.5,
                             fontWeight: FontWeight.w900,
@@ -793,7 +751,8 @@ class _AddLoanSheetState extends State<_AddLoanSheet> {
       padding: EdgeInsets.fromLTRB(
           20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+            .withValues(alpha: context.watch<ThemeStudioController>().glassOpacity),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(

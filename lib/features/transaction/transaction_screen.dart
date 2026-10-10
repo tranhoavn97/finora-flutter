@@ -1,4 +1,8 @@
+import '../../core/widgets/finora_summary_card.dart';
+import '../../core/widgets/ai_context_button.dart';
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,16 +11,14 @@ import 'package:provider/provider.dart';
 import '../../core/utils/date_filter.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/glass_widgets.dart';
-import '../../core/widgets/premium_widgets.dart';
 import '../../core/widgets/bank_icon.dart';
-import '../../core/widgets/morph_icon.dart';
-import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../core/design_system/app_colors.dart';
 import '../../core/design_system/app_spacing.dart';
 import '../../core/design_system/app_typography.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
 import '../../state/transaction_provider.dart';
+import '../../state/theme_studio_controller.dart';
 import '../../data/services/wallet_repository.dart';
 import 'add_transaction_page.dart';
 import 'transaction_detail_screen.dart';
@@ -47,6 +49,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
   bool _showBalances = true;
   bool _isSearchExpanded = false;
   late final TextEditingController _searchController;
+  final ScrollController _typeScrollController = ScrollController();
   StreamSubscription<String>? _eventsSub;
 
   @override
@@ -74,20 +77,26 @@ class _TransactionScreenState extends State<TransactionScreen> {
     context.read<TransactionProvider>().setSearchQuery(_searchController.text);
   }
 
+  void _scrollToType(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_typeScrollController.hasClients) return;
+      final targetOffset = (index * 58.0 - 24.0)
+          .clamp(0.0, _typeScrollController.position.maxScrollExtent);
+      _typeScrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _typeScrollController.dispose();
     _eventsSub?.cancel();
     super.dispose();
-  }
-
-  void _handleBack() {
-    if (widget.onBack != null) {
-      widget.onBack!();
-    } else if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
   }
 
   void _openAdd({TransactionModel? existing}) {
@@ -114,26 +123,14 @@ class _TransactionScreenState extends State<TransactionScreen> {
     final currentTag = provider.selectedMemberTag ?? 'all';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showModalBottomSheet(
+    showFinoraGlassModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
+      showHandle: true,
       builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 30,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
+        return Padding(
           padding: EdgeInsets.fromLTRB(
             20,
-            14,
+            6,
             20,
             24 + MediaQuery.of(ctx).viewInsets.bottom,
           ),
@@ -141,41 +138,41 @@ class _TransactionScreenState extends State<TransactionScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF005FEA).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.people_alt_rounded,
-                      color: Color(0xFF005FEA),
-                      size: 20,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFF005FEA).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.people_alt_rounded,
+                          color: Color(0xFF005FEA),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Phân loại chi tiêu',
+                        style: TextStyle(
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Phân loại chi tiêu',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  FinoraIconAction(
+                    icon: Icons.close_rounded,
+                    label: 'Đóng',
+                    size: 36,
+                    onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
               ),
@@ -307,32 +304,18 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
-  void _openWalletFilterModal() {
-    final provider = context.read<TransactionProvider>();
-    final wallets = provider.wallets;
-    final currentWalletId = provider.selectedWalletId;
+  void _openTransactionStyleModal() {
+    final studio = context.read<ThemeStudioController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showModalBottomSheet(
+    showFinoraGlassModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
+      showHandle: true,
       builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 30,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
+        return Padding(
           padding: EdgeInsets.fromLTRB(
             20,
-            14,
+            6,
             20,
             24 + MediaQuery.of(ctx).viewInsets.bottom,
           ),
@@ -340,247 +323,6 @@ class _TransactionScreenState extends State<TransactionScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF005FEA).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: Color(0xFF005FEA),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Chọn Ví & Tài khoản',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Option All Wallets
-              InkWell(
-                onTap: () {
-                  provider.setSelectedWalletId(null);
-                  Navigator.pop(ctx);
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: currentWalletId == null
-                        ? const Color(0xFF005FEA).withValues(alpha: 0.12)
-                        : (isDark
-                            ? const Color(0xFF1E293B)
-                            : const Color(0xFFF8FAFC)),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: currentWalletId == null
-                          ? const Color(0xFF005FEA)
-                          : (isDark
-                              ? const Color(0xFF334155)
-                              : const Color(0xFFE2E8F0)),
-                      width: currentWalletId == null ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF005FEA).withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.all_inclusive_rounded,
-                          color: Color(0xFF005FEA),
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Tất cả ví',
-                          style: TextStyle(
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      if (currentWalletId == null)
-                        const Icon(Icons.check_circle_rounded,
-                            color: Color(0xFF005FEA), size: 20),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(ctx).size.height * 0.4,
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: wallets.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (c, idx) {
-                    final w = wallets[idx];
-                    final isSelected = currentWalletId == w.id;
-                    return InkWell(
-                      onTap: () {
-                        provider.setSelectedWalletId(w.id);
-                        Navigator.pop(ctx);
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF005FEA).withValues(alpha: 0.12)
-                              : (isDark
-                                  ? const Color(0xFF1E293B)
-                                  : const Color(0xFFF8FAFC)),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF005FEA)
-                                : (isDark
-                                    ? const Color(0xFF334155)
-                                    : const Color(0xFFE2E8F0)),
-                            width: isSelected ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0EA5E9)
-                                    .withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.account_balance_wallet_rounded,
-                                color: Color(0xFF0284C7),
-                                size: 18,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    w.name,
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white
-                                          : const Color(0xFF0F172A),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  Text(
-                                    formatVND(w.balance),
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? const Color(0xFF94A3B8)
-                                          : const Color(0xFF64748B),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (isSelected)
-                              const Icon(Icons.check_circle_rounded,
-                                  color: Color(0xFF005FEA), size: 20),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _openDateFilterModal() {
-    final provider = context.read<TransactionProvider>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final activeLabel = provider.activeDateFilterLabel;
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 30,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            14,
-            20,
-            24 + MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -589,7 +331,247 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF005FEA).withValues(alpha: 0.12),
+                          color:
+                              const Color(0xFF005FEA).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.dashboard_customize_rounded,
+                          color: Color(0xFF005FEA),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Kiểu danh sách giao dịch',
+                        style: TextStyle(
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  FinoraIconAction(
+                    icon: Icons.close_rounded,
+                    label: 'Đóng',
+                    size: 36,
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _buildTransactionStyleOption(
+                ctx,
+                style: AppTransactionListStyle.modernStreamlined,
+                title: 'Hiện đại luồng sáng (Modern Streamlined)',
+                subtitle:
+                    'Thẻ bo góc mềm mượt với icon gradient & chi tiết tinh gọn',
+                icon: Icons.dashboard_rounded,
+                currentStyle: studio.transactionListStyle,
+                onTap: () {
+                  studio.setTransactionListStyle(
+                      AppTransactionListStyle.modernStreamlined);
+                  Navigator.pop(ctx);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildTransactionStyleOption(
+                ctx,
+                style: AppTransactionListStyle.magazineLedger,
+                title: 'Tạp chí tài chính (Magazine Ledger)',
+                subtitle:
+                    'Định dạng tạp chí tài chính cao cấp với số dư & phân tách rõ nét',
+                icon: Icons.auto_stories_rounded,
+                currentStyle: studio.transactionListStyle,
+                onTap: () {
+                  studio.setTransactionListStyle(
+                      AppTransactionListStyle.magazineLedger);
+                  Navigator.pop(ctx);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildTransactionStyleOption(
+                ctx,
+                style: AppTransactionListStyle.bentoCards,
+                title: 'Thẻ Bento Glass',
+                subtitle: 'Thẻ nổi hiệu ứng kính mờ & viền sáng sang trọng',
+                icon: Icons.view_agenda_rounded,
+                currentStyle: studio.transactionListStyle,
+                onTap: () {
+                  studio.setTransactionListStyle(
+                      AppTransactionListStyle.bentoCards);
+                  Navigator.pop(ctx);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildTransactionStyleOption(
+                ctx,
+                style: AppTransactionListStyle.timelineRail,
+                title: 'Trục thời gian (Timeline Rail)',
+                subtitle: 'Dây nối thời gian với nút phát sáng theo luồng tiền',
+                icon: Icons.timeline_rounded,
+                currentStyle: studio.transactionListStyle,
+                onTap: () {
+                  studio.setTransactionListStyle(
+                      AppTransactionListStyle.timelineRail);
+                  Navigator.pop(ctx);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildTransactionStyleOption(
+                ctx,
+                style: AppTransactionListStyle.compactTable,
+                title: 'Bảng sao kê gọn (Compact Ledger)',
+                subtitle: 'Mật độ cao kiểu sao kê ngân hàng, hiển thị tối đa',
+                icon: Icons.table_rows_rounded,
+                currentStyle: studio.transactionListStyle,
+                onTap: () {
+                  studio.setTransactionListStyle(
+                      AppTransactionListStyle.compactTable);
+                  Navigator.pop(ctx);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildTransactionStyleOption(
+                ctx,
+                style: AppTransactionListStyle.minimalDivided,
+                title: 'Tối giản đường kẻ (Minimal Divided)',
+                subtitle: 'Thiết kế phẳng OneUI / HyperOS siêu thanh mảnh',
+                icon: Icons.view_headline_rounded,
+                currentStyle: studio.transactionListStyle,
+                onTap: () {
+                  studio.setTransactionListStyle(
+                      AppTransactionListStyle.minimalDivided);
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTransactionStyleOption(
+    BuildContext context, {
+    required AppTransactionListStyle style,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required AppTransactionListStyle currentStyle,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = style == currentStyle;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF005FEA).withValues(alpha: isDark ? 0.18 : 0.08)
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF005FEA)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isSelected
+                        ? const Color(0xFF005FEA)
+                        : const Color(0xFF64748B))
+                    .withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isSelected
+                    ? const Color(0xFF005FEA)
+                    : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF005FEA),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 14),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openDateFilterModal() {
+    final provider = context.read<TransactionProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showFinoraGlassModalBottomSheet(
+      context: context,
+      showHandle: true,
+      builder: (ctx) {
+        final activeLabel = provider.activeDateFilterLabel;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            6,
+            20,
+            24 + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFF005FEA).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -602,28 +584,41 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       Text(
                         'Chọn kỳ thời gian',
                         style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF005FEA).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      activeLabel,
-                      style: const TextStyle(
-                        color: Color(0xFF005FEA),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF005FEA).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          activeLabel,
+                          style: const TextStyle(
+                            color: Color(0xFF005FEA),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      FinoraIconAction(
+                        icon: Icons.close_rounded,
+                        label: 'Đóng',
+                        size: 36,
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -673,11 +668,12 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   Expanded(
                     child: InkWell(
                       onTap: () async {
-                        final picked = await showDatePicker(
+                        final picked = await showFinoraDatePicker(
                           context: context,
                           initialDate: provider.customDate ?? DateTime.now(),
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2035),
+                          helpText: 'CHỌN NGÀY CỤ THỂ',
                         );
                         if (picked != null) {
                           provider.setCustomDate(picked);
@@ -757,22 +753,24 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   Expanded(
                     child: InkWell(
                       onTap: () async {
-                        final initialRange = (provider.customStartDate !=
-                                    null &&
-                                provider.customEndDate != null)
-                            ? DateTimeRange(
-                                start: provider.customStartDate!,
-                                end: provider.customEndDate!)
-                            : DateTimeRange(
-                                start: DateTime.now()
-                                    .subtract(const Duration(days: 7)),
-                                end: DateTime.now(),
-                              );
-                        final range = await showDateRangePicker(
+                        final initialRange =
+                            (provider.customStartDate != null &&
+                                    provider.customEndDate != null)
+                                ? DateTimeRange(
+                                    start: provider.customStartDate!,
+                                    end: provider.customEndDate!)
+                                : DateTimeRange(
+                                    start: DateTime.now()
+                                        .subtract(const Duration(days: 7)),
+                                    end: DateTime.now(),
+                                  );
+                        final range = await showFinoraDateRangePicker(
                           context: context,
                           initialDateRange: initialRange,
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2035),
+                          helpText: 'CHỌN TỪ NGÀY ĐẾN NGÀY',
+                          saveText: 'CHỌN',
                         );
                         if (range != null) {
                           provider.setCustomRange(range.start, range.end);
@@ -869,20 +867,22 @@ class _TransactionScreenState extends State<TransactionScreen> {
     Wallet? matchingWallet;
     if (targetWalletId != null && targetWalletId.isNotEmpty) {
       matchingWallet = wallets.cast<Wallet?>().firstWhere(
-        (w) => w?.id == targetWalletId,
-        orElse: () => null,
-      );
+            (w) => w?.id == targetWalletId,
+            orElse: () => null,
+          );
     }
-    if (matchingWallet == null && (tx.walletName != null || tx.fromWalletName != null)) {
-      final matchName = (tx.walletName ?? tx.fromWalletName)!.trim().toLowerCase();
+    if (matchingWallet == null &&
+        (tx.walletName != null || tx.fromWalletName != null)) {
+      final matchName =
+          (tx.walletName ?? tx.fromWalletName)!.trim().toLowerCase();
       matchingWallet = wallets.cast<Wallet?>().firstWhere(
-        (w) =>
-            w != null &&
-            (w.name.trim().toLowerCase() == matchName ||
-                (w.bankName != null &&
-                    w.bankName!.trim().toLowerCase() == matchName)),
-        orElse: () => null,
-      );
+            (w) =>
+                w != null &&
+                (w.name.trim().toLowerCase() == matchName ||
+                    (w.bankName != null &&
+                        w.bankName!.trim().toLowerCase() == matchName)),
+            orElse: () => null,
+          );
     }
 
     final code = matchingWallet?.bankCode;
@@ -935,8 +935,6 @@ class _TransactionScreenState extends State<TransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryTextColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
     final provider = context.watch<TransactionProvider>();
     if (_searchController.text != provider.searchQuery) {
@@ -984,606 +982,164 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
     final groupedMap = _groupTransactions(transactions);
 
-    return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      body: AmbientFloatingBackground(
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              // Page title stays clear; quick add action on the right.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Lịch sử giao dịch',
-                            style: TextStyle(
-                              color: primaryTextColor,
-                              fontSize: 21,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            '${transactions.length} giao dịch được ghi nhận',
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.white54
-                                  : const Color(0xFF64748B),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => _openAdd(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 13, vertical: 7.5),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF005FEA), Color(0xFF0284C7)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(100),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF005FEA)
-                                  .withValues(alpha: 0.28),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_rounded,
-                                color: Colors.white, size: 16),
-                            SizedBox(width: 4),
-                            Text(
-                              'Thêm mới',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Scrollable Content
-              Expanded(
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 120),
-                  children: [
-                    // 1. Hero Spending Overview Card (Finora Royal Blue & Sky Cyan - No Watermark)
-                    _buildCompactSpendingCard(
-                      periodExpense: periodExpense,
-                      periodIncome: periodIncome,
-                      dateLabel: provider.selectedDateFilter.label,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 2. Unified Single-Row Search, Type & Filter Toolbar
-                    _buildUnifiedToolbarRow(
-                      isDark: isDark,
-                      selectedType: selectedType,
-                      memberLabel: memberLabel,
-                      selectedMemberTag: selectedMemberTag,
-                      walletLabel: walletLabel,
-                      selectedWalletId: selectedWalletId,
-                      provider: provider,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 4. Grouped Transactions List
-                    if (transactions.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 40),
-                        child: EmptyState(
-                          icon: Icons.receipt_long_rounded,
-                          title: 'Chưa có giao dịch nào',
-                          subtitle:
-                              'Hãy thêm giao dịch đầu tiên để quản lý chi tiêu.',
-                          actionText: '+ Thêm giao dịch',
-                          onAction: () => _openAdd(),
-                        ),
-                      )
-                    else
-                      ...groupedMap.entries.map((entry) {
-                        final headerText = entry.key;
-                        final dayTxs = entry.value;
-
-                        // Calculate day totals
-                        final dayIncome = dayTxs
-                            .where((t) => {
-                                  'income',
-                                  'borrowing',
-                                  'loan_repayment_received'
-                                }.contains(
-                                  WalletRepository.normalizeTransactionType(
-                                      t.type),
-                                ))
-                            .fold<int>(0, (sum, t) => sum + t.amount);
-
-                        final dayExpense = dayTxs
-                            .where((t) => {
-                                  'expense',
-                                  'loan',
-                                  'debt_repayment_paid'
-                                }.contains(
-                                  WalletRepository.normalizeTransactionType(
-                                      t.type),
-                                ))
-                            .fold<int>(0, (sum, t) => sum + t.amount);
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildDayHeader(
-                              headerText: headerText,
-                              dayIncome: dayIncome,
-                              dayExpense: dayExpense,
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 8),
-                            ...dayTxs.map((tx) => _buildTransactionCard(
-                                  tx: tx,
-                                  isDark: isDark,
-                                  onEdit: () => _openAdd(existing: tx),
-                                  onDelete: () async {
-                                    final confirm =
-                                        await showConfirmDeleteDialog(
-                                      context: context,
-                                      title: 'Xóa giao dịch?',
-                                      content:
-                                          'Bạn có chắc chắn muốn xóa giao dịch này không?',
-                                    );
-                                    if (confirm && mounted) {
-                                      if (!context.mounted) return;
-                                      context
-                                          .read<TransactionProvider>()
-                                          .deleteTransaction(widget.userId, tx);
-                                    }
-                                  },
-                                )),
-                            const SizedBox(height: 14),
-                          ],
-                        );
-                      }),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+    return GlassScaffold(
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: 'Lịch sử giao dịch',
+        showBottomDivider: false,
+        showBack: false,
+        onBack: null,
+        actions: [AiContextButton(userId: widget.userId, screen: 'Giao dịch')],
       ),
-    );
-  }
-
-  Widget _buildRoundIconButton({
-    required IconData icon,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          // 1. Thẻ chi tiêu Obsidian & Deep Indigo Hero Card (Cuộn tự nhiên theo danh sách)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                14,
+                GlassScaffold.topInset(context, 8),
+                14,
+                8,
+              ),
+              child: _buildCompactSpendingCard(
+                periodExpense: periodExpense,
+                periodIncome: periodIncome,
+                dateLabel: provider.selectedDateFilter.label,
+                isDark: isDark,
+              ),
             ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          size: 19,
-          color: isDark ? Colors.white : const Color(0xFF1E293B),
-        ),
+          ),
+
+          // 2. Thanh tìm kiếm và bộ lọc (Cuộn tự nhiên theo danh sách)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 2, 14, 8),
+              child: _buildUnifiedToolbarRow(
+                isDark: isDark,
+                selectedType: selectedType,
+                memberLabel: memberLabel,
+                selectedMemberTag: selectedMemberTag,
+                walletLabel: walletLabel,
+                selectedWalletId: selectedWalletId,
+                provider: provider,
+              ),
+            ),
+          ),
+
+          // 2. Grouped Transactions List
+          if (transactions.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 40),
+                child: EmptyState(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'Chưa có giao dịch nào',
+                  subtitle: 'Hãy thêm giao dịch đầu tiên để quản lý chi tiêu.',
+                  actionText: '+ Thêm giao dịch',
+                  onAction: () => _openAdd(),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 130),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(
+                  groupedMap.entries.map((entry) {
+                    final headerText = entry.key;
+                    final dayTxs = entry.value;
+
+                    // Calculate day totals
+                    final dayIncome = dayTxs
+                        .where((t) => {
+                              'income',
+                              'borrowing',
+                              'loan_repayment_received'
+                            }.contains(
+                              WalletRepository.normalizeTransactionType(t.type),
+                            ))
+                        .fold<int>(0, (sum, t) => sum + t.amount);
+
+                    final dayExpense = dayTxs
+                        .where((t) =>
+                            {'expense', 'loan', 'debt_repayment_paid'}.contains(
+                              WalletRepository.normalizeTransactionType(t.type),
+                            ))
+                        .fold<int>(0, (sum, t) => sum + t.amount);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDayHeader(
+                          headerText: headerText,
+                          dayIncome: dayIncome,
+                          dayExpense: dayExpense,
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 8),
+                        ...dayTxs.asMap().entries.map((txEntry) {
+                          final txIdx = txEntry.key;
+                          final tx = txEntry.value;
+                          return _buildTransactionCard(
+                            tx: tx,
+                            isDark: isDark,
+                            isFirstInDay: txIdx == 0,
+                            isLastInDay: txIdx == dayTxs.length - 1,
+                            onEdit: () => _openAdd(existing: tx),
+                            onDelete: () async {
+                              final confirm = await showConfirmDeleteDialog(
+                                context: context,
+                                title: 'Xóa giao dịch?',
+                                content:
+                                    'Bạn có chắc chắn muốn xóa giao dịch này không?',
+                              );
+                              if (confirm && mounted) {
+                                if (!context.mounted) return;
+                                context
+                                    .read<TransactionProvider>()
+                                    .deleteTransaction(widget.userId, tx);
+                              }
+                            },
+                          );
+                        }),
+                        const SizedBox(height: 14),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  /// Redesigned Spending Card — Luxury Finora Royal Blue, Sky Cyan & Midnight Navy (No Watermark)
+  /// Redesigned Cashflow & Spending Widget — Compact Pill Bar (~70px)
   Widget _buildCompactSpendingCard({
     required int periodExpense,
     required int periodIncome,
     required String dateLabel,
     required bool isDark,
   }) {
-    final netCashflow = periodIncome - periodExpense;
-    final totalFlow = periodIncome + periodExpense;
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF0284C7), // Vibrant Sky Cyan
-            Color(0xFF005FEA), // FINORA Royal Blue
-            Color(0xFF0F2744), // Midnight Navy Sapphire
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.22),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF005FEA).withValues(alpha: 0.32),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Stack(
-          children: [
-            // Ambient decorative corner lights (NO submerged/watermark icon)
-            Positioned(
-              top: -30,
-              right: -20,
-              child: Container(
-                width: 130,
-                height: 130,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -40,
-              left: -10,
-              child: Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Top Row: Tag + Eye on left, Date Filter Pill on right
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.account_balance_wallet_rounded,
-                              color: Color(0xFFFDE68A),
-                              size: 14,
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                          Text(
-                            'TỔNG CHI TIÊU',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                          GestureDetector(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              setState(() => _showBalances = !_showBalances);
-                            },
-                            child: MorphIcon(
-                              icon: _showBalances
-                                  ? LucideIcons.eye
-                                  : LucideIcons.eye_off,
-                              color: Colors.white.withValues(alpha: 0.85),
-                              size: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                      // Quick period badge on right
-                      GestureDetector(
-                        onTap: _openDateFilterModal,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(100),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.28),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.calendar_month_outlined,
-                                size: 12,
-                                color: Colors.white.withValues(alpha: 0.90),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                dateLabel,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 14,
-                                color: Colors.white.withValues(alpha: 0.80),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Main Amount Row + Net cashflow badge
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Expanded(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            _showBalances ? formatVND(periodExpense) : '*** đ',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.6,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (_showBalances && totalFlow > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3.5),
-                          decoration: BoxDecoration(
-                            color: (netCashflow >= 0
-                                    ? const Color(0xFF10B981)
-                                    : const Color(0xFFEF4444))
-                                .withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(100),
-                            border: Border.all(
-                              color: (netCashflow >= 0
-                                      ? const Color(0xFF6EE7B7)
-                                      : const Color(0xFFFCA5A5))
-                                  .withValues(alpha: 0.4),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                netCashflow >= 0
-                                    ? Icons.trending_up_rounded
-                                    : Icons.trending_down_rounded,
-                                size: 12,
-                                color: netCashflow >= 0
-                                    ? const Color(0xFF6EE7B7)
-                                    : const Color(0xFFFCA5A5),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                netCashflow >= 0
-                                    ? 'Dư +${formatVND(netCashflow)}'
-                                    : 'Âm -${formatVND(netCashflow.abs())}',
-                                style: TextStyle(
-                                  color: netCashflow >= 0
-                                      ? const Color(0xFF6EE7B7)
-                                      : const Color(0xFFFCA5A5),
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Bottom Dual-Badge Ribbon (Compact Frosted Glass)
-                  Row(
-                    children: [
-                      // Thu vào
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 11, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.20),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981)
-                                      .withValues(alpha: 0.35),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_downward_rounded,
-                                  size: 11,
-                                  color: Color(0xFF6EE7B7),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Tổng thu vào',
-                                      style: TextStyle(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.82),
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _showBalances
-                                          ? '+${formatVND(periodIncome)}'
-                                          : '*** đ',
-                                      style: const TextStyle(
-                                        color: Color(0xFF6EE7B7),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-
-                      // Chi ra
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 11, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.20),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444)
-                                      .withValues(alpha: 0.35),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_upward_rounded,
-                                  size: 11,
-                                  color: Color(0xFFFCA5A5),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Tổng chi ra',
-                                      style: TextStyle(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.82),
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _showBalances
-                                          ? '-${formatVND(periodExpense)}'
-                                          : '*** đ',
-                                      style: const TextStyle(
-                                        color: Color(0xFFFCA5A5),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    final net = periodIncome - periodExpense;
+    final isSurplus = net >= 0;
+    return FinoraSummaryCard(
+        title: 'DÒNG TIỀN RÒNG',
+        masked: !_showBalances ||
+            context.watch<ThemeStudioController>().isPrivacyShieldActive,
+        amount: net,
+        icon: Icons.swap_vert_rounded,
+        accent: isSurplus ? const Color(0xFF007AFF) : const Color(0xFFFF3B30),
+        subtitle: dateLabel,
+        badgeText: isSurplus ? 'Thặng dư an toàn' : 'Thâm hụt chi',
+        badgeColor:
+            isSurplus ? const Color(0xFF34C759) : const Color(0xFFFF3B30),
+        metricColors: const [Color(0xFF34C759), Color(0xFFFF3B30)],
+        metrics: [('Thu nhập', periodIncome), ('Chi tiêu', periodExpense)]);
   }
 
   /// Unified Single-Row Search, Type Switcher & Filter Toolbar
@@ -1601,6 +1157,24 @@ class _TransactionScreenState extends State<TransactionScreen> {
         (selectedMemberTag != null && selectedMemberTag != 'all') ||
             selectedWalletId != null ||
             provider.selectedDateFilter != DateFilterOption.thisMonth;
+    const typeValues = <String?>[
+      null,
+      'income',
+      'expense',
+      'transfer',
+      'investment',
+      'credit_card_payment'
+    ];
+    const typeLabels = ['Tất cả', 'Thu', 'Chi', 'Chuyển', 'Đầu tư', 'Trả thẻ'];
+    const typeColors = [
+      Color(0xFF005FEA),
+      Color(0xFF059669),
+      Color(0xFFDC2626),
+      Color(0xFF0284C7),
+      Color(0xFFD97706),
+      Color(0xFF0891B2),
+    ];
+    final typeIndex = typeValues.indexOf(selectedType).clamp(0, 5);
 
     if (_isSearchExpanded) {
       return Row(
@@ -1608,10 +1182,14 @@ class _TransactionScreenState extends State<TransactionScreen> {
           // Expanded Search Input
           Expanded(
             child: Container(
-              height: 40,
+              height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+                    .withValues(
+                        alpha: context
+                            .watch<ThemeStudioController>()
+                            .glassOpacity),
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(
                   color: const Color(0xFF005FEA),
@@ -1688,8 +1266,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
           GestureDetector(
             onTap: _openOwnerFilterModal,
             child: Container(
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: (selectedMemberTag != null && selectedMemberTag != 'all')
                     ? (selectedMemberTag == 'wife'
@@ -1698,14 +1276,14 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     : (isDark ? const Color(0xFF1E293B) : Colors.white),
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(
-                  color: (selectedMemberTag != null &&
-                          selectedMemberTag != 'all')
-                    ? (selectedMemberTag == 'wife'
-                        ? const Color(0xFFDB2777)
-                        : const Color(0xFF0284C7))
-                    : (isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0)),
+                  color:
+                      (selectedMemberTag != null && selectedMemberTag != 'all')
+                          ? (selectedMemberTag == 'wife'
+                              ? const Color(0xFFDB2777)
+                              : const Color(0xFF0284C7))
+                          : (isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0)),
                   width: 1.2,
                 ),
                 boxShadow: [
@@ -1741,8 +1319,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
           GestureDetector(
             onTap: _openFilterSheet,
             child: Container(
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: hasActiveFilter
                     ? const Color(0xFF005FEA)
@@ -1784,6 +1362,54 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 6),
+
+          // List Style Switcher Button
+          Builder(
+            builder: (ctx) {
+              final currentStyle =
+                  ctx.watch<ThemeStudioController>().transactionListStyle;
+              final styleIcon = switch (currentStyle) {
+                AppTransactionListStyle.modernStreamlined =>
+                  Icons.dashboard_rounded,
+                AppTransactionListStyle.magazineLedger =>
+                  Icons.auto_stories_rounded,
+                AppTransactionListStyle.bentoCards => Icons.view_agenda_rounded,
+                AppTransactionListStyle.timelineRail => Icons.timeline_rounded,
+                AppTransactionListStyle.compactTable =>
+                  Icons.table_rows_rounded,
+                AppTransactionListStyle.minimalDivided =>
+                  Icons.view_headline_rounded,
+              };
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _openTransactionStyleModal();
+                },
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      styleIcon,
+                      size: 18,
+                      color: const Color(0xFF005FEA),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       );
     }
@@ -1793,67 +1419,90 @@ class _TransactionScreenState extends State<TransactionScreen> {
         // 1. Type Switcher [ Tất cả | Thu | Chi | Chuyển | Đầu tư | Trả thẻ ]
         Expanded(
           child: Container(
-            height: 40,
+            height: 42,
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color:
-                  isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+                  .withValues(alpha: isDark ? 0.65 : 0.88),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
-                color:
-                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.14)
+                    : const Color(0xFFCBD5E1),
                 width: 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildTypeItem(
-                    label: 'Tất cả',
-                    isSelected: selectedType == null,
-                    selectedColor: const Color(0xFF005FEA),
-                    isDark: isDark,
-                    onTap: () => provider.setSelectedType(null),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: SingleChildScrollView(
+                controller: _typeScrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    typeLabels.length,
+                    (index) {
+                      final isSelected = index == typeIndex;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 3),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(100),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            provider.setSelectedType(typeValues[index]);
+                            _scrollToType(index);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOutCubic,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 13, vertical: 6.5),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? typeColors[index]
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(100),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: typeColors[index]
+                                            .withValues(alpha: 0.35),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 1.5),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                typeLabels[index],
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : (isDark
+                                          ? Colors.white70
+                                          : const Color(0xFF64748B)),
+                                  fontSize: 12,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  _buildTypeItem(
-                    label: 'Thu',
-                    isSelected: selectedType == 'income',
-                    selectedColor: const Color(0xFF059669),
-                    isDark: isDark,
-                    onTap: () => provider.setSelectedType('income'),
-                  ),
-                  _buildTypeItem(
-                    label: 'Chi',
-                    isSelected: selectedType == 'expense',
-                    selectedColor: const Color(0xFFDC2626),
-                    isDark: isDark,
-                    onTap: () => provider.setSelectedType('expense'),
-                  ),
-                  _buildTypeItem(
-                    label: 'Chuyển',
-                    isSelected: selectedType == 'transfer',
-                    selectedColor: const Color(0xFF0284C7),
-                    isDark: isDark,
-                    onTap: () => provider.setSelectedType('transfer'),
-                  ),
-                  _buildTypeItem(
-                    label: 'Đầu tư',
-                    isSelected: selectedType == 'investment',
-                    selectedColor: const Color(0xFFD97706),
-                    isDark: isDark,
-                    onTap: () => provider.setSelectedType('investment'),
-                  ),
-                  _buildTypeItem(
-                    label: 'Trả thẻ',
-                    isSelected: selectedType == 'credit_card_payment',
-                    selectedColor: const Color(0xFF0891B2),
-                    isDark: isDark,
-                    onTap: () => provider.setSelectedType('credit_card_payment'),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -1867,22 +1516,23 @@ class _TransactionScreenState extends State<TransactionScreen> {
             setState(() => _isSearchExpanded = true);
           },
           child: Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+                  .withValues(alpha: isDark ? 0.65 : 0.88),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: provider.searchQuery.isNotEmpty
                     ? const Color(0xFF005FEA)
                     : (isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0)),
-                width: 1.2,
+                        ? Colors.white.withValues(alpha: 0.14)
+                        : const Color(0xFFCBD5E1)),
+                width: 1.1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -1899,33 +1549,33 @@ class _TransactionScreenState extends State<TransactionScreen> {
         ),
         const SizedBox(width: 6),
 
-        // 3. Member Filter Button [ 👥 / 👨 / 👩 ] (Icon only - 40x40 circle, no text)
+        // 3. Member Filter Button [ 👥 / 👨 / 👩 ] (Icon only - circle, no text)
         GestureDetector(
           onTap: _openOwnerFilterModal,
           child: Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: (selectedMemberTag != null && selectedMemberTag != 'all')
                   ? (selectedMemberTag == 'wife'
-                      ? const Color(0xFFDB2777).withValues(alpha: 0.14)
-                      : const Color(0xFF0284C7).withValues(alpha: 0.14))
-                  : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                      ? const Color(0xFFDB2777).withValues(alpha: 0.18)
+                      : const Color(0xFF0284C7).withValues(alpha: 0.18))
+                  : (isDark ? const Color(0xFF0F172A) : Colors.white)
+                      .withValues(alpha: isDark ? 0.65 : 0.88),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
-                color: (selectedMemberTag != null &&
-                        selectedMemberTag != 'all')
+                color: (selectedMemberTag != null && selectedMemberTag != 'all')
                     ? (selectedMemberTag == 'wife'
                         ? const Color(0xFFDB2777)
                         : const Color(0xFF0284C7))
                     : (isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0)),
-                width: 1.2,
+                        ? Colors.white.withValues(alpha: 0.14)
+                        : const Color(0xFFCBD5E1)),
+                width: 1.1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -1943,9 +1593,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     ? const Color(0xFFDB2777)
                     : (selectedMemberTag == 'husband'
                         ? const Color(0xFF0284C7)
-                        : (isDark
-                            ? Colors.white70
-                            : const Color(0xFF64748B))),
+                        : (isDark ? Colors.white70 : const Color(0xFF64748B))),
               ),
             ),
           ),
@@ -1956,26 +1604,27 @@ class _TransactionScreenState extends State<TransactionScreen> {
         GestureDetector(
           onTap: _openFilterSheet,
           child: Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: hasActiveFilter
                   ? const Color(0xFF005FEA)
-                  : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                  : (isDark ? const Color(0xFF0F172A) : Colors.white)
+                      .withValues(alpha: isDark ? 0.65 : 0.88),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: hasActiveFilter
                     ? const Color(0xFF005FEA)
                     : (isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0)),
-                width: 1.2,
+                        ? Colors.white.withValues(alpha: 0.14)
+                        : const Color(0xFFCBD5E1)),
+                width: 1.1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: hasActiveFilter
                       ? const Color(0xFF005FEA).withValues(alpha: 0.3)
-                      : Colors.black.withValues(alpha: 0.03),
+                      : Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -2008,50 +1657,63 @@ class _TransactionScreenState extends State<TransactionScreen> {
             ),
           ),
         ),
-      ],
-    );
-  }
+        const SizedBox(width: 6),
 
-  Widget _buildTypeItem({
-    required String label,
-    required bool isSelected,
-    required Color selectedColor,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? selectedColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(100),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: selectedColor.withValues(alpha: 0.28),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+        // 5. List Style Switcher Button [ 📑 ]
+        Builder(
+          builder: (ctx) {
+            final currentStyle =
+                ctx.watch<ThemeStudioController>().transactionListStyle;
+            final styleIcon = switch (currentStyle) {
+              AppTransactionListStyle.modernStreamlined =>
+                Icons.dashboard_rounded,
+              AppTransactionListStyle.magazineLedger =>
+                Icons.auto_stories_rounded,
+              AppTransactionListStyle.bentoCards => Icons.view_agenda_rounded,
+              AppTransactionListStyle.timelineRail => Icons.timeline_rounded,
+              AppTransactionListStyle.compactTable => Icons.table_rows_rounded,
+              AppTransactionListStyle.minimalDivided =>
+                Icons.view_headline_rounded,
+            };
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _openTransactionStyleModal();
+              },
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+                      .withValues(alpha: isDark ? 0.65 : 0.88),
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.14)
+                        : const Color(0xFFCBD5E1),
+                    width: 1.1,
                   ),
-                ]
-              : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    styleIcon,
+                    size: 18,
+                    color: const Color(0xFF005FEA),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-            fontSize: 11.5,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-          ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -2097,7 +1759,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   size: 11,
                   color: isToday
                       ? const Color(0xFF005FEA)
-                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      : (isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B)),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -2198,9 +1862,13 @@ class _TransactionScreenState extends State<TransactionScreen> {
   Widget _buildTransactionCard({
     required TransactionModel tx,
     required bool isDark,
+    bool isFirstInDay = false,
+    bool isLastInDay = false,
     required VoidCallback onEdit,
     required VoidCallback onDelete,
   }) {
+    final studio = context.watch<ThemeStudioController>();
+    final cardRadius = studio.getCardRadius(studio.transactionDensity);
     final normType = WalletRepository.normalizeTransactionType(tx.type);
     final isInflow =
         {'income', 'borrowing', 'loan_repayment_received'}.contains(normType);
@@ -2261,6 +1929,879 @@ class _TransactionScreenState extends State<TransactionScreen> {
     final resolvedCategoryIcon = liveCategory?.icon ?? tx.categoryIcon;
     final resolvedCategoryColor = liveCategory?.color ?? tx.categoryColor;
     final isAi = tx.tags.contains('Finora AI') || tx.creatorTag == 'AI';
+    final mName = tx.merchantName?.trim().isNotEmpty == true
+        ? tx.merchantName!.trim()
+        : (tx.merchantId?.trim().isNotEmpty == true
+            ? (tx.merchantId!.startsWith('brand-')
+                ? (tx.merchantId == 'brand-shopee'
+                    ? 'Shopee'
+                    : tx.merchantId == 'brand-tiktok'
+                        ? 'TikTok Shop'
+                        : tx.merchantId == 'brand-lazada'
+                            ? 'Lazada'
+                            : tx.merchantId == 'brand-winmart'
+                                ? 'WinMart'
+                                : tx.merchantId == 'brand-tiki'
+                                    ? 'Tiki'
+                                    : tx.merchantId == 'brand-grab'
+                                        ? 'Grab'
+                                        : tx.merchantId!
+                                            .replaceFirst('brand-', ''))
+                : tx.merchantId!.trim())
+            : null);
+
+    Widget cardBody;
+
+    switch (studio.transactionListStyle) {
+      case AppTransactionListStyle.compactTable:
+        cardBody = Container(
+          margin: const EdgeInsets.only(bottom: 5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: (isDark ? Colors.black : const Color(0xFF64748B))
+                    .withValues(alpha: isDark ? 0.25 : 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B).withValues(alpha: 0.55)
+                      : Colors.white.withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.09)
+                        : const Color(0xFFE2E8F0).withValues(alpha: 0.85),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    TransactionIconWidget(
+                      type: tx.type,
+                      categoryIcon: resolvedCategoryIcon,
+                      categoryName:
+                          liveCategory?.name ?? tx.categoryName ?? tx.note,
+                      categoryColor: resolvedCategoryColor,
+                      merchantId: tx.merchantId,
+                      merchantName: mName,
+                      bankBrand: walletBrand,
+                      showBankBadge: true,
+                      size: 30,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              SpenderBadgeWidget(
+                                tag: tx.creatorTag,
+                                ownerName: tx.ownerName,
+                                isDark: isDark,
+                                compact: true,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  '${mName != null ? '$mName · ' : ''}$walletName · $timeStr',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      amountStr,
+                      style: TextStyle(
+                        color: amountColor,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        break;
+
+      case AppTransactionListStyle.minimalDivided:
+        cardBody = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFFE2E8F0).withValues(alpha: 0.85),
+                width: 0.8,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              TransactionIconWidget(
+                type: tx.type,
+                categoryIcon: resolvedCategoryIcon,
+                categoryName: liveCategory?.name ?? tx.categoryName ?? tx.note,
+                categoryColor: resolvedCategoryColor,
+                merchantId: tx.merchantId,
+                merchantName: mName,
+                bankBrand: walletBrand,
+                showBankBadge: true,
+                size: 38,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        SpenderBadgeWidget(
+                          tag: tx.creatorTag,
+                          ownerName: tx.ownerName,
+                          isDark: isDark,
+                          compact: true,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            [
+                              if (subtitleNote.isNotEmpty &&
+                                  subtitleNote.toLowerCase() !=
+                                      title.toLowerCase())
+                                subtitleNote,
+                              if (mName != null) mName,
+                              walletName,
+                              timeStr,
+                              if (isAi) 'AI',
+                            ].join(' · '),
+                            style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                amountStr,
+                style: TextStyle(
+                  color: amountColor,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+        );
+        break;
+
+      case AppTransactionListStyle.timelineRail:
+        final bentoInner = Container(
+          margin: const EdgeInsets.only(bottom: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(cardRadius),
+            boxShadow: [
+              ...studio.cardShadows(isDark
+                  ? Colors.black
+                  : const Color(0xFF64748B).withValues(alpha: 0.10)),
+              ...studio.getGlowShadows(isDark),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(cardRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: math.max(studio.glassBlur, 12.0),
+                sigmaY: math.max(studio.glassBlur, 12.0),
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                decoration: BoxDecoration(
+                  color: studio.getCardFillColor(isDark),
+                  borderRadius: BorderRadius.circular(cardRadius),
+                  border: studio.getCardBorder(isDark),
+                ),
+                child: Row(
+                  children: [
+                    TransactionIconWidget(
+                      type: tx.type,
+                      categoryIcon: resolvedCategoryIcon,
+                      categoryName:
+                          liveCategory?.name ?? tx.categoryName ?? tx.note,
+                      categoryColor: resolvedCategoryColor,
+                      merchantId: tx.merchantId,
+                      merchantName: mName,
+                      bankBrand: walletBrand,
+                      showBankBadge: true,
+                      size: 38,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              SpenderBadgeWidget(
+                                tag: tx.creatorTag,
+                                ownerName: tx.ownerName,
+                                isDark: isDark,
+                                compact: true,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  '${mName != null ? '$mName · ' : ''}$walletName · $timeStr',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 10.5,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      amountStr,
+                      style: TextStyle(
+                        color: amountColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+        cardBody = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 18,
+              child: Column(
+                children: [
+                  Container(
+                    width: 2,
+                    height: isFirstInDay ? 14 : 10,
+                    color: isFirstInDay
+                        ? Colors.transparent
+                        : (isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
+                  ),
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: amountColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: amountColor.withValues(alpha: 0.45),
+                          blurRadius: 5,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 2,
+                    height: isLastInDay ? 24 : 40,
+                    color: isLastInDay
+                        ? Colors.transparent
+                        : (isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(child: bentoInner),
+          ],
+        );
+        break;
+
+      case AppTransactionListStyle.bentoCards:
+        final bentoDec = studio.getWidgetCardDecoration(
+          isDark: isDark,
+          customRadius: cardRadius,
+        );
+        cardBody = Container(
+          margin: const EdgeInsets.only(bottom: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(cardRadius),
+            boxShadow: bentoDec.boxShadow ??
+                [
+                  ...studio.cardShadows(isDark
+                      ? Colors.black
+                      : const Color(0xFF64748B).withValues(alpha: 0.10)),
+                  ...studio.getGlowShadows(isDark),
+                ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(cardRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: math.max(studio.glassBlur, 12.0),
+                sigmaY: math.max(studio.glassBlur, 12.0),
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: bentoDec,
+                child: Row(
+                  children: [
+                    TransactionIconWidget(
+                      type: tx.type,
+                      categoryIcon: resolvedCategoryIcon,
+                      categoryName:
+                          liveCategory?.name ?? tx.categoryName ?? tx.note,
+                      categoryColor: resolvedCategoryColor,
+                      merchantId: tx.merchantId,
+                      merchantName: mName,
+                      bankBrand: walletBrand,
+                      showBankBadge: true,
+                      size: 42,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              height: 1.25,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 5),
+                          Row(
+                            children: [
+                              SpenderBadgeWidget(
+                                tag: tx.creatorTag,
+                                ownerName: tx.ownerName,
+                                isDark: isDark,
+                                compact: true,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  [
+                                    if (subtitleNote.isNotEmpty &&
+                                        subtitleNote.toLowerCase() !=
+                                            title.toLowerCase())
+                                      subtitleNote,
+                                    if (mName != null) mName,
+                                    walletName,
+                                    timeStr,
+                                    if (isAi) 'AI',
+                                  ].join(' · '),
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: isInflow
+                                ? const Color(0xFF059669)
+                                    .withValues(alpha: isDark ? 0.25 : 0.12)
+                                : (isTransfer
+                                    ? const Color(0xFF0284C7)
+                                        .withValues(alpha: isDark ? 0.25 : 0.12)
+                                    : const Color(0xFFDC2626).withValues(
+                                        alpha: isDark ? 0.25 : 0.12)),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              isInflow
+                                  ? Icons.arrow_downward_rounded
+                                  : (isTransfer
+                                      ? Icons.sync_alt_rounded
+                                      : Icons.arrow_upward_rounded),
+                              size: 12,
+                              color: amountColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          amountStr,
+                          style: TextStyle(
+                            color: amountColor,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        break;
+
+      case AppTransactionListStyle.modernStreamlined:
+        cardBody = Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(cardRadius),
+            boxShadow: [
+              ...studio.cardShadows(isDark
+                  ? Colors.black
+                  : const Color(0xFF64748B).withValues(alpha: 0.10)),
+              ...studio.getGlowShadows(isDark),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(cardRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: math.max(studio.glassBlur, 12.0),
+                sigmaY: math.max(studio.glassBlur, 12.0),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: studio.getCardFillColor(isDark),
+                  borderRadius: BorderRadius.circular(cardRadius),
+                  border: studio.getCardBorder(isDark),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                child: Row(
+                  children: [
+                    TransactionIconWidget(
+                      type: tx.type,
+                      categoryIcon: resolvedCategoryIcon,
+                      categoryName:
+                          liveCategory?.name ?? tx.categoryName ?? tx.note,
+                      categoryColor: resolvedCategoryColor,
+                      merchantId: tx.merchantId,
+                      merchantName: mName,
+                      bankBrand: walletBrand,
+                      showBankBadge: true,
+                      size: 42,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              SpenderBadgeWidget(
+                                tag: tx.creatorTag,
+                                ownerName: tx.ownerName,
+                                isDark: isDark,
+                                compact: true,
+                              ),
+                              const SizedBox(width: 6),
+                              if (mName != null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (isDark ? Colors.white : Colors.black)
+                                            .withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    mName,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? const Color(0xFFCBD5E1)
+                                          : const Color(0xFF475569),
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (isDark ? Colors.white : Colors.black)
+                                      .withValues(alpha: 0.06),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  walletName,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                timeStr,
+                                style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF94A3B8),
+                                  fontSize: 10.5,
+                                ),
+                              ),
+                              if (isAi) ...[
+                                const SizedBox(width: 5),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF8B5CF6)
+                                        .withValues(alpha: 0.16),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'AI',
+                                    style: TextStyle(
+                                      color: Color(0xFFA78BFA),
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: amountColor.withValues(
+                                alpha: isDark ? 0.16 : 0.10),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: amountColor.withValues(
+                                  alpha: isDark ? 0.30 : 0.20),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            amountStr,
+                            style: TextStyle(
+                              color: amountColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          isHusband ? 'Chồng' : 'Vợ',
+                          style: TextStyle(
+                            color: isDark
+                                ? const Color(0xFF64748B)
+                                : const Color(0xFF94A3B8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        break;
+
+      case AppTransactionListStyle.magazineLedger:
+        cardBody = Container(
+          margin: const EdgeInsets.only(bottom: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: (isDark ? Colors.black : const Color(0xFF64748B))
+                    .withValues(alpha: isDark ? 0.28 : 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: math.max(studio.glassBlur, 12.0),
+                sigmaY: math.max(studio.glassBlur, 12.0),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: studio.getCardFillColor(isDark),
+                  borderRadius: BorderRadius.circular(14),
+                  border: studio.getCardBorder(isDark),
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Vertical accent edge bar
+                      Container(
+                        width: 4.5,
+                        decoration: BoxDecoration(
+                          color: amountColor,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(14),
+                            bottomLeft: Radius.circular(14),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+                          child: Row(
+                            children: [
+                              TransactionIconWidget(
+                                type: tx.type,
+                                categoryIcon: resolvedCategoryIcon,
+                                categoryName: liveCategory?.name ??
+                                    tx.categoryName ??
+                                    tx.note,
+                                categoryColor: resolvedCategoryColor,
+                                merchantId: tx.merchantId,
+                                merchantName: mName,
+                                bankBrand: walletBrand,
+                                showBankBadge: true,
+                                size: 34,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      title,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        SpenderBadgeWidget(
+                                          tag: tx.creatorTag,
+                                          ownerName: tx.ownerName,
+                                          isDark: isDark,
+                                          compact: true,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Expanded(
+                                          child: Text(
+                                            '${mName != null ? '$mName · ' : ''}$walletName · $timeStr',
+                                            style: TextStyle(
+                                              color: isDark
+                                                  ? const Color(0xFF94A3B8)
+                                                  : const Color(0xFF64748B),
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    amountStr,
+                                    style: TextStyle(
+                                      color: amountColor,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.3,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isHusband ? 'CHỒNG' : 'VỢ',
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? const Color(0xFF64748B)
+                                          : const Color(0xFF94A3B8),
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        break;
+    }
 
     return Dismissible(
       key: ValueKey('tx_${tx.id}'),
@@ -2303,334 +2844,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
             ),
           );
         },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.16 : 0.025),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Category Icon with layered Bank/Wallet Logo Badge
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  TransactionIconWidget(
-                    type: tx.type,
-                    categoryIcon: resolvedCategoryIcon,
-                    categoryName:
-                        liveCategory?.name ?? tx.categoryName ?? tx.note,
-                    categoryColor: resolvedCategoryColor,
-                    merchantId: tx.merchantId,
-                    size: 42,
-                  ),
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: Container(
-                      width: 17,
-                      height: 17,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        border: Border.all(
-                          color:
-                              isDark ? const Color(0xFF1E293B) : Colors.white,
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.18),
-                            blurRadius: 3,
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(100),
-                        child: walletBrand.assetPath != null
-                            ? Image.asset(
-                                walletBrand.assetPath!,
-                                fit: BoxFit.cover,
-                              )
-                            : (walletBrand.code == 'cash'
-                                ? Container(
-                                    color: const Color(0xFF10B981),
-                                    child: const Icon(
-                                      Icons.payments_rounded,
-                                      size: 9,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Container(
-                                    color: const Color(0xFF005FEA),
-                                    child: const Icon(
-                                      Icons.account_balance_rounded,
-                                      size: 8.5,
-                                      color: Colors.white,
-                                    ),
-                                  )),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-
-              // Title and Tags
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w800,
-                        height: 1.25,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (subtitleNote.isNotEmpty &&
-                        subtitleNote.toLowerCase() != title.toLowerCase()) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitleNote,
-                        style: TextStyle(
-                          color: isDark
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 3,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        // Wallet Tag Pill with Bank / Wallet Logo
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6.5, vertical: 2.5),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF0C4A6E).withValues(alpha: 0.5)
-                                : const Color(0xFFE0F2FE),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: const Color(0xFF005FEA)
-                                  .withValues(alpha: 0.2),
-                              width: 0.6,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (walletBrand.assetPath != null) ...[
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(100),
-                                  child: Image.asset(
-                                    walletBrand.assetPath!,
-                                    width: 11.5,
-                                    height: 11.5,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                const SizedBox(width: 3.5),
-                              ] else if (walletBrand.code == 'cash') ...[
-                                const Icon(
-                                  Icons.payments_rounded,
-                                  size: 11,
-                                  color: Color(0xFF059669),
-                                ),
-                                const SizedBox(width: 3.5),
-                              ] else ...[
-                                const Icon(
-                                  Icons.account_balance_rounded,
-                                  size: 10,
-                                  color: Color(0xFF005FEA),
-                                ),
-                                const SizedBox(width: 3.5),
-                              ],
-                              Text(
-                                walletName,
-                                style: const TextStyle(
-                                  color: Color(0xFF005FEA),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Husband / Wife Tag
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6.5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isHusband
-                                ? (isDark
-                                    ? const Color(0xFF0C4A6E)
-                                        .withValues(alpha: 0.5)
-                                    : const Color(0xFFE0F2FE))
-                                : (isDark
-                                    ? const Color(0xFF4C0519)
-                                        .withValues(alpha: 0.5)
-                                    : const Color(0xFFFCE7F3)),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isHusband
-                                  ? const Color(0xFF0284C7)
-                                      .withValues(alpha: 0.2)
-                                  : const Color(0xFFDB2777)
-                                      .withValues(alpha: 0.2),
-                              width: 0.6,
-                            ),
-                          ),
-                          child: Text(
-                            isHusband ? 'Chồng' : 'Vợ',
-                            style: TextStyle(
-                              color: isHusband
-                                  ? const Color(0xFF0284C7)
-                                  : const Color(0xFFDB2777),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-
-                        if (isAi)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF005FEA)
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: const Color(0xFF005FEA)
-                                    .withValues(alpha: 0.28),
-                                width: 0.6,
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.auto_awesome_rounded,
-                                    size: 8.5, color: Color(0xFF0284C7)),
-                                SizedBox(width: 2),
-                                Text(
-                                  'AI',
-                                  style: TextStyle(
-                                    color: Color(0xFF0284C7),
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        Text(
-                          timeStr,
-                          style: TextStyle(
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF94A3B8),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Amount with Inflow / Outflow Arrow Icon Badge
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: isInflow
-                          ? const Color(0xFF059669)
-                              .withValues(alpha: isDark ? 0.25 : 0.12)
-                          : (isTransfer
-                              ? const Color(0xFF0284C7)
-                                  .withValues(alpha: isDark ? 0.25 : 0.12)
-                              : const Color(0xFFDC2626)
-                                  .withValues(alpha: isDark ? 0.25 : 0.12)),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        isInflow
-                            ? Icons.arrow_downward_rounded
-                            : (isTransfer
-                                ? Icons.sync_alt_rounded
-                                : Icons.arrow_upward_rounded),
-                        size: 12,
-                        color: amountColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    amountStr,
-                    style: TextStyle(
-                      color: amountColor,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+        child: cardBody,
       ),
     );
-  }
-
-  Color _getPastelColor(TransactionModel tx) {
-    final norm = WalletRepository.normalizeTransactionType(tx.type);
-    if (norm == 'income') {
-      return const Color(0xFFFEF3C7); // Warm amber
-    }
-    if (norm == 'transfer') {
-      return const Color(0xFFE0F2FE); // Indigo pastel
-    }
-    final name = (tx.categoryName ?? '').toLowerCase();
-    if (name.contains('ăn') || name.contains('uống') || name.contains('food')) {
-      return const Color(0xFFFFEDD5); // Orange pastel
-    }
-    if (name.contains('mua') || name.contains('sắm')) {
-      return const Color(0xFFFCE7F3); // Pink pastel
-    }
-    return const Color(0xFFF1F5F9); // Slate pastel
   }
 }
 
@@ -2873,11 +3089,12 @@ class _FilterSheet extends StatelessWidget {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final picked = await showDatePicker(
+                          final picked = await showFinoraDatePicker(
                             context: context,
                             initialDate: provider.customDate ?? DateTime.now(),
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2035),
+                            helpText: 'CHỌN NGÀY CỤ THỂ',
                           );
                           if (picked != null) {
                             provider.setCustomDate(picked);
@@ -2957,22 +3174,24 @@ class _FilterSheet extends StatelessWidget {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final initialRange = (provider.customStartDate !=
-                                      null &&
-                                  provider.customEndDate != null)
-                              ? DateTimeRange(
-                                  start: provider.customStartDate!,
-                                  end: provider.customEndDate!)
-                              : DateTimeRange(
-                                  start: DateTime.now()
-                                      .subtract(const Duration(days: 7)),
-                                  end: DateTime.now(),
-                                );
-                          final range = await showDateRangePicker(
+                          final initialRange =
+                              (provider.customStartDate != null &&
+                                      provider.customEndDate != null)
+                                  ? DateTimeRange(
+                                      start: provider.customStartDate!,
+                                      end: provider.customEndDate!)
+                                  : DateTimeRange(
+                                      start: DateTime.now()
+                                          .subtract(const Duration(days: 7)),
+                                      end: DateTime.now(),
+                                    );
+                          final range = await showFinoraDateRangePicker(
                             context: context,
                             initialDateRange: initialRange,
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2035),
+                            helpText: 'CHỌN TỪ NGÀY ĐẾN NGÀY',
+                            saveText: 'CHỌN',
                           );
                           if (range != null) {
                             provider.setCustomRange(range.start, range.end);
@@ -3026,7 +3245,8 @@ class _FilterSheet extends StatelessWidget {
                                     ),
                                     Text(
                                       provider.selectedDateFilter ==
-                                                  DateFilterOption.customRange &&
+                                                  DateFilterOption
+                                                      .customRange &&
                                               provider.customStartDate != null
                                           ? '${provider.customStartDate!.day.toString().padLeft(2, '0')}/${provider.customStartDate!.month.toString().padLeft(2, '0')} - ${provider.customEndDate?.day.toString().padLeft(2, '0')}/${provider.customEndDate?.month.toString().padLeft(2, '0')}'
                                           : 'Từ - Đến...',

@@ -1,16 +1,20 @@
+import '../../core/widgets/finora_summary_card.dart';
+import '../../core/widgets/ai_context_button.dart';
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/glass_widgets.dart';
-import '../../core/widgets/premium_widgets.dart';
 import '../../core/design_system/app_colors.dart';
 import '../../core/design_system/app_spacing.dart';
-import '../../core/design_system/v8/finora_v8.dart';
 import '../../data/models/finance_models.dart';
 import '../../state/more_provider.dart';
+import '../../state/theme_studio_controller.dart';
+import '../../core/widgets/finora_motion.dart';
+import '../../core/widgets/studio_progress.dart';
 
 /// Redesigned Savings Goals Page:
 /// - Matching Finora's luxury Obsidian & Royal Indigo design language
@@ -114,205 +118,197 @@ class _GoalScreenState extends State<GoalScreen> {
       displayGoals = allGoals;
     }
 
-    return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      body: AmbientFloatingBackground(
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              FinoraPageHeader(
-                title: 'Mục tiêu tài chính',
-                onBack: () => Navigator.of(context).pop(),
+    return GlassScaffold(
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: 'Mục tiêu tài chính',
+        showBottomDivider: false,
+        onBack: () => Navigator.of(context).pop(),
+        actions: [AiContextButton(userId: widget.userId, screen: 'Mục tiêu')],
+      ),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                14,
+                GlassScaffold.topInset(context, 8),
+                14,
+                8,
               ),
-
-              // 2. Scrollable Content
-              Expanded(
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+              child: _buildCompactOverviewCard(
+                totalSaved: totalSaved,
+                totalTarget: totalTarget,
+                progress: totalProgress,
+                goalCount: activeGoals.length,
+                isDark: isDark,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 2, 14, 8),
+              child: _buildFilterPillsRow(isDark: isDark),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // Goals Section Title
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Compact Overview Card (Obsidian & Indigo)
-                    _buildCompactOverviewCard(
-                      totalSaved: totalSaved,
-                      totalTarget: totalTarget,
-                      progress: totalProgress,
-                      goalCount: activeGoals.length,
-                      isDark: isDark,
+                    Text(
+                      _goalFilter == 'completed'
+                          ? 'Đã hoàn thành'
+                          : (_goalFilter == 'near'
+                              ? 'Sắp đạt mục tiêu'
+                              : 'Danh sách mục tiêu'),
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                    const SizedBox(height: 12),
-
-                    // Horizontal Filter Pills Row
-                    _buildFilterPillsRow(isDark: isDark),
-                    const SizedBox(height: 14),
-
-                    // Goals Section Title
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          _goalFilter == 'completed'
-                              ? 'Đã hoàn thành'
-                              : (_goalFilter == 'near'
-                                  ? 'Sắp đạt mục tiêu'
-                                  : 'Danh sách mục tiêu'),
-                          style: TextStyle(
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                          '${displayGoals.length} mục tiêu',
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        Row(
-                          children: [
-                            Text(
-                              '${displayGoals.length} mục tiêu',
-                              style: const TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: _openAdd,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4.5),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildAddButton(
-                              isDark: isDark,
-                              onTap: _openAdd,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Goal Cards List
-                    if (displayGoals.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 36, horizontal: 20),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color:
-                              isDark ? const Color(0xFF1E293B) : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isDark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.flag_outlined,
-                              size: 40,
-                              color: isDark
-                                  ? const Color(0xFF475569)
-                                  : const Color(0xFF94A3B8),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Chưa có mục tiêu nào trong mục này',
-                              style: TextStyle(
-                                color: isDark
-                                    ? Colors.white70
-                                    : const Color(0xFF64748B),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            GestureDetector(
-                              onTap: _openAdd,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF005FEA),
-                                  borderRadius: BorderRadius.circular(100),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF7C3AED)
+                                      .withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
                                 ),
-                                child: const Text(
-                                  '+ Tạo mục tiêu mới',
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add_rounded,
+                                    size: 14, color: Colors.white),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Thêm',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 12.5,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    else
-                      ...displayGoals.asMap().entries.map((entry) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 9),
-                          child: _buildGoalCard(
-                            goal: entry.value,
-                            index: entry.key,
-                            isDark: isDark,
                           ),
-                        );
-                      }),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                const SizedBox(height: 10),
 
-  Widget _buildRoundIconButton({
-    required IconData icon,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color:
-              const Color(0xFF005FEA).withValues(alpha: isDark ? 0.16 : 0.08),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color:
-                const Color(0xFF005FEA).withValues(alpha: isDark ? 0.35 : 0.20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF005FEA).withValues(alpha: 0.10),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+                // Goal Cards List
+                if (displayGoals.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 36, horizontal: 20),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+                          .withValues(
+                              alpha: context
+                                  .watch<ThemeStudioController>()
+                                  .glassOpacity),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.flag_outlined,
+                          size: 40,
+                          color: isDark
+                              ? const Color(0xFF475569)
+                              : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Chưa có mục tiêu nào trong mục này',
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF64748B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _openAdd,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF005FEA),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: const Text(
+                              '+ Tạo mục tiêu mới',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...displayGoals.asMap().entries.map((entry) {
+                    return FinoraStaggeredItem(
+                      index: entry.key,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 9),
+                        child: _buildGoalCard(
+                          goal: entry.value,
+                          index: entry.key,
+                          isDark: isDark,
+                        ),
+                      ),
+                    );
+                  }),
+              ]),
             ),
-          ],
-        ),
-        child: const Icon(
-          Icons.arrow_back_rounded,
-          size: 18,
-          color: Color(0xFF005FEA),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddButton({required VoidCallback onTap, required bool isDark}) {
-    return FinoraButton(
-      onPressed: onTap,
-      variant: FinoraButtonVariant.compact,
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.add_rounded),
-          SizedBox(width: FinoraV8Space.x1),
-          Text('Thêm'),
+          ),
         ],
       ),
     );
@@ -326,317 +322,24 @@ class _GoalScreenState extends State<GoalScreen> {
     required int goalCount,
     required bool isDark,
   }) {
-    final percent = (progress * 100).round();
-    final remaining =
-        (totalTarget - totalSaved).clamp(0, 999999999999999).toInt();
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF0284C7), // Sky Cyan Vibrant
-            Color(0xFF005FEA), // FINORA Royal Blue
-            Color(0xFF1E3A8A), // Deep Sapphire
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.24),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF005FEA).withValues(alpha: 0.32),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          children: [
-            // Background decorative glow shapes
-            Positioned(
-              top: -30,
-              right: -30,
-              child: Container(
-                width: 130,
-                height: 130,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -40,
-              left: -10,
-              child: Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Row 1: Header badge & Count pill
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.20),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.savings_rounded,
-                              color: Color(0xFFFDE68A),
-                              size: 15,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'TỔNG TÍCH LŨY MỤC TIÊU',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 3.5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.28),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Text(
-                          '$goalCount mục tiêu',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Row 2: Ring Gauge + Total Saved Amount
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 62,
-                        height: 62,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              width: 62,
-                              height: 62,
-                              child: CircularProgressIndicator(
-                                value: progress.clamp(0.0, 1.0),
-                                strokeWidth: 5,
-                                strokeCap: StrokeCap.round,
-                                backgroundColor:
-                                    Colors.white.withValues(alpha: 0.22),
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF6EE7B7)),
-                              ),
-                            ),
-                            Text(
-                              '$percent%',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Đã tích lũy được',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.82),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                formatVND(totalSaved),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 27,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.6,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Row 3: Two frosted sub-cards
-                  Row(
-                    children: [
-                      // Sub-card 1: Cần đạt
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 11, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.20),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.track_changes_rounded,
-                                    size: 13,
-                                    color: Color(0xFFFDE68A),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Tổng cần đạt',
-                                    style: TextStyle(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.80),
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                formatVND(totalTarget),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Sub-card 2: Còn thiếu
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 11, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.20),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.hourglass_bottom_rounded,
-                                    size: 13,
-                                    color: Color(0xFF6EE7B7),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Còn cần tích lũy',
-                                    style: TextStyle(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.80),
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                formatVND(remaining),
-                                style: const TextStyle(
-                                  color: Color(0xFF6EE7B7),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Row 4: Linear progress indicator
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: LinearProgressIndicator(
-                      value: progress.clamp(0.0, 1.0),
-                      minHeight: 4.5,
-                      backgroundColor: Colors.white.withValues(alpha: 0.20),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF6EE7B7)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    final pct = (progress * 100).round();
+    return FinoraSummaryCard(
+        title: 'TỔNG TÍCH LŨY MỤC TIÊU',
+        amount: totalSaved,
+        icon: Icons.savings_outlined,
+        accent: const Color(0xFFAF52DE),
+        progress: progress,
+        subtitle: '$goalCount mục tiêu tài chính đang thực hiện',
+        badgeText: 'Đạt $pct%',
+        badgeColor: const Color(0xFFAF52DE),
+        metricColors: const [Color(0xFF007AFF), Color(0xFFFF9500)],
+        metrics: [
+          ('Mục tiêu', totalTarget),
+          (
+            'Cần tích lũy',
+            (totalTarget - totalSaved).clamp(0, 999999999999999).toInt()
+          )
+        ]);
   }
 
   Widget _buildFilterPillsRow({required bool isDark}) {
@@ -729,38 +432,55 @@ class _GoalScreenState extends State<GoalScreen> {
       if (lower.contains('xe') ||
           lower.contains('ô tô') ||
           lower.contains('oto') ||
-          lower.contains('honda')) return Icons.directions_car_rounded;
+          lower.contains('honda')) {
+        return Icons.directions_car_rounded;
+      }
       if (lower.contains('nhà') ||
           lower.contains('đất') ||
           lower.contains('căn hộ') ||
-          lower.contains('chung cư')) return Icons.home_rounded;
+          lower.contains('chung cư')) {
+        return Icons.home_rounded;
+      }
       if (lower.contains('du lịch') ||
           lower.contains('biển') ||
           lower.contains('nghỉ dưỡng') ||
           lower.contains('bay') ||
-          lower.contains('vé')) return Icons.flight_takeoff_rounded;
+          lower.contains('vé')) {
+        return Icons.flight_takeoff_rounded;
+      }
       if (lower.contains('cưới') ||
           lower.contains('kết hôn') ||
           lower.contains('nhẫn') ||
-          lower.contains('yêu')) return Icons.favorite_rounded;
+          lower.contains('yêu')) {
+        return Icons.favorite_rounded;
+      }
       if (lower.contains('điện thoại') ||
           lower.contains('iphone') ||
           lower.contains('laptop') ||
           lower.contains('macbook') ||
-          lower.contains('ipad')) return Icons.phone_iphone_rounded;
+          lower.contains('ipad')) {
+        return Icons.phone_iphone_rounded;
+      }
       if (lower.contains('học') ||
           lower.contains('du học') ||
           lower.contains('khóa học') ||
-          lower.contains('sách')) return Icons.school_rounded;
+          lower.contains('sách')) {
+        return Icons.school_rounded;
+      }
       if (lower.contains('kinh doanh') ||
           lower.contains('đầu tư') ||
           lower.contains('chứng khoán') ||
-          lower.contains('vàng')) return Icons.trending_up_rounded;
-      if (lower.contains('mua') || lower.contains('sắm'))
+          lower.contains('vàng')) {
+        return Icons.trending_up_rounded;
+      }
+      if (lower.contains('mua') || lower.contains('sắm')) {
         return Icons.shopping_bag_rounded;
+      }
       if (lower.contains('bảo hiểm') ||
           lower.contains('y tế') ||
-          lower.contains('sức khỏe')) return Icons.health_and_safety_rounded;
+          lower.contains('sức khỏe')) {
+        return Icons.health_and_safety_rounded;
+      }
       final defaultIcons = [
         Icons.savings_rounded,
         Icons.flag_rounded,
@@ -775,302 +495,430 @@ class _GoalScreenState extends State<GoalScreen> {
         ? Icons.check_circle_rounded
         : resolveGoalIcon(goal.name, index);
 
+    final studio = context.watch<ThemeStudioController>();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-          width: 1,
-        ),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
+          ...studio.cardShadows(Colors.black),
+          ...studio.getGlowShadows(isDark),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Row 1: Icon, Title (max 2 lines), percent & popup menu
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: pastel,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          (isCompleted ? const Color(0xFF10B981) : accentColor)
-                              .withValues(alpha: 0.20),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  iconData,
-                  size: 22,
-                  color: isCompleted ? const Color(0xFF10B981) : accentColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      goal.name,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            days == null
-                                ? 'Vô thời hạn'
-                                : (days <= 0
-                                    ? '⏱ Đã đến hạn'
-                                    : '⏱ Còn $days ngày'),
-                            style: TextStyle(
-                              color: isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isCompleted
-                                ? const Color(0xFF10B981).withOpacity(0.15)
-                                : accentColor.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            isCompleted ? '✓ Hoàn thành' : '🎯 Đang tích lũy',
-                            style: TextStyle(
-                              color: isCompleted
-                                  ? const Color(0xFF10B981)
-                                  : accentColor,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '$percent%',
-                    style: TextStyle(
-                      color: isCompleted
-                          ? const Color(0xFF10B981)
-                          : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.more_vert_rounded,
-                        size: 18, color: Color(0xFF94A3B8)),
-                    onSelected: (v) {
-                      if (v == 'deposit') _openDeposit(goal);
-                      if (v == 'edit') _openEdit(goal);
-                      if (v == 'delete') _deleteGoal(goal);
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(
-                        value: 'deposit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.add_circle_outline_rounded,
-                                size: 16, color: Color(0xFF059669)),
-                            SizedBox(width: 8),
-                            Text('Góp tiền'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, size: 16),
-                            SizedBox(width: 8),
-                            Text('Chỉnh sửa'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline_rounded,
-                                size: 16, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Xóa mục tiêu',
-                                style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: studio.glassBlur,
+            sigmaY: studio.glassBlur,
           ),
-
-          const SizedBox(height: 12),
-
-          // Row 2: Stats Box
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Container(
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF0F172A).withOpacity(0.6)
-                  : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark
-                    ? const Color(0xFF334155).withOpacity(0.5)
-                    : const Color(0xFFE2E8F0),
-              ),
+              color: studio.getCardFillColor(isDark),
+              borderRadius: BorderRadius.circular(20),
+              border: studio.getCardBorder(isDark),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Row 1: Icon, Title (max 2 lines), percent & popup menu
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Đã tích lũy',
-                          style: TextStyle(
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: pastel,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isCompleted
+                                    ? const Color(0xFF10B981)
+                                    : accentColor)
+                                .withValues(alpha: 0.20),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          formatVND(goal.savedAmount),
-                          style: TextStyle(
-                            color: isCompleted
-                                ? const Color(0xFF10B981)
-                                : accentColor,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Icon(
+                        iconData,
+                        size: 22,
+                        color:
+                            isCompleted ? const Color(0xFF10B981) : accentColor,
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            goal.name,
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 5),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  days == null
+                                      ? 'Vô thời hạn'
+                                      : (days <= 0
+                                          ? '⏱ Đã đến hạn'
+                                          : '⏱ Còn $days ngày'),
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isCompleted
+                                      ? const Color(0xFF10B981)
+                                          .withValues(alpha: 0.15)
+                                      : accentColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  isCompleted
+                                      ? '✓ Hoàn thành'
+                                      : '🎯 Đang tích lũy',
+                                  style: TextStyle(
+                                    color: isCompleted
+                                        ? const Color(0xFF10B981)
+                                        : accentColor,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          'Mục tiêu',
+                          '$percent%',
                           style: TextStyle(
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                            color: isCompleted
+                                ? const Color(0xFF10B981)
+                                : (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A)),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          formatVND(goal.targetAmount),
-                          style: TextStyle(
-                            color:
-                                isDark ? Colors.white : const Color(0xFF1E293B),
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        PopupMenuButton<String>(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.more_vert_rounded,
+                              size: 18, color: Color(0xFF94A3B8)),
+                          onSelected: (v) {
+                            if (v == 'deposit') _openDeposit(goal);
+                            if (v == 'edit') _openEdit(goal);
+                            if (v == 'delete') _deleteGoal(goal);
+                          },
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(
+                              value: 'deposit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.add_circle_outline_rounded,
+                                      size: 16, color: Color(0xFF059669)),
+                                  SizedBox(width: 8),
+                                  Text('Góp tiền'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_outlined, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Chỉnh sửa'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete_outline_rounded,
+                                      size: 16, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Xóa mục tiêu',
+                                      style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Progress Bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(100),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 6,
-                    backgroundColor: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isCompleted ? const Color(0xFF10B981) : accentColor,
+
+                const SizedBox(height: 12),
+
+                // Row 2: Stats Box — seamless frosted glass
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : Colors.white.withValues(alpha: 0.50),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.04),
+                      width: 0.8,
                     ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isCompleted
-                          ? '🎉 Đã hoàn thành 100% mục tiêu!'
-                          : 'Còn thiếu: ${formatVND(remainingAmount)}',
-                      style: TextStyle(
-                        color: isCompleted
-                            ? const Color(0xFF10B981)
-                            : (isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B)),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Đã tích lũy',
+                                style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatVND(goal.savedAmount),
+                                style: TextStyle(
+                                  color: isCompleted
+                                      ? const Color(0xFF10B981)
+                                      : accentColor,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Mục tiêu',
+                                style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatVND(goal.targetAmount),
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1E293B),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ),
-                    Text(
-                      '$percent%',
-                      style: TextStyle(
+                      const SizedBox(height: 8),
+                      // Progress Bar
+                      StudioGoalProgress(
+                        progress: progress,
+                        height: 6,
+                        trackColor: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                         color:
                             isCompleted ? const Color(0xFF10B981) : accentColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                        style: context.watch<ThemeStudioController>().goalStyle,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isCompleted
+                                ? '🎉 Đã hoàn thành 100% mục tiêu!'
+                                : 'Còn thiếu: ${formatVND(remainingAmount)}',
+                            style: TextStyle(
+                              color: isCompleted
+                                  ? const Color(0xFF10B981)
+                                  : (isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B)),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '$percent%',
+                            style: TextStyle(
+                              color: isCompleted
+                                  ? const Color(0xFF10B981)
+                                  : accentColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // Row 3: Action Buttons
+                Row(
+                  children: [
+                    if (!isCompleted)
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _openDeposit(goal),
+                          borderRadius: BorderRadius.circular(100),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: accentColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(100),
+                              border: Border.all(
+                                  color: accentColor.withValues(alpha: 0.35),
+                                  width: 0.8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_circle_outline_rounded,
+                                    size: 15, color: accentColor),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Góp tiền',
+                                  style: TextStyle(
+                                    color: accentColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFF10B981).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.verified_rounded,
+                                  size: 15, color: Color(0xFF10B981)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Mục tiêu hoàn thành',
+                                style: TextStyle(
+                                  color: Color(0xFF10B981),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => _openEdit(goal),
+                      borderRadius: BorderRadius.circular(100),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFF1F5F9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 16,
+                          color:
+                              isDark ? Colors.white70 : const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () => _deleteGoal(goal),
+                      borderRadius: BorderRadius.circular(100),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 16,
+                          color: Color(0xFFEF4444),
+                        ),
                       ),
                     ),
                   ],
@@ -1078,113 +926,7 @@ class _GoalScreenState extends State<GoalScreen> {
               ],
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // Row 3: Action Buttons
-          Row(
-            children: [
-              if (!isCompleted)
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _openDeposit(goal),
-                    borderRadius: BorderRadius.circular(100),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: accentColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(
-                            color: accentColor.withValues(alpha: 0.35),
-                            width: 0.8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_circle_outline_rounded,
-                              size: 15, color: accentColor),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Góp tiền',
-                            style: TextStyle(
-                              color: accentColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.verified_rounded,
-                            size: 15, color: Color(0xFF10B981)),
-                        SizedBox(width: 6),
-                        Text(
-                          'Mục tiêu hoàn thành',
-                          style: TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () => _openEdit(goal),
-                borderRadius: BorderRadius.circular(100),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFF1F5F9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.edit_outlined,
-                    size: 16,
-                    color: isDark ? Colors.white70 : const Color(0xFF475569),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              InkWell(
-                onTap: () => _deleteGoal(goal),
-                borderRadius: BorderRadius.circular(100),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.delete_outline_rounded,
-                    size: 16,
-                    color: Color(0xFFEF4444),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1251,36 +993,32 @@ class _DepositDialogState extends State<_DepositDialog> {
 
     return GlassDialog(
       radius: 26,
+      title: 'Ghi nhận tích lũy',
+      subtitle: widget.goal.name,
+      icon: Icons.savings_rounded,
+      iconColor: const Color(0xFF4F46E5),
+      onClose: () => Navigator.of(context).pop(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      actions: [
+        Expanded(
+          child: FinoraPillButton(
+            label: 'Hủy',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: FinoraPillButton(
+            label: 'Xác nhận',
+            primary: true,
+            icon: Icons.check_rounded,
+            onPressed: _isSaving ? null : _submit,
+          ),
+        ),
+      ],
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.savings_rounded,
-                  color: Color(0xFF4F46E5),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Ghi nhận tích lũy',
-                style: TextStyle(
-                  color: primaryTextColor,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -1291,24 +1029,24 @@ class _DepositDialogState extends State<_DepositDialog> {
                     isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  widget.goal.name,
-                  style: TextStyle(
-                    color: primaryTextColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    'Còn thiếu đến mục tiêu:',
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 3),
                 Text(
-                  'Còn thiếu: ${formatVND(remaining)}',
+                  formatVND(remaining),
                   style: TextStyle(
-                    color: secondaryTextColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    color: primaryTextColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -1328,43 +1066,6 @@ class _DepositDialogState extends State<_DepositDialog> {
             controller: _amountController,
             hint: '0 ₫',
             keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Hủy',
-                    style: TextStyle(
-                      color: secondaryTextColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: PrimaryButton(
-                  expand: true,
-                  onPressed: _isSaving ? null : _submit,
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Xác nhận',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -1474,8 +1175,11 @@ class _AddGoalPageState extends State<AddGoalPage> {
         children: [
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.lg),
+              padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  GlassScaffold.topInset(context, 8),
+                  AppSpacing.md,
+                  AppSpacing.lg),
               children: [
                 Text(
                   'Tên mục tiêu',
