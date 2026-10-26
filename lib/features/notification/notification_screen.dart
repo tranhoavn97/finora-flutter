@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/finora_tokens.dart';
 import '../../core/widgets/glass_widgets.dart';
-import '../../core/design_system/app_colors.dart';
-import '../../core/design_system/app_radius.dart';
-import '../../core/design_system/app_spacing.dart';
-import '../../core/design_system/app_typography.dart';
+import '../../core/widgets/finora/financial_components.dart';
 import '../../data/models/finance_models.dart';
 import '../../state/more_provider.dart';
 
@@ -21,56 +19,104 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<MoreProvider>().load(widget.userId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<MoreProvider>().load(widget.userId);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final notifications = context.watch<MoreProvider>().notifications;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final provider = context.watch<MoreProvider>();
+    final notifications = provider.notifications;
 
-    return GlassScaffold(
-      appBar: GlassTopBar(
-        title: 'Thông báo',
-        onBack: () => Navigator.of(context).pop(),
+    return Scaffold(
+      backgroundColor: FinoraTokens.bg(isDark),
+      appBar: AppBar(
+        backgroundColor: FinoraTokens.surface(isDark),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Thông báo',
+          style: TextStyle(
+            color: FinoraTokens.ink(isDark),
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'BeVietnamPro',
+          ),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: FinoraTokens.ink(isDark), size: 18),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: FinoraTokens.line(isDark), height: 1),
+        ),
       ),
-      body: SafeArea(
-        top: false,
-        child: notifications.isEmpty
-            ? Center(
-                child: EmptyState(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Chưa có thông báo nào',
-                  subtitle: 'Các cập nhật và nhắc nhở chi tiêu sẽ xuất hiện ở đây.',
-                ),
-              )
-            : ListView.separated(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-                itemCount: notifications.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final n = notifications[i];
-                  return _NotificationRow(
-                    notif: n,
-                    onRead: () => context
-                        .read<MoreProvider>()
-                        .markNotificationAsRead(widget.userId, n.id),
-                    onDelete: () async {
-                      final confirm = await showConfirmDeleteDialog(
-                        context: context,
-                        title: 'Xóa thông báo?',
-                        content: 'Bạn có chắc chắn muốn xóa thông báo này không?',
-                      );
-                      if (confirm && context.mounted) {
-                        context
-                            .read<MoreProvider>()
-                            .deleteNotification(widget.userId, n.id);
-                      }
-                    },
-                  );
-                },
-              ),
-      ),
+      body: provider.isRefreshing
+          ? Center(child: CircularProgressIndicator(color: FinoraTokens.ink(isDark)))
+          : provider.error != null
+              ? FinoraDataMessage(
+                  title: 'Chưa tải được thông báo',
+                  message: provider.error!,
+                  onRetry: () => provider.load(widget.userId, force: true))
+              : notifications.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.notifications_none_rounded, size: 48, color: FinoraTokens.inkTertiary(isDark)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Bạn không có thông báo nào',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'BeVietnamPro',
+                              color: FinoraTokens.ink(isDark),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Các thông báo mới sẽ xuất hiện ở đây.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: FinoraTokens.inkSecondary(isDark),
+                              fontFamily: 'BeVietnamPro',
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      itemCount: notifications.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) {
+                        final n = notifications[i];
+                        return _NotificationRow(
+                          notif: n,
+                          onRead: () => context
+                              .read<MoreProvider>()
+                              .markNotificationAsRead(widget.userId, n.id),
+                          onDelete: () async {
+                            final confirm = await showConfirmDeleteDialog(
+                              context: context,
+                              title: 'Xóa thông báo?',
+                              content:
+                                  'Bạn có chắc chắn muốn xóa thông báo này không?',
+                            );
+                            if (confirm && context.mounted) {
+                              context
+                                  .read<MoreProvider>()
+                                  .deleteNotification(widget.userId, n.id);
+                            }
+                          },
+                        );
+                      },
+                    ),
     );
   }
 }
@@ -85,16 +131,16 @@ class _NotificationRow extends StatelessWidget {
     required this.onDelete,
   });
 
-  Color get _typeColor {
+  Color _typeColor(bool isDark) {
     switch (notif.type) {
       case 'warning':
-        return AppColors.warning;
+        return isDark ? FinoraTokens.warnAmberDark : FinoraTokens.warnAmber;
       case 'danger':
-        return AppColors.error;
+        return isDark ? FinoraTokens.negRedDark : FinoraTokens.negRed;
       case 'success':
-        return AppColors.success;
+        return isDark ? FinoraTokens.posGreenDark : FinoraTokens.posGreen;
       default:
-        return AppColors.primary;
+        return FinoraTokens.inkSecondary(isDark);
     }
   }
 
@@ -103,8 +149,10 @@ class _NotificationRow extends StatelessWidget {
       case 'warning':
       case 'danger':
         return Icons.warning_amber_rounded;
+      case 'success':
+        return Icons.check_circle_outline_rounded;
       default:
-        return Icons.notifications_outlined;
+        return Icons.info_outline_rounded;
     }
   }
 
@@ -116,20 +164,35 @@ class _NotificationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.fc;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     final unread = !notif.isRead;
-    final typeColor = _typeColor;
+    final typeColor = _typeColor(isDark);
 
-    return GlassCard(
-      radius: 20,
-      highlighted: unread,
+    return Container(
       padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: FinoraTokens.surface(isDark),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: unread
+              ? FinoraTokens.ink(isDark).withValues(alpha: 0.25)
+              : FinoraTokens.line(isDark),
+          width: 1.0,
+        ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconBadge(icon: _icon, tint: typeColor, size: 40, radius: 14),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: FinoraTokens.surface2(isDark),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: FinoraTokens.line(isDark)),
+            ),
+            child: Icon(_icon, color: typeColor, size: 20),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -141,7 +204,10 @@ class _NotificationRow extends StatelessWidget {
                       Container(
                         width: 7,
                         height: 7,
-                        decoration: BoxDecoration(color: typeColor, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: typeColor,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                       const SizedBox(width: 6),
                     ],
@@ -149,34 +215,39 @@ class _NotificationRow extends StatelessWidget {
                       child: Text(
                         notif.title ?? 'Thông báo hệ thống',
                         style: TextStyle(
-                          fontWeight: unread ? FontWeight.bold : FontWeight.w600,
-                          color: unread ? c.textPrimary : c.textSecondary,
+                          fontFamily: 'BeVietnamPro',
                           fontSize: 14,
+                          fontWeight: unread ? FontWeight.w600 : FontWeight.w500,
+                          color: FinoraTokens.ink(isDark),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   notif.message ?? '',
                   style: TextStyle(
-                    color: c.textSecondary,
+                    fontFamily: 'BeVietnamPro',
                     fontSize: 12.5,
+                    color: FinoraTokens.inkSecondary(isDark),
+                    height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   _formatDate(notif.createdAt),
                   style: TextStyle(
-                    color: c.textTertiary,
+                    fontFamily: 'JetBrains Mono',
+                    fontFeatures: const [FontFeature.tabularFigures()],
                     fontSize: 11,
+                    color: FinoraTokens.inkTertiary(isDark),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Column(
             children: [
               if (unread)
@@ -185,7 +256,11 @@ class _NotificationRow extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
-                  icon: const Icon(Icons.check_rounded, color: AppColors.success, size: 18),
+                  icon: Icon(
+                    Icons.check_rounded,
+                    color: isDark ? FinoraTokens.posGreenDark : FinoraTokens.posGreen,
+                    size: 18,
+                  ),
                   tooltip: 'Đánh dấu đã đọc',
                 ),
               IconButton(
@@ -193,8 +268,11 @@ class _NotificationRow extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.all(4),
-                icon: Icon(Icons.delete_outline_rounded,
-                    color: AppColors.error.withValues(alpha: 0.7), size: 18),
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  color: isDark ? FinoraTokens.negRedDark : FinoraTokens.negRed,
+                  size: 18,
+                ),
                 tooltip: 'Xóa',
               ),
             ],

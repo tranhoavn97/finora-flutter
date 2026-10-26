@@ -1,14 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'supabase_bridge.dart';
 
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'ai-studio-2b22d4a0-9f50-4bbc-a8ed-f26d36b92339',
-  );
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -31,44 +27,66 @@ class AuthRepository {
   }
 
   Future<User> signInWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) {
-      throw FirebaseAuthException(code: 'cancelled', message: 'Đăng nhập đã bị hủy');
+    if (kIsWeb) {
+      final googleProvider = GoogleAuthProvider();
+      googleProvider.addScope('email');
+      googleProvider.addScope('profile');
+      final cred = await _auth.signInWithPopup(googleProvider);
+      final user = cred.user!;
+      await _syncProfile(user);
+      return user;
+    } else {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        throw FirebaseAuthException(code: 'cancelled', message: 'Đăng nhập đã bị hủy');
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+        accessToken: googleAuth.accessToken,
+      );
+      final cred = await _auth.signInWithCredential(credential);
+      final user = cred.user!;
+      await _syncProfile(user);
+      return user;
     }
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      idToken: googleAuth.idToken,
-      accessToken: googleAuth.accessToken,
-    );
-    final cred = await _auth.signInWithCredential(credential);
+  }
+
+  Future<User> signInAnonymously() async {
+    final cred = await _auth.signInAnonymously();
     final user = cred.user!;
-    await _syncProfile(user);
+    await _syncProfile(user, fullName: 'Hòa');
     return user;
   }
 
   Future<void> signOut() async {
     try {
-      await GoogleSignIn().signOut();
+      if (!kIsWeb) {
+        await GoogleSignIn().signOut();
+      }
     } catch (_) {}
     await _auth.signOut();
   }
 
   Future<void> _syncProfile(User user, {String? fullName}) async {
-    final ref = _db.collection('users').doc(user.uid);
-    final snap = await ref.get();
-    final name = (fullName != null && fullName.isNotEmpty)
-        ? fullName
-        : (user.displayName ?? (user.email?.split('@').first ?? ''));
-    final data = {
-      'email': user.email ?? '',
-      'fullName': name,
-      'profileImageUrl': user.photoURL ?? '',
-      'updatedAt': DateTime.now().millisecondsSinceEpoch,
-    };
-    if (!snap.exists) {
-      await ref.set({...data, 'createdAt': DateTime.now().millisecondsSinceEpoch});
-    } else {
-      await ref.update(data);
+    try {
+      final name = (fullName != null && fullName.isNotEmpty)
+          ? fullName
+          : (user.displayName ?? (user.email?.split('@').first ?? ''));
+      final data = {
+        'email': user.email ?? '',
+        'fullName': name,
+        'profileImageUrl': user.photoURL ?? '',
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      };
+      await SupabaseBridge.saveUserDocument(
+        userId: user.uid,
+        collection: 'profiles',
+        documentId: user.uid,
+        data: {...data, 'createdAt': DateTime.now().millisecondsSinceEpoch},
+      );
+    } catch (_) {
+      // Profile synchronization must not prevent Firebase Authentication login.
     }
   }
 }

@@ -1,0 +1,59 @@
+Created At: 2026-09-29T14:58:06+07:00
+Completed At: 2026-09-29T14:58:06+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10613
+Total Bytes: 386413
+Showing lines 8520 to 8570
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8520:                       const SizedBox(height: 2),
+8521:                       const Text(
+8522:                         '128.500.000 ₫',
+8523:                         style: TextStyle(
+8524:                           fontSize: 16,
+8525:                           color: Colors.white,
+8526:                           fontWeight: FontWeight.w800,
+8527:                           letterSpacing: 0.5,
+8528:                         ),
+8529:                       ),
+8530:                     ],
+8531:       ],
+8532:     );
+8533:   }
+8534: 
+8535:   Widget _buildLiveChartAndWidgetCardPreview({lues(alpha: 0.7),
+8536:                           fontWeight: FontWeight.w500,
+8537:                         ),
+8538:                       ),
+8539:                       const SizedBox(height: 2),
+8540:                       const Text(
+8541:                         '128.500.000 ₫',
+8542:                         style: TextStyle(
+8543:                           fontSize: 16,
+8544:                           color: Colors.white,
+8545:                           fontWeight: FontWeight.w800,
+8546:                           letterSpacing: 0.5,
+8547:                         ),
+8548:                       ),
+8549:                     ],
+8550:                   ),
+8551:                   Container(
+8552:                     padding:
+8553:                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+8554:                     decoration: BoxDecoration(
+8555:                       color: Colors.black.withValues(alpha: 0.35),
+8556:                       borderRadius: BorderRadius.circular(8),
+8557:                       border: Border.all(
+8558:                         color: Colors.white.withValues(alpha: 0.25),
+8559:                         width: 0.8,
+8560:                       ),
+8561:                     ),
+8562:                     child: Text(
+8563:                       _previewVisaMode ? 'Thẻ Tín Dụng' : 'Thẻ ATM',
+8564:                       style: const TextStyle(
+8565:                         fontSize: 10,
+8566:                         color: Colors.white,
+8567:                         fontWeight: FontWeight.w600,
+8568:                       ),
+8569:                     ),
+8570:                   ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

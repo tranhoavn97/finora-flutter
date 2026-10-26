@@ -1,0 +1,78 @@
+Created At: 2026-09-29T14:48:41+07:00
+Completed At: 2026-09-29T14:48:41+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 8301 to 8400
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8301:                   children: [
+8302:                     Text(
+8303:                       '•••• •••• •••• 8899',
+8304:                       style: TextStyle(
+8305:                         fontSize: 12,
+8306:                         letterSpacing: 2,
+8307:                         color: Colors.white.withValues(alpha: 0.8),
+8308:                         fontWeight: FontWeight.w600,
+8309:                       ),
+8310:                     ),
+8311:                     const Row(
+8312:                       children: [
+8313:                         Icon(Icons.nfc_rounded,
+8314:                             size: 14, color: Color(0xFFF59E0B)),
+8315:                         SizedBox(width: 4),
+8316:                         Text('VIP PLATINUM',
+8317:                             style: TextStyle(
+8318:                                 fontSize: 10,
+8319:                                 fontWeight: FontWeight.w800,
+8320:                                 color: Color(0xFFF59E0B))),
+8321:                       ],
+8322:                     ),
+8323:                   ],
+8324:                 )
+8325:               else if (studio.heroCardStyle == AppHeroCardStyle.minimalistPulse)
+8326:                 Row(
+8327:                   children: [
+8328:                     Container(
+8329:                       width: 7,
+8330:                       height: 7,
+8331:                       decoration: const BoxDecoration(
+8332:                         color: Color(0xFF10B981),
+8333:                         shape: BoxShape.circle,
+8334:      
+<truncated 1540 bytes>
+                              style: TextStyle(
+8367:                                     fontSize: 10.5,
+8368:                                     fontWeight: FontWeight.w700,
+8369:                                     color: Color(0xFF10B981)),
+8370:                                 overflow: TextOverflow.ellipsis,
+8371:                               ),
+8372:                             ),
+8373:                           ],
+8374:                         ),
+8375:                       ),
+8376:                     ),
+8377:                     const SizedBox(width: 8),
+8378:                     Expanded(
+8379:                       child: Container(
+8380:                         padding: const EdgeInsets.symmetric(
+8381:                             horizontal: 8, vertical: 4),
+8382:                         decoration: BoxDecoration(
+8383:                           color: Colors.black.withValues(alpha: 0.2),
+8384:                           borderRadius: BorderRadius.circular(8),
+8385:                         ),
+8386:                         child: const Row(
+8387:                           children: [
+8388:                             Icon(Icons.arrow_upward_rounded,
+8389:                                 size: 12, color: Color(0xFFF43F5E)),
+8390:                             SizedBox(width: 4),
+8391:                             Expanded(
+8392:                               child: Text(
+8393:                                 '-18.650.000 ₫',
+8394:                                 style: TextStyle(
+8395:                                     fontSize: 10.5,
+8396:                                     fontWeight: FontWeight.w700,
+8397:                                     color: Color(0xFFF43F5E)),
+8398:                                 overflow: TextOverflow.ellipsis,
+8399:                               ),
+8400:                             ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

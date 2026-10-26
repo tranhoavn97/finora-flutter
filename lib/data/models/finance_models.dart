@@ -62,37 +62,6 @@ class Budget {
         'isArchived': isArchived,
         'alertThreshold': alertThreshold,
       };
-
-  Budget copyWith({
-    String? id,
-    String? userId,
-    String? categoryId,
-    String? categoryName,
-    String? categoryIcon,
-    String? categoryColor,
-    int? limitAmount,
-    String? monthKey,
-    bool? isRecurring,
-    bool? isArchived,
-    int? alertThreshold,
-    int? createdAt,
-    int? updatedAt,
-  }) =>
-      Budget(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        categoryId: categoryId ?? this.categoryId,
-        categoryName: categoryName ?? this.categoryName,
-        categoryIcon: categoryIcon ?? this.categoryIcon,
-        categoryColor: categoryColor ?? this.categoryColor,
-        limitAmount: limitAmount ?? this.limitAmount,
-        monthKey: monthKey ?? this.monthKey,
-        isRecurring: isRecurring ?? this.isRecurring,
-        isArchived: isArchived ?? this.isArchived,
-        alertThreshold: alertThreshold ?? this.alertThreshold,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
 }
 
 class Goal {
@@ -143,19 +112,13 @@ class Goal {
         'status': status,
       };
 
-  Goal copyWith({
-    String? name,
-    int? targetAmount,
-    int? savedAmount,
-    int? targetDate,
-    String? status,
-  }) => Goal(
+  Goal copyWith({int? savedAmount, String? status}) => Goal(
         id: id,
         userId: userId,
-        name: name ?? this.name,
-        targetAmount: targetAmount ?? this.targetAmount,
+        name: name,
+        targetAmount: targetAmount,
         savedAmount: savedAmount ?? this.savedAmount,
-        targetDate: targetDate ?? this.targetDate,
+        targetDate: targetDate,
         status: status ?? this.status,
         createdAt: createdAt,
         updatedAt: updatedAt,
@@ -247,45 +210,25 @@ class Loan {
         'status': status,
       };
 
-  Loan copyWith({
-    String? id,
-    String? userId,
-    String? personName,
-    String? name,
-    String? type,
-    int? principalAmount,
-    int? amount,
-    int? paidAmount,
-    int? remainingPrincipal,
-    int? startDate,
-    int? dueDate,
-    String? walletId,
-    String? walletName,
-    double? interestRate,
-    String? note,
-    String? status,
-    int? createdAt,
-    int? updatedAt,
-  }) =>
-      Loan(
-        id: id ?? this.id,
+  Loan copyWith({String? userId}) => Loan(
+        id: id,
         userId: userId ?? this.userId,
-        personName: personName ?? this.personName,
-        name: name ?? this.name,
-        type: type ?? this.type,
-        principalAmount: principalAmount ?? this.principalAmount,
-        amount: amount ?? this.amount,
-        paidAmount: paidAmount ?? this.paidAmount,
-        remainingPrincipal: remainingPrincipal ?? this.remainingPrincipal,
-        startDate: startDate ?? this.startDate,
-        dueDate: dueDate ?? this.dueDate,
-        walletId: walletId ?? this.walletId,
-        walletName: walletName ?? this.walletName,
-        interestRate: interestRate ?? this.interestRate,
-        note: note ?? this.note,
-        status: status ?? this.status,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
+        personName: personName,
+        name: name,
+        type: type,
+        principalAmount: principalAmount,
+        amount: amount,
+        paidAmount: paidAmount,
+        remainingPrincipal: remainingPrincipal,
+        startDate: startDate,
+        dueDate: dueDate,
+        walletId: walletId,
+        walletName: walletName,
+        interestRate: interestRate,
+        note: note,
+        status: status,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
       );
 }
 
@@ -441,81 +384,6 @@ class Asset {
         'remainingContribution': remainingContribution,
         'netPosition': netPosition,
       };
-
-  Asset copyWith({
-    String? id,
-    String? userId,
-    String? name,
-    String? type,
-    String? assetTypeId,
-    String? assetTypeName,
-    String? assetTypeKey,
-    String? assetIcon,
-    String? assetColor,
-    String? investmentSubtype,
-    double? quantity,
-    String? unit,
-    int? buyPrice,
-    int? purchasePrice,
-    int? costBasis,
-    int? currentPrice,
-    int? marketValue,
-    int? profitLoss,
-    double? profitLossPercent,
-    String? status,
-    String? sourceWalletId,
-    String? walletId,
-    String? transactionId,
-    double? interestRate,
-    int? termMonths,
-    int? periodAmount,
-    int? totalPeriods,
-    int? currentPeriod,
-    int? contributedAmount,
-    int? receivedAmount,
-    int? feeAmount,
-    int? remainingContribution,
-    int? netPosition,
-    int? createdAt,
-    int? updatedAt,
-  }) =>
-      Asset(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        name: name ?? this.name,
-        type: type ?? this.type,
-        assetTypeId: assetTypeId ?? this.assetTypeId,
-        assetTypeName: assetTypeName ?? this.assetTypeName,
-        assetTypeKey: assetTypeKey ?? this.assetTypeKey,
-        assetIcon: assetIcon ?? this.assetIcon,
-        assetColor: assetColor ?? this.assetColor,
-        investmentSubtype: investmentSubtype ?? this.investmentSubtype,
-        quantity: quantity ?? this.quantity,
-        unit: unit ?? this.unit,
-        buyPrice: buyPrice ?? this.buyPrice,
-        purchasePrice: purchasePrice ?? this.purchasePrice,
-        costBasis: costBasis ?? this.costBasis,
-        currentPrice: currentPrice ?? this.currentPrice,
-        marketValue: marketValue ?? this.marketValue,
-        profitLoss: profitLoss ?? this.profitLoss,
-        profitLossPercent: profitLossPercent ?? this.profitLossPercent,
-        status: status ?? this.status,
-        sourceWalletId: sourceWalletId ?? this.sourceWalletId,
-        walletId: walletId ?? this.walletId,
-        transactionId: transactionId ?? this.transactionId,
-        interestRate: interestRate ?? this.interestRate,
-        termMonths: termMonths ?? this.termMonths,
-        periodAmount: periodAmount ?? this.periodAmount,
-        totalPeriods: totalPeriods ?? this.totalPeriods,
-        currentPeriod: currentPeriod ?? this.currentPeriod,
-        contributedAmount: contributedAmount ?? this.contributedAmount,
-        receivedAmount: receivedAmount ?? this.receivedAmount,
-        feeAmount: feeAmount ?? this.feeAmount,
-        remainingContribution: remainingContribution ?? this.remainingContribution,
-        netPosition: netPosition ?? this.netPosition,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
 }
 
 class AppNotification {
@@ -612,4 +480,46 @@ class AppSettings {
         fontValue: fontValue,
         updatedAt: updatedAt,
       );
+}
+
+class SmartTransactionParsed {
+  final String type;
+  final int amount;
+  final String note;
+  final String? categoryName;
+  final String? walletName;
+  final String? owner;
+  final String? ownerName;
+  final int date;
+  final double confidence;
+
+  const SmartTransactionParsed({
+    required this.type,
+    required this.amount,
+    required this.note,
+    this.categoryName,
+    this.walletName,
+    this.owner,
+    this.ownerName,
+    required this.date,
+    this.confidence = 1.0,
+  });
+}
+
+class SmartChatResult {
+  final String? intent;
+  final String? replyText;
+  final String? reply;
+  final List<dynamic> transactions;
+  final List<String> suggestions;
+  final Map<String, dynamic>? data;
+
+  const SmartChatResult({
+    this.intent,
+    this.replyText,
+    this.reply,
+    this.transactions = const [],
+    this.suggestions = const [],
+    this.data,
+  });
 }

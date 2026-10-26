@@ -6,14 +6,20 @@ class Wallet {
   final String type;
   final String owner;
   final String ownerName;
+  // Preserve whether legacy records actually supplied attribution. Display
+  // defaults must not silently become evidence for transaction reports.
+  final bool hasExplicitOwner;
+  final bool hasExplicitOwnerName;
   final String? bankCode;
   final String? bankName;
   final String? accountNumber;
   final String? themeColor;
   final int initialBalance;
+  final bool hasInitialBalance;
   final int balance;
   final int creditLimit;
   final int initialDebt;
+  final bool hasInitialDebt;
   final int currentDebt;
   final int statementDay;
   final int paymentDueDay;
@@ -27,14 +33,18 @@ class Wallet {
     this.type = 'cash',
     this.owner = 'husband',
     this.ownerName = 'Chồng',
+    this.hasExplicitOwner = true,
+    this.hasExplicitOwnerName = true,
     this.bankCode,
     this.bankName,
     this.accountNumber,
     this.themeColor,
     this.initialBalance = 0,
+    this.hasInitialBalance = true,
     this.balance = 0,
     this.creditLimit = 0,
     this.initialDebt = 0,
+    this.hasInitialDebt = true,
     this.currentDebt = 0,
     this.statementDay = 1,
     this.paymentDueDay = 15,
@@ -50,21 +60,33 @@ class Wallet {
     final type = toStringValue(d['type']);
     final owner = toStringValue(d['owner']);
     final ownerName = toStringValue(d['ownerName']);
+    final openingBalance = tryMoneyValue(d['rawInitialBalance']) ??
+        tryMoneyValue(d['initialBalance']);
+    final openingDebt =
+        tryMoneyValue(d['rawInitialDebt']) ?? tryMoneyValue(d['initialDebt']);
     return Wallet(
       id: id,
       name: toStringValue(d['name']),
       type: type.isEmpty ? 'cash' : type,
       owner: owner.isEmpty ? 'husband' : owner,
       ownerName: ownerName.isEmpty ? 'Chồng' : ownerName,
+      hasExplicitOwner: owner.trim().isNotEmpty,
+      hasExplicitOwnerName: ownerName.trim().isNotEmpty,
       bankCode: toStringOrNull(d['bankCode']),
       bankName: toStringOrNull(d['bankName']),
       accountNumber: toStringOrNull(d['accountNumber']),
       themeColor: toStringOrNull(d['themeColor']),
-      initialBalance: toLongValue(d['initialBalance']),
-      balance: toLongValue(d['balance']),
-      creditLimit: toLongValue(d['creditLimit']),
-      initialDebt: toLongValue(d['initialDebt']),
-      currentDebt: toLongValue(d['currentDebt']),
+      initialBalance: openingBalance ?? 0,
+      hasInitialBalance: openingBalance != null,
+      balance: toMoneyValue(d['balance']),
+      creditLimit: toMoneyValue(d['creditLimit']),
+      initialDebt: openingDebt ?? 0,
+      // `initialBalance` belongs to cash/bank wallets. Some legacy credit-card
+      // documents contain `initialBalance: 0`; treating that as a debt
+      // baseline replays the whole ledger from zero and discards the stored
+      // currentDebt.
+      hasInitialDebt: openingDebt != null,
+      currentDebt: toMoneyValue(d['currentDebt'] ?? d['usedAmount']),
       statementDay: maxInt(toLongValue(d['statementDay']), 1),
       paymentDueDay: maxInt(toLongValue(d['paymentDueDay']), 1),
       minimumPaymentPercent: maxInt(toLongValue(d['minimumPaymentPercent']), 5),
@@ -73,46 +95,29 @@ class Wallet {
     );
   }
 
-  Wallet copyWith({
-    String? id,
-    String? name,
-    String? type,
-    String? owner,
-    String? ownerName,
-    String? bankCode,
-    String? bankName,
-    String? accountNumber,
-    String? themeColor,
-    int? initialBalance,
-    int? balance,
-    int? creditLimit,
-    int? initialDebt,
-    int? currentDebt,
-    int? statementDay,
-    int? paymentDueDay,
-    int? minimumPaymentPercent,
-    int? createdAt,
-    int? updatedAt,
-  }) =>
-      Wallet(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        type: type ?? this.type,
-        owner: owner ?? this.owner,
-        ownerName: ownerName ?? this.ownerName,
-        bankCode: bankCode ?? this.bankCode,
-        bankName: bankName ?? this.bankName,
-        accountNumber: accountNumber ?? this.accountNumber,
-        themeColor: themeColor ?? this.themeColor,
-        initialBalance: initialBalance ?? this.initialBalance,
+  Wallet copyWith({int? balance, int? currentDebt}) => Wallet(
+        id: id,
+        name: name,
+        type: type,
+        owner: owner,
+        ownerName: ownerName,
+        hasExplicitOwner: hasExplicitOwner,
+        hasExplicitOwnerName: hasExplicitOwnerName,
+        bankCode: bankCode,
+        bankName: bankName,
+        accountNumber: accountNumber,
+        themeColor: themeColor,
+        initialBalance: initialBalance,
+        hasInitialBalance: hasInitialBalance,
         balance: balance ?? this.balance,
-        creditLimit: creditLimit ?? this.creditLimit,
-        initialDebt: initialDebt ?? this.initialDebt,
+        creditLimit: creditLimit,
+        initialDebt: initialDebt,
+        hasInitialDebt: hasInitialDebt,
         currentDebt: currentDebt ?? this.currentDebt,
-        statementDay: statementDay ?? this.statementDay,
-        paymentDueDay: paymentDueDay ?? this.paymentDueDay,
-        minimumPaymentPercent: minimumPaymentPercent ?? this.minimumPaymentPercent,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
+        statementDay: statementDay,
+        paymentDueDay: paymentDueDay,
+        minimumPaymentPercent: minimumPaymentPercent,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
       );
 }

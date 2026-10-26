@@ -1,0 +1,93 @@
+Created At: 2026-09-29T14:56:53+07:00
+Completed At: 2026-09-29T14:57:01+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10707
+Total Bytes: 390784
+Showing lines 8645 to 8750
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8645:                   Container(
+8646:                     padding:
+8647:                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+8648:                     decoration: BoxDecoration(
+8649:                       color: Colors.black.withValues(alpha: 0.35),
+8650:                       borderRadius: BorderRadius.circular(8),
+8651:                       border: Border.all(
+8652:                         color: Colors.white.withValues(alpha: 0.25),
+8653:                         width: 0.8,
+8654:                       ),
+8655:                     ),
+8656:                     child: Text(
+8657:                       _previewVisaMode ? 'Thẻ Tín Dụng' : 'Thẻ ATM',
+8658:                       style: const TextStyle(
+8659:                         fontSize: 10,
+8660:                         color: Colors.white,
+8661:                         fontWeight: FontWeight.w600,
+8662:                       ),
+8663:                     ),
+8664:                   ),
+8665:                 ],
+8666:               ),
+8667:             ),
+8668:           ),
+8669:         ),
+8670: 
+8671:         const SizedBox(height: 12),
+8672: 
+8673:         // Live Miniature Dock Navigation Bar
+8674:         _buildMiniDockPreview(studio: studio, primary: primary, isDark: isDark),
+8675: 
+8676:         const SizedBox(height: 10),
+8677: 
+8678:         // Live Button & Badges
+8679:         Row(
+8680:           children: [
+8681:             Expanded(
+8682:               flex: 5,
+8683:               child: GradientButton(
+8684:                 height: 38,
+8685:  
+<truncated 1002 bytes>
+panded(
+8709:               flex: 4,
+8710:               child: Container(
+8711:                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+8712:                 decoration: BoxDecoration(
+8713:                   color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+8714:                       .withValues(alpha: 0.6),
+8715:                   borderRadius: BorderRadius.circular(12),
+8716:                   border: Border.all(
+8717:                     color: (isDark ? Colors.white : Colors.black)
+8718:                         .withValues(alpha: 0.08),
+8719:                   ),
+8720:                 ),
+8721:                 child: Row(
+8722:                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+8723:                   children: [
+8724:                     CategoryIconBadge(
+8725:                       icon: 'shopping-cart',
+8726:                       categoryName: 'Mua sắm',
+8727:                       color: const Color(0xFFEC4899),
+8728:                       size: 28,
+8729:                       isDark: isDark,
+8730:                     ),
+8731:                     CategoryIconBadge(
+8732:                       icon: 'utensils',
+8733:                       categoryName: 'Ăn uống',
+8734:                       color: const Color(0xFFF59E0B),
+8735:                       size: 28,
+8736:                       isDark: isDark,
+8737:                     ),
+8738:                     CategoryIconBadge(
+8739:                       icon: 'car',
+8740:                       categoryName: 'Đi lại',
+8741:                       color: const Color(0xFF3B82F6),
+8742:                       size: 28,
+8743:                       isDark: isDark,
+8744:                     ),
+8745:                   ],
+8746:                 ),
+8747:               ),
+8748:             ),
+8749:           ],
+8750:         ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

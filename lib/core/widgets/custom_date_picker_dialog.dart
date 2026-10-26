@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../design_system/app_colors.dart';
+import '../design_system/app_radius.dart';
+import '../design_system/app_spacing.dart';
+import '../../state/theme_studio_controller.dart';
+import 'glass_widgets.dart';
 
 class CustomDatePickerSheet extends StatefulWidget {
   final DateTime initialDate;
@@ -78,6 +85,18 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
     });
   }
 
+  void _selectMonth(int month) {
+    setState(() {
+      _displayedMonth = DateTime(_displayedMonth.year, month, 1);
+    });
+  }
+
+  void _selectYear(int year) {
+    setState(() {
+      _displayedMonth = DateTime(year, _displayedMonth.month, 1);
+    });
+  }
+
   String _getWeekdayName(DateTime date) {
     final wd = date.weekday;
     switch (wd) {
@@ -123,7 +142,12 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final studio = context.watch<ThemeStudioController?>();
+    final primary = studio?.resolvedPrimary ?? AppColors.primary;
+    final List<Color> heroGradient = studio?.currentPaletteMeta.heroGradient ?? AppColors.heroPurpleGradient.colors;
+    final List<Color> btnGradient = studio?.resolvedButtonGradient ?? heroGradient;
+    final btnPrimary = studio?.resolvedButtonPrimary ?? primary;
+    final btnRadius = studio?.getButtonRadius() ?? 16.0;
     final sub = _getDateSubtitle(_selectedDate);
 
     // Calculate days in month
@@ -142,52 +166,33 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
     final isStartOfMonthSelected =
         _isSameDay(_selectedDate, DateTime(now.year, now.month, 1));
 
-    return Container(
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 30,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
+    return GlassBottomSheet(
+      radius: 28,
+      showHandle: true,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Drag Handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.black12,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Top Selected Date Badge
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Top Selected Date Badge
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F172A)
-                      : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0),
+                  gradient: LinearGradient(
+                    colors: heroGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primary.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
@@ -195,16 +200,11 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5),
+                        color: Colors.white.withValues(alpha: 0.20),
                         borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                const Color(0xFF4F46E5).withValues(alpha: 0.4),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.30),
+                        ),
                       ),
                       child: Center(
                         child: Text(
@@ -222,22 +222,21 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${_getWeekdayName(_selectedDate)}, ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                          style: TextStyle(
+                          '${_getWeekdayName(_selectedDate)}, ${_selectedDate.day} tháng ${_selectedDate.month}, ${_selectedDate.year}',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: Colors.white,
                           ),
                         ),
                         if (sub.isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Text(
                             sub,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF6366F1),
+                              color: Colors.white.withValues(alpha: 0.85),
                             ),
                           ),
                         ],
@@ -253,30 +252,35 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                 children: [
                   Expanded(
                     child: _buildQuickButton(
-                        'Hôm nay', isTodaySelected, _selectToday, isDark),
+                        'Hôm nay', isTodaySelected, _selectToday, isDark, primary),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildQuickButton('Hôm qua', isYesterdaySelected,
-                        _selectYesterday, isDark),
+                        _selectYesterday, isDark, primary),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildQuickButton('Đầu tháng',
-                        isStartOfMonthSelected, _selectStartOfMonth, isDark),
+                        isStartOfMonthSelected, _selectStartOfMonth, isDark, primary),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // Month Navigator
+              // Month and year navigator
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? const Color(0xFF0F172A)
-                      : const Color(0xFFF8FAFC),
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.035),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.10)
+                        : Colors.black.withValues(alpha: 0.07),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -284,28 +288,39 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded),
                       onPressed: _prevMonth,
-                      color: isDark ? Colors.white70 : Colors.black87,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_month_rounded,
-                            size: 18, color: Color(0xFF4F46E5)),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Tháng ${_displayedMonth.month}, ${_displayedMonth.year}',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
+                    Flexible(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildPickerMenu<int>(
+                            value: _displayedMonth.month,
+                            values: List.generate(12, (index) => index + 1),
+                            label: (value) => 'Tháng $value',
+                            onChanged: _selectMonth,
+                            isDark: isDark,
+                            primary: primary,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: AppSpacing.xs),
+                          _buildPickerMenu<int>(
+                            value: _displayedMonth.year,
+                            values: List.generate(
+                              21,
+                              (index) => DateTime.now().year - 10 + index,
+                            ),
+                            label: (value) => '$value',
+                            onChanged: _selectYear,
+                            isDark: isDark,
+                            primary: primary,
+                          ),
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.chevron_right_rounded),
                       onPressed: _nextMonth,
-                      color: isDark ? Colors.white70 : Colors.black87,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ],
                 ),
@@ -357,14 +372,13 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected
-                            ? const Color(0xFF4F46E5)
-                            : Colors.transparent,
+                        color:
+                            isSelected ? primary : Colors.transparent,
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: const Color(0xFF4F46E5)
-                                      .withValues(alpha: 0.4),
+                                  color:
+                                      primary.withValues(alpha: 0.4),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
                                 ),
@@ -375,16 +389,16 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                         child: Text(
                           '$dayNumber',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 14.5,
                             fontWeight:
-                                isSelected ? FontWeight.w900 : FontWeight.w600,
+                                isSelected ? FontWeight.w900 : FontWeight.w700,
                             color: isSelected
                                 ? Colors.white
                                 : isSunday
                                     ? const Color(0xFFEF4444)
                                     : (isDark
                                         ? Colors.white
-                                        : const Color(0xFF1E293B)),
+                                        : const Color(0xFF0F172A)),
                           ),
                         ),
                       ),
@@ -403,22 +417,24 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                          backgroundColor: isDark
+                              ? Colors.white.withValues(alpha: 0.06)
+                              : Colors.black.withValues(alpha: 0.035),
+                          shape: const StadiumBorder(),
                           side: BorderSide(
                             color: isDark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFE2E8F0),
+                                ? Colors.white.withValues(alpha: 0.15)
+                                : Colors.black.withValues(alpha: 0.12),
                           ),
                         ),
                         child: Text(
                           'Hủy',
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             color: isDark
-                                ? Colors.white70
-                                : const Color(0xFF64748B),
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                         ),
                       ),
@@ -427,28 +443,40 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
-                    child: SizedBox(
-                      height: 48,
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: btnGradient,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(btnRadius),
+                        boxShadow: [
+                          BoxShadow(
+                            color: btnPrimary.withValues(alpha: 0.30),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
                       child: ElevatedButton(
                         onPressed: () => widget.onDateSelected(_selectedDate),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4F46E5),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          elevation: 4,
-                          shadowColor:
-                              const Color(0xFF4F46E5).withValues(alpha: 0.4),
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: const StadiumBorder(),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.check_rounded,
-                                color: Colors.white, size: 18),
+                                color: Colors.white, size: 20),
                             SizedBox(width: 8),
                             Text(
                               'Xác nhận ngày',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                               ),
@@ -463,25 +491,71 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
             ],
           ),
         ),
+      );
+  }
+
+  Widget _buildPickerMenu<T>({
+    required T value,
+    required List<T> values,
+    required String Function(T) label,
+    required ValueChanged<T> onChanged,
+    required bool isDark,
+    required Color primary,
+  }) {
+    return Container(
+      padding: const EdgeInsetsDirectional.only(start: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: isDark ? .18 : .09),
+        borderRadius: AppRadius.radiusSM,
+        border: Border.all(color: primary.withValues(alpha: .24)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          borderRadius: AppRadius.card,
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: primary,
+          ),
+          style: TextStyle(
+            color:
+                isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+          dropdownColor:
+              isDark ? AppColors.darkSurfaceElevated : AppColors.lightSurface,
+          items: values
+              .map(
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(label(item)),
+                ),
+              )
+              .toList(),
+          onChanged: (item) {
+            if (item != null) onChanged(item);
+          },
+        ),
       ),
     );
   }
 
   Widget _buildQuickButton(
-      String text, bool active, VoidCallback onTap, bool isDark) {
+      String text, bool active, VoidCallback onTap, bool isDark, Color primary) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: active
-              ? const Color(0xFF4F46E5)
-              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+              ? primary
+              : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.035)),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: active
-                ? const Color(0xFF4F46E5)
-                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                ? primary
+                : (isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.07)),
+            width: active ? 1.5 : 1,
           ),
         ),
         child: Center(
@@ -489,10 +563,10 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
             text,
             style: TextStyle(
               fontSize: 13,
-              fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+              fontWeight: active ? FontWeight.w800 : FontWeight.w700,
               color: active
                   ? Colors.white
-                  : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                  : (isDark ? Colors.white : const Color(0xFF0F172A)),
             ),
           ),
         ),
@@ -512,7 +586,7 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
             fontWeight: FontWeight.w800,
             color: isSunday
                 ? const Color(0xFFEF4444)
-                : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                : (isDark ? Colors.white70 : const Color(0xFF334155)),
           ),
         ),
       ),

@@ -1,0 +1,94 @@
+Created At: 2026-09-29T14:49:13+07:00
+Completed At: 2026-09-29T14:49:13+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 9121 to 9278
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+9121:   Widget _buildLiveIconStudioPreview({
+9122:     required ThemeStudioController studio,
+9123:     required bool isDark,
+9124:     required Color primary,
+9125:     required PaletteMeta palette,
+9126:   }) {
+9127:     const demoCategories = [
+9128:       (icon: 'shopping-cart', name: 'Mua sắm', color: Color(0xFFEC4899)),
+9129:       (icon: 'utensils', name: 'Ăn uống', color: Color(0xFFF59E0B)),
+9130:       (icon: 'car', name: 'Đi lại', color: Color(0xFF3B82F6)),
+9131:       (icon: 'wallet', name: 'Tiền lương', color: Color(0xFF10B981)),
+9132:       (icon: 'receipt', name: 'Hóa đơn', color: Color(0xFF8B5CF6)),
+9133:       (icon: 'cross', name: 'Y tế', color: Color(0xFFEF4444)),
+9134:     ];
+9135: 
+9136:     return Column(
+9137:       children: [
+9138:         // 6 Category Icon Badges in a Row
+9139:         Container(
+9140:           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+9141:           decoration: BoxDecoration(
+9142:             color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+9143:                 .withValues(alpha: 0.85),
+9144:             borderRadius: BorderRadius.circular(16),
+9145:             border: Border.all(
+9146:               color: (isDark ? Colors.white : Colors.black)
+9147:                   .withValues(alpha: 0.08),
+9148:             ),
+9149:           ),
+9150:           child: Row(
+9151:             mainAxisAlignment: MainAxisAlignment.spaceAround,
+9152:             children: demoCategories.map((c) {
+9153:               return GestureDetector(
+9154:                 onT
+<truncated 3102 bytes>
+          ),
+9229:                   ],
+9230:                 ),
+9231:               ),
+9232:               const Text(
+9233:                 '-350.000 ₫',
+9234:                 style: TextStyle(
+9235:                   fontSize: 13,
+9236:                   fontWeight: FontWeight.w800,
+9237:                   color: Color(0xFFF43F5E),
+9238:                 ),
+9239:               ),
+9240:             ],
+9241:           ),
+9242:         ),
+9243: 
+9244:         const SizedBox(height: 10),
+9245: 
+9246:         // Indicator showing active icon settings
+9247:         Container(
+9248:           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+9249:           decoration: BoxDecoration(
+9250:             color: primary.withValues(alpha: 0.12),
+9251:             borderRadius: BorderRadius.circular(10),
+9252:             border:
+9253:                 Border.all(color: primary.withValues(alpha: 0.25), width: 0.8),
+9254:           ),
+9255:           child: Wrap(
+9256:             spacing: 12,
+9257:             runSpacing: 8,
+9258:             alignment: WrapAlignment.spaceBetween,
+9259:             children: [
+9260:               Text(
+9261:                 'Hình: ${_getIconShapeName(studio.iconShape)} • Hiệu ứng: ${_getIconEffectName(studio.iconVisualEffect)}',
+9262:                 style: TextStyle(
+9263:                     fontSize: 10.5,
+9264:                     fontWeight: FontWeight.w700,
+9265:                     color: primary),
+9266:               ),
+9267:               Text(
+9268:                 'Độ đậm nền: ${(studio.iconBgOpacity * 100).toInt()}%',
+9269:                 style: TextStyle(
+9270:                     fontSize: 10, fontWeight: FontWeight.w600, color: primary),
+9271:               ),
+9272:             ],
+9273:           ),
+9274:         ),
+9275:       ],
+9276:     );
+9277:   }
+9278: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

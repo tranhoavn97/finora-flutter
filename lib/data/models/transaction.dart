@@ -12,6 +12,8 @@ class TransactionModel {
   final String? categoryIcon;
   final String? categoryColor;
   final String? categoryGroup;
+  final String? merchantId;
+  final String? merchantName;
   final String? walletId;
   final String? walletName;
   final String? owner;
@@ -35,6 +37,9 @@ class TransactionModel {
   final String? investmentSubtype;
   final String? investmentAction;
   final List<String> tags;
+  final String? creatorTag;
+  final String? createdBy;
+  final String? creatorName;
   final int createdAt;
   final int updatedAt;
 
@@ -50,6 +55,8 @@ class TransactionModel {
     this.categoryIcon,
     this.categoryColor,
     this.categoryGroup,
+    this.merchantId,
+    this.merchantName,
     this.walletId,
     this.walletName,
     this.owner,
@@ -73,6 +80,9 @@ class TransactionModel {
     this.investmentSubtype,
     this.investmentAction,
     this.tags = const [],
+    this.creatorTag,
+    this.createdBy,
+    this.creatorName,
     this.createdAt = 0,
     this.updatedAt = 0,
   });
@@ -82,25 +92,35 @@ class TransactionModel {
     final rawTags = d['tags'];
     List<String> tags;
     if (rawTags is List) {
-      tags = rawTags.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+      tags =
+          rawTags.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
     } else if (rawTags is String) {
-      tags = rawTags.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      tags = rawTags
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     } else {
       tags = const [];
     }
     final type = toStringValue(d['type']);
+    final rawDate = toLongValue(d['date']);
+    final date =
+        (rawDate > 0 && rawDate < 100000000000) ? rawDate * 1000 : rawDate;
     return TransactionModel(
       id: id,
       userId: toStringValue(d['userId']),
-      amount: toLongValue(d['amount']),
+      amount: toMoneyValue(d['amount']),
       type: type.isEmpty ? 'expense' : type,
-      date: toLongValue(d['date']),
+      date: date,
       note: toStringOrNull(d['note']),
       categoryId: toStringOrNull(d['categoryId']),
       categoryName: toStringOrNull(d['categoryName']),
       categoryIcon: toStringOrNull(d['categoryIcon']),
       categoryColor: toStringOrNull(d['categoryColor']),
       categoryGroup: toStringOrNull(d['categoryGroup']),
+      merchantId: toStringOrNull(d['merchantId']),
+      merchantName: toStringOrNull(d['merchantName']),
       walletId: toStringOrNull(d['walletId']),
       walletName: toStringOrNull(d['walletName']),
       owner: toStringOrNull(d['owner']),
@@ -124,6 +144,9 @@ class TransactionModel {
       investmentSubtype: toStringOrNull(d['investmentSubtype']),
       investmentAction: toStringOrNull(d['investmentAction']),
       tags: tags,
+      creatorTag: toStringOrNull(d['creatorTag']),
+      createdBy: toStringOrNull(d['createdBy']),
+      creatorName: toStringOrNull(d['creatorName']),
       createdAt: toLongValue(d['createdAt']),
       updatedAt: toLongValue(d['updatedAt']),
     );
@@ -141,6 +164,8 @@ class TransactionModel {
         'categoryIcon': categoryIcon,
         'categoryColor': categoryColor,
         'categoryGroup': categoryGroup,
+        'merchantId': merchantId,
+        'merchantName': merchantName,
         'walletId': walletId,
         'walletName': walletName,
         'owner': owner,
@@ -164,6 +189,9 @@ class TransactionModel {
         'investmentSubtype': investmentSubtype,
         'investmentAction': investmentAction,
         'tags': tags,
+        'creatorTag': creatorTag,
+        'createdBy': createdBy,
+        'creatorName': creatorName,
       };
 
   TransactionModel copyWith({
@@ -178,6 +206,8 @@ class TransactionModel {
     String? categoryIcon,
     String? categoryColor,
     String? categoryGroup,
+    String? merchantId,
+    String? merchantName,
     String? walletId,
     String? walletName,
     String? owner,
@@ -201,6 +231,9 @@ class TransactionModel {
     String? investmentSubtype,
     String? investmentAction,
     List<String>? tags,
+    String? creatorTag,
+    String? createdBy,
+    String? creatorName,
     int? createdAt,
     int? updatedAt,
   }) {
@@ -216,6 +249,8 @@ class TransactionModel {
       categoryIcon: categoryIcon ?? this.categoryIcon,
       categoryColor: categoryColor ?? this.categoryColor,
       categoryGroup: categoryGroup ?? this.categoryGroup,
+      merchantId: merchantId ?? this.merchantId,
+      merchantName: merchantName ?? this.merchantName,
       walletId: walletId ?? this.walletId,
       walletName: walletName ?? this.walletName,
       owner: owner ?? this.owner,
@@ -239,8 +274,23 @@ class TransactionModel {
       investmentSubtype: investmentSubtype ?? this.investmentSubtype,
       investmentAction: investmentAction ?? this.investmentAction,
       tags: tags ?? this.tags,
+      creatorTag: creatorTag ?? this.creatorTag,
+      createdBy: createdBy ?? this.createdBy,
+      creatorName: creatorName ?? this.creatorName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  bool get isLinked =>
+      (loanId != null && loanId!.isNotEmpty) ||
+      (goalId != null && goalId!.isNotEmpty) ||
+      (assetId != null && assetId!.isNotEmpty);
+
+  String? get linkedReason {
+    if (loanId != null && loanId!.isNotEmpty) return 'khoản vay / nợ';
+    if (goalId != null && goalId!.isNotEmpty) return 'mục tiêu tích lũy';
+    if (assetId != null && assetId!.isNotEmpty) return 'tài sản / đầu tư';
+    return null;
   }
 }

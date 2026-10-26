@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/date_filter.dart';
+import '../core/utils/search.dart';
+import '../domain/finance/transaction_member.dart';
 import '../data/models/wallet.dart';
 import '../data/models/category.dart';
 import '../data/models/transaction.dart';
@@ -24,7 +26,7 @@ class TransactionProvider extends ChangeNotifier {
   DateTime? customEndDate;
   int? customYear;
   int? customMonth;
-  bool isRefreshing = false;
+  bool isRefreshing = true;
   String? error;
   final Set<String> _pending = {};
   final Set<String> _failed = {};
@@ -72,11 +74,18 @@ class TransactionProvider extends ChangeNotifier {
   DateFilterOption get selectedDateOption => selectedDateFilter;
 
   List<TransactionModel> get filteredTransactions {
-    final q = searchQuery.trim().toLowerCase();
+    final q = normalizeSearch(searchQuery);
+    final walletMap = {for (final w in _rawWallets) w.id: w};
     final list = _all.where((t) {
       final matchesQuery = q.isEmpty ||
-          (t.note ?? '').toLowerCase().contains(q) ||
-          (t.categoryName ?? '').toLowerCase().contains(q) ||
+          [
+            t.note,
+            t.categoryName,
+            t.merchantName,
+            t.walletName,
+            t.fromWalletName,
+            t.toWalletName
+          ].any((value) => normalizeSearch(value ?? '').contains(q)) ||
           t.amount.toString().contains(q);
       final normType = WalletRepository.normalizeTransactionType(t.type);
       final matchesType = selectedType == null ||
@@ -84,11 +93,18 @@ class TransactionProvider extends ChangeNotifier {
           (selectedType == 'credit_card_payment' &&
               (normType == 'credit_card_payment' ||
                   normType == 'debt_repayment'));
+      final selectedWallet = selectedWalletId == null
+          ? null
+          : _rawWallets.where((w) => w.id == selectedWalletId).firstOrNull;
       final matchesWallet = selectedWalletId == null ||
           selectedWalletId == t.walletId ||
           selectedWalletId == t.fromWalletId ||
           selectedWalletId == t.toWalletId ||
-          selectedWalletId == t.creditCardId;
+          selectedWalletId == t.creditCardId ||
+          (selectedWallet != null &&
+              t.walletName != null &&
+              t.walletName!.trim().toLowerCase() ==
+                  selectedWallet.name.trim().toLowerCase());
       final matchesDate = isDateInFilterOption(
         t.date,
         selectedDateFilter,
@@ -98,21 +114,10 @@ class TransactionProvider extends ChangeNotifier {
         customYear: customYear,
         customMonth: customMonth,
       );
-      final isWife = t.creatorTag == 'Vợ' ||
-          t.creatorTag?.toLowerCase() == 'wife' ||
-          t.ownerName?.toLowerCase() == 'vợ' ||
-          t.ownerName?.toLowerCase() == 'wife' ||
-          t.owner?.toLowerCase() == 'wife' ||
-          t.fromOwner?.toLowerCase() == 'wife' ||
-          t.paidByOwner?.toLowerCase() == 'wife' ||
-          t.tags.any((tag) =>
-              tag.toLowerCase() == 'vợ' || tag.toLowerCase() == 'wife');
-      final isHusband = !isWife;
-
       final matchesMember = selectedMemberTag == null ||
           selectedMemberTag == 'all' ||
-          (selectedMemberTag == 'wife' && isWife) ||
-          (selectedMemberTag == 'husband' && isHusband);
+          selectedMemberTag ==
+              resolveTransactionMember(t, walletMap: walletMap).value;
       return matchesQuery &&
           matchesType &&
           matchesWallet &&
@@ -122,6 +127,10 @@ class TransactionProvider extends ChangeNotifier {
       ..sort((a, b) => b.date.compareTo(a.date));
     return list;
   }
+
+  TransactionMember memberFor(TransactionModel tx) =>
+      resolveTransactionMember(tx,
+          walletMap: {for (final w in _rawWallets) w.id: w});
 
   void load(String userId, {String? familyId, bool force = false}) {
     if (!force &&
@@ -170,9 +179,13 @@ class TransactionProvider extends ChangeNotifier {
       }));
     }
 
-    watch('transactions', _txRepo.watchTransactions(userId), (v) => _all = v);
-    watch('wallets', _walletRepo.watchWallets(userId), (v) => _rawWallets = v);
-    watch('categories', _categoryRepo.watchCategories(userId),
+    watch('transactions', _txRepo.watchTransactions(userId, familyId: familyId),
+        (v) => _all = v);
+    watch('wallets', _walletRepo.watchWallets(userId, familyId: familyId),
+        (v) => _rawWallets = v);
+    watch(
+        'categories',
+        _categoryRepo.watchCategories(userId, familyId: familyId),
         (v) => categories = v);
   }
 
@@ -373,9 +386,9 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> createTransaction(String userId, TransactionModel tx) async {
     try {
-      await _txRepo.createTransaction(userId, tx);
+      await _txRepo.createTransaction(userId, tx, familyId: _familyId);
       _events.add('Đã thêm giao dịch thành công');
-    } catch (e, st) {
+    } catch (e) {
       _events.add('Không thể lưu giao dịch. Vui lòng thử lại.');
       rethrow;
     }
@@ -384,7 +397,7 @@ class TransactionProvider extends ChangeNotifier {
   Future<void> updateTransaction(
       String userId, String id, TransactionModel tx) async {
     try {
-      await _txRepo.updateTransaction(userId, id, tx);
+      await _txRepo.updateTransaction(userId, id, tx, familyId: _familyId);
       _events.add('Đã cập nhật giao dịch');
     } catch (e) {
       _events.add('Không thể cập nhật giao dịch');
@@ -404,7 +417,8 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<bool> deleteTransaction(String userId, TransactionModel tx) async {
     try {
-      await _txRepo.deleteTransactionAndReverse(userId, tx);
+      await _txRepo.deleteTransactionAndReverse(userId, tx,
+          familyId: _familyId);
       _events.add('Đã xóa giao dịch thành công');
       return true;
     } catch (e) {

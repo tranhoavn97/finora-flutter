@@ -1,0 +1,81 @@
+Created At: 2026-09-29T14:44:36+07:00
+Completed At: 2026-09-29T14:44:49+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_studio_workspace.dart`
+Total Lines: 543
+Total Bytes: 20782
+Showing lines 170 to 250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+170:                   onPressed: _close,
+171:                   style: FilledButton.styleFrom(
+172:                     backgroundColor: _ink,
+173:                     foregroundColor: _surface,
+174:                     minimumSize: const Size(0, 48),
+175:                     shape: RoundedRectangleBorder(
+176:                         borderRadius: BorderRadius.circular(16)),
+177:                   ),
+178:                   child: const Text('Hoàn tất'),
+179:                 ),
+180:               ),
+181:             ]),
+182:           ),
+183:         ),
+184:         body: ColoredBox(
+185:           color: _dark ? const Color(0xFF101C23) : const Color(0xFFF3F5F1),
+186:           child: SafeArea(
+187:             top: false,
+188:             bottom: false,
+189:             child: LayoutBuilder(builder: (context, constraints) {
+190:               final wide = constraints.maxWidth >= 960;
+191:               final content = Column(
+192:                 crossAxisAlignment: CrossAxisAlignment.start,
+193:                 children: [
+194:                   if (_home) _intro() else _editorHeading(),
+195:                   const SizedBox(height: 20),
+196:                   if (!wide) ...[_previewCard(), const SizedBox(height: 26)],
+197:                   if (_home) _categoryGrid() else widget.editor,
+198:                   const SizedBox(height: 28),
+199:                   if (_home) _libraryCard(),
+200:                   const SizedBox(height: 24),
+201:                 ],
+202:               );
+203:               return Stack(children: [
+204:                
+<truncated 510 bytes>
+                          padding: const EdgeInsets.all(24),
+215:                                     child: _previewCard(alwaysExpanded: true),
+216:                                   ),
+217:                                 ),
+218:                                 Expanded(
+219:                                     child: SingleChildScrollView(
+220:                                   controller: _scroll,
+221:                                   padding:
+222:                                       const EdgeInsets.fromLTRB(8, 24, 24, 0),
+223:                                   child: content,
+224:                                 )),
+225:                               ])
+226:                         : SingleChildScrollView(
+227:                             controller: _scroll,
+228:                             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+229:                             child: content,
+230:                           ),
+231:                   ),
+232:                 ),
+233:                 if (widget.feedback != null)
+234:                   Positioned(
+235:                     top: 8,
+236:                     left: 20,
+237:                     right: 20,
+238:                     child: IgnorePointer(
+239:                         child: Semantics(
+240:                       liveRegion: true,
+241:                       child: Material(
+242:                         elevation: 8,
+243:                         color: _ink,
+244:                         borderRadius: BorderRadius.circular(16),
+245:                         child: Padding(
+246:                           padding: const EdgeInsets.all(14),
+247:                           child: Text(widget.feedback!,
+248:                               textAlign: TextAlign.center,
+249:                               style: TextStyle(color: _surface)),
+250:                         ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

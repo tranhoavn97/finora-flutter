@@ -1,32 +1,17 @@
 import 'package:flutter/material.dart';
 
+/// Role-based radii. Legacy aliases stay available during screen migration.
 class AppRadius {
-  static const double xs = 10.0;
-  static const double sm = 14.0;
-  static const double md = 18.0;
-  static const double lg = 22.0;
-  static const double xl = 28.0;
-  static const double xxl = 32.0;
-  static const double pill = 50.0;
-
-  // BorderRadius shortcuts
-  static final BorderRadius radiusXS = BorderRadius.circular(xs);
-  static final BorderRadius radiusSM = BorderRadius.circular(sm);
-  static final BorderRadius radiusMD = BorderRadius.circular(md);
-  static final BorderRadius radiusLG = BorderRadius.circular(lg);
-  static final BorderRadius radiusXL = BorderRadius.circular(xl);
-  static final BorderRadius radiusXXL = BorderRadius.circular(xxl);
-  static final BorderRadius radiusPill = BorderRadius.circular(pill);
-
-  // Component standard configurations
-  static final BorderRadius button = BorderRadius.circular(20.0);
-  static final BorderRadius input = BorderRadius.circular(20.0);
-  static final BorderRadius card = BorderRadius.circular(24.0);
-  static final BorderRadius cardLarge = BorderRadius.circular(28.0);
-  static final BorderRadius modal = BorderRadius.circular(28.0);
-  static final BorderRadius dialog = BorderRadius.circular(28.0);
-  static final BorderRadius bottomSheet = const BorderRadius.only(
-    topLeft: Radius.circular(30.0),
-    topRight: Radius.circular(30.0),
-  );
+  static const double xs = 8, sm = 12, md = 16, lg = 16, xl = 20, xxl = 24;
+  static final radiusXS = BorderRadius.circular(xs);
+  static final radiusSM = BorderRadius.circular(sm);
+  static final radiusMD = BorderRadius.circular(md);
+  static final radiusLG = BorderRadius.circular(lg);
+  static final radiusXL = BorderRadius.circular(xl);
+  static final radiusXXL = BorderRadius.circular(xxl);
+  static final button = BorderRadius.circular(14);
+  static final input = BorderRadius.circular(16);
+  static final card = BorderRadius.circular(20);
+  static final modal = BorderRadius.circular(18);
+  static const bottomSheet = BorderRadius.vertical(top: Radius.circular(20));
 }

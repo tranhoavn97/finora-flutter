@@ -10,14 +10,6 @@ class AppSpacing {
   static const double xxl = 32.0;
   static const double xxxl = 40.0;
 
-  /// Dense page rhythm used on mobile list screens. Keeping these values in
-  /// one place prevents every feature from reserving a different blank area.
-  static const double pageHorizontal = 14.0;
-  static const double pageTop = 6.0;
-  static const double pageBottomWithDock = 88.0;
-  static const double sectionGap = 10.0;
-  static const double rowGap = 6.0;
-
   // Custom gap shortcuts
   static const SizedBox gapXXS = SizedBox(width: xxs, height: xxs);
   static const SizedBox gapXS = SizedBox(width: xs, height: xs);

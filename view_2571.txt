@@ -1,0 +1,92 @@
+Created At: 2026-09-29T14:58:51+07:00
+Completed At: 2026-09-29T14:58:51+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10601
+Total Bytes: 386230
+Showing lines 8645 to 8760
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8645:       ],
+8646:     );
+8647:   }
+8648: 
+8649:   Widget _buildLiveChartAndWidgetCardPreview({
+8650:     required ThemeStudioController studio,
+8651:     required bool isDark,
+8652:     required Color primary,
+8653:     required PaletteMeta palette,
+8654:   }) {
+8655:     final chartColors = switch (studio.chartColorway) {
+8656:       AppChartColorway.paletteSync => [primary, studio.secondaryColor],
+8657:       AppChartColorway.cyberpunkVibrant => const [
+8658:           Color(0xFF06B6D4),
+8659:           Color(0xFFEC4899)
+8660:         ],
+8661:       AppChartColorway.emeraldFortune => const [
+8662:           Color(0xFF10B981),
+8663:           Color(0xFFF59E0B)
+8664:         ],
+8665:       AppChartColorway.sunsetPastel => const [
+8666:           Color(0xFFFB923C),
+8667:           Color(0xFFA855F7)
+8668:         ],
+8669:     };
+8670: 
+8671:     return Column(
+8672:       children: [
+8673:         // Mini Chart Container
+8674:         ClipRRect(
+8675:           borderRadius:
+8676:               BorderRadius.circular(studio.cardCornerRadius.clamp(14.0, 24.0)),
+8677:           child: BackdropFilter(
+8678:             filter: ImageFilter.blur(
+8679:               sigmaX: studio.glassBlur.clamp(0.0, 30.0),
+8680:               sigmaY: studio.glassBlur.clamp(0.0, 30.0),
+8681:             ),
+8682:             child: Container(
+8683:               height: 145,
+8684:               padding: const EdgeInsets.all(14),
+8685:               decoration: BoxDecoration(
+8686:                 color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+8687:         
+<truncated 1708 bytes>
+etric(
+8722:                             horizontal: 6, vertical: 2),
+8723:                         decoration: BoxDecoration(
+8724:                           color: chartColors.first.withValues(alpha: 0.15),
+8725:                           borderRadius: BorderRadius.circular(6),
+8726:                         ),
+8727:                         child: Text(
+8728:                           _getChartCurveName(studio.chartCurveStyle),
+8729:                           style: TextStyle(
+8730:                             fontSize: 9.5,
+8731:                             fontWeight: FontWeight.w700,
+8732:                             color: chartColors.first,
+8733:                           ),
+8734:                         ),
+8735:                       ),
+8736:                     ],
+8737:                   ),
+8738:                   const Spacer(),
+8739:                   // Simulated Wave Graphic
+8740:                   SizedBox(
+8741:                     height: 68,
+8742:                     width: double.infinity,
+8743:                     child: CustomPaint(
+8744:                       painter: _MiniChartPreviewPainter(
+8745:                         curveStyle: studio.chartCurveStyle,
+8746:                         areaFill: studio.chartAreaFill,
+8747:                         colors: chartColors,
+8748:                         isDark: isDark,
+8749:                       ),
+8750:                     ),
+8751:                   ),
+8752:                   const SizedBox(height: 6),
+8753:                   Wrap(
+8754:                     spacing: 12,
+8755:                     runSpacing: 8,
+8756:                     alignment: WrapAlignment.spaceBetween,
+8757:                     children:
+8758:                         ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d) {
+8759:                       return Text(
+8760:                         d,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

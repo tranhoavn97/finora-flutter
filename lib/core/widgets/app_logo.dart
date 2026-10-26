@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 
-import '../design_system/app_colors.dart';
+import '../theme/finora_tokens.dart';
 
-/// Renders the custom flowing "F" logo from the web app using a custom painter.
+/// Renders the custom flowing "F" logo in FINORA 2026 Solid Ink.
 class FinoraLogo extends StatelessWidget {
   final double size;
-  const FinoraLogo({super.key, this.size = 64});
+  final Color? color;
+  const FinoraLogo({super.key, this.size = 64, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveColor = color ?? FinoraTokens.ink(isDark);
     return CustomPaint(
       size: Size(size, size),
-      painter: _FinoraLogoPainter(),
+      painter: _FinoraLogoPainter(color: effectiveColor),
     );
   }
 }
 
 class _FinoraLogoPainter extends CustomPainter {
+  final Color color;
+  _FinoraLogoPainter({required this.color});
+
   @override
   void paint(Canvas canvas, Size size) {
     final scaleX = size.width / 100.0;
@@ -32,18 +38,8 @@ class _FinoraLogoPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14.0 * scale
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    paint.shader = const LinearGradient(
-      begin: Alignment.bottomLeft,
-      end: Alignment.topRight,
-      colors: [
-        Color(0xFF1877F2),
-        Color(0xFF4DA3FF),
-        Color(0xFF55C7FF),
-      ],
-      stops: [0.0, 0.5, 1.0],
-    ).createShader(Rect.fromLTWH(0, 0, 100.0 * scale, 100.0 * scale));
+      ..strokeJoin = StrokeJoin.round
+      ..color = color;
 
     final path1 = Path()
       ..moveTo(32.0 * scale, 80.0 * scale)
@@ -66,28 +62,30 @@ class _FinoraLogoPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _FinoraLogoPainter oldDelegate) => oldDelegate.color != color;
 }
 
-/// Renders the complete stylized horizontal brand logo (F + vector "inora") matching the web app.
+/// Renders the complete stylized horizontal brand logo (F + vector "inora") in Solid Ink.
 class FinoraBrandLogo extends StatelessWidget {
   final double width;
   final double height;
-  const FinoraBrandLogo({super.key, this.width = 192, this.height = 60});
+  final Color? color;
+  const FinoraBrandLogo({super.key, this.width = 192, this.height = 60, this.color});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveColor = color ?? FinoraTokens.ink(isDark);
     return CustomPaint(
       size: Size(width, height),
-      painter: _FinoraBrandLogoPainter(isDark: isDark),
+      painter: _FinoraBrandLogoPainter(color: effectiveColor),
     );
   }
 }
 
 class _FinoraBrandLogoPainter extends CustomPainter {
-  final bool isDark;
-  _FinoraBrandLogoPainter({required this.isDark});
+  final Color color;
+  _FinoraBrandLogoPainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -105,18 +103,8 @@ class _FinoraBrandLogoPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14.0 * scale
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    fPaint.shader = const LinearGradient(
-      begin: Alignment.bottomLeft,
-      end: Alignment.topRight,
-      colors: [
-        Color(0xFF1877F2),
-        Color(0xFF4DA3FF),
-        Color(0xFF55C7FF),
-      ],
-      stops: [0.0, 0.5, 1.0],
-    ).createShader(Rect.fromLTWH(32.0 * scale, 20.0 * scale, 40.0 * scale, 60.0 * scale));
+      ..strokeJoin = StrokeJoin.round
+      ..color = color;
 
     final pathF1 = Path()
       ..moveTo(32.0 * scale, 80.0 * scale)
@@ -141,11 +129,11 @@ class _FinoraBrandLogoPainter extends CustomPainter {
       ..strokeWidth = 10.0 * scale
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..color = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+      ..color = color;
 
     final fillPaint = Paint()
       ..style = PaintingStyle.fill
-      ..color = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+      ..color = color;
 
     // i
     final pathI = Path()
@@ -189,5 +177,5 @@ class _FinoraBrandLogoPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _FinoraBrandLogoPainter oldDelegate) => oldDelegate.color != color;
 }

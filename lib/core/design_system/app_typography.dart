@@ -1,122 +1,43 @@
+import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 
 class AppTypography {
+  static String? activeFontFamily;
+  static List<String>? activeFontFamilyFallback;
   static const String? fontFamily = null;
 
-  static TextStyle get display => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 32,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.0,
+  static TextStyle role(
+    double size,
+    double line,
+    FontWeight weight, {
+    List<FontFeature>? fontFeatures,
+    String? fontFamily,
+    List<String>? fontFamilyFallback,
+  }) =>
+      TextStyle(
+        fontFamily: fontFamily ?? activeFontFamily,
+        fontFamilyFallback: fontFamilyFallback ?? activeFontFamilyFallback,
+        fontSize: size,
+        height: line / size,
+        fontWeight: weight,
+        fontFeatures: fontFeatures,
       );
-
-  static TextStyle get largeTitle => display;
-
-  static TextStyle get h1 => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.8,
-      );
-
-  static TextStyle get title1 => h1;
-
-  static TextStyle get h2 => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.6,
-      );
-
-  static TextStyle get title2 => h2;
-
-  static TextStyle get h3 => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.4,
-      );
-
-  static TextStyle get title3 => h3;
-
-  static TextStyle get title => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.3,
-      );
-
-  static TextStyle get headline => title;
-
-  static TextStyle get body => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 15,
-        fontWeight: FontWeight.w400,
-        letterSpacing: -0.2,
-      );
-
-  static TextStyle get bodyMedium => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        letterSpacing: -0.2,
-      );
-
-  static TextStyle get callout => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        letterSpacing: -0.3,
-      );
-
-  static TextStyle get subhead => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        letterSpacing: -0.15,
-      );
-
-  static TextStyle get footnote => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 13,
-        fontWeight: FontWeight.w400,
-        letterSpacing: -0.05,
-      );
-
-  static TextStyle get caption => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.0,
-      );
-
-  static TextStyle get caption1 => caption;
-
-  static TextStyle get caption2 => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.05,
-      );
-
-  static TextStyle get micro => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 10,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
-      );
-
-  static TextStyle get buttonLabel => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.2,
-      );
-
-  static TextStyle get numericValue => const TextStyle(
-        fontFamily: fontFamily,
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.6,
-      );
+  static TextStyle get largeTitle => role(32, 40, FontWeight.w700);
+  static TextStyle get title1 => role(24, 32, FontWeight.w700);
+  static TextStyle get title2 => role(24, 32, FontWeight.w700);
+  static TextStyle get title3 => role(18, 24, FontWeight.w600);
+  static TextStyle get headline => role(16, 24, FontWeight.w600);
+  static TextStyle get body => role(16, 24, FontWeight.w400);
+  static TextStyle get callout => role(16, 24, FontWeight.w500);
+  static TextStyle get subhead => role(14, 20, FontWeight.w500);
+  static TextStyle get footnote => role(13, 18, FontWeight.w400);
+  static TextStyle get caption1 => role(13, 18, FontWeight.w400);
+  static TextStyle get caption2 => role(12, 16, FontWeight.w500);
+  static TextStyle get buttonLabel => role(16, 24, FontWeight.w600);
+  static TextStyle get numericValue =>
+      role(24, 32, FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()]);
+  static TextStyle get numericLarge =>
+      role(32, 40, FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()]);
+  static TextStyle get numericSmall =>
+      role(16, 22, FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()]);
 }

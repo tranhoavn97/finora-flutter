@@ -1,17 +1,25 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/glass_widgets.dart';
-import '../../core/widgets/vikram_widgets.dart';
-import '../../core/design_system/app_colors.dart';
+import '../../core/widgets/bank_icon.dart';
 import '../../data/models/category.dart';
+import '../../data/services/supabase_bridge.dart';
 import '../../state/more_provider.dart';
 import '../../state/transaction_provider.dart';
+import '../../core/utils/date_filter.dart';
+import '../../core/widgets/cupertino_month_year_picker.dart';
+import '../../domain/finance/finance_summary.dart';
+import '../../state/theme_studio_controller.dart';
 import '../transaction/transaction_history_sheet.dart';
 
+/// Parses a "#RRGGBB" / "#AARRGGBB" hex string into a [Color], or null.
 Color? _parseHexColor(String? hex) {
   if (hex == null) return null;
   var clean = hex.trim().replaceFirst('#', '');
@@ -22,9 +30,15 @@ Color? _parseHexColor(String? hex) {
   return Color(value);
 }
 
+const List<Category> defaultMerchants = [];
+
 bool _matchesGroup(Category cat, String group) {
+  if (group == 'all') return true;
   if (group == 'investment') {
     return cat.categoryGroup == 'investment' || cat.categoryGroup == 'saving';
+  }
+  if (group == 'merchant') {
+    return cat.categoryGroup == 'merchant';
   }
   return cat.categoryGroup == group;
 }
@@ -40,12 +54,18 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   StreamSubscription<String>? _eventsSub;
-  String _group = 'expense';
-  bool _isListView = false;
+  String _group = 'all'; // all | expense | income | investment | merchant
+  DateTime _currentMonth = DateTime.now();
+  String _statusFilter = 'all'; // 'all' | 'used'
+  bool _isListView = false; // Toggle between Grid & List view
+  bool _isSearching = false; // Search expansion toggle
+  final TextEditingController _searchController = TextEditingController();
+  Set<String> _deletedMerchantKeys = {};
 
   @override
   void initState() {
     super.initState();
+    _restoreViewSettings();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final provider = context.read<MoreProvider>();
@@ -60,79 +80,211 @@ class _CategoryScreenState extends State<CategoryScreen> {
     });
   }
 
+  Future<void> _restoreViewSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final prefix = 'category_view_${widget.userId}';
+    final deletedList =
+        prefs.getStringList('finora_deleted_merchants_${widget.userId}') ?? [];
+    setState(() {
+      _deletedMerchantKeys = deletedList.map((e) => e.toLowerCase()).toSet();
+      _group = prefs.getString('${prefix}_group') ?? _group;
+      _statusFilter = prefs.getString('${prefix}_status') ?? _statusFilter;
+      _isListView = prefs.getBool('${prefix}_list') ?? _isListView;
+      final month = prefs.getInt('${prefix}_month');
+      if (month != null) {
+        _currentMonth = DateTime.fromMillisecondsSinceEpoch(month);
+      }
+    });
+  }
+
+  Future<void> _saveViewSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = 'category_view_${widget.userId}';
+    await prefs.setString('${prefix}_group', _group);
+    await prefs.setString('${prefix}_status', _statusFilter);
+    await prefs.setBool('${prefix}_list', _isListView);
+    await prefs.setInt('${prefix}_month', _currentMonth.millisecondsSinceEpoch);
+  }
+
   @override
   void dispose() {
     _eventsSub?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
-  void _openAdd() {
-    HapticFeedback.selectionClick();
-    Navigator.of(context).push(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => AddCategoryPage(
-        userId: widget.userId,
-        defaultGroup: _group == 'investment' ? 'investment' : _group,
-      ),
-    ));
-  }
-
-  void _confirmDelete(Category cat) async {
-    final confirm = await showConfirmDeleteDialog(
-      context: context,
-      title: 'Xóa danh mục?',
-      content: 'Bạn có chắc chắn muốn xóa danh mục "${cat.name}" không?',
+  Future<void> _pickMonthYear() async {
+    final picked = await CupertinoMonthYearPickerSheet.show(
+      context,
+      initialDate: _currentMonth,
+      minYear: 2020,
+      maxYear: 2035,
     );
-    if (confirm && context.mounted) {
-      context.read<MoreProvider>().deleteCategory(widget.userId, cat.id);
+    if (picked != null) {
+      setState(() {
+        _currentMonth = DateTime(picked.year, picked.month);
+      });
+      _saveViewSettings();
     }
   }
 
-  void _openEdit(Category cat) {
-    Navigator.of(context).push(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => AddCategoryPage(
-        userId: widget.userId,
-        defaultGroup: cat.categoryGroup,
-        category: cat,
-      ),
-    ));
-  }
-
-  void _showActions(Category cat) {
-    showModalBottomSheet<void>(
+  void _openAdd() {
+    showModalBottomSheet(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Sửa danh mục'),
-            onTap: () {
-              Navigator.pop(sheetContext);
-              _openEdit(cat);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline, color: AppColors.error),
-            title: const Text('Xóa danh mục'),
-            onTap: () {
-              Navigator.pop(sheetContext);
-              _confirmDelete(cat);
-            },
-          ),
-        ]),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddCategoryModal(
+        userId: widget.userId,
+        defaultGroup: _group == 'merchant'
+            ? 'merchant'
+            : (_group == 'investment' ? 'investment' : _group),
       ),
     );
   }
 
+  void _openEdit(Category cat) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddCategoryModal(
+          userId: widget.userId,
+          defaultGroup: cat.categoryGroup,
+          existing: cat),
+    );
+  }
+
+  void _showActions(Category cat) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMerchant = cat.categoryGroup == 'merchant';
+    final subtitle = cat.categoryGroup == 'income'
+        ? 'Danh mục thu nhập'
+        : (cat.categoryGroup == 'investment'
+            ? 'Danh mục đầu tư'
+            : (isMerchant
+                ? 'Nơi mua sắm'
+                : 'Danh mục chi tiêu'));
+
+    showFinoraGlassModalBottomSheet(
+      context: context,
+      radius: 28,
+      title: cat.name,
+      subtitle: subtitle,
+      icon: isMerchant ? Icons.storefront_rounded : Icons.category_rounded,
+      iconColor: BankIconRegistry.parseThemeColor(cat.color),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              tileColor: const Color(0xFF007AFF)
+                  .withValues(alpha: isDark ? 0.15 : 0.08),
+              leading: const Icon(Icons.edit_rounded, color: Color(0xFF007AFF)),
+              title: Text(
+                isMerchant ? 'Chỉnh sửa nơi mua' : 'Chỉnh sửa danh mục',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, color: Color(0xFF007AFF)),
+              ),
+              subtitle: Text(isMerchant
+                  ? 'Thay đổi tên, icon hoặc màu sắc nơi mua'
+                  : 'Thay đổi tên, icon hoặc màu sắc'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _openEdit(cat);
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              leading: Icon(Icons.receipt_long_rounded,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569)),
+              title: Text(
+                'Xem lịch sử giao dịch',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
+              ),
+              subtitle: Text(isMerchant
+                  ? 'Các khoản chi tại nơi mua này'
+                  : 'Các khoản chi gắn với danh mục này'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showHistory(cat);
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              leading: const Icon(Icons.delete_outline_rounded,
+                  color: Color(0xFFEF4444)),
+              title: Text(
+                isMerchant ? 'Xóa nơi mua' : 'Xóa danh mục',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: Color(0xFFEF4444)),
+              ),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _confirmDelete(cat);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(Category cat) async {
+    final isMerchant = cat.categoryGroup == 'merchant';
+    final confirm = await showConfirmDeleteDialog(
+      context: context,
+      title: isMerchant ? 'Xóa nơi mua?' : 'Xóa danh mục?',
+      content: isMerchant
+          ? "Bạn có chắc chắn muốn xóa nơi mua '${cat.name}' không? Các giao dịch cũ vẫn được lưu trong lịch sử."
+          : "Bạn có chắc chắn muốn xóa danh mục '${cat.name}' không?",
+    );
+    if (confirm && mounted) {
+      if (isMerchant ||
+          defaultMerchants.any((dm) =>
+              dm.id.toLowerCase() == cat.id.toLowerCase() ||
+              dm.name.toLowerCase() == cat.name.toLowerCase())) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final key = 'finora_deleted_merchants_${widget.userId}';
+          final list = prefs.getStringList(key) ?? [];
+          final updated = {
+            ...list,
+            cat.id,
+            cat.name,
+            cat.id.toLowerCase(),
+            cat.name.toLowerCase()
+          }.toList();
+          await prefs.setStringList(key, updated);
+          if (mounted) {
+            setState(() {
+              _deletedMerchantKeys.addAll(updated.map((e) => e.toLowerCase()));
+            });
+          }
+        } catch (_) {}
+      }
+      if (mounted) {
+        context.read<MoreProvider>().deleteCategory(widget.userId, cat.id);
+      }
+    }
+  }
+
   void _showHistory(Category category) {
-    HapticFeedback.selectionClick();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => FractionallySizedBox(
-        heightFactor: 0.85,
+        heightFactor: 0.90,
         child: TransactionHistorySheet(
           userId: widget.userId,
           categoryId: category.id,
@@ -147,256 +299,533 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.fc;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final secondaryTextColor =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     final provider = context.watch<MoreProvider>();
     final txProvider = context.watch<TransactionProvider>();
-    final allTxs = txProvider.transactions;
+    final targetMonthKey =
+        '${_currentMonth.year}-${_currentMonth.month.toString().padLeft(2, '0')}';
 
-    final customFiltered =
-        provider.categories.where((cat) => _matchesGroup(cat, _group)).toList();
+    // Aggregate by categoryId (with fallback to name) for targetMonthKey
+    final allCategories = List<Category>.from(provider.categories);
+    for (final dm in defaultMerchants) {
+      final idKey = dm.id.toLowerCase();
+      final nameKey = dm.name.trim().toLowerCase();
+      if (_deletedMerchantKeys.contains(idKey) ||
+          _deletedMerchantKeys.contains(nameKey)) {
+        continue;
+      }
+      if (!allCategories.any((c) =>
+          c.id.toLowerCase() == idKey ||
+          c.name.trim().toLowerCase() == nameKey)) {
+        allCategories.add(dm);
+      }
+    }
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: PearlMeshBackground(
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Row
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 20),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Danh mục',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: c.textPrimary,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: _openAdd,
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF075985), Color(0xFF22B8CF)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+    final categoryTotals = <String, int>{};
+    final categoryCounts = <String, int>{};
+    for (final tx in txProvider.transactions) {
+      if (monthKeyOf(tx.date) != targetMonthKey) continue;
+      final belongsToGroup = switch (_group) {
+        'income' => FinanceSummary.isIncome(tx),
+        'investment' => tx.type == 'investment' || tx.type == 'saving',
+        'merchant' => FinanceSummary.isExpense(tx),
+        _ => FinanceSummary.isExpense(tx) || _group == 'all',
+      };
+      if (!belongsToGroup) continue;
+
+      for (final c in allCategories) {
+        if (c.categoryGroup == 'merchant') {
+          final cName = c.name.trim().toLowerCase();
+          final cId = c.id.trim().toLowerCase();
+          final mId = tx.merchantId?.trim().toLowerCase();
+          final mName = tx.merchantName?.trim().toLowerCase();
+          final isMatch = (mId != null && (mId == cId || mId == cName)) ||
+              (mName != null && (mName == cName || mName == cId));
+          if (isMatch) {
+            categoryTotals[c.id] = (categoryTotals[c.id] ?? 0) + tx.amount;
+            categoryCounts[c.id] = (categoryCounts[c.id] ?? 0) + 1;
+          }
+        } else {
+          if ((tx.categoryId != null && tx.categoryId == c.id) ||
+              (tx.categoryId == null &&
+                  tx.categoryName != null &&
+                  tx.categoryName!.trim().toLowerCase() ==
+                      c.name.trim().toLowerCase())) {
+            categoryTotals[c.id] = (categoryTotals[c.id] ?? 0) + tx.amount;
+            categoryCounts[c.id] = (categoryCounts[c.id] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    final query = _searchController.text.trim().toLowerCase();
+    final customFiltered = allCategories.where((cat) {
+      if (!_matchesGroup(cat, _group)) return false;
+      if (query.isNotEmpty && !cat.name.toLowerCase().contains(query)) {
+        return false;
+      }
+      if (_statusFilter == 'used') {
+        final count = categoryCounts[cat.id] ?? 0;
+        if (count == 0) return false;
+      }
+      return true;
+    }).toList();
+
+    return GlassScaffold(
+      appBar: GlassTopBar(
+        title: 'Danh mục',
+        onBack: () => Navigator.of(context).pop(),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Liquid Glass Tab Bar (Chi tiêu | Thu nhập | Đầu tư | Nơi mua)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                16, GlassScaffold.topInset(context, 8), 16, 0),
+            child: _buildLiquidGlassTabBar(isDark),
+          ),
+
+          // 2. Control Bar (Tháng, Tất cả / Đã dùng, Tìm kiếm, Thêm danh mục)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: _buildUnifiedControlBar(
+                isDark, primaryTextColor, secondaryTextColor),
+          ),
+
+          // Search Field expansion (if search active)
+          if (_isSearching)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: _buildSearchExpandedBar(
+                  isDark, primaryTextColor, secondaryTextColor),
+            ),
+
+          const SizedBox(height: 14),
+
+          // 3. Category Items (Grid or List View)
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+              children: [
+                if (customFiltered.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            _group == 'merchant'
+                                ? Icons.storefront_outlined
+                                : Icons.category_outlined,
+                            size: 48,
+                            color: secondaryTextColor.withValues(alpha: 0.5),
                           ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0891B2).withOpacity(0.30),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                          const SizedBox(height: 12),
+                          Text(
+                            _group == 'merchant'
+                                ? 'Chưa có nơi mua nào'
+                                : 'Chưa có danh mục nào',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: primaryTextColor,
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.add_rounded,
-                            size: 24, color: Colors.white),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _group == 'merchant'
+                                ? 'Bấm nút (+) để thêm nơi mua mới'
+                                : 'Bấm nút (+) để thêm danh mục mới',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: secondaryTextColor,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _openAdd,
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: Text(_group == 'merchant'
+                                ? 'Thêm nơi mua'
+                                : 'Thêm danh mục'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF007AFF),
+                              foregroundColor: Colors.white,
+                              shape: const StadiumBorder(),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 10),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-
-              // Segmented Tabs: Thu | Chi | Đầu tư
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                child: SegmentedControl(
-                  options: const [
-                    ('expense', 'Chi'),
-                    ('income', 'Thu'),
-                    ('investment', 'Đầu tư'),
-                  ],
-                  selected: _group,
-                  onChanged: (v) => setState(() => _group = v),
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    height: 42,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xB8141F3C)
-                          : Colors.white.withOpacity(.7),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.white.withOpacity(.8)),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      _viewButton(Icons.view_list_rounded, _isListView,
-                          () => setState(() => _isListView = true)),
-                      _viewButton(Icons.grid_view_rounded, !_isListView,
-                          () => setState(() => _isListView = false)),
-                    ]),
+                  )
+                else if (_isListView)
+                  _buildCategoryListView(
+                    customFiltered,
+                    categoryTotals,
+                    categoryCounts,
+                    isDark,
+                    primaryTextColor,
+                    secondaryTextColor,
+                  )
+                else
+                  _CategoryGrid(
+                    categories: customFiltered,
+                    totals: categoryTotals,
+                    counts: categoryCounts,
+                    isDefault: false,
+                    onTapItem: _showActions,
+                    onEditItem: _openEdit,
+                    onLongPressItem: _showActions,
                   ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 1. Liquid Glass Tab Bar [Tất cả | Chi tiêu | Thu nhập | Đầu tư | Nơi mua]
+  Widget _buildLiquidGlassTabBar(bool isDark) {
+    const groups = ['all', 'expense', 'income', 'investment', 'merchant'];
+    final idx = groups.indexOf(_group);
+    return BouncyPillTabs(
+        height: 38,
+        labels: const ['Tất cả', 'Chi tiêu', 'Thu nhập', 'Đầu tư', 'Nơi mua'],
+        selectedIndex: idx < 0 ? 0 : idx,
+        colors: const [
+          Color(0xFF475569), // Tất cả - Slate
+          Color(0xFFE11D48), // Chi tiêu - Rose Red
+          Color(0xFF059669), // Thu nhập - Emerald Green
+          Color(0xFFD97706), // Đầu tư - Amber
+          Color(0xFF3861FB), // Nơi mua - Electric Blue
+        ],
+        onChanged: (index) {
+          setState(() => _group = groups[index]);
+          _saveViewSettings();
+        });
+  }
+
+  /// 2. Single-row compact toolbar: Month picker, Status filter, Search, Grid/List view, and '+ Thêm' button.
+  Widget _buildUnifiedControlBar(
+      bool isDark, Color primaryTextColor, Color secondaryTextColor) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          // Month picker
+          FinoraDateFilterPill(
+            label: 'T${_currentMonth.month}/${_currentMonth.year}',
+            onTap: _pickMonthYear,
+            height: 32,
+          ),
+          const SizedBox(width: 6),
+
+          // Status filter toggle (Tất cả / Đã dùng)
+          Container(
+            height: 36,
+            padding: const EdgeInsets.all(2.5),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildStatusPill('all', 'Tất cả', isDark),
+                _buildStatusPill('used', 'Đã dùng', isDark),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Search button
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) _searchController.clear();
+              });
+            },
+            borderRadius: BorderRadius.circular(100),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _isSearching || _searchController.text.isNotEmpty
+                    ? const Color(0xFF005FEA).withValues(alpha: 0.15)
+                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: _isSearching || _searchController.text.isNotEmpty
+                      ? const Color(0xFF005FEA)
+                      : (isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
+              child: const Icon(Icons.search_rounded,
+                  size: 17, color: Color(0xFF005FEA)),
+            ),
+          ),
+          const SizedBox(width: 6),
 
-              // Category List / Grid
-              Expanded(
-                child: customFiltered.isEmpty
-                    ? Center(
-                        child: EmptyState(
-                          icon: Icons.category_outlined,
-                          title: 'Chưa có danh mục nào',
-                          subtitle:
-                              'Hãy tạo danh mục mới để phân loại các khoản thu chi.',
-                          actionText: 'Tạo danh mục mới',
-                          onAction: _openAdd,
-                        ),
-                      )
-                    : AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 280),
-                        switchInCurve: Curves.easeOutCubic,
-                        child: _isListView
-                            ? ListView.builder(
-                                key: const ValueKey('category-list'),
-                                physics: const BouncingScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 0, 16, 110),
-                                itemCount: customFiltered.length,
-                                itemBuilder: (context, i) {
-                                  final cat = customFiltered[i];
-                                  final matchingTxs = allTxs
-                                      .where((t) =>
-                                          t.categoryId == cat.id ||
-                                          t.categoryName == cat.name)
-                                      .toList();
-                                  final txCount = matchingTxs.length;
-                                  final totalAmount = matchingTxs.fold<int>(
-                                      0, (s, t) => s + t.amount);
-
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: _CategoryListTile(
-                                      category: cat,
-                                      txCount: txCount,
-                                      totalAmount: totalAmount,
-                                      onTap: () => _showHistory(cat),
-                                      onLongPress: () => _showActions(cat),
-                                    ),
-                                  );
-                                },
-                              )
-                            : GridView.builder(
-                                key: const ValueKey('category-grid'),
-                                physics: const BouncingScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 0, 16, 110),
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        childAspectRatio: 1.22,
-                                        crossAxisSpacing: 10,
-                                        mainAxisSpacing: 10),
-                                itemCount: customFiltered.length,
-                                itemBuilder: (context, i) {
-                                  final cat = customFiltered[i];
-                                  final matching = allTxs
-                                      .where((t) =>
-                                          t.categoryId == cat.id ||
-                                          t.categoryName == cat.name)
-                                      .toList();
-                                  return _CategoryGridTile(
-                                      category: cat,
-                                      txCount: matching.length,
-                                      totalAmount: matching.fold<int>(
-                                          0, (s, t) => s + t.amount),
-                                      onTap: () => _showHistory(cat),
-                                      onLongPress: () => _showActions(cat));
-                                },
-                              )),
+          // Grid/List toggle button
+          InkWell(
+            onTap: () {
+              setState(() => _isListView = !_isListView);
+              _saveViewSettings();
+            },
+            borderRadius: BorderRadius.circular(100),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
+                ),
               ),
-            ],
+              child: Icon(
+                _isListView ? Icons.grid_view_rounded : Icons.view_list_rounded,
+                size: 17,
+                color: secondaryTextColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          FinoraAddButton(
+            onPressed: _openAdd,
+            tooltip: _group == 'merchant' ? 'Thêm nơi mua' : 'Thêm danh mục',
+            size: 34,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPill(String key, String label, bool isDark) {
+    final isSelected = _statusFilter == key;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        setState(() => _statusFilter = key);
+        _saveViewSettings();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF2C2C34) : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected
+                ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           ),
         ),
       ),
     );
   }
 
-  Widget _viewButton(IconData icon, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: active ? AppColors.primary : Colors.transparent,
-          shape: active ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: active ? null : BorderRadius.circular(18),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: active ? Colors.white : Colors.grey,
+  /// Search Field expanded view
+  Widget _buildSearchExpandedBar(
+      bool isDark, Color primaryTextColor, Color secondaryTextColor) {
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFF007AFF).withValues(alpha: 0.4),
+          width: 1,
         ),
       ),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, size: 18, color: Color(0xFF007AFF)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              textCapitalization: TextCapitalization.sentences,
+              inputFormatters: [FirstLetterUpperCaseFormatter()],
+              autofocus: true,
+              style: TextStyle(fontSize: 13.5, color: primaryTextColor),
+              decoration: InputDecoration(
+                hintText: _group == 'merchant'
+                    ? 'Tìm kiếm tên nơi mua...'
+                    : 'Tìm kiếm tên danh mục...',
+                hintStyle: TextStyle(
+                  fontSize: 13,
+                  color: secondaryTextColor.withValues(alpha: 0.6),
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                filled: false,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          if (_searchController.text.isNotEmpty)
+            GestureDetector(
+              onTap: () {
+                _searchController.clear();
+                setState(() {});
+              },
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black26,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close_rounded,
+                    size: 12, color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Category List View mode
+  Widget _buildCategoryListView(
+    List<Category> categories,
+    Map<String, int> totals,
+    Map<String, int> counts,
+    bool isDark,
+    Color primaryTextColor,
+    Color secondaryTextColor,
+  ) {
+    return Column(
+      children: [
+        for (final cat in categories) ...[
+          _CategoryListTile(
+            category: cat,
+            amount: totals[cat.id] ?? 0,
+            count: counts[cat.id] ?? 0,
+            isDark: isDark,
+            primaryTextColor: primaryTextColor,
+            secondaryTextColor: secondaryTextColor,
+            onTap: () => _showActions(cat),
+            onEdit: () => _openEdit(cat),
+            onLongPress: () => _showActions(cat),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }
 
+/// Category List Item (List View Mode)
 class _CategoryListTile extends StatelessWidget {
   final Category category;
-  final int txCount;
-  final int totalAmount;
+  final int amount;
+  final int count;
+  final bool isDark;
+  final Color primaryTextColor;
+  final Color secondaryTextColor;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onLongPress;
 
   const _CategoryListTile({
     required this.category,
-    required this.txCount,
-    required this.totalAmount,
+    required this.amount,
+    required this.count,
+    required this.isDark,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
     required this.onTap,
+    required this.onEdit,
     required this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
-    final c = context.fc;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tint = _parseHexColor(category.color) ?? AppColors.primary;
+    final tint = _parseHexColor(category.color) ?? const Color(0xFF007AFF);
+    final studio = Provider.of<ThemeStudioController?>(context);
+    final cardBg = studio != null
+        ? studio.getWhiteCardBg(isDark)
+        : (isDark ? const Color(0xFF1E293B) : Colors.white)
+            .withValues(alpha: 0.85);
 
-    return FrostedCard(
-      radius: 20,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return InkWell(
       onTap: onTap,
-      child: InkWell(
-        onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(20),
+      onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFFF1F5F9),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Row(
           children: [
-            // Circular Category Icon
-            IconBadge(
-              emoji: CategoryIconHelper.resolveIcon(category.icon),
-              tint: tint,
+            // Circular Glass Icon Badge
+            CategoryIconBadge(
+              icon: category.icon,
+              categoryName: category.name,
+              colorHex: category.color,
               size: 44,
-              radius: 22,
+              isDark: isDark,
             ),
             const SizedBox(width: 12),
-            // Name + Transactions count
+
+            // Category Name & Transaction count
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,65 +833,60 @@ class _CategoryListTile extends StatelessWidget {
                   Text(
                     category.name,
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: primaryTextColor,
+                      letterSpacing: -0.2,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF1E2B4D)
-                          : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '$txCount giao dịch',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.lightTextSecondary,
-                      ),
+                  Text(
+                    count > 0 ? '$count giao dịch' : 'Chưa có giao dịch',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: secondaryTextColor,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
-            // Total Spent/Received
+
+            // Total Amount
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  formatVND(totalAmount),
+                  amount > 0 ? formatVND(amount) : 'Chưa chi',
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  category.categoryGroup == 'income' ? 'Thu vào' : 'Đã chi',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.lightTextTertiary,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: amount > 0
+                        ? tint
+                        : secondaryTextColor.withValues(alpha: 0.6),
+                    letterSpacing: -0.2,
                   ),
                 ),
               ],
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              tooltip: 'Chỉnh sửa danh mục',
+              onPressed: onEdit,
+              icon: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF007AFF).withValues(alpha: 0.12),
+                ),
+                child: const Icon(
+                  Icons.edit_rounded,
+                  size: 15,
+                  color: Color(0xFF007AFF),
+                ),
+              ),
             ),
           ],
         ),
@@ -471,114 +895,313 @@ class _CategoryListTile extends StatelessWidget {
   }
 }
 
-class _CategoryGridTile extends StatelessWidget {
-  final Category category;
-  final int txCount;
-  final int totalAmount;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-  const _CategoryGridTile(
-      {required this.category,
-      required this.txCount,
-      required this.totalAmount,
-      required this.onTap,
-      required this.onLongPress});
+/// 2-column grid of category tiles using [Wrap].
+class _CategoryGrid extends StatelessWidget {
+  final List<Category> categories;
+  final Map<String, int> totals;
+  final Map<String, int> counts;
+  final bool isDefault;
+  final ValueChanged<Category> onTapItem;
+  final ValueChanged<Category> onEditItem;
+  final ValueChanged<Category> onLongPressItem;
+
+  const _CategoryGrid({
+    required this.categories,
+    required this.totals,
+    required this.counts,
+    required this.isDefault,
+    required this.onTapItem,
+    required this.onEditItem,
+    required this.onLongPressItem,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final c = context.fc;
-    final tint = _parseHexColor(category.color) ?? AppColors.primary;
-    return FrostedCard(
-      radius: 24,
-      padding: const EdgeInsets.all(13),
-      onTap: onTap,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 12.0;
+        final tileWidth = (constraints.maxWidth - spacing) / 2;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final cat in categories)
+              SizedBox(
+                width: tileWidth,
+                child: _CategoryTile(
+                  category: cat,
+                  amount: totals[cat.id] ?? 0,
+                  count: counts[cat.id] ?? 0,
+                  isDefault: isDefault,
+                  onTap: () => onTapItem(cat),
+                  onEdit: () => onEditItem(cat),
+                  onLongPress: () => onLongPressItem(cat),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Circular Glass Category Card (Grid View Mode)
+class _CategoryTile extends StatelessWidget {
+  final Category category;
+  final int amount;
+  final int count;
+  final bool isDefault;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onLongPress;
+
+  const _CategoryTile({
+    required this.category,
+    this.amount = 0,
+    this.count = 0,
+    required this.isDefault,
+    required this.onTap,
+    required this.onEdit,
+    required this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final secondaryTextColor =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final tint = _parseHexColor(category.color) ?? const Color(0xFF007AFF);
+
+    final studio = Provider.of<ThemeStudioController?>(context);
+    final cardBg = studio != null
+        ? studio.getWhiteCardBg(isDark)
+        : (isDark ? const Color(0xFF1E293B) : Colors.white)
+            .withValues(alpha: 0.85);
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
         onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(24),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            IconBadge(
-                emoji: CategoryIconHelper.resolveIcon(category.icon),
-                tint: tint,
-                size: 42,
-                radius: 21),
-            const Spacer(),
-            Text('$txCount',
-                style: TextStyle(
-                    color: c.textTertiary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11)),
-          ]),
-          const Spacer(),
-          Text(category.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900)),
-          const SizedBox(height: 4),
-          Text(formatVND(totalAmount),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: tint, fontSize: 12, fontWeight: FontWeight.w800)),
-        ]),
+        child: Container(
+          height: 110,
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : const Color(0xFFF1F5F9),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Circular Glass Icon Badge
+                    CategoryIconBadge(
+                      icon: category.icon,
+                      categoryName: category.name,
+                      colorHex: category.color,
+                      size: 44,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        category.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    if (amount > 0)
+                      Text(
+                        formatVND(amount),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: tint,
+                        ),
+                      )
+                    else
+                      Text(
+                        'Chưa chi',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: secondaryTextColor.withValues(alpha: 0.6),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 6,
+                right: 6,
+                child: IconButton(
+                  tooltip: 'Chỉnh sửa danh mục',
+                  onPressed: onEdit,
+                  icon: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF007AFF).withValues(alpha: 0.12),
+                    ),
+                    child: const Icon(
+                      Icons.edit_rounded,
+                      size: 14,
+                      color: Color(0xFF007AFF),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class AddCategoryPage extends StatefulWidget {
+/// Modal thêm danh mục mới chuẩn Apple iOS sang trọng
+class AddCategoryModal extends StatefulWidget {
   final String userId;
   final String defaultGroup;
-  final Category? category;
-  const AddCategoryPage({
+  final Category? existing;
+
+  const AddCategoryModal({
     super.key,
     required this.userId,
     required this.defaultGroup,
-    this.category,
+    this.existing,
   });
 
   @override
-  State<AddCategoryPage> createState() => _AddCategoryPageState();
+  State<AddCategoryModal> createState() => _AddCategoryModalState();
 }
 
-class _AddCategoryPageState extends State<AddCategoryPage> {
+class _AddCategoryModalState extends State<AddCategoryModal> {
   final _nameController = TextEditingController();
   final _emojiController = TextEditingController(text: '🍔');
   late String _group;
-  String _color = '#0891B2';
+  String _color = '#007AFF';
+  String _iconType = 'lucide'; // 'lucide' | 'emoji'
   bool _isSaving = false;
+  bool _isUploadingIcon = false;
+  bool _isLoadingSavedIcons = false;
+  List<String> _savedIconUrls = [];
+
+  static const _popularEmojis = [
+    // Ẩm thực & Đồ uống
+    '🍜', '🍔', '☕', '🍕', '🍰', '🍺', '🥐', '🍎', '🥤', '🍣', '🍲', '🥦',
+    // Mua sắm & Tiêu dùng
+    '🛍️', '🛒', '👕', '👗', '👟', '🎁', '💎', '📦', '🏷️', '💄',
+    // Đi lại & Xe cộ
+    '🚗', '🛵', '🚲', '⛽', '🚌', '🚆', '✈️', '🚕', '🚢',
+    // Nhà cửa & Tiện ích
+    '🏠', '🏢', '⚡', '💧', '🔥', '🔧', '🛋️', '🧹', '🚪',
+    // Giải trí & Đời sống
+    '🎮', '🎬', '🎵', '📺', '🎧', '🎟️', '⚽', '🏋️', '🏖️',
+    // Sức khỏe & Y tế
+    '❤️', '💊', '🩺', '🩹', '🏥', '🧘', '🦷',
+    // Giáo dục & Công việc
+    '🎓', '📚', '📖', '💼', '💻', '📱', '📷', '🎨', '✏️',
+    // Tài chính & Đầu tư
+    '💰', '💳', '💵', '🪙', '📈', '🐷', '🏦', '🧾',
+    // Gia đình & Thú cưng
+    '👶', '🐶', '🐱', '🌸', '✨', '☀️', '🏆', '🔑', '🛡️',
+  ];
+
+  static const _merchantQuickIcons = [
+    'store',
+    'shopping-bag',
+    'shopping-cart',
+    'fuel',
+    'utensils',
+    'coffee',
+    'shirt',
+    'gift',
+    'car',
+    'ticket',
+    'smartphone',
+    'laptop',
+    'cake',
+    'bus',
+    'train',
+    'plane',
+    'tv',
+    'gamepad',
+    'wrench',
+    'pill',
+    'book',
+    'gem',
+    'zap',
+    'award',
+  ];
 
   static const _colors = [
-    '#0891B2',
-    '#4CAEFE',
-    '#31C981',
-    '#FF8A35',
-    '#FFAA22',
-    '#F04452',
-    '#0EA5E9',
-    '#06B6D4',
-    '#64748B',
-    '#10B981',
+    '#3861FB',
+    '#007AFF',
+    '#059669',
+    '#34C759',
+    '#FF9500',
+    '#FF2D55',
+    '#AF52DE',
+    '#5856D6',
+    '#00C7BE',
+    '#30B0C7',
+    '#FF3B30',
+    '#8E8E93',
   ];
 
   @override
   void initState() {
     super.initState();
-    _group = widget.defaultGroup;
-    final category = widget.category;
-    if (category != null) {
-      _nameController.text = category.name;
-      _emojiController.text = category.icon;
-      _color = category.color ?? _color;
+    _group = widget.existing?.categoryGroup ?? widget.defaultGroup;
+    if (widget.existing != null) {
+      _nameController.text = widget.existing!.name;
+      _emojiController.text = widget.existing!.icon;
+      _color = widget.existing!.color ??
+          (_group == 'merchant' ? '#3861FB' : '#007AFF');
+      if (categoryLucideIconKeys
+          .contains(widget.existing!.icon.toLowerCase())) {
+        _iconType = 'lucide';
+      } else if (widget.existing!.icon.startsWith('http')) {
+        _iconType = 'image';
+      } else {
+        _iconType = 'emoji';
+      }
+    } else {
+      if (_group == 'merchant') {
+        _emojiController.text = 'store';
+        _iconType = 'lucide';
+        _color = '#3861FB';
+      }
     }
-    _nameController.addListener(_onPreviewChanged);
-    _emojiController.addListener(_onPreviewChanged);
+    _nameController.addListener(() => setState(() {}));
+    _emojiController.addListener(() => setState(() {}));
   }
-
-  void _onPreviewChanged() => setState(() {});
 
   @override
   void dispose() {
@@ -596,22 +1219,25 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
 
     try {
       final emoji = _emojiController.text.trim();
+      final defaultIcon = _group == 'merchant' ? 'store' : '🍔';
       final now = DateTime.now().millisecondsSinceEpoch;
       final category = Category(
-        userId: widget.userId,
+        id: widget.existing?.id ?? '',
+        userId: widget.existing?.userId ?? widget.userId,
         name: name,
-        icon: emoji.isEmpty ? '🍔' : emoji,
+        icon: emoji.isEmpty ? defaultIcon : emoji,
         color: _color,
         categoryGroup: _group,
-        createdAt: now,
+        createdAt: widget.existing?.createdAt ?? now,
+        isArchived: widget.existing?.isArchived ?? false,
         updatedAt: now,
       );
-      if (widget.category == null) {
-        await context.read<MoreProvider>().addCategory(widget.userId, category);
+      final provider = context.read<MoreProvider>();
+      if (widget.existing == null) {
+        await provider.addCategory(widget.userId, category);
       } else {
-        await context
-            .read<MoreProvider>()
-            .updateCategory(widget.userId, widget.category!.id, category);
+        await provider.updateCategory(
+            widget.userId, widget.existing!.id, category);
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -624,159 +1250,813 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final c = context.fc;
-    final previewTint = _parseHexColor(_color) ?? AppColors.primary;
-    final previewEmoji = _emojiController.text.trim().isEmpty
-        ? '🍔'
-        : _emojiController.text.trim();
+  Future<void> _pickImageIcon() async {
+    if (_isUploadingIcon) return;
+    XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 82,
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không mở được thư viện ảnh: $error')),
+        );
+      }
+      return;
+    }
+    if (picked == null || !mounted) return;
+    final length = await picked.length();
+    if (length > 2 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ảnh icon phải nhỏ hơn 2 MB.')),
+        );
+      }
+      return;
+    }
 
-    return GlassScaffold(
-      appBar: GlassTopBar(
-        title: widget.category == null ? 'Thêm danh mục mới' : 'Sửa danh mục',
-        onBack: () => Navigator.of(context).pop(),
-      ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  GlassCard(
-                    radius: 22,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Overline('TÊN DANH MỤC'),
-                        const SizedBox(height: 6),
-                        FinoraTextField(
-                          controller: _nameController,
-                          hint: 'Ví dụ: Ăn uống, Tiền điện...',
-                          radius: 18,
-                        ),
-                        const SizedBox(height: 14),
-                        const Overline('NHÓM DANH MỤC'),
-                        const SizedBox(height: 6),
-                        SegmentedControl(
-                          options: const [
-                            ('expense', 'Chi tiêu'),
-                            ('income', 'Thu nhập'),
-                            ('investment', 'Đầu tư'),
-                          ],
-                          selected: _group,
-                          onChanged: (v) => setState(() => _group = v),
-                        ),
-                        const SizedBox(height: 14),
-                        const Overline('BIỂU TƯỢNG (EMOJI)'),
-                        const SizedBox(height: 6),
-                        FinoraTextField(
-                          controller: _emojiController,
-                          hint: '🍔',
-                          radius: 18,
-                        ),
-                      ],
+    setState(() => _isUploadingIcon = true);
+    try {
+      String? resolvedUrl;
+      try {
+        resolvedUrl = await SupabaseBridge.uploadCategoryIcon(
+          userId: widget.userId,
+          image: picked,
+        );
+      } catch (_) {}
+
+      // Fallback nếu Supabase Storage chưa cấu hình: chuyển thành base64 data URI
+      if (resolvedUrl == null || resolvedUrl.isEmpty) {
+        final bytes = await picked.readAsBytes();
+        resolvedUrl = 'data:image/png;base64,${base64Encode(bytes)}';
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _emojiController.text = resolvedUrl!;
+        _iconType = 'image';
+      });
+
+      // Lưu vào SharedPreferences để có thể chọn lại sau này
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final savedKey = 'finora_user_uploaded_icons_${widget.userId}';
+        final list = prefs.getStringList(savedKey) ?? [];
+        if (!list.contains(resolvedUrl)) {
+          list.insert(0, resolvedUrl);
+          if (list.length > 50) list.removeLast();
+          await prefs.setStringList(savedKey, list);
+        }
+      } catch (_) {}
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã chọn ảnh làm icon danh mục thành công.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể tải ảnh icon: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingIcon = false);
+    }
+  }
+
+  Future<void> _showSavedIcons() async {
+    if (_isLoadingSavedIcons) return;
+    setState(() => _isLoadingSavedIcons = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedKey = 'finora_user_uploaded_icons_${widget.userId}';
+      final localUrls = prefs.getStringList(savedKey) ?? [];
+
+      List<String> remoteUrls = [];
+      try {
+        remoteUrls =
+            await SupabaseBridge.listCategoryIcons(userId: widget.userId);
+      } catch (_) {}
+
+      final combined = <String>{...localUrls, ...remoteUrls}.toList();
+      if (!mounted) return;
+      setState(() => _savedIconUrls = combined);
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Ảnh icon đã tải lên',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                if (_savedIconUrls.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Text('Chưa có ảnh icon nào trong tài khoản này.'),
+                  )
+                else
+                  SizedBox(
+                    height: 320,
+                    child: GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                      ),
+                      itemCount: _savedIconUrls.length,
+                      itemBuilder: (_, index) => InkWell(
+                        onTap: () {
+                          setState(() {
+                            _emojiController.text = _savedIconUrls[index];
+                            _iconType = 'image';
+                          });
+                          Navigator.pop(sheetContext);
+                        },
+                        child: CategoryIconWidget(
+                            icon: _savedIconUrls[index], size: 64),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  GlassCard(
-                    radius: 22,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Overline('XEM TRƯỚC HIỂN THỊ'),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            IconBadge(
-                                emoji: previewEmoji,
-                                tint: previewTint,
-                                size: 48,
-                                radius: 16),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                _nameController.text.trim().isEmpty
-                                    ? 'Tên danh mục'
-                                    : _nameController.text.trim(),
-                                style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể lấy ảnh đã tải lên: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingSavedIcons = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMerchant = _group == 'merchant';
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final secondaryTextColor =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final surfaceColor =
+        isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF8FAFC);
+    final borderColor =
+        isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0);
+    final previewTint = _parseHexColor(_color) ??
+        (isMerchant ? const Color(0xFF3861FB) : const Color(0xFF007AFF));
+    final previewEmoji = _emojiController.text.trim().isEmpty
+        ? (isMerchant ? 'store' : '🍔')
+        : _emojiController.text.trim();
+
+    return FractionallySizedBox(
+      heightFactor: 0.88,
+      child: GlassBottomSheet(
+        radius: 28,
+        showHandle: true,
+        isExpanded: true,
+        title: widget.existing == null
+            ? (isMerchant ? 'Thêm nơi mua mới' : 'Thêm danh mục mới')
+            : (isMerchant ? 'Sửa nơi mua' : 'Sửa danh mục'),
+        subtitle: isMerchant
+            ? 'Quản lý cửa hàng, siêu thị, sàn TMĐT hoặc nơi chi tiêu'
+            : 'Tùy biến tên, biểu tượng và nhóm chi tiêu',
+        icon: isMerchant ? Icons.storefront_rounded : Icons.category_rounded,
+        iconColor: previewTint,
+        onClose: () => Navigator.pop(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Form Body
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Live Preview Card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: previewTint.withValues(alpha: 0.15),
+                              border: Border.all(
+                                color: previewTint.withValues(alpha: 0.3),
+                                width: 1.5,
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: previewTint.withValues(alpha: 0.2),
+                                  blurRadius: 10,
+                                ),
+                              ],
                             ),
-                          ],
+                            child: Center(
+                              child: CategoryIconWidget(
+                                  icon: previewEmoji,
+                                  size: 52,
+                                  color: previewTint),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _nameController.text.trim().isEmpty
+                                      ? (isMerchant
+                                          ? 'Tên nơi mua'
+                                          : 'Tên danh mục')
+                                      : _nameController.text.trim(),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: textColor,
+                                    letterSpacing: -0.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  _group == 'expense'
+                                      ? 'Khoản Chi tiêu'
+                                      : (_group == 'income'
+                                          ? 'Khoản Thu nhập'
+                                          : (_group == 'merchant'
+                                              ? 'Nơi mua sắm'
+                                              : 'Khoản Đầu tư')),
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: previewTint,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Input: Tên danh mục / nơi mua
+                    Text(
+                      isMerchant ? 'TÊN NƠI MUA / CỬA HÀNG' : 'TÊN DANH MỤC',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: secondaryTextColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Center(
+                        child: TextField(
+                          controller: _nameController,
+                          textCapitalization: TextCapitalization.sentences,
+                          inputFormatters: [FirstLetterUpperCaseFormatter()],
+                          style: TextStyle(fontSize: 14.5, color: textColor),
+                          decoration: InputDecoration(
+                            hintText: isMerchant
+                                ? 'Ví dụ: WinMart, Shopee, Grab, Circle K...'
+                                : 'Ví dụ: Ăn uống, Tiền điện, Cà phê...',
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              color: secondaryTextColor.withValues(alpha: 0.6),
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            filled: false,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        const Overline('MÀU SẮC ĐẠI DIỆN'),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Nhóm danh mục (Segmented Control)
+                    Text(
+                      'NHÓM DANH MỤC',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: secondaryTextColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildModalSegmentedControl(isDark),
+                    const SizedBox(height: 20),
+
+                    if (isMerchant) ...[
+                      Text(
+                        'THƯƠNG HIỆU PHỔ BIẾN (LOGO CHUẨN)',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: secondaryTextColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 38,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
                           children: [
-                            for (final hex in _colors)
-                              GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _color = hex);
-                                },
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: _parseHexColor(hex) ??
-                                        AppColors.primary,
-                                    border: Border.all(
-                                      color: _color == hex
-                                          ? c.textPrimary
-                                          : Colors.transparent,
-                                      width: 2.5,
+                            for (final b in const [
+                              (id: 'shopee', name: 'Shopee', color: '#EE4D2D'),
+                              (id: 'winmart', name: 'WinMart', color: '#ED1C24'),
+                              (id: 'tiktok', name: 'TikTok Shop', color: '#000000'),
+                              (id: 'lazada', name: 'Lazada', color: '#0F146D'),
+                              (id: 'brand-tiki', name: 'Tiki', color: '#1A94FF'),
+                              (id: 'brand-grab', name: 'Grab', color: '#00B14F'),
+                            ])
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: InkWell(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      _emojiController.text = b.id;
+                                      _color = b.color;
+                                      if (_nameController.text.trim().isEmpty) {
+                                        _nameController.text = b.name;
+                                      }
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: previewEmoji == b.id
+                                          ? previewTint.withValues(alpha: 0.18)
+                                          : surfaceColor,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: previewEmoji == b.id
+                                            ? previewTint
+                                            : borderColor,
+                                        width: previewEmoji == b.id ? 1.5 : 1,
+                                      ),
                                     ),
-                                    boxShadow: [
-                                      if (_color == hex)
-                                        BoxShadow(
-                                          color: (_parseHexColor(hex) ??
-                                                  AppColors.primary)
-                                              .withValues(alpha: 0.4),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        CategoryIconWidget(
+                                          icon: b.id,
+                                          categoryName: b.name,
+                                          size: 18,
                                         ),
-                                    ],
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          b.name,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: previewEmoji == b.id
+                                                ? previewTint
+                                                : textColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Chọn Biểu tượng (Web Icons / Emoji)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'CHỌN BIỂU TƯỢNG',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: secondaryTextColor,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: surfaceColor,
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _iconType = 'lucide'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _iconType == 'lucide'
+                                        ? const Color(0xFF005FEA)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(100),
+                                  ),
+                                  child: Text(
+                                    'Web Icons',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: _iconType == 'lucide'
+                                          ? Colors.white
+                                          : secondaryTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _iconType = 'emoji'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _iconType == 'emoji'
+                                        ? const Color(0xFF005FEA)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(100),
+                                  ),
+                                  child: Text(
+                                    'Emoji',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: _iconType == 'emoji'
+                                          ? Colors.white
+                                          : secondaryTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          shape: const StadiumBorder(),
+                          foregroundColor: const Color(0xFF059669),
+                          side: const BorderSide(color: Color(0xFF10B981)),
+                        ),
+                        onPressed: _isUploadingIcon ? null : _pickImageIcon,
+                        icon: _isUploadingIcon
+                            ? const SizedBox(
+                                width: 17,
+                                height: 17,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF059669),
+                                ),
+                              )
+                            : const Icon(Icons.add_photo_alternate_rounded),
+                        label: Text(_isUploadingIcon
+                            ? 'Đang tải ảnh...'
+                            : _iconType == 'image'
+                                ? 'Đổi ảnh icon'
+                                : 'Chọn ảnh làm icon'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed:
+                            _isLoadingSavedIcons ? null : _showSavedIcons,
+                        icon: const Icon(Icons.photo_library_outlined),
+                        label: Text(_isLoadingSavedIcons
+                            ? 'Đang lấy ảnh đã tải lên...'
+                            : 'Chọn ảnh đã tải lên'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (_iconType == 'image')
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: surfaceColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            CategoryIconWidget(
+                              icon: previewEmoji,
+                              size: 52,
+                              color: previewTint,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Ảnh được cắt tròn và đồng bộ trên web lẫn ứng dụng.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: secondaryTextColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_iconType == 'lucide')
+                      SizedBox(
+                        height: 180,
+                        child: GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 6,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 1,
+                          ),
+                          itemCount: isMerchant
+                              ? (_merchantQuickIcons.length +
+                                  categoryLucideIconKeys
+                                      .where((k) =>
+                                          !_merchantQuickIcons.contains(k))
+                                      .length)
+                              : categoryLucideIconKeys.length,
+                          itemBuilder: (context, idx) {
+                            final allKeys = isMerchant
+                                ? [
+                                    ..._merchantQuickIcons,
+                                    ...categoryLucideIconKeys.where((k) =>
+                                        !_merchantQuickIcons.contains(k)),
+                                  ]
+                                : categoryLucideIconKeys;
+                            final key = allKeys[idx];
+                            final isSelected =
+                                previewEmoji.toLowerCase() == key.toLowerCase();
+                            final iconData = categoryLucideIcons[key] ??
+                                Icons.category_rounded;
+                            return GestureDetector(
+                              onTap: () => _emojiController.text = key,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? previewTint.withValues(alpha: 0.18)
+                                      : surfaceColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color:
+                                        isSelected ? previewTint : borderColor,
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    iconData,
+                                    size: 20,
+                                    color: isSelected
+                                        ? previewTint
+                                        : (isDark
+                                            ? Colors.white70
+                                            : const Color(0xFF475569)),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 180,
+                        child: GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 7,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 1,
+                          ),
+                          itemCount: _popularEmojis.length,
+                          itemBuilder: (context, idx) {
+                            final emoji = _popularEmojis[idx];
+                            final isSelected = previewEmoji == emoji;
+                            return GestureDetector(
+                              onTap: () => _emojiController.text = emoji,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? previewTint.withValues(alpha: 0.18)
+                                      : surfaceColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color:
+                                        isSelected ? previewTint : borderColor,
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(emoji,
+                                      style: const TextStyle(fontSize: 18)),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+
+                    // Chọn màu đại diện
+                    Text(
+                      'MÀU ĐẠI DIỆN',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: secondaryTextColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      children: [
+                        for (final hex in _colors)
+                          GestureDetector(
+                            onTap: () => setState(() => _color = hex),
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _parseHexColor(hex) ??
+                                    const Color(0xFF007AFF),
+                                border: Border.all(
+                                  color: _color == hex
+                                      ? (isDark ? Colors.white : Colors.black87)
+                                      : Colors.transparent,
+                                  width: 2.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (_parseHexColor(hex) ??
+                                            const Color(0xFF007AFF))
+                                        .withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
+
+            // Bottom Button
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-              child: PrimaryButton(
-                expand: true,
-                onPressed: _isSaving ? null : _submit,
-                isLoading: _isSaving,
-                child: Text(
-                    widget.category == null ? 'Lưu danh mục' : 'Lưu thay đổi',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
+              padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isMerchant
+                        ? const [Color(0xFF3861FB), Color(0xFF1E40AF)]
+                        : const [Color(0xFF007AFF), Color(0xFF0051D4)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isMerchant
+                              ? const Color(0xFF3861FB)
+                              : const Color(0xFF007AFF))
+                          .withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _isSaving ? null : _submit,
+                    child: Center(
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              isMerchant ? 'Lưu nơi mua' : 'Lưu danh mục',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildModalSegmentedControl(bool isDark) {
+    const groups = ['expense', 'income', 'investment', 'merchant'];
+    final idx = groups.indexOf(_group);
+    return BouncyPillTabs(
+        labels: const ['Chi tiêu', 'Thu nhập', 'Đầu tư', 'Nơi mua'],
+        selectedIndex: idx < 0 ? 0 : idx,
+        colors: const [
+          Color(0xFF2563EB),
+          Color(0xFF059669),
+          Color(0xFF8B5CF6),
+          Color(0xFF3861FB)
+        ],
+        onChanged: (index) {
+          final nextGroup = groups[index];
+          setState(() {
+            _group = nextGroup;
+            if (_group == 'merchant') {
+              if (_emojiController.text.isEmpty ||
+                  _emojiController.text == '🍔') {
+                _emojiController.text = 'store';
+                _iconType = 'lucide';
+              }
+              if (_color == '#007AFF' || _color == '#16C784') {
+                _color = '#3861FB';
+              }
+            }
+          });
+        });
   }
 }

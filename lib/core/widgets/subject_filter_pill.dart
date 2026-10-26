@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
 import '../../data/models/finance_models.dart';
-import '../design_system/app_colors.dart';
+import '../../domain/finance/transaction_member.dart';
 
 enum OwnerFilter {
   all('all', 'Tất cả'),
@@ -42,218 +42,205 @@ enum OwnerFilter {
 
   bool matchTransaction(TransactionModel tx, {Map<String, Wallet>? walletMap}) {
     if (this == OwnerFilter.all) return true;
-    final w = (walletMap != null && tx.walletId != null)
-        ? walletMap[tx.walletId]
-        : null;
-    final rawOwner = (tx.owner ?? tx.fromOwner ?? tx.paidByOwner ?? w?.owner)
-        ?.toLowerCase()
-        .trim();
-    final rawOwnerName = (tx.ownerName ?? w?.ownerName)?.toLowerCase().trim();
-
-    if (this == OwnerFilter.husband) {
-      return rawOwner == 'husband' ||
-          rawOwnerName == 'chồng' ||
-          tx.tags.any((tag) => tag.toLowerCase().contains('chồng'));
-    } else if (this == OwnerFilter.wife) {
-      return rawOwner == 'wife' ||
-          rawOwnerName == 'vợ' ||
-          tx.tags.any((tag) => tag.toLowerCase().contains('vợ'));
-    } else if (this == OwnerFilter.joint) {
-      const jointOwners = {'joint', 'shared', 'family', 'common'};
-      return jointOwners.contains(rawOwner) ||
-          rawOwnerName == 'chung' ||
-          rawOwnerName == 'gia đình' ||
-          tx.tags.any((tag) {
-            final normalized = tag.toLowerCase();
-            return normalized.contains('chung') ||
-                normalized.contains('gia đình');
-          });
-    }
-    return true;
+    return resolveTransactionMember(tx, walletMap: walletMap).value == value;
   }
 
   bool matchWallet(Wallet wallet) {
     if (this == OwnerFilter.all) return true;
-    final owner = wallet.owner.toLowerCase().trim();
-    final name = wallet.ownerName.toLowerCase().trim();
-    if (owner.isNotEmpty) {
-      if (this == OwnerFilter.husband) return owner == 'husband';
-      if (this == OwnerFilter.wife) return owner == 'wife';
-      if (this == OwnerFilter.joint) {
-        return const {'joint', 'shared', 'family', 'common'}.contains(owner);
-      }
-    }
-    if (this == OwnerFilter.husband) {
-      return name == 'chồng';
-    } else if (this == OwnerFilter.wife) {
-      return name == 'vợ';
-    } else if (this == OwnerFilter.joint) {
-      return name == 'chung' || name == 'gia đình';
-    }
-    return true;
+    return resolveWalletMember(wallet).value == value;
   }
 
   bool matchAsset(Asset asset, {Map<String, Wallet>? walletMap}) {
     if (this == OwnerFilter.all) return true;
+    final targetWalletId = asset.walletId ?? asset.sourceWalletId;
     final w = (walletMap != null &&
-            (asset.walletId != null || asset.sourceWalletId != null))
-        ? (walletMap[asset.walletId] ?? walletMap[asset.sourceWalletId])
+            targetWalletId != null &&
+            walletMap.containsKey(targetWalletId))
+        ? walletMap[targetWalletId]
         : null;
-    if (w != null) {
-      return matchWallet(w);
-    }
+    final raw = (w?.owner ?? '').toLowerCase().trim();
+    final name = (w?.ownerName ?? '').toLowerCase().trim();
+    final isWife = raw == 'wife' ||
+        name == 'vợ' ||
+        asset.name.toLowerCase().contains('vợ');
+    if (this == OwnerFilter.wife) return isWife;
+    if (this == OwnerFilter.husband) return !isWife;
     return true;
   }
 
   bool matchLoan(Loan loan, {Map<String, Wallet>? walletMap}) {
     if (this == OwnerFilter.all) return true;
-    final w = (walletMap != null && loan.walletId.isNotEmpty)
+    final w = (walletMap != null &&
+            loan.walletId.isNotEmpty &&
+            walletMap.containsKey(loan.walletId))
         ? walletMap[loan.walletId]
         : null;
-    if (w != null) {
-      return matchWallet(w);
-    }
+    final raw = (w?.owner ?? '').toLowerCase().trim();
+    final name = (w?.ownerName ?? '').toLowerCase().trim();
+    final isWife = raw == 'wife' ||
+        name == 'vợ' ||
+        loan.personName.toLowerCase().contains('vợ');
+    if (this == OwnerFilter.wife) return isWife;
+    if (this == OwnerFilter.husband) return !isWife;
     return true;
   }
 }
 
-/// Universal 1-Touch Subject Filter Pill component.
+/// Pill chọn thành viên phong cách Apple iOS
+class MemberDropdownPill extends StatelessWidget {
+  final OwnerFilter selected;
+  final ValueChanged<OwnerFilter> onSelected;
+  final bool isDark;
+  final bool onColoredSurface;
+
+  const MemberDropdownPill({
+    super.key,
+    required this.selected,
+    required this.onSelected,
+    this.isDark = false,
+    this.onColoredSurface = false,
+  });
+
+  Color _getColor(OwnerFilter filter) {
+    switch (filter) {
+      case OwnerFilter.husband:
+        return const Color(0xFF173B70); // Navy
+      case OwnerFilter.wife:
+        return const Color(0xFFDB2777); // Pink
+      case OwnerFilter.joint:
+      case OwnerFilter.all:
+        return const Color(0xFF6366F1); // Indigo
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor =
+        onColoredSurface ? Colors.white : _getColor(selected);
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+      ),
+      child: PopupMenuButton<OwnerFilter>(
+        initialValue: selected,
+        tooltip: 'Chọn thành viên',
+        onSelected: (val) {
+          HapticFeedback.selectionClick();
+          onSelected(val);
+        },
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+        ),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        elevation: 10,
+        position: PopupMenuPosition.under,
+        offset: const Offset(0, 6),
+        constraints: const BoxConstraints(minWidth: 160),
+        itemBuilder: (ctx) => [
+          _buildMenuItem(OwnerFilter.all, isDark),
+          _buildMenuItem(OwnerFilter.husband, isDark),
+          _buildMenuItem(OwnerFilter.wife, isDark),
+        ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 34),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6.5),
+            decoration: BoxDecoration(
+              color: onColoredSurface
+                  ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+                  : (isDark ? const Color(0xFF161F30) : const Color(0xFFF1F5F9)),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: effectiveColor.withValues(alpha: isDark ? 0.35 : 0.22),
+                width: 1.0,
+              ),
+            ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6.5,
+                    height: 6.5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: effectiveColor,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    selected.label,
+                    style: TextStyle(
+                      color: onColoredSurface
+                          ? Colors.white
+                          : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: onColoredSurface
+                        ? Colors.white70
+                        : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+  }
+
+  PopupMenuItem<OwnerFilter> _buildMenuItem(OwnerFilter filter, bool dark) {
+    return CheckedPopupMenuItem<OwnerFilter>(
+      value: filter,
+      checked: filter == selected,
+      child: Text(
+        filter.label,
+        style: TextStyle(
+          color: dark ? Colors.white : const Color(0xFF0F172A),
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact owner selector shared by every financial overview.
 class SubjectFilterPill extends StatelessWidget {
   final OwnerFilter selected;
   final ValueChanged<OwnerFilter> onSelected;
   final bool compact;
+  final bool onColoredSurface;
 
   const SubjectFilterPill({
     super.key,
     required this.selected,
     required this.onSelected,
     this.compact = false,
+    this.onColoredSurface = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    const visibleFilters = [
-      OwnerFilter.all,
-      OwnerFilter.husband,
-      OwnerFilter.wife,
-    ];
-
-    final selectedIndex = visibleFilters.indexOf(selected).clamp(0, 2);
-    final height = compact ? 40.0 : 46.0;
-    return LayoutBuilder(builder: (context, constraints) {
-      const inset = 4.0;
-      final itemWidth =
-          (constraints.maxWidth - inset * 2) / visibleFilters.length;
-      return Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: isDark
-              ? const Color(0xB8141F3C)
-              : Colors.white.withValues(alpha: .70),
-          borderRadius: BorderRadius.circular(50),
-          border: Border.all(
-            color: isDark ? const Color(0xFF202D4E) : Colors.white,
-            width: 1.2,
-          ),
-        ),
-        child: Stack(children: [
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 360),
-            curve: Curves.easeOutBack,
-            left: inset + selectedIndex * itemWidth,
-            top: inset,
-            width: itemWidth,
-            height: height - inset * 2,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 260),
-              decoration: BoxDecoration(
-                gradient: _gradientForFilter(visibleFilters[selectedIndex]),
-                borderRadius: BorderRadius.circular(50),
-                boxShadow: [
-                  BoxShadow(
-                    color: _glowColor(visibleFilters[selectedIndex]),
-                    blurRadius: 16,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Row(
-            children: visibleFilters.map((filter) {
-              final isSelected = selected == filter;
-              return Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    onSelected(filter);
-                  },
-                  child: Center(
-                    child: AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 220),
-                      style: TextStyle(
-                        fontSize: compact ? 12.0 : 13.0,
-                        fontWeight:
-                            isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary),
-                      ),
-                      child: Text(filter.label),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ]),
-      );
-    });
-  }
-
-  LinearGradient _gradientForFilter(OwnerFilter filter) {
-    switch (filter) {
-      case OwnerFilter.husband:
-        return const LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF5AA9FF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-      case OwnerFilter.wife:
-        return const LinearGradient(
-          colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-      case OwnerFilter.joint:
-        return const LinearGradient(
-          colors: [Color(0xFF2563EB), Color(0xFF93C5FD)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-      case OwnerFilter.all:
-        return const LinearGradient(
-          colors: [Color(0xFF1E293B), Color(0xFF334155)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-    }
-  }
-
-  Color _glowColor(OwnerFilter filter) {
-    switch (filter) {
-      case OwnerFilter.husband:
-        return const Color(0xFF3563E9).withValues(alpha: 0.30);
-      case OwnerFilter.wife:
-        return const Color(0xFFEC4899).withValues(alpha: 0.35);
-      case OwnerFilter.joint:
-        return const Color(0xFF0E7490).withValues(alpha: 0.30);
-      case OwnerFilter.all:
-        return const Color(0xFF1E293B).withValues(alpha: 0.25);
-    }
+    return MemberDropdownPill(
+      selected: selected,
+      onSelected: onSelected,
+      isDark: isDark,
+      onColoredSurface: onColoredSurface,
+    );
   }
 }

@@ -187,9 +187,20 @@ class CategoryIconHelper {
 
   static String? getAssetPath(String? iconStr) {
     if (iconStr == null || iconStr.trim().isEmpty) return null;
-    var clean = iconStr.trim().toLowerCase();
+    var raw = iconStr.trim().toLowerCase();
+    if (raw.startsWith('http://') ||
+        raw.startsWith('https://') ||
+        raw.startsWith('//') ||
+        raw.contains('/storage/')) {
+      return null;
+    }
+    if (raw.startsWith('assets/')) {
+      return iconStr.trim();
+    }
+    var clean = raw;
     if (clean.startsWith('bank-')) clean = clean.substring(5);
     if (clean.startsWith('brand-')) clean = clean.substring(6);
+    clean = clean.replaceAll(RegExp(r'[^a-z0-9]'), '');
 
     const assetMap = {
       'vcb': 'assets/banks/vcb.jpg',
@@ -231,12 +242,59 @@ class CategoryIconHelper {
       'viettelmoney': 'assets/banks/viettelmoney.jpg',
       'vnptmoney': 'assets/banks/vnptmoney.jpg',
       'shopee': 'assets/banks/shopee.jpg',
+      'shopeemall': 'assets/banks/shopee.jpg',
       'lazada': 'assets/banks/lazada.jpg',
+      'lazadamall': 'assets/banks/lazada.jpg',
       'tiktok': 'assets/banks/tiktok.jpg',
+      'tiktokshop': 'assets/banks/tiktok.jpg',
       'winmart': 'assets/banks/winmart.png',
+      'winmartplus': 'assets/banks/winmart.png',
+      'vinmart': 'assets/banks/winmart.png',
+      'vinmartplus': 'assets/banks/winmart.png',
     };
 
-    return assetMap[clean];
+    if (assetMap.containsKey(clean)) return assetMap[clean];
+    if (clean.contains('shopee')) return 'assets/banks/shopee.jpg';
+    if (clean.contains('tiktok')) return 'assets/banks/tiktok.jpg';
+    if (clean.contains('lazada')) return 'assets/banks/lazada.jpg';
+    if (clean.contains('winmart') || clean.contains('vinmart')) {
+      return 'assets/banks/winmart.png';
+    }
+
+    return null;
+  }
+
+  static bool isPhoto(String? iconStr, [String? categoryName, String? merchantName]) {
+    if (iconStr == null || iconStr.trim().isEmpty) {
+      if (categoryName != null && isPhoto(categoryName)) return true;
+      if (merchantName != null && isPhoto(merchantName)) return true;
+      return false;
+    }
+    final raw = iconStr.trim().toLowerCase();
+    if (raw.startsWith('http://') ||
+        raw.startsWith('https://') ||
+        raw.startsWith('//') ||
+        raw.startsWith('data:image') ||
+        raw.startsWith('blob:') ||
+        raw.contains('/storage/')) {
+      return true;
+    }
+    if (raw.contains('.png') ||
+        raw.contains('.jpg') ||
+        raw.contains('.jpeg') ||
+        raw.contains('.webp') ||
+        raw.contains('.svg') ||
+        raw.contains('.gif') ||
+        raw.contains('.bmp')) {
+      return true;
+    }
+    if (raw.contains('assets/')) {
+      return true;
+    }
+    if (getAssetPath(iconStr) != null) return true;
+    if (categoryName != null && getAssetPath(categoryName) != null) return true;
+    if (merchantName != null && getAssetPath(merchantName) != null) return true;
+    return false;
   }
 
   static String resolveIcon(String? iconStr, [String? categoryName]) {

@@ -1,0 +1,74 @@
+Created At: 2026-09-28T15:15:47+07:00
+Completed At: 2026-09-28T15:15:47+07:00
+File Path: `file:///D:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 7934
+Total Bytes: 295658
+Showing lines 300 to 365
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+300:                 SingleChildScrollView(
+301:                   scrollDirection: Axis.horizontal,
+302:                   physics: const BouncingScrollPhysics(),
+303:                   child: Row(
+304:                     children: [
+305:                       _buildPreviewModePill(0, '👑 Thẻ Hero Pro', primary, isDark),
+306:                       const SizedBox(width: 6),
+307:                       _buildPreviewModePill(1, '💳 Thẻ & Ví', primary, isDark),
+308:                       const SizedBox(width: 6),
+309:                       _buildPreviewModePill(2, '📈 Biểu Đồ & Thẻ', primary, isDark),
+310:                       const SizedBox(width: 6),
+311:                       _buildPreviewModePill(3, '📱 Thanh AppBar', primary, isDark),
+312:                       const SizedBox(width: 6),
+313:                       _buildPreviewModePill(4, '✨ Icon Studio', primary, isDark),
+314:                     ],
+315:                   ),
+316:                 ),
+317: 
+318:                 const SizedBox(height: 14),
+319: 
+320:                 // Switch preview by _previewModeIndex
+321:                 if (_previewModeIndex == 0)
+322:                   _buildLiveHeroCardProPreview(
+323:                     studio: studio,
+324:                     isDark: isDark,
+325:                     primary: primary,
+326:                     palette: palette,
+327:                   )
+328:                 else if (_previewModeIndex == 1)
+329:                   _buildLiveBankCardAndDockPreview(
+330:                     studio: studio,
+331:                     isDark: isDark,
+332:                     primary: primary,
+333:                     palette: palette,
+334:                   )
+335:                 else if (_previewModeIndex == 2)
+336:                   _buildLiveChartAndWidgetCardPreview(
+337:                     studio: studio,
+338:                     isDark: isDark,
+339:                     primary: primary,
+340:                     palette: palette,
+341:                   )
+342:                 else if (_previewModeIndex == 3)
+343:                   _buildLiveAppBarPreview(
+344:                     studio: studio,
+345:                     isDark: isDark,
+346:                     primary: primary,
+347:                     palette: palette,
+348:                   )
+349:                 else
+350:                   _buildLiveIconStudioPreview(
+351:                     studio: studio,
+352:                     isDark: isDark,
+353:                     primary: primary,
+354:                     palette: palette,
+355:                   ),
+356:               ],
+357:             ),
+358:           ),
+359:         ),
+360:       ),
+361:     );
+362:   }
+363: 
+364:   // ==========================================
+365:   // 2. CATEGORY PILL SELECTOR (Horizontal)
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

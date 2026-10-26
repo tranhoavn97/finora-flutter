@@ -1,0 +1,96 @@
+Created At: 2026-09-29T14:58:54+07:00
+Completed At: 2026-09-29T14:58:54+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10601
+Total Bytes: 386230
+Showing lines 8760 to 8850
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8760:                         d,
+8761:                         style: TextStyle(
+8762:                           fontSize: 9.5,
+8763:                           color: isDark
+8764:                               ? const Color(0xFF64748B)
+8765:                               : const Color(0xFF94A3B8),
+8766:                           fontWeight: FontWeight.w600,
+8767:                         ),
+8768:                       );
+8769:                     }).toList(),
+8770:                   ),
+8771:                 ],
+8772:               ),
+8773:             ),
+8774:           ),
+8775:         ),
+8776: 
+8777:         const SizedBox(height: 10),
+8778: 
+8779:         // Sample Widget Card (reflecting widgetCardStyle and glassOpacity)
+8780:         FloatingGlassCard(
+8781:           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+8782:           radius: studio.cardCornerRadius.clamp(14.0, 20.0),
+8783:           blur: studio.glassBlur,
+8784:           child: Row(
+8785:             children: [
+8786:               Container(
+8787:                 width: 36,
+8788:                 height: 36,
+8789:                 decoration: BoxDecoration(
+8790:                   color: primary.withValues(alpha: 0.15),
+8791:                   shape: BoxShape.circle,
+8792:                 ),
+8793:                 child:
+8794:                     Icon(Icons.auto_awesome_rounded, size: 18, color: primary),
+8795:               ),
+8796:               const SizedBox(width: 12),
+8797:               Expanded(
+8798:                 child: Column(
+8799:                
+<truncated 262 bytes>
+                     fontSize: 12.5,
+8805:                         fontWeight: FontWeight.w700,
+8806:                         color: isDark ? Colors.white : const Color(0xFF0F172A),
+8807:                       ),
+8808:                     ),
+8809:                     const SizedBox(height: 2),
+8810:                     Text(
+8811:                       'Trong suốt: ${(studio.glassOpacity * 100).toInt()}% • Độ mờ: ${studio.glassBlur.toInt()}px',
+8812:                       style: TextStyle(
+8813:                         fontSize: 10.5,
+8814:                         color: isDark
+8815:                             ? const Color(0xFF94A3B8)
+8816:                             : const Color(0xFF64748B),
+8817:                       ),
+8818:                     ),
+8819:                   ],
+8820:                 ),
+8821:               ),
+8822:               Icon(Icons.chevron_right_rounded, size: 20, color: primary),
+8823:             ],
+8824:           ),
+8825:         ),
+8826:       ],
+8827:     );
+8828:   }
+8829: 
+8830:   Widget _buildLiveAppBarPreview({
+8831:     required ThemeStudioController studio,
+8832:     required bool isDark,
+8833:     required Color primary,
+8834:     required PaletteMeta palette,
+8835:   }) {
+8836:     final isFloating =
+8837:         studio.appBarScrollBehavior == AppAppBarScrollBehavior.floating;
+8838:     final seasonBadge = studio.getSeasonalBadge();
+8839: 
+8840:     return Column(
+8841:       children: [
+8842:         // Simulated Mobile Top Frame
+8843:         Container(
+8844:           height: 155,
+8845:           decoration: BoxDecoration(
+8846:             color: (isDark ? const Color(0xFF090D16) : const Color(0xFFE2E8F0))
+8847:                 .withValues(alpha: 0.95),
+8848:             borderRadius: BorderRadius.circular(20),
+8849:             border: Border.all(
+8850:               color:
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

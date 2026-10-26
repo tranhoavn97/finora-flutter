@@ -1,0 +1,86 @@
+Created At: 2026-09-29T14:48:52+07:00
+Completed At: 2026-09-29T14:48:52+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 8520 to 8680
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8520:     return Column(
+8521:       children: [
+8522:         // Live Morphing Bank Card Preview
+8523:         GestureDetector(
+8524:           onTap: () {
+8525:             HapticFeedback.selectionClick();
+8526:             setState(() => _previewVisaMode = !_previewVisaMode);
+8527:           },
+8528:           child: AnimatedContainer(
+8529:             duration: const Duration(milliseconds: 320),
+8530:             curve: Curves.easeOutCubic,
+8531:             height: 155,
+8532:             child: FinoraBankCardSurface(
+8533:               skin: studio.globalCardSkin,
+8534:               gradientColors: palette.heroGradient,
+8535:               borderRadius: studio.cardCornerRadius.clamp(14.0, 24.0),
+8536:               cardNetwork: _previewVisaMode ? 'visa' : null,
+8537:               bankName:
+8538:                   _previewVisaMode ? 'FINORA PLATINUM VISA' : 'VIETCOMBANK ATM',
+8539:               bankCode: _previewVisaMode ? 'vcb' : 'vcb',
+8540:               accountNumber: '•••• •••• •••• 8899',
+8541:               cardHolder: 'NGUYEN VAN A',
+8542:               expiryDate: '12/29',
+8543:               isDark: isDark,
+8544:               bottomContent: Wrap(
+8545:                 spacing: 12,
+8546:                 runSpacing: 8,
+8547:                 alignment: WrapAlignment.spaceBetween,
+8548:                 children: [
+8549:                   Column(
+8550:                     crossAxisAlignment: CrossAxisAlignment.start,
+8551:                     mainAxisSize: MainAxisSize.min,
+8552:                     childre
+<truncated 3514 bytes>
+flex: 4,
+8638:               child: Container(
+8639:                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+8640:                 decoration: BoxDecoration(
+8641:                   color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+8642:                       .withValues(alpha: 0.6),
+8643:                   borderRadius: BorderRadius.circular(12),
+8644:                   border: Border.all(
+8645:                     color: (isDark ? Colors.white : Colors.black)
+8646:                         .withValues(alpha: 0.08),
+8647:                   ),
+8648:                 ),
+8649:                 child: Row(
+8650:                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+8651:                   children: [
+8652:                     CategoryIconBadge(
+8653:                       icon: 'shopping-cart',
+8654:                       categoryName: 'Mua sắm',
+8655:                       color: const Color(0xFFEC4899),
+8656:                       size: 28,
+8657:                       isDark: isDark,
+8658:                     ),
+8659:                     CategoryIconBadge(
+8660:                       icon: 'utensils',
+8661:                       categoryName: 'Ăn uống',
+8662:                       color: const Color(0xFFF59E0B),
+8663:                       size: 28,
+8664:                       isDark: isDark,
+8665:                     ),
+8666:                     CategoryIconBadge(
+8667:                       icon: 'car',
+8668:                       categoryName: 'Đi lại',
+8669:                       color: const Color(0xFF3B82F6),
+8670:                       size: 28,
+8671:                       isDark: isDark,
+8672:                     ),
+8673:                   ],
+8674:                 ),
+8675:               ),
+8676:             ),
+8677:           ],
+8678:         ),
+8679:       ],
+8680:     );
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

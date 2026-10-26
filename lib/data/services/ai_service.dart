@@ -1,218 +1,71 @@
 import 'dart:convert';
-import 'dart:io';
-import '../models/category.dart';
-import '../models/wallet.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+
 import 'finora_nlp_engine.dart';
 
-class SmartTransactionParsed {
-  final String type;
-  final int amount;
-  final String note;
-  final String? categoryName;
-  final String? walletName;
-  final String? owner;
-  final String? ownerName;
-  final int? date;
-  final double confidence;
-
-  SmartTransactionParsed({
-    required this.type,
-    required this.amount,
-    required this.note,
-    this.categoryName,
-    this.walletName,
-    this.owner,
-    this.ownerName,
-    this.date,
-    this.confidence = 1.0,
-  });
-
-  factory SmartTransactionParsed.fromMap(Map<String, dynamic> map) {
-    return SmartTransactionParsed(
-      type: (map['type'] as String?)?.toLowerCase() ?? 'expense',
-      amount: (map['amount'] is num) ? (map['amount'] as num).toInt() : 0,
-      note: map['note']?.toString() ?? '',
-      categoryName: map['categoryName']?.toString(),
-      walletName: map['walletName']?.toString(),
-      owner: map['owner']?.toString(),
-      ownerName: map['ownerName']?.toString(),
-      date: (map['date'] is num) ? (map['date'] as num).toInt() : null,
-      confidence: (map['confidence'] is num) ? (map['confidence'] as num).toDouble() : 1.0,
-    );
-  }
-}
-
-class SmartChatResult {
-  final String intent;
-  final String replyText;
-  final List<SmartTransactionParsed> transactions;
-
-  SmartChatResult({
-    required this.intent,
-    required this.replyText,
-    required this.transactions,
-  });
-
-  factory SmartChatResult.fromMap(Map<String, dynamic> map) {
-    final rawList = map['transactions'] as List<dynamic>? ?? [];
-    final txs = rawList
-        .whereType<Map<String, dynamic>>()
-        .map((m) => SmartTransactionParsed.fromMap(m))
-        .toList();
-
-    return SmartChatResult(
-      intent: map['intent']?.toString() ?? 'general_chat',
-      replyText: map['replyText']?.toString() ?? '',
-      transactions: txs,
-    );
-  }
-}
-
-/// Service to communicate with Finora NLP Intelligence Engine (100% on-device) + optional backend proxy
+/// Service to communicate with the Node.js / Vercel backend for Gemini AI capabilities
+/// with seamless on-device heuristic fallback when offline or unavailable.
 class AiService {
+  // Production builds can inject the deployed HTTPS backend with:
+  // --dart-define=FINORA_API_BASE=https://api.example.com
+  static const _configuredBase = String.fromEnvironment('FINORA_API_BASE',
+      defaultValue: 'https://finora-web-nine.vercel.app');
+
   static String get _apiBase {
-    try {
-      if (Platform.isAndroid) {
-        return 'http://10.0.2.2:3000';
-      }
-    } catch (_) {}
-    return 'http://localhost:3000';
+    if (_configuredBase.trim().isNotEmpty) {
+      return _configuredBase.trim().replaceFirst(RegExp(r'/$'), '');
+    }
+    return 'https://finora-web-nine.vercel.app';
   }
 
-  /// Communicates with AI / NLP to get parsed transactions, queries & advice.
-  /// 100% guaranteed to return accurate results using on-device NLP fallback.
-  static Future<SmartChatResult> smartChat({
-    required String message,
+  /// Communicates with `/api/gemini/chat` to get financial advice from Gemini,
+  /// with automatic fallback to FinoraNlpEngine.
+  static Future<String> getFinancialAdvice({
+    required String prompt,
+    bool throwOnError = false,
     List<Map<String, dynamic>>? chatHistory,
     Map<String, dynamic>? userFinanceContext,
-    List<Category> categories = const [],
-    List<Wallet> wallets = const [],
   }) async {
-    // 1. Try on-device NLP transaction parsing first if money or transaction action detected
-    final parsedTxs = FinoraNlpEngine.extractTransactions(
-      message: message,
-      categories: categories,
-      wallets: wallets,
-    );
-
-    if (parsedTxs.isNotEmpty) {
-      final totalAmt = parsedTxs.fold<int>(0, (sum, t) => sum + t.amount);
-      final count = parsedTxs.length;
-      final reply = count == 1
-          ? 'Đã nhận diện và ghi chép giao dịch **${parsedTxs.first.note}** (${FinoraNlpEngine.normalize(parsedTxs.first.type) == 'income' ? '+' : '-'}${_formatCurrency(parsedTxs.first.amount)} đ) vào sổ của bạn! ✨'
-          : 'Đã nhận diện và ghi chép **$count giao dịch** (Tổng: ${_formatCurrency(totalAmt)} đ) vào sổ của bạn! 🚀';
-
-      return SmartChatResult(
-        intent: 'add_transaction',
-        replyText: reply,
-        transactions: parsedTxs,
-      );
-    }
-
-    // 2. Check if user is asking a financial query (hôm nay tiêu gì, ngân sách, số dư, lời khuyên)
-    if (FinoraNlpEngine.isFinancialQuery(message)) {
-      return FinoraNlpEngine.generateFinancialAdvice(
-        query: message,
-        financeContext: userFinanceContext,
-        categories: categories,
-        wallets: wallets,
-      );
-    }
-
-    // 3. Try Remote AI Backend if reachable with fast 2.5s timeout
+    final client = http.Client();
     try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(milliseconds: 2500);
-      final uri = Uri.parse('$_apiBase/api/gemini/smart-chat');
-      final request = await client.postUrl(uri);
-      request.headers.contentType = ContentType.json;
+      final uri = Uri.parse('$_apiBase/api/gemini/chat');
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final headers = {
+        'Content-Type': 'application/json',
+        if (idToken != null && idToken.isNotEmpty)
+          'Authorization': 'Bearer $idToken',
+      };
 
       final body = {
-        'message': message,
+        'message': prompt,
         if (chatHistory != null) 'history': chatHistory,
         if (userFinanceContext != null) 'context': userFinanceContext,
       };
 
-      request.write(jsonEncode(body));
-      final response = await request.close();
+      final response = await client
+          .post(uri, headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
-        final responseBody = await response.transform(utf8.decoder).join();
-        final data = jsonDecode(responseBody);
-        return SmartChatResult.fromMap(data);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final text = data['text']?.toString().trim();
+        if (text != null && text.isNotEmpty) return text;
       }
-    } catch (_) {
-      // Remote unavailable, fall through to intelligent on-device engine
+    } catch (e) {
+      if (throwOnError) rethrow;
+    } finally {
+      client.close();
     }
 
-    // 4. On-device intelligent fallback for general chat/advice
-    return FinoraNlpEngine.generateFinancialAdvice(
-      query: message,
+    // Graceful fallback to on-device FinoraNlpEngine
+    final fallback = FinoraNlpEngine.generateFinancialAdvice(
+      query: prompt,
       financeContext: userFinanceContext,
-      categories: categories,
-      wallets: wallets,
     );
-  }
-
-  /// Scans a receipt/bill image and extracts transaction details with 100% reliable fallback.
-  static Future<Map<String, dynamic>?> scanBill({
-    required String base64Image,
-    required String mimeType,
-    List<Category> categories = const [],
-    List<Wallet> wallets = const [],
-  }) async {
-    // 1. Try remote Gemini OCR if backend available
-    try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(milliseconds: 3000);
-      final uri = Uri.parse('$_apiBase/api/gemini/scan');
-      final request = await client.postUrl(uri);
-      request.headers.contentType = ContentType.json;
-
-      final body = {
-        'imageParams': {
-          'inlineData': {
-            'data': base64Image,
-            'mimeType': mimeType,
-          }
-        }
-      };
-
-      request.write(jsonEncode(body));
-      final response = await request.close();
-
-      if (response.statusCode == 200) {
-        final responseBody = await response.transform(utf8.decoder).join();
-        return jsonDecode(responseBody) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-
-    // 2. On-device smart fallback for bill extraction
-    final catName = categories.isNotEmpty ? categories.first.name : 'Ăn uống';
-    final walletName = wallets.isNotEmpty ? wallets.first.name : 'Tiền mặt';
-
-    return {
-      'amount': 85000,
-      'type': 'expense',
-      'note': 'Hóa đơn thanh toán / Bill mua hàng',
-      'categoryName': catName,
-      'walletName': walletName,
-      'date': DateTime.now().millisecondsSinceEpoch,
-    };
-  }
-
-  /// Communicates with `/api/gemini/chat` to get financial advice from Gemini.
-  static Future<String> getFinancialAdvice({
-    required String prompt,
-    List<Map<String, dynamic>>? chatHistory,
-    Map<String, dynamic>? userFinanceContext,
-  }) async {
-    final res = await smartChat(
-      message: prompt,
-      chatHistory: chatHistory,
-      userFinanceContext: userFinanceContext,
-    );
-    return res.replyText;
+    return fallback.replyText ??
+        'Finora AI luôn sẵn sàng đồng hành cùng bạn quản lý tài chính hiệu quả.';
   }
 
   /// Suggests budget limit recommendations based on transaction history and categories.
@@ -221,24 +74,106 @@ class AiService {
     required List<Map<String, dynamic>> categories,
     required List<Map<String, dynamic>> budgets,
   }) async {
-    return [
-      {'category': 'Ăn uống', 'suggestedLimit': 4500000, 'reason': 'Dựa trên chi tiêu trung bình các tháng trước'},
-      {'category': 'Đi lại', 'suggestedLimit': 1200000, 'reason': 'Tối ưu chi phí xăng xe và phương tiện'},
-      {'category': 'Mua sắm', 'suggestedLimit': 2000000, 'reason': 'Khống chế dưới 20% thu nhập'},
-    ];
+    final client = http.Client();
+    try {
+      final uri = Uri.parse('$_apiBase/api/gemini/analyze-budgets');
+      final body = {
+        'transactions': transactions,
+        'categories': categories,
+        'budgets': budgets,
+      };
+
+      final response = await client
+          .post(uri,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode(body))
+          .timeout(const Duration(seconds: 25));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data['suggestions'] is List &&
+            (data['suggestions'] as List).isNotEmpty) {
+          return data['suggestions'];
+        }
+      }
+    } catch (_) {
+    } finally {
+      client.close();
+    }
+
+    return _localBudgetSuggestions(
+      transactions: transactions,
+      categories: categories,
+      budgets: budgets,
+    );
   }
 
-  static String _formatCurrency(int amount) {
-    final str = amount.toString();
-    final buffer = StringBuffer();
-    int count = 0;
-    for (int i = str.length - 1; i >= 0; i--) {
-      buffer.write(str[i]);
-      count++;
-      if (count % 3 == 0 && i != 0) {
-        buffer.write('.');
+  static List<Map<String, dynamic>> _localBudgetSuggestions({
+    required List<Map<String, dynamic>> transactions,
+    required List<Map<String, dynamic>> categories,
+    required List<Map<String, dynamic>> budgets,
+  }) {
+    final now = DateTime.now();
+    final spendByCategory = <String, int>{};
+    for (final tx in transactions) {
+      if (tx['type']?.toString() != 'expense') continue;
+      final rawDate = tx['date'];
+      final milliseconds = rawDate is num
+          ? (rawDate.toInt() < 100000000000
+              ? rawDate.toInt() * 1000
+              : rawDate.toInt())
+          : 0;
+      if (milliseconds <= 0) continue;
+      final date = DateTime.fromMillisecondsSinceEpoch(milliseconds);
+      if (date.year != now.year || date.month != now.month) continue;
+      final amount = (tx['amount'] as num?)?.round() ?? 0;
+      final categoryId = tx['categoryId']?.toString() ?? '';
+      final categoryName =
+          tx['categoryName']?.toString().trim().toLowerCase() ?? '';
+      if (categoryId.isNotEmpty) {
+        spendByCategory[categoryId] =
+            (spendByCategory[categoryId] ?? 0) + amount;
+      }
+      if (categoryName.isNotEmpty) {
+        spendByCategory[categoryName] =
+            (spendByCategory[categoryName] ?? 0) + amount;
       }
     }
-    return buffer.toString().split('').reversed.join('');
+
+    int roundUp(int amount) => ((amount + 49999) ~/ 50000) * 50000;
+    final results = <Map<String, dynamic>>[];
+    final seen = <String>{};
+    for (final budget in budgets) {
+      final categoryId = budget['categoryId']?.toString() ?? '';
+      if (categoryId.isEmpty || !seen.add(categoryId)) continue;
+      final categoryName = budget['categoryName']?.toString() ??
+          categories
+              .where((category) => category['id']?.toString() == categoryId)
+              .map((category) => category['name']?.toString() ?? '')
+              .firstOrNull ??
+          '';
+      final current = (budget['limitAmount'] as num?)?.round() ?? 0;
+      final spent = spendByCategory[categoryId] ??
+          spendByCategory[categoryName.trim().toLowerCase()] ??
+          0;
+      final basedOnSpend =
+          spent > 0 ? roundUp((spent * 1.15).round()) : current;
+      final suggested = basedOnSpend > 0 ? basedOnSpend : 200000;
+      final reasoning = spent > current && current > 0
+          ? 'Chi tiêu tháng này đã vượt hạn mức. Finora đề xuất thêm 15% đệm và làm tròn để dễ theo dõi.'
+          : spent > 0
+              ? 'Đề xuất dựa trên chi tiêu thực tế tháng này, cộng 15% dự phòng.'
+              : 'Tháng này chưa phát sinh chi tiêu; tạm giữ hạn mức hiện tại.';
+      results.add({
+        'categoryId': categoryId,
+        'categoryName': categoryName,
+        'currentSpend': spent,
+        'currentBudget': current,
+        'suggestedBudget': suggested,
+        'reasoning': reasoning,
+        'source': 'on_device',
+      });
+    }
+    return results;
   }
 }

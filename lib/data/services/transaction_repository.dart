@@ -1,54 +1,74 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import '../models/transaction.dart';
 import '../models/coerce.dart';
+import 'supabase_bridge.dart';
 
-/// users/{userId}/transactions  (+ cascades into assets / loans / goals)
+/// users/{userId}/transactions (+ cascades into assets / loans / goals)
+/// Also seamlessly supports families/{familyId}/transactions when familyId is active.
 class TransactionRepository {
-  final FirebaseFirestore _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'ai-studio-2b22d4a0-9f50-4bbc-a8ed-f26d36b92339',
-  );
+  Stream<List<TransactionModel>> watchTransactions(String userId,
+      {String? familyId}) {
+    return SupabaseBridge.watchUserCollection(
+      userId: userId,
+      collection: 'transactions',
+    ).map((rows) {
+      final result = rows
+          .where((data) => data['deletedAt'] == null)
+          .map((data) => TransactionModel.fromMap(data['id'].toString(), data))
+          .toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+      return result;
+    });
+  }
 
-  DocumentReference<Map<String, dynamic>> _userDoc(String userId) =>
-      _db.collection('users').doc(userId);
-  CollectionReference<Map<String, dynamic>> _txCol(String userId) =>
-      _userDoc(userId).collection('transactions');
+  Future<List<TransactionModel>> getTransactions(String userId,
+      {String? familyId}) async {
+    final rows = await SupabaseBridge.loadUserCollection(
+        userId: userId, collection: 'transactions');
+    return rows
+        .where((data) => data['deletedAt'] == null)
+        .map((data) => TransactionModel.fromMap(data['id'].toString(), data))
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+  }
 
-  Stream<List<TransactionModel>> watchTransactions(String userId) async* {
-    final Map<String, TransactionModel> cache = {};
-    await for (final snap in _txCol(userId).snapshots()) {
-      for (final change in snap.docChanges) {
-        if (change.type == DocumentChangeType.removed) {
-          cache.remove(change.doc.id);
-        } else {
-          final data = change.doc.data();
-          if (data != null) {
-            cache[change.doc.id] = TransactionModel.fromMap(change.doc.id, data);
-          }
+  Future<String> createTransaction(String userId, TransactionModel transaction,
+      {String? familyId}) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    final transactionId = transaction.id.trim().isNotEmpty
+        ? transaction.id
+        : SupabaseBridge.newDocumentId();
+
+    var effectiveTx = transaction;
+    if ((effectiveTx.walletId == null || effectiveTx.walletId!.isEmpty) &&
+        (effectiveTx.walletName != null && effectiveTx.walletName!.isNotEmpty)) {
+      try {
+        final wallets = await SupabaseBridge.loadUserCollection(
+            userId: userId, collection: 'wallets');
+        final targetName = effectiveTx.walletName!.trim().toLowerCase();
+        final matched = wallets
+            .where((w) => w['deletedAt'] == null)
+            .firstWhere(
+              (w) =>
+                  (w['name'] ?? '').toString().trim().toLowerCase() ==
+                  targetName,
+              orElse: () => <String, dynamic>{},
+            );
+        if (matched['id'] != null) {
+          effectiveTx =
+              effectiveTx.copyWith(walletId: matched['id'].toString());
         }
-      }
-      yield cache.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+      } catch (_) {}
     }
-  }
 
-  Future<List<TransactionModel>> getTransactions(String userId) async {
-    final snap = await _txCol(userId).get();
-    return snap.docs.map((d) => TransactionModel.fromMap(d.id, d.data())).toList();
-  }
-
-  Future<String> createTransaction(String userId, TransactionModel transaction) async {
-    final batch = _db.batch();
-    final ts = FieldValue.serverTimestamp();
-    final txRef = _txCol(userId).doc();
-    final data = transaction.toMap()
-      ..['createdAt'] = ts
-      ..['updatedAt'] = ts;
+    final data = effectiveTx.toMap()
+      ..['userId'] = userId
+      ..['createdAt'] = now
+      ..['updatedAt'] = now;
 
     // Auto-create an asset for a fresh investment transaction.
     if (transaction.type == 'investment' && transaction.assetId == null) {
-      final assetRef = _userDoc(userId).collection('assets').doc();
-      batch.set(assetRef, removeNulls({
+      final assetId = 'transaction_$transactionId';
+      final assetData = removeNulls({
         'userId': userId,
         'name': transaction.categoryName ?? transaction.assetName ?? 'Tài sản',
         'type': 'investment',
@@ -64,50 +84,198 @@ class TransactionRepository {
         'profitLoss': 0,
         'profitLossPercent': 0.0,
         'status': 'active',
-        'transactionId': txRef.id,
-        'createdAt': ts,
-        'updatedAt': ts,
-      }));
-      data['assetId'] = assetRef.id;
+        'transactionId': transactionId,
+        'createdAt': now,
+        'updatedAt': now,
+      });
+      data['assetId'] = assetId;
+      await SupabaseBridge.mutateUserDocuments(
+        userId: userId,
+        operations: [
+          {
+            'collection_name': 'assets',
+            'document_id': assetId,
+            'data': assetData,
+            'replace': true
+          },
+          {
+            'collection_name': 'transactions',
+            'document_id': transactionId,
+            'data': removeNulls(data),
+            'replace': true
+          },
+        ],
+      );
+      return transactionId;
     }
+    await SupabaseBridge.saveUserDocument(
+      userId: userId,
+      collection: 'transactions',
+      documentId: transactionId,
+      data: removeNulls(data),
+      replace: true,
+    );
+    return transactionId;
+  }
 
-    batch.set(txRef, removeNulls(data));
-    await batch.commit();
-    return txRef.id;
+  String newOperationId(String userId, {String? familyId}) =>
+      SupabaseBridge.newDocumentId();
+
+  /// One atomic operation updates the liability and the wallet ledger.
+  /// A stable operationId makes retries safe after an uncertain response.
+  Future<void> recordLoanRepayment(String userId,
+      {required String loanId,
+      required String walletId,
+      required int amount,
+      required String operationId,
+      String? familyId}) async {
+    if (amount <= 0) throw ArgumentError('Số tiền phải lớn hơn 0');
+    final transactions = await SupabaseBridge.loadUserCollection(
+        userId: userId, collection: 'transactions');
+    if (transactions.any((row) => row['id'] == operationId)) return;
+    final loans = await SupabaseBridge.loadUserCollection(
+        userId: userId, collection: 'loans');
+    final wallets = await SupabaseBridge.loadUserCollection(
+        userId: userId, collection: 'wallets');
+    final data = loans.where((row) => row['id'] == loanId).firstOrNull;
+    final wallet = wallets.where((row) => row['id'] == walletId).firstOrNull;
+    if (data == null || wallet == null) {
+      throw StateError('Khoản nợ hoặc ví không còn tồn tại');
+    }
+    if (wallet['type'] == 'credit_card') {
+      throw StateError('Chọn ví tiền mặt hoặc ngân hàng');
+    }
+    final remaining = toLongValue(data['remainingPrincipal']);
+    if (amount > remaining) throw StateError('Số tiền vượt gốc còn lại');
+    final paid = toLongValue(data['paidAmount']);
+    final isLent = data['type'] == 'lent';
+    final tx = TransactionModel(
+        id: operationId,
+        userId: userId,
+        loanId: loanId,
+        type: isLent ? 'loan_repayment_received' : 'debt_repayment',
+        amount: amount,
+        date: DateTime.now().millisecondsSinceEpoch,
+        walletId: walletId,
+        walletName: toStringValue(wallet['name']),
+        owner: toStringOrNull(wallet['owner']),
+        ownerName: toStringOrNull(wallet['ownerName']),
+        note: isLent ? 'Thu gốc nợ' : 'Trả gốc nợ',
+        categoryName: isLent ? 'Thu gốc nợ' : 'Trả gốc nợ');
+    final now = DateTime.now().toUtc().toIso8601String();
+    await SupabaseBridge.mutateUserDocuments(
+      userId: userId,
+      operations: [
+        {
+          'collection_name': 'transactions',
+          'document_id': operationId,
+          'data': removeNulls({
+            ...tx.toMap(),
+            'userId': userId,
+            'createdAt': now,
+            'updatedAt': now
+          }),
+          'replace': true
+        },
+        {
+          'collection_name': 'loans',
+          'document_id': loanId,
+          'data': {
+            'paidAmount': paid + amount,
+            'remainingPrincipal': remaining - amount,
+            'status': remaining == amount ? 'completed' : 'active',
+            'updatedAt': now
+          }
+        },
+      ],
+    );
   }
 
   Future<void> updateTransaction(
-      String userId, String transactionId, TransactionModel transaction) async {
-    final data = transaction.toMap()..['updatedAt'] = FieldValue.serverTimestamp();
-    await _txCol(userId).doc(transactionId).update(removeNulls(data));
+      String userId, String transactionId, TransactionModel transaction,
+      {String? familyId}) async {
+    final rows = await SupabaseBridge.loadUserCollection(
+        userId: userId, collection: 'transactions');
+    final previous =
+        rows.where((row) => row['id'] == transactionId).firstOrNull;
+    if (previous != null &&
+        (previous['loanId'] != null ||
+            previous['goalId'] != null ||
+            previous['assetId'] != null)) {
+      throw StateError('Chưa hỗ trợ sửa trực tiếp giao dịch liên kết');
+    }
+    var effectiveTx = transaction;
+    if ((effectiveTx.walletId == null || effectiveTx.walletId!.isEmpty) &&
+        (effectiveTx.walletName != null && effectiveTx.walletName!.isNotEmpty)) {
+      try {
+        final wallets = await SupabaseBridge.loadUserCollection(
+            userId: userId, collection: 'wallets');
+        final targetName = effectiveTx.walletName!.trim().toLowerCase();
+        final matched = wallets
+            .where((w) => w['deletedAt'] == null)
+            .firstWhere(
+              (w) =>
+                  (w['name'] ?? '').toString().trim().toLowerCase() ==
+                  targetName,
+              orElse: () => <String, dynamic>{},
+            );
+        if (matched['id'] != null) {
+          effectiveTx =
+              effectiveTx.copyWith(walletId: matched['id'].toString());
+        }
+      } catch (_) {}
+    }
+
+    await SupabaseBridge.saveUserDocument(
+      userId: userId,
+      collection: 'transactions',
+      documentId: transactionId,
+      data: removeNulls({
+        ...effectiveTx.toMap(),
+        'userId': userId,
+        'createdAt':
+            previous?['createdAt'] ?? DateTime.now().toUtc().toIso8601String(),
+        'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      }),
+      replace: true,
+    );
   }
 
-  Future<void> deleteTransaction(String userId, String transactionId) async {
-    await _txCol(userId).doc(transactionId).delete();
+  Future<void> deleteTransaction(String userId, String transactionId,
+      {String? familyId}) async {
+    await SupabaseBridge.deleteUserDocument(
+      userId: userId,
+      collection: 'transactions',
+      documentId: transactionId,
+    );
   }
 
   /// Deletes a transaction and reverses its side effects on the linked
   /// asset / loan / goal. Mirrors deleteTransactionAndReverse.
   Future<void> deleteTransactionAndReverse(
-      String userId, TransactionModel transaction) async {
-    final batch = _db.batch();
-    final ts = FieldValue.serverTimestamp();
-    batch.delete(_txCol(userId).doc(transaction.id));
-
-    // --- Asset cascade ---
+      String userId, TransactionModel transaction,
+      {String? familyId}) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    final operations = <Map<String, dynamic>>[];
+    Map<String, dynamic> deleteOp(String collection, String id) => {
+          'collection_name': collection,
+          'document_id': id,
+          'data': {
+            'deletedAt': now,
+            'deletedBy': userId,
+            'purgeAfter': DateTime.now().millisecondsSinceEpoch + 30 * 86400000,
+            'updatedAt': now,
+          },
+          'is_deleted': true,
+        };
     if (transaction.assetId != null) {
-      final assetRef = _userDoc(userId).collection('assets').doc(transaction.assetId);
-      final remaining = (await _txCol(userId)
-              .where('assetId', isEqualTo: transaction.assetId)
-              .get())
-          .docs
-          .map((d) => TransactionModel.fromMap(d.id, d.data()))
+      final remaining = (await getTransactions(userId))
+          .where((t) => t.assetId == transaction.assetId)
           .where((t) => t.id != transaction.id)
           .toList()
         ..sort((a, b) => a.date.compareTo(b.date));
-
       if (remaining.isEmpty) {
-        batch.delete(assetRef);
+        operations.add(deleteOp('assets', transaction.assetId!));
       } else {
         double totalQty = 0;
         double totalCost = 0;
@@ -126,58 +294,72 @@ class TransactionRepository {
         final marketValue = (totalQty * currentPrice).round();
         final costBasis = totalCost.round();
         final profitLoss = marketValue - costBasis;
-        final profitPct = costBasis > 0 ? (profitLoss / costBasis) * 100.0 : 0.0;
-        batch.update(assetRef, {
-          'quantity': totalQty,
-          'buyPrice': avgBuy.round(),
-          'purchasePrice': avgBuy.round(),
-          'costBasis': costBasis,
-          'currentPrice': currentPrice,
-          'marketValue': marketValue,
-          'profitLoss': profitLoss,
-          'profitLossPercent': profitPct,
-          'updatedAt': ts,
+        final profitPct =
+            costBasis > 0 ? (profitLoss / costBasis) * 100.0 : 0.0;
+        operations.add({
+          'collection_name': 'assets',
+          'document_id': transaction.assetId!,
+          'data': {
+            'quantity': totalQty,
+            'buyPrice': avgBuy.round(),
+            'purchasePrice': avgBuy.round(),
+            'costBasis': costBasis,
+            'currentPrice': currentPrice,
+            'marketValue': marketValue,
+            'profitLoss': profitLoss,
+            'profitLossPercent': profitPct,
+            'updatedAt': now,
+          },
         });
       }
     }
-
-    // --- Loan cascade ---
     if (transaction.loanId != null) {
-      final loanRef = _userDoc(userId).collection('loans').doc(transaction.loanId);
-      final loanSnap = await loanRef.get();
-      if (loanSnap.exists) {
-        final d = loanSnap.data() ?? {};
+      final loans = await SupabaseBridge.loadUserCollection(
+          userId: userId, collection: 'loans');
+      final loan =
+          loans.where((row) => row['id'] == transaction.loanId).firstOrNull;
+      if (loan != null) {
         if (transaction.type == 'debt_repayment' ||
             transaction.type == 'loan_repayment_received') {
-          final principal = (d['principalAmount'] as num?)?.toInt() ?? 0;
-          final paid = (d['paidAmount'] as num?)?.toInt() ?? 0;
+          final principal = toLongValue(loan['principalAmount']);
+          final paid = toLongValue(loan['paidAmount']);
           final newPaid = (paid - transaction.amount).clamp(0, 1 << 62);
           final newRemaining = (principal - newPaid).clamp(0, 1 << 62);
-          batch.update(loanRef, {
-            'paidAmount': newPaid,
-            'remainingPrincipal': newRemaining,
-            'status': newRemaining <= 0 ? 'completed' : 'active',
-            'updatedAt': ts,
+          operations.add({
+            'collection_name': 'loans',
+            'document_id': transaction.loanId!,
+            'data': {
+              'paidAmount': newPaid,
+              'remainingPrincipal': newRemaining,
+              'status': newRemaining <= 0 ? 'completed' : 'active',
+              'updatedAt': now,
+            }
           });
-        } else if (transaction.type == 'borrowing' || transaction.type == 'lending') {
-          batch.delete(loanRef);
+        } else if (transaction.type == 'borrowing' ||
+            transaction.type == 'lending') {
+          operations.add(deleteOp('loans', transaction.loanId!));
         }
       }
     }
-
-    // --- Goal cascade ---
     if (transaction.goalId != null && transaction.type == 'saving') {
-      final goalRef = _userDoc(userId).collection('goals').doc(transaction.goalId);
-      final goalSnap = await goalRef.get();
-      if (goalSnap.exists) {
-        final saved = (goalSnap.data()?['savedAmount'] as num?)?.toInt() ?? 0;
-        batch.update(goalRef, {
-          'savedAmount': (saved - transaction.amount).clamp(0, 1 << 62),
-          'updatedAt': ts,
+      final goals = await SupabaseBridge.loadUserCollection(
+          userId: userId, collection: 'goals');
+      final goal =
+          goals.where((row) => row['id'] == transaction.goalId).firstOrNull;
+      if (goal != null) {
+        final saved = toLongValue(goal['savedAmount']);
+        operations.add({
+          'collection_name': 'goals',
+          'document_id': transaction.goalId!,
+          'data': {
+            'savedAmount': (saved - transaction.amount).clamp(0, 1 << 62),
+            'updatedAt': now,
+          }
         });
       }
     }
-
-    await batch.commit();
+    operations.add(deleteOp('transactions', transaction.id));
+    await SupabaseBridge.mutateUserDocuments(
+        userId: userId, operations: operations);
   }
 }

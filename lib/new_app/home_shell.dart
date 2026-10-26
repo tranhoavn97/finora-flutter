@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -52,69 +53,155 @@ class _HomeShellState extends State<HomeShell> {
             ProfilePage(user: widget.user),
           ]),
           bottomNavigationBar: SafeArea(
-            minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-            child: Container(
-              height: 72,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(26),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: .12),
-                      blurRadius: 30,
-                      offset: const Offset(0, 12))
-                ],
+            minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Center(
+              heightFactor: 1,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withValues(alpha: 0.10)
+                                : Colors.black.withValues(alpha: 0.06),
+                            width: 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                  alpha: Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.08),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                              spreadRadius: -2,
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                        child: Row(
+                          children: [
+                            _nav(0, Icons.space_dashboard_rounded, 'Tổng quan'),
+                            _nav(1, Icons.receipt_long_rounded, 'Dòng tiền'),
+                            _nav(2, Icons.account_balance_wallet_rounded, 'Ví'),
+                            _nav(3, Icons.grid_view_rounded, 'Khác'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.mediumImpact();
+                        _compose();
+                      },
+                      child: Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFFF5E62), Color(0xFFFF416C)],
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.30),
+                            width: 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF416C).withValues(alpha: 0.45),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.add_rounded, color: Colors.white, size: 28),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(children: [
-                _nav(0, Icons.space_dashboard_rounded, 'Tổng quan'),
-                _nav(1, Icons.receipt_long_rounded, 'Dòng tiền'),
-                Expanded(
-                    child: Center(
-                        child: GestureDetector(
-                            onTap: _compose,
-                            child: Container(
-                                width: 52,
-                                height: 52,
-                                decoration: const BoxDecoration(
-                                    color: FinoraTheme.lime,
-                                    shape: BoxShape.circle),
-                                child: const Icon(Icons.add_rounded,
-                                    color: FinoraTheme.ink, size: 30))))),
-                _nav(2, Icons.account_balance_wallet_rounded, 'Ví'),
-                _nav(3, Icons.grid_view_rounded, 'Khác'),
-              ]),
             ),
           ),
         ),
       );
 
-  Widget _nav(int index, IconData icon, String label) => Expanded(
-        child: InkWell(
-          onTap: () => setState(() => _index = index),
-          borderRadius: BorderRadius.circular(22),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon,
-                size: 22,
-                color: _index == index
-                    ? FinoraTheme.cobalt
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: .38)),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                    color: _index == index
-                        ? FinoraTheme.cobalt
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: .38))),
-          ]),
+  Widget _nav(int index, IconData icon, String label) {
+    final isSelected = _index == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Expanded(
+      flex: isSelected ? 3 : 2,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _index = index);
+        },
+        borderRadius: BorderRadius.circular(100),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOutCubic,
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(horizontal: isSelected ? 10 : 4, vertical: 6),
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: isDark ? const Color(0xFF24324A) : Colors.white,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.16)
+                        : Colors.black.withValues(alpha: 0.05),
+                    width: 1.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.07),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                )
+              : null,
+          child: isSelected
+              ? FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 19, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Icon(
+                  icon,
+                  size: 21,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class OverviewPage extends StatelessWidget {

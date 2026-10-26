@@ -1,10 +1,10 @@
 import '../../core/widgets/finora_summary_card.dart';
 import 'web_wallet_card.dart';
+import 'wallet_controls.dart';
+import '../../domain/finance/transaction_member.dart';
 import '../../core/widgets/ai_context_button.dart';
-import '../../core/design_system/credit_card_palette.dart';
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,16 +14,15 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/design_system/app_colors.dart';
-import '../../core/design_system/app_spacing.dart';
 import '../../data/models/wallet.dart';
 import '../../data/services/wallet_repository.dart';
 import '../../state/wallet_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../transaction/transaction_history_sheet.dart';
 import '../transaction/add_transaction_page.dart';
+import '../../state/transaction_provider.dart';
 import 'add_wallet_page.dart';
-import '../../core/widgets/finora_motion.dart';
-import '../../core/widgets/finora_bank_card_surface.dart';
+import 'swipeable_bank_card_deck.dart';
 
 class _AuditMetric extends StatelessWidget {
   final String label;
@@ -56,8 +55,16 @@ class WalletScreen extends StatefulWidget {
   final String userId;
   final String? familyId;
   final bool isRoot;
-  const WalletScreen(
-      {super.key, required this.userId, this.familyId, this.isRoot = false});
+  final bool isTab;
+  final bool hideSummaryCard;
+  const WalletScreen({
+    super.key,
+    required this.userId,
+    this.familyId,
+    this.isRoot = false,
+    this.isTab = false,
+    this.hideSummaryCard = false,
+  });
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -66,6 +73,7 @@ class WalletScreen extends StatefulWidget {
 class _WalletScreenState extends State<WalletScreen> {
   StreamSubscription<String>? _eventsSub;
   String _accountTab = 'all';
+  String _ownerFilter = 'all';
   bool _showBalances = true;
 
   @override
@@ -113,7 +121,6 @@ class _WalletScreenState extends State<WalletScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.90,
         child: TransactionHistorySheet(
@@ -256,7 +263,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildHeaderButton(BuildContext context, {bool isCredit = false}) {
     return FinoraAddButton(
       tooltip: isCredit ? 'Thêm thẻ tín dụng' : 'Thêm ví mới',
-      size: 34,
+      size: 48,
       onPressed: () => _openAddWallet(),
     );
   }
@@ -267,7 +274,27 @@ class _WalletScreenState extends State<WalletScreen> {
     final primaryTextColor =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
-    final wallets = context.watch<WalletProvider>().wallets;
+    final provider = context.watch<WalletProvider>();
+    final wallets = provider.wallets;
+    if (!provider.hasLoadedBalances) {
+      return GlassScaffold(
+        appBar: const GlassTopBar(title: 'Ví & Tài khoản'),
+        body: Center(
+            child: provider.error == null
+                ? const Column(mainAxisSize: MainAxisSize.min, children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Đang tải ví và giao dịch…'),
+                  ])
+                : Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('Chưa tải đủ dữ liệu để tính số dư.'),
+                    TextButton(
+                        onPressed: () => provider.load(widget.userId,
+                            familyId: widget.familyId, force: true),
+                        child: const Text('Thử lại')),
+                  ])),
+      );
+    }
 
     final totalAssets = wallets
         .where((w) => !w.isCreditCard)
@@ -276,56 +303,74 @@ class _WalletScreenState extends State<WalletScreen> {
         .where((w) => w.isCreditCard)
         .fold<int>(0, (sum, w) => sum + w.currentDebt);
 
-    final creditCards = wallets.where((w) => w.isCreditCard).toList();
-    final normalWallets = wallets.where((w) => !w.isCreditCard).toList();
+    final filteredWallets = wallets.where((w) {
+      if (_ownerFilter == 'husband') {
+        return resolveWalletMember(w) == TransactionMember.husband;
+      }
+      if (_ownerFilter == 'wife') {
+        return resolveWalletMember(w) == TransactionMember.wife;
+      }
+      return true;
+    }).toList();
+
+    final creditCards = filteredWallets.where((w) => w.isCreditCard).toList();
+    final normalWallets =
+        filteredWallets.where((w) => !w.isCreditCard).toList();
 
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final cardRadius = studio?.cardCornerRadius ?? 22.0;
 
     return GlassScaffold(
       extendBodyBehindAppBar: true,
-      appBar: GlassTopBar(
-        title: 'Ví & Tài khoản',
-        actions: [AiContextButton(userId: widget.userId, screen: 'Ví tiền')],
-        showBottomDivider: false,
-        onBack: (!widget.isRoot && Navigator.of(context).canPop())
-            ? () => Navigator.of(context).pop()
-            : null,
-      ),
+      appBar: widget.isTab
+          ? null
+          : GlassTopBar(
+              title: 'Ví & Tài khoản',
+              actions: [AiContextButton(userId: widget.userId, screen: 'Ví tiền')],
+              showBottomDivider: false,
+              onBack: (!widget.isRoot && Navigator.of(context).canPop())
+                  ? () => Navigator.of(context).pop()
+                  : null,
+            ),
       body: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
         slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                12,
-                GlassScaffold.topInset(context, 8),
-                12,
-                8,
-              ),
-              child: _buildNetBalanceSummaryCard(
-                cardRadius: cardRadius,
-                studio: studio,
-                isDark: isDark,
-                totalAssets: totalAssets,
-                totalDebt: totalDebt,
+          if (!widget.hideSummaryCard)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  12,
+                  widget.isTab ? 8 : GlassScaffold.topInset(context, 8),
+                  12,
+                  8,
+                ),
+                child: _buildNetBalanceSummaryCard(
+                  cardRadius: cardRadius,
+                  studio: studio,
+                  isDark: isDark,
+                  totalAssets: totalAssets,
+                  totalDebt: totalDebt,
+                ),
               ),
             ),
-          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildAccountTabs(wallets, studio, isDark),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildViewModeSelector(studio, isDark),
-                ],
-              ),
+              child: Column(children: [
+                if (provider.error != null)
+                  Row(children: [
+                    const Expanded(
+                        child: Text(
+                            'Số dư chưa cập nhật. Đang giữ dữ liệu lần tải trước.')),
+                    TextButton(
+                        onPressed: () => provider.load(widget.userId,
+                            familyId: widget.familyId, force: true),
+                        child: const Text('Thử lại')),
+                  ]),
+                _buildUnifiedToolbarRow(wallets, studio, isDark),
+              ]),
             ),
           ),
           SliverPadding(
@@ -379,171 +424,92 @@ class _WalletScreenState extends State<WalletScreen> {
     required int totalDebt,
   }) {
     final masked = (studio?.isPrivacyShieldActive ?? false) || !_showBalances;
+    final walletGradient = isDark
+        ? const [Color(0xFF071E3D), Color(0xFF0B3C68), Color(0xFF007AFF)]
+        : const [Color(0xFF0A2540), Color(0xFF0D47A1), Color(0xFF007AFF)];
     return FinoraSummaryCard(
         title: 'TỔNG TÀI SẢN THANH KHOẢN',
         amount: totalAssets - totalDebt,
         icon: Icons.account_balance_wallet_outlined,
         accent: const Color(0xFF007AFF),
+        gradientColors: walletGradient,
         masked: masked,
         subtitle: 'Tài sản ròng sau khi trừ dư nợ thẻ',
-        badgeText: 'Khả dụng thực',
-        badgeColor: const Color(0xFF34C759),
-        metricColors: const [Color(0xFF34C759), Color(0xFFFF3B30)],
+        badgeText: null,
+        metricColors: const [Color(0xFF34C759), Color(0xFFFF453A)],
         metrics: [('Tiền khả dụng', totalAssets), ('Dư nợ thẻ', totalDebt)],
         actions: Row(mainAxisSize: MainAxisSize.min, children: [
-          IconButton(
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.28),
+                width: 0.8,
+              ),
+            ),
+            child: IconButton(
               tooltip: masked ? 'Hiện số dư' : 'Ẩn số dư',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               onPressed: () => setState(() => _showBalances = !_showBalances),
               icon: Icon(
-                  masked
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  size: 19)),
-          IconButton(
-              tooltip: 'Đối soát số dư',
-              onPressed: _showBalanceReconciliation,
-              icon: const Icon(Icons.fact_check_outlined, size: 19))
-        ]));
-  }
-
-  Widget _buildCreditHealthBanner({
-    required List<Wallet> creditCards,
-    required bool isDark,
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-  }) {
-    if (creditCards.isEmpty) return const SizedBox.shrink();
-
-    final totalLimit =
-        creditCards.fold<int>(0, (sum, w) => sum + w.creditLimit);
-    final totalDebt = creditCards.fold<int>(0, (sum, w) => sum + w.currentDebt);
-    final ratio = totalLimit > 0 ? (totalDebt / totalLimit) : 0.0;
-    final ratioPercent = (ratio * 100).toStringAsFixed(0);
-
-    Color healthColor;
-    String healthStatus;
-    IconData healthIcon;
-
-    if (ratio <= 0.30) {
-      healthColor = const Color(0xFF10B981);
-      healthStatus = 'Tỷ lệ an toàn ($ratioPercent%)';
-      healthIcon = Icons.verified_user_rounded;
-    } else if (ratio <= 0.70) {
-      healthColor = const Color(0xFFF59E0B);
-      healthStatus = 'Tỷ lệ trung bình ($ratioPercent%)';
-      healthIcon = Icons.info_outline_rounded;
-    } else {
-      healthColor = const Color(0xFFEF4444);
-      healthStatus = 'Cảnh báo nợ cao ($ratioPercent%)';
-      healthIcon = Icons.warning_amber_rounded;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: isDark ? 0.75 : 0.90),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: healthColor.withValues(alpha: isDark ? 0.30 : 0.20),
-          width: 0.8,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: healthColor.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(healthIcon, size: 15, color: healthColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    'SỨC KHỎE HẠN MỨC TÍN DỤNG',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
+                masked
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                color: Colors.white,
+                size: 16,
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: healthColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Text(
-                  healthStatus,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: healthColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: ratio.clamp(0.0, 1.0),
-              minHeight: 6,
-              backgroundColor: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.06),
-              valueColor: AlwaysStoppedAnimation<Color>(healthColor),
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Tổng dư nợ: ${formatVND(totalDebt)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: healthColor,
-                ),
+          const SizedBox(width: 8),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.28),
+                width: 0.8,
               ),
-              Text(
-                'Tổng hạn mức: ${formatVND(totalLimit)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: secondaryTextColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
                 ),
+              ],
+            ),
+            child: IconButton(
+              tooltip: 'Đối soát số dư',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: _showBalanceReconciliation,
+              icon: const Icon(
+                Icons.published_with_changes_rounded,
+                color: Colors.white,
+                size: 16,
               ),
-            ],
+            ),
           ),
-        ],
-      ),
-    );
+        ]));
   }
 
   Widget _buildViewModeSelector(ThemeStudioController? studio, bool isDark) {
     if (studio == null) return const SizedBox.shrink();
-    final currentStyle = studio.walletViewStyle;
+    final currentStyle =
+        (studio.walletViewStyle == AppWalletViewStyle.verticalList ||
+                studio.walletViewStyle == AppWalletViewStyle.gridBento)
+            ? AppWalletViewStyle.webCards
+            : studio.walletViewStyle;
     final primary = studio.resolvedPrimary;
 
     final options = [
-      (AppWalletViewStyle.webCards, 'Thẻ ngân hàng', Icons.credit_card),
+      (AppWalletViewStyle.webCards, 'Thẻ ngân hàng', Icons.credit_card_rounded),
       (AppWalletViewStyle.stackedDeck, 'Xếp 3D', Icons.view_carousel_rounded),
-      (AppWalletViewStyle.verticalList, 'Dọc', Icons.view_agenda_rounded),
-      (AppWalletViewStyle.gridBento, 'Bento', Icons.grid_view_rounded),
       (
         AppWalletViewStyle.compactList,
         'Gọn',
@@ -551,19 +517,27 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
     ];
 
-    final currentOpt =
-        options.firstWhere((option) => option.$1 == currentStyle);
+    final currentOpt = options.firstWhere((option) => option.$1 == currentStyle,
+        orElse: () => options.first);
 
     return PopupMenuButton<AppWalletViewStyle>(
-      tooltip: 'Đổi kiểu hiển thị ví',
+      tooltip: 'Kiểu hiển thị: ${currentOpt.$2}',
+      initialValue: currentStyle,
       onSelected: studio.setWalletViewStyle,
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       itemBuilder: (context) => options
           .map((option) => PopupMenuItem(
                 value: option.$1,
                 child: Row(children: [
                   Icon(option.$3, size: 18, color: primary),
                   const SizedBox(width: 10),
-                  Text(option.$2),
+                  Text(option.$2,
+                      style: TextStyle(
+                        fontWeight: currentStyle == option.$1
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      )),
                   if (currentStyle == option.$1) ...[
                     const Spacer(),
                     Icon(Icons.check_rounded, color: primary, size: 18),
@@ -572,8 +546,8 @@ class _WalletScreenState extends State<WalletScreen> {
               ))
           .toList(),
       child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 11),
+        constraints: const BoxConstraints(minHeight: 38, maxHeight: 38),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: (isDark ? const Color(0xFF1E293B) : Colors.white)
               .withValues(alpha: isDark ? 0.65 : 0.88),
@@ -594,19 +568,138 @@ class _WalletScreenState extends State<WalletScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(currentOpt.$3, size: 16, color: primary),
-            const SizedBox(width: 5),
-            Text(
-              currentOpt.$2,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
+            Icon(currentOpt.$3, size: 18, color: primary),
             const SizedBox(width: 2),
             Icon(
-              Icons.expand_more_rounded,
+              Icons.keyboard_arrow_down_rounded,
+              size: 16,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnifiedToolbarRow(
+    List<Wallet> wallets,
+    ThemeStudioController? studio,
+    bool isDark,
+  ) {
+    return WalletAdaptiveToolbar(
+      tabs: _buildAccountTabs(wallets, studio, isDark),
+      actions: [
+        _buildOwnerSelector(wallets, isDark),
+        _buildViewModeSelector(studio, isDark),
+        _buildHeaderButton(context),
+      ],
+      ownerLabel: _ownerFilter == 'all'
+          ? null
+          : (_ownerFilter == 'husband' ? 'Chồng' : 'Vợ'),
+      onClearOwner: () => setState(() => _ownerFilter = 'all'),
+    );
+  }
+
+  Widget _buildOwnerSelector(List<Wallet> wallets, bool isDark) {
+    final husbandCount = wallets
+        .where((w) => resolveWalletMember(w) == TransactionMember.husband)
+        .length;
+    final wifeCount = wallets
+        .where((w) => resolveWalletMember(w) == TransactionMember.wife)
+        .length;
+
+    final isHusband = _ownerFilter == 'husband';
+    final isWife = _ownerFilter == 'wife';
+
+    final Color activeColor = isHusband
+        ? const Color(0xFF007AFF)
+        : (isWife ? const Color(0xFFFF2D55) : const Color(0xFF007AFF));
+
+    final IconData currentIcon = isHusband
+        ? Icons.male_rounded
+        : (isWife ? Icons.female_rounded : Icons.people_alt_rounded);
+
+    final options = [
+      (
+        'all',
+        'Tất cả (${wallets.length})',
+        Icons.people_alt_rounded,
+        const Color(0xFF007AFF)
+      ),
+      (
+        'husband',
+        'Chồng ($husbandCount)',
+        Icons.male_rounded,
+        const Color(0xFF007AFF)
+      ),
+      (
+        'wife',
+        'Vợ ($wifeCount)',
+        Icons.female_rounded,
+        const Color(0xFFFF2D55)
+      ),
+    ];
+
+    return PopupMenuButton<String>(
+      tooltip:
+          'Thành viên: ${isHusband ? 'Chồng' : (isWife ? 'Vợ' : 'Tất cả')}',
+      initialValue: _ownerFilter,
+      onSelected: (val) {
+        HapticFeedback.selectionClick();
+        setState(() => _ownerFilter = val);
+      },
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder: (context) => options
+          .map((option) => PopupMenuItem(
+                value: option.$1,
+                child: Row(children: [
+                  Icon(option.$3, size: 18, color: option.$4),
+                  const SizedBox(width: 10),
+                  Text(
+                    option.$2,
+                    style: TextStyle(
+                      fontWeight: _ownerFilter == option.$1
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  if (_ownerFilter == option.$1) ...[
+                    const Spacer(),
+                    Icon(Icons.check_rounded, color: option.$4, size: 18),
+                  ],
+                ]),
+              ))
+          .toList(),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 38, maxHeight: 38),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+              .withValues(alpha: isDark ? 0.65 : 0.88),
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: (_ownerFilter != 'all'
+                    ? activeColor
+                    : (isDark ? Colors.white : Colors.black))
+                .withValues(alpha: _ownerFilter != 'all' ? 0.6 : 0.08),
+            width: _ownerFilter != 'all' ? 1.4 : 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(currentIcon, size: 18, color: activeColor),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
               size: 16,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
@@ -618,13 +711,23 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildAccountTabs(
       List<Wallet> wallets, ThemeStudioController? studio, bool isDark) {
+    final filtered = wallets.where((w) {
+      if (_ownerFilter == 'husband') {
+        return resolveWalletMember(w) == TransactionMember.husband;
+      }
+      if (_ownerFilter == 'wife') {
+        return resolveWalletMember(w) == TransactionMember.wife;
+      }
+      return true;
+    }).toList();
+
     final options = [
-      ('all', 'Tất cả', wallets.length),
-      ('credit', 'Thẻ tín dụng', wallets.where((w) => w.isCreditCard).length),
+      ('all', 'Tất cả', filtered.length),
+      ('credit', 'Thẻ tín dụng', filtered.where((w) => w.isCreditCard).length),
       (
         'cash',
         'Ví tiền',
-        wallets
+        filtered
             .where((w) =>
                 !w.isCreditCard && (w.type == 'cash' || w.type == 'ewallet'))
             .length
@@ -632,100 +735,134 @@ class _WalletScreenState extends State<WalletScreen> {
       (
         'bank',
         'Ngân hàng',
-        wallets
+        filtered
             .where((w) =>
                 !w.isCreditCard && w.type != 'cash' && w.type != 'ewallet')
             .length
       ),
     ];
+
+    const tabColors = [
+      Color(0xFF007AFF), // Tất cả - Apple Blue
+      Color(0xFF5856D6), // Thẻ tín dụng - Apple Indigo
+      Color(0xFF34C759), // Ví tiền - Apple Emerald
+      Color(0xFF008E91), // Ngân hàng - Apple Cyan
+    ];
+
     return Container(
-      height: 40,
+      constraints: const BoxConstraints(minHeight: 38, maxHeight: 38),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: isDark ? 0.65 : 0.88),
+            .withValues(alpha: isDark ? 0.70 : 0.90),
         borderRadius: BorderRadius.circular(100),
         border: Border.all(
           color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
           width: 0.8,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: options.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 3),
-        itemBuilder: (context, index) {
-          final option = options[index];
-          final isSelected = _accountTab == option.$1;
-          return GestureDetector(
-            onTap: () {
-              studio?.performHaptic();
-              setState(() => _accountTab = option.$1);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const [
-                        Color(0xFF0066ff),
-                        Color(0xFF008e91),
-                        Color(0xFF009e60),
-                        Color(0xFF007fc4)
-                      ][index]
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(100),
-                boxShadow: const [],
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      option.$2,
-                      style: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B)),
-                        fontSize: 11.5,
-                        fontWeight:
-                            isSelected ? FontWeight.w800 : FontWeight.w600,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(100),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: options.asMap().entries.map((entry) {
+              final index = entry.key;
+              final option = entry.value;
+              final isSelected = _accountTab == option.$1;
+              final activeColor = tabColors[index % tabColors.length];
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 3),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    studio?.performHaptic();
+                    setState(() => _accountTab = option.$1);
+                  },
+                  child: AnimatedContainer(
+                    constraints:
+                        const BoxConstraints(minHeight: 32, maxHeight: 32),
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 11, vertical: 5.5),
+                    decoration: BoxDecoration(
+                      color: isSelected ? activeColor : Colors.transparent,
+                      borderRadius: BorderRadius.circular(100),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: activeColor.withValues(alpha: 0.32),
+                                blurRadius: 6,
+                                offset: const Offset(0, 1.5),
+                              ),
+                            ]
+                          : const [],
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            option.$2,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B)),
+                              fontSize: 12,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.white.withValues(alpha: 0.26)
+                                  : (isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06)),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              '${option.$3}',
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B)),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.white.withValues(alpha: 0.25)
-                            : (isDark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.black.withValues(alpha: 0.06)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${option.$3}',
-                        style: TextStyle(
-                          color: isSelected
-                              ? Colors.white
-                              : (isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B)),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
@@ -738,15 +875,52 @@ class _WalletScreenState extends State<WalletScreen> {
     required Color primaryTextColor,
     required Color secondaryTextColor,
   }) {
-    final style = studio?.walletViewStyle ?? AppWalletViewStyle.webCards;
-    final showCreditBanner = creditCards.isNotEmpty &&
-        (_accountTab == 'all' || _accountTab == 'credit');
+    final rawStyle = studio?.walletViewStyle ?? AppWalletViewStyle.webCards;
+    final style = (rawStyle == AppWalletViewStyle.verticalList ||
+            rawStyle == AppWalletViewStyle.gridBento)
+        ? AppWalletViewStyle.webCards
+        : rawStyle;
 
-    Widget content;
+    final allWallets = [...normalWallets, ...creditCards];
+
     switch (style) {
       case AppWalletViewStyle.webCards:
-        final rows = [...normalWallets, ...creditCards];
-        content = LayoutBuilder(builder: (context, constraints) {
+        return LayoutBuilder(builder: (context, constraints) {
+          if (constraints.maxWidth < 600) {
+            final txProv = context.watch<TransactionProvider?>();
+            return SwipeableBankCardDeck(
+              wallets: allWallets,
+              transactions: txProv?.transactions ?? const [],
+              userId: widget.userId,
+              familyId: widget.familyId,
+              isDark: isDark,
+              isMasked: !_showBalances || (studio?.isPrivacyShieldActive ?? false),
+              onHistory: (w) => _showHistory(w),
+              onEdit: (w) => _openAddWallet(wallet: w),
+              onDelete: (w) => _deleteWallet(w),
+              onPay: (w) => w.isCreditCard
+                  ? Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => AddTransactionPage(
+                          userId: widget.userId,
+                          initialType: 'credit_card_payment',
+                          initialWalletId: w.id,
+                        ),
+                      ),
+                    )
+                  : null,
+              onAddTransaction: (w) => Navigator.of(context).push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => AddTransactionPage(
+                    userId: widget.userId,
+                    initialWalletId: w.id,
+                  ),
+                ),
+              ),
+              onAddWallet: () => _openAddWallet(),
+            );
+          }
           final columns = constraints.maxWidth >= 1000
               ? 3
               : constraints.maxWidth >= 600
@@ -756,7 +930,7 @@ class _WalletScreenState extends State<WalletScreen> {
           return Wrap(
               spacing: 14,
               runSpacing: 10,
-              children: rows
+              children: allWallets
                   .map((w) => SizedBox(
                       width: width,
                       child: WebWalletCard(
@@ -776,289 +950,176 @@ class _WalletScreenState extends State<WalletScreen> {
                               : null)))
                   .toList());
         });
-        break;
-      case AppWalletViewStyle.verticalList:
-        content = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (creditCards.isNotEmpty) ...[
-              _buildSectionTitle(
-                  'Thẻ tín dụng (${creditCards.length})', primaryTextColor),
-              const SizedBox(height: 10),
-              for (final c in creditCards) ...[
-                _buildCreditCardItem(c),
-                const SizedBox(height: 12),
-              ],
-              const SizedBox(height: 10),
-            ],
-            if (normalWallets.isNotEmpty) ...[
-              _buildSectionTitle(
-                  'Ví tiền & Ngân hàng (${normalWallets.length})',
-                  primaryTextColor),
-              const SizedBox(height: 10),
-              for (final w in normalWallets) ...[
-                _buildVerticalWalletCard(
-                    w, isDark, primaryTextColor, secondaryTextColor),
-                const SizedBox(height: 10),
-              ],
-            ],
-          ],
-        );
-        break;
 
-      case AppWalletViewStyle.gridBento:
-        final allWallets = [...creditCards, ...normalWallets];
-        content = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle(
-                'Tất cả tài khoản (${allWallets.length})', primaryTextColor),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.18,
-              ),
-              itemCount: allWallets.length,
-              itemBuilder: (context, index) {
-                final w = allWallets[index];
-                return _buildBentoWalletTile(
-                    w, isDark, primaryTextColor, secondaryTextColor);
-              },
-            ),
-          ],
+      case AppWalletViewStyle.stackedDeck:
+        return WalletCardDeck(
+          cards: allWallets,
+          cardHeight: 204.0,
+          builder: (context, w) => WebWalletCard(
+            wallet: w,
+            aspectRatio: 1.72,
+            masked: !_showBalances || (studio?.isPrivacyShieldActive ?? false),
+            onHistory: () => _showHistory(w),
+            onEdit: () => _openAddWallet(wallet: w),
+            onDelete: () => _deleteWallet(w),
+            onPay: w.isCreditCard
+                ? () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => AddTransactionPage(
+                        userId: widget.userId,
+                        initialType: 'credit_card_payment',
+                        initialWalletId: w.id)))
+                : null,
+          ),
         );
-        break;
 
       case AppWalletViewStyle.compactList:
-        final allWallets = [...creditCards, ...normalWallets];
-        content = Column(
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle(
-                'Bảng kê tài khoản (${allWallets.length})', primaryTextColor),
-            const SizedBox(height: 10),
             for (final w in allWallets)
               _buildCompactWalletRow(
                   w, isDark, primaryTextColor, secondaryTextColor),
           ],
         );
-        break;
 
-      case AppWalletViewStyle.stackedDeck:
-        content = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (creditCards.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Thẻ tín dụng (${creditCards.length})',
-                    style: TextStyle(
-                      color: primaryTextColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  _buildHeaderButton(context),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _WalletCardDeck(
-                cards: creditCards,
-                cardHeight: 204.0,
-                builder: (context, w) => _buildCreditCardItem(w),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-            ],
-            if (normalWallets.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Ví tiền & Tài khoản ngân hàng (${normalWallets.length})',
-                    style: TextStyle(
-                      color: primaryTextColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  _buildHeaderButton(context),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _WalletCardDeck(
-                cards: normalWallets,
-                cardHeight: 174.0,
-                builder: (context, w) => _buildVerticalWalletCard(
-                  w,
-                  isDark,
-                  primaryTextColor,
-                  secondaryTextColor,
-                ),
-              ),
-            ],
-          ],
-        );
-        break;
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  ({
+    List<Color> gradient,
+    Color borderColor,
+    Color brandAccent,
+    Color badgeBg,
+  }) _getBankCompactColors(Wallet w, bool isDark) {
+    final brand =
+        BankIconRegistry.resolve(w.bankCode, bankName: w.bankName ?? w.name);
+    final cash = w.type == 'cash';
+    final name = w.name.toLowerCase();
+    var skin = (w.themeColor ?? '').toLowerCase();
+    if (skin.isEmpty) {
+      if (RegExp('gold|vàng').hasMatch(name)) {
+        skin = 'gold';
+      } else if (RegExp('silver|sliver|bạc|platinum').hasMatch(name)) {
+        skin = 'silver';
+      } else if (['mbbank', 'bidv', 'acb', 'vtb'].contains(brand.code)) {
+        skin = 'blue';
+      } else if (['vcb', 'vpb'].contains(brand.code)) {
+        skin = 'emerald';
+      } else if (['tcb', 'cake', 'hdb'].contains(brand.code)) {
+        skin = 'rose';
+      } else if (['tpb', 'timo'].contains(brand.code)) {
+        skin = 'purple';
+      }
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (showCreditBanner)
-          _buildCreditHealthBanner(
-            creditCards: creditCards,
-            isDark: isDark,
-            primaryTextColor: primaryTextColor,
-            secondaryTextColor: secondaryTextColor,
-          ),
-        content,
-      ],
-    );
-  }
+    if (cash) {
+      return (
+        gradient: isDark
+            ? [const Color(0xFF04241A), const Color(0xFF021710)]
+            : [const Color(0xFFE8FDF3), const Color(0xFFD1FAE5)],
+        borderColor:
+            const Color(0xFF10B981).withValues(alpha: isDark ? 0.35 : 0.45),
+        brandAccent: const Color(0xFF10B981),
+        badgeBg: isDark ? const Color(0xFF053526) : Colors.white,
+      );
+    }
 
-  Widget _buildSectionTitle(String title, Color textColor) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        _buildHeaderButton(context),
-      ],
-    );
-  }
-
-  Widget _buildCreditCardItem(Wallet w) {
-    return _CreditCardRow(
-      wallet: w,
-      onDelete: () => _deleteWallet(w),
-      onTap: () => _showHistory(w),
-      onEdit: () => _openAddWallet(wallet: w),
-      onPay: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AddTransactionPage(
-              userId: widget.userId,
-              initialType: 'credit_card_payment',
-              initialWalletId: w.id,
-            ),
-          ),
+    switch (skin) {
+      case 'rose':
+        return (
+          gradient: isDark
+              ? [const Color(0xFF330B14), const Color(0xFF20050B)]
+              : [const Color(0xFFFFF1F2), const Color(0xFFFFE4E6)],
+          borderColor:
+              const Color(0xFFF43F5E).withValues(alpha: isDark ? 0.38 : 0.45),
+          brandAccent: const Color(0xFFE11D48),
+          badgeBg: isDark ? const Color(0xFF450A17) : Colors.white,
         );
-      },
-    );
-  }
-
-  Widget _buildVerticalWalletCard(
-    Wallet wallet,
-    bool isDark,
-    Color primaryTextColor,
-    Color secondaryTextColor,
-  ) {
-    return _NormalWalletCard(
-      wallet: wallet,
-      isExpanded: true,
-      onDelete: () => _deleteWallet(wallet),
-      onTap: () => _showHistory(wallet),
-      onEdit: () => _openAddWallet(wallet: wallet),
-    );
-  }
-
-  Widget _buildBentoWalletTile(
-    Wallet w,
-    bool isDark,
-    Color primaryTextColor,
-    Color secondaryTextColor,
-  ) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () => _showHistory(w),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-              .withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color:
-                (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
-            width: 0.8,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                BankIcon(
-                  bankCode: w.bankCode ?? w.type,
-                  bankName: w.bankName ?? w.name,
-                  size: 26,
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (val) {
-                    if (val == 'edit') {
-                      _openAddWallet(wallet: w);
-                    } else if (val == 'delete') {
-                      _deleteWallet(w);
-                    }
-                  },
-                  icon: Icon(Icons.more_horiz_rounded,
-                      size: 16, color: secondaryTextColor),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                        value: 'edit',
-                        child:
-                            Text('Chỉnh sửa', style: TextStyle(fontSize: 13))),
-                    const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Xóa',
-                            style: TextStyle(fontSize: 13, color: Colors.red))),
-                  ],
-                ),
-              ],
-            ),
-            Text(
-              w.name,
-              style: TextStyle(
-                color: primaryTextColor,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            FinoraAnimatedAmount(
-              amount: (w.isCreditCard ? w.currentDebt : w.balance).toDouble(),
-              style: TextStyle(
-                color: w.isCreditCard
-                    ? const Color(0xFFF87171)
-                    : (isDark
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFF059669)),
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      case 'blue':
+        return (
+          gradient: isDark
+              ? [const Color(0xFF082245), const Color(0xFF04142B)]
+              : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+          borderColor:
+              const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.38 : 0.45),
+          brandAccent: const Color(0xFF2563EB),
+          badgeBg: isDark ? const Color(0xFF0D3261) : Colors.white,
+        );
+      case 'emerald':
+        return (
+          gradient: isDark
+              ? [const Color(0xFF052B1E), const Color(0xFF021A11)]
+              : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)],
+          borderColor:
+              const Color(0xFF10B981).withValues(alpha: isDark ? 0.38 : 0.45),
+          brandAccent: const Color(0xFF059669),
+          badgeBg: isDark ? const Color(0xFF063A27) : Colors.white,
+        );
+      case 'purple':
+        return (
+          gradient: isDark
+              ? [const Color(0xFF280C42), const Color(0xFF170526)]
+              : [const Color(0xFFFAF5FF), const Color(0xFFF3E8FF)],
+          borderColor:
+              const Color(0xFFA855F7).withValues(alpha: isDark ? 0.38 : 0.45),
+          brandAccent: const Color(0xFF9333EA),
+          badgeBg: isDark ? const Color(0xFF37105B) : Colors.white,
+        );
+      case 'gold':
+        return (
+          gradient: isDark
+              ? [const Color(0xFF332306), const Color(0xFF211603)]
+              : [const Color(0xFFFEFCE8), const Color(0xFFFEF08A)],
+          borderColor:
+              const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.40 : 0.50),
+          brandAccent: const Color(0xFFD97706),
+          badgeBg: isDark ? const Color(0xFF453009) : Colors.white,
+        );
+      case 'silver':
+        return (
+          gradient: isDark
+              ? [const Color(0xFF1E2633), const Color(0xFF131922)]
+              : [const Color(0xFFF8FAFC), const Color(0xFFE2E8F0)],
+          borderColor:
+              const Color(0xFF94A3B8).withValues(alpha: isDark ? 0.35 : 0.45),
+          brandAccent: const Color(0xFF64748B),
+          badgeBg: isDark ? const Color(0xFF273142) : Colors.white,
+        );
+      default:
+        if (['tcb', 'cake', 'hdb'].contains(brand.code)) {
+          return (
+            gradient: isDark
+                ? [const Color(0xFF330B14), const Color(0xFF20050B)]
+                : [const Color(0xFFFFF1F2), const Color(0xFFFFE4E6)],
+            borderColor:
+                const Color(0xFFF43F5E).withValues(alpha: isDark ? 0.38 : 0.45),
+            brandAccent: const Color(0xFFE11D48),
+            badgeBg: isDark ? const Color(0xFF450A17) : Colors.white,
+          );
+        }
+        if (['vtb', 'mbbank', 'bidv', 'acb'].contains(brand.code)) {
+          return (
+            gradient: isDark
+                ? [const Color(0xFF082245), const Color(0xFF04142B)]
+                : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+            borderColor:
+                const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.38 : 0.45),
+            brandAccent: const Color(0xFF2563EB),
+            badgeBg: isDark ? const Color(0xFF0D3261) : Colors.white,
+          );
+        }
+        return (
+          gradient: isDark
+              ? [const Color(0xFF1B2332), const Color(0xFF0F1520)]
+              : [const Color(0xFFFFFFFF), const Color(0xFFF8FAFC)],
+          borderColor:
+              (isDark ? Colors.white : Colors.black).withValues(alpha: 0.10),
+          brandAccent: const Color(0xFF007AFF),
+          badgeBg: isDark ? const Color(0xFF222C3D) : Colors.white,
+        );
+    }
   }
 
   Widget _buildCompactWalletRow(
@@ -1067,94 +1128,274 @@ class _WalletScreenState extends State<WalletScreen> {
     Color primaryTextColor,
     Color secondaryTextColor,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
-          width: 0.8,
-        ),
-      ),
-      child: Row(
-        children: [
-          BankIcon(
-            bankCode: w.bankCode ?? w.type,
-            bankName: w.bankName ?? w.name,
-            size: 28,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  w.name,
-                  style: TextStyle(
-                    color: primaryTextColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final masked = (studio?.isPrivacyShieldActive ?? false) || !_showBalances;
+    final isCredit = w.isCreditCard;
+    final amount = isCredit ? w.currentDebt : w.balance;
+    final bankTheme = _getBankCompactColors(w, isDark);
+
+    final limit = w.creditLimit;
+    final debt = w.currentDebt;
+    final available = math.max(0, limit - debt);
+
+    final stacked = MediaQuery.sizeOf(context).width < 420 ||
+        MediaQuery.textScalerOf(context).scale(12) > 16;
+    final amountWidget = FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: isCredit
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        masked ? '•••••• ₫' : formatVND(available),
+                        style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFF059669),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          letterSpacing: -0.4,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        'còn lại',
+                        style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFF059669),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 2),
+                  Text(
+                    masked
+                        ? 'Nợ: ••••'
+                        : 'Nợ: ${formatVND(debt)}${limit > 0 ? ' / ${formatVND(limit)}' : ''}',
+                    style: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    masked ? '•••••• ₫' : formatVND(amount),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15.5,
+                      letterSpacing: -0.5,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Khả dụng',
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF34D399)
+                          : const Color(0xFF059669),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ));
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _showHistory(w);
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 9),
+          padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: bankTheme.gradient,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: bankTheme.borderColor,
+              width: 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Full round bank icon with surrounding ring border (no squircle)
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: bankTheme.badgeBg,
+                  border: Border.all(
+                    color: bankTheme.brandAccent
+                        .withValues(alpha: isDark ? 0.65 : 0.45),
+                    width: 1.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: bankTheme.brandAccent
+                          .withValues(alpha: isDark ? 0.25 : 0.12),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                Text(
-                  w.isCreditCard
-                      ? 'Thẻ tín dụng'
-                      : (w.type == 'cash' ? 'Tiền mặt' : 'Ngân hàng'),
-                  style: TextStyle(
-                    color: secondaryTextColor,
-                    fontSize: 10,
+                child: Center(
+                  child: ClipOval(
+                    child: BankIcon(
+                      bankCode: w.bankCode ?? w.type,
+                      bankName: w.bankName ?? w.name,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Account Name & Metadata chips
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      w.name,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3.5),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: bankTheme.brandAccent
+                                .withValues(alpha: isDark ? 0.22 : 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isCredit
+                                ? 'Tín dụng'
+                                : (w.type == 'cash' ? 'Tiền mặt' : 'Ngân hàng'),
+                            style: TextStyle(
+                              color: bankTheme.brandAccent,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        SpenderBadgeWidget(
+                          member: resolveWalletMember(w),
+                          tag: w.owner,
+                          ownerName: w.ownerName,
+                          isDark: isDark,
+                        ),
+                      ],
+                    ),
+                    if (stacked) ...[
+                      const SizedBox(height: 6),
+                      amountWidget,
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Balance / Credit Card amounts
+              if (!stacked) ...[
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 112),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    widthFactor: 1.0,
+                    child: amountWidget,
                   ),
                 ),
               ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              FinoraAnimatedAmount(
-                amount: (w.isCreditCard ? w.currentDebt : w.balance).toDouble(),
-                style: TextStyle(
-                  color: w.isCreditCard
-                      ? const Color(0xFFF87171)
-                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13.5,
+              // Compact 3-dot button pushed to far right edge
+              PopupMenuButton<String>(
+                onSelected: (val) {
+                  if (val == 'edit') {
+                    _openAddWallet(wallet: w);
+                  } else if (val == 'delete') {
+                    _deleteWallet(w);
+                  }
+                },
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  size: 18,
+                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
                 ),
-              ),
-              Text(
-                w.isCreditCard ? 'Dư nợ' : 'Khả dụng',
-                style: TextStyle(color: secondaryTextColor, fontSize: 9.5),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 36),
+                splashRadius: 18,
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 16),
+                        SizedBox(width: 8),
+                        Text('Chỉnh sửa', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Xóa',
+                            style: TextStyle(fontSize: 13, color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(width: 8),
-          PopupMenuButton<String>(
-            onSelected: (val) {
-              if (val == 'edit') {
-                _openAddWallet(wallet: w);
-              } else if (val == 'delete') {
-                _deleteWallet(w);
-              }
-            },
-            icon: Icon(Icons.more_vert, size: 16, color: secondaryTextColor),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                  value: 'edit',
-                  child: Text('Chỉnh sửa', style: TextStyle(fontSize: 13))),
-              const PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Xóa',
-                      style: TextStyle(fontSize: 13, color: Colors.red))),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1171,157 +1412,112 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 }
 
-class _WalletCardDeck extends StatefulWidget {
+class WalletCardDeck extends StatefulWidget {
   final List<Wallet> cards;
   final Widget Function(BuildContext context, Wallet wallet) builder;
   final double cardHeight;
 
-  const _WalletCardDeck({
+  const WalletCardDeck({
+    super.key,
     required this.cards,
     required this.builder,
     this.cardHeight = 204.0,
   });
 
   @override
-  State<_WalletCardDeck> createState() => _WalletCardDeckState();
+  State<WalletCardDeck> createState() => WalletCardDeckState();
 }
 
-class _WalletCardDeckState extends State<_WalletCardDeck>
-    with TickerProviderStateMixin {
+class WalletCardDeckState extends State<WalletCardDeck>
+    with SingleTickerProviderStateMixin {
   int _current = 0;
-  bool _isFannedOut = false;
-  double _dragX = 0.0;
-  double _dragY = 0.0;
-
-  late final AnimationController _fanAnimController;
-  late final Animation<double> _fanAnimation;
-
-  late final AnimationController _swipeAnimController;
-  late Animation<double> _swipeOffsetAnim;
-  late Animation<double> _swipeTiltAnim;
-  int _targetDelta = 0;
+  double _drag = 0.0;
+  late final AnimationController _animController;
+  Animation<double>? _dragAnimation;
 
   @override
   void initState() {
     super.initState();
-    _fanAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 360),
-    );
-    _fanAnimation = CurvedAnimation(
-      parent: _fanAnimController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-
-    _swipeAnimController = AnimationController(
+    _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 260),
-    );
-    _swipeOffsetAnim = const AlwaysStoppedAnimation(0.0);
-    _swipeTiltAnim = const AlwaysStoppedAnimation(0.0);
-
-    _swipeAnimController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        if (_targetDelta != 0 && widget.cards.isNotEmpty) {
+    )..addListener(() {
+        if (_dragAnimation != null) {
           setState(() {
-            _current = (_current + _targetDelta) % widget.cards.length;
-            if (_current < 0) _current += widget.cards.length;
-            _dragX = 0.0;
-            _dragY = 0.0;
-            _targetDelta = 0;
-          });
-        } else {
-          setState(() {
-            _dragX = 0.0;
-            _dragY = 0.0;
+            _drag = _dragAnimation!.value;
           });
         }
-        _swipeAnimController.reset();
-      }
-    });
+      });
   }
 
   @override
   void dispose() {
-    _fanAnimController.dispose();
-    _swipeAnimController.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
   @override
-  void didUpdateWidget(covariant _WalletCardDeck oldWidget) {
+  void didUpdateWidget(covariant WalletCardDeck oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final changed = oldWidget.cards.length != widget.cards.length ||
+        List.generate(oldWidget.cards.length,
+            (i) => oldWidget.cards[i].id != widget.cards[i].id).any((v) => v);
+    if (changed) {
+      final oldId = oldWidget.cards.isEmpty
+          ? null
+          : oldWidget.cards[_current.clamp(0, oldWidget.cards.length - 1)].id;
+      _animController.stop();
+      _dragAnimation = null;
+      _animController.reset();
+      _drag = 0.0;
+      final index = widget.cards.indexWhere((card) => card.id == oldId);
+      _current = index < 0 ? 0 : index;
+    }
     if (widget.cards.isEmpty) {
       _current = 0;
+      _drag = 0.0;
     } else if (_current >= widget.cards.length) {
       _current = 0;
+      _drag = 0.0;
     }
   }
 
   void _move(int delta) {
     if (widget.cards.length < 2) return;
-    if (_swipeAnimController.isAnimating) return;
-    _triggerSwipe(delta, 0.0, delta * 500.0);
-  }
-
-  void _triggerSwipe(int delta, double startX, double velocity) {
-    if (widget.cards.length < 2) {
-      _snapBack(startX);
-      return;
-    }
-
-    HapticFeedback.selectionClick();
-    _targetDelta = delta;
-    final screenW = MediaQuery.of(context).size.width;
-    final endX = delta > 0 ? -screenW * 1.05 : screenW * 1.05;
-
-    _swipeOffsetAnim = Tween<double>(begin: startX, end: endX).animate(
-      CurvedAnimation(parent: _swipeAnimController, curve: Curves.easeOutCubic),
-    );
-    _swipeTiltAnim = Tween<double>(begin: _dragY, end: 0.0).animate(
-      CurvedAnimation(parent: _swipeAnimController, curve: Curves.easeOutCubic),
-    );
-
-    _swipeAnimController.forward(from: 0.0);
-  }
-
-  void _snapBack(double startX) {
-    _targetDelta = 0;
-    _swipeOffsetAnim = Tween<double>(begin: startX, end: 0.0).animate(
-      CurvedAnimation(parent: _swipeAnimController, curve: Curves.easeOutBack),
-    );
-    _swipeTiltAnim = Tween<double>(begin: _dragY, end: 0.0).animate(
-      CurvedAnimation(parent: _swipeAnimController, curve: Curves.easeOutBack),
-    );
-
-    _swipeAnimController.forward(from: 0.0);
-  }
-
-  void _jumpTo(int index) {
-    if (index < 0 || index >= widget.cards.length) return;
-    HapticFeedback.selectionClick();
     setState(() {
-      _current = index;
-      _dragX = 0.0;
-      _dragY = 0.0;
-      if (_isFannedOut) {
-        _isFannedOut = false;
-        _fanAnimController.reverse();
-      }
+      _current = (_current + delta) % widget.cards.length;
+      if (_current < 0) _current += widget.cards.length;
+      _drag = 0.0;
+    });
+    _animController.reset();
+  }
+
+  void _animateSnapBack() {
+    _dragAnimation = Tween<double>(begin: _drag, end: 0.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+    );
+    _animController.forward(from: 0.0).then((_) {
+      _drag = 0.0;
+      _animController.reset();
     });
   }
 
-  void _toggleFan() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      _isFannedOut = !_isFannedOut;
-      if (_isFannedOut) {
-        _fanAnimController.forward();
-      } else {
-        _fanAnimController.reverse();
-      }
+  void _animateFling(double target, int delta) {
+    HapticFeedback.selectionClick();
+    _dragAnimation = Tween<double>(begin: _drag, end: target).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutQuad),
+    );
+    _animController.forward(from: 0.0).then((_) {
+      _move(delta);
     });
+  }
+
+  void _animateToDelta(int delta) {
+    if (widget.cards.length < 2 || delta == 0) return;
+    if (_animController.isAnimating) return;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final target = delta > 0 ? -screenWidth * 0.9 : screenWidth * 0.9;
+    _animateFling(target, delta);
   }
 
   @override
@@ -1329,292 +1525,182 @@ class _WalletCardDeckState extends State<_WalletCardDeck>
     final count = widget.cards.length;
     if (count == 0) return const SizedBox.shrink();
 
-    final screenWidth = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final secondaryTextColor =
-        isDark ? Colors.white70 : const Color(0xFF64748B);
+    final visible = math.min(count, 3);
+    const double stepOffset = 18.0;
 
-    final cardWidth = (screenWidth - 24.0).clamp(280.0, 440.0);
-    final baseCardHeight = widget.cardHeight;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = math.min(constraints.maxWidth, 400.0);
+        // Aspect ratio of the card is 1.72
+        final computedCardHeight = math.max(
+            cardWidth / 1.72,
+            WebWalletCard.minimumHeight(context,
+                credit: widget.cards.any((card) => card.isCreditCard)));
+        final stackHeight = computedCardHeight +
+            (visible > 1 ? (visible - 1) * stepOffset : 0.0);
 
-    if (count == 1) {
-      return Center(
-        child: SizedBox(
-          width: cardWidth,
-          child: widget.builder(context, widget.cards[0]),
+        final dragProgress = (_drag.abs() / (cardWidth * 0.45)).clamp(0.0, 1.0);
+
+        return Center(
+          child: SizedBox(
+            width: cardWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragStart: (details) {
+                    if (_animController.isAnimating) {
+                      _animController.stop();
+                      _animController.reset();
+                    }
+                  },
+                  onHorizontalDragUpdate: (details) {
+                    if (count < 2) return;
+                    setState(() => _drag += details.delta.dx);
+                  },
+                  onHorizontalDragEnd: (details) {
+                    if (count < 2) return;
+                    final velocity = details.primaryVelocity ?? 0.0;
+                    if (_drag < -45.0 || velocity < -400.0) {
+                      _animateFling(-cardWidth * 1.05, 1);
+                    } else if (_drag > 45.0 || velocity > 400.0) {
+                      _animateFling(cardWidth * 1.05, -1);
+                    } else {
+                      _animateSnapBack();
+                    }
+                  },
+                  onHorizontalDragCancel: () {
+                    if (_drag != 0.0) _animateSnapBack();
+                  },
+                  child: SizedBox(
+                    width: cardWidth,
+                    height: stackHeight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        for (int depth = visible - 1; depth >= 0; depth--)
+                          _buildCardLayer(
+                            depth: depth,
+                            visible: visible,
+                            count: count,
+                            stepOffset: stepOffset,
+                            cardWidth: cardWidth,
+                            computedCardHeight: computedCardHeight,
+                            dragProgress: dragProgress,
+                            isDark: isDark,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (count > 1) _buildIndicatorRow(count, isDark),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCardLayer({
+    required int depth,
+    required int visible,
+    required int count,
+    required double stepOffset,
+    required double cardWidth,
+    required double computedCardHeight,
+    required double dragProgress,
+    required bool isDark,
+  }) {
+    final index = (_current + depth) % count;
+    final card = widget.cards[index];
+
+    if (depth == 0) {
+      // Front active card
+      final top = (visible - 1) * stepOffset;
+      final dragFactor = (_drag / cardWidth).clamp(-1.0, 1.0);
+      final matrix = Matrix4.identity()
+        ..setEntry(3, 2, 0.0012)
+        ..rotateZ(dragFactor * 0.09)
+        ..rotateY(-dragFactor * 0.16);
+
+      final opacity =
+          (1.0 - (_drag.abs() / (cardWidth * 1.2))).clamp(0.25, 1.0);
+
+      return Positioned(
+        top: top,
+        left: 0,
+        right: 0,
+        height: computedCardHeight,
+        child: Transform.translate(
+          offset: Offset(_drag, 0),
+          child: Transform(
+            alignment: Alignment.center,
+            transform: matrix,
+            child: Opacity(
+              opacity: opacity,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          Colors.black.withValues(alpha: isDark ? 0.40 : 0.15),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: widget.builder(context, card),
+              ),
+            ),
+          ),
         ),
       );
     }
 
-    final visible = count.clamp(1, 4);
-    final stackedHeight = baseCardHeight + 58.0;
-    final cascadeHeight = (count - 1) * 68.0 + baseCardHeight + 16.0;
+    // Background cards in 3D stack (depth 1, depth 2)
+    final baseTop = (visible - 1 - depth) * stepOffset;
+    final animatedTop = baseTop + (stepOffset * dragProgress);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedBuilder(
-          animation: Listenable.merge([_fanAnimation, _swipeAnimController]),
-          builder: (context, _) {
-            final fanVal = _fanAnimation.value;
-            final isSwiping = _swipeAnimController.isAnimating;
-            final currentOffset = isSwiping ? _swipeOffsetAnim.value : _dragX;
-            final currentTiltY = isSwiping ? _swipeTiltAnim.value : _dragY;
-            final currentDeckHeight =
-                ui.lerpDouble(stackedHeight, cascadeHeight, fanVal)!;
+    final baseScale = 1.0 - (depth * 0.05);
+    final animatedScale = baseScale + (0.05 * dragProgress);
 
-            // Generate card indices sorted for proper z-order
-            final renderIndices = List.generate(count, (i) => i);
-            renderIndices.sort((a, b) {
-              final relA = (a - _current) % count;
-              final relB = (b - _current) % count;
-              return relB.compareTo(relA);
-            });
+    final baseOpacity = 1.0 - (depth * 0.14);
+    final animatedOpacity =
+        (baseOpacity + (0.14 * dragProgress)).clamp(0.0, 1.0);
 
-            return SizedBox(
-              width: cardWidth,
-              height: currentDeckHeight,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onHorizontalDragUpdate: _isFannedOut
-                    ? null
-                    : (details) {
-                        setState(() {
-                          _dragX += details.delta.dx;
-                          _dragY =
-                              (_dragY + details.delta.dy).clamp(-40.0, 40.0);
-                        });
-                      },
-                onHorizontalDragEnd: _isFannedOut
-                    ? null
-                    : (details) {
-                        final velocity = details.primaryVelocity ?? 0.0;
-                        if (_dragX < -45.0 || velocity < -350.0) {
-                          _triggerSwipe(1, _dragX, velocity);
-                        } else if (_dragX > 45.0 || velocity > 350.0) {
-                          _triggerSwipe(-1, _dragX, velocity);
-                        } else {
-                          _snapBack(_dragX);
-                        }
-                      },
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.topCenter,
-                  children: [
-                    for (final cardIndex in renderIndices)
-                      _buildDeckCard(
-                        context: context,
-                        cardIndex: cardIndex,
-                        count: count,
-                        visible: visible,
-                        cardWidth: cardWidth,
-                        baseCardHeight: baseCardHeight,
-                        fanVal: fanVal,
-                        currentOffset: currentOffset,
-                        currentTiltY: currentTiltY,
-                        isDark: isDark,
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildFloatingControlBar(
-          context: context,
-          count: count,
-          isDark: isDark,
-          primaryTextColor: primaryTextColor,
-          secondaryTextColor: secondaryTextColor,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDeckCard({
-    required BuildContext context,
-    required int cardIndex,
-    required int count,
-    required int visible,
-    required double cardWidth,
-    required double baseCardHeight,
-    required double fanVal,
-    required double currentOffset,
-    required double currentTiltY,
-    required bool isDark,
-  }) {
-    final relDepth = (cardIndex - _current) % count;
-
-    // Stack mode parameters
-    final double stackedTop;
-    final double stackedScale;
-    final double stackedOpacity;
-    final double stackedRotX;
-    final double stackedRotY;
-    final double stackedRotZ;
-    final double stackedTransX;
-    final double stackedTransZ;
-    final double stackedDimAlpha;
-
-    if (relDepth == 0) {
-      // Front card
-      final dragFraction = (currentOffset / cardWidth).clamp(-1.2, 1.2);
-      stackedTop = 54.0 - (currentOffset.abs() * 0.03);
-      stackedScale = 1.0;
-      stackedOpacity = currentOffset.abs() > cardWidth * 0.45
-          ? (1.0 -
-                  (currentOffset.abs() - cardWidth * 0.45) / (cardWidth * 0.55))
-              .clamp(0.0, 1.0)
-          : 1.0;
-      stackedRotX = -0.035 + (currentTiltY * 0.0003).clamp(-0.05, 0.05);
-      stackedRotY = -dragFraction * 0.16;
-      stackedRotZ = dragFraction * 0.12;
-      stackedTransX = currentOffset;
-      stackedTransZ = 0.0;
-      stackedDimAlpha = 0.0;
-    } else if (relDepth < visible) {
-      // Visible rear cards
-      stackedTop = 54.0 - (relDepth * 18.0);
-      stackedScale = math.pow(0.942, relDepth).toDouble();
-      stackedOpacity = 1.0;
-      stackedRotX = -0.045 - (relDepth * 0.022);
-      stackedRotY = 0.0;
-      stackedRotZ = 0.0;
-      stackedTransX = 0.0;
-      stackedTransZ = -relDepth * 32.0;
-      stackedDimAlpha = (0.12 * relDepth).clamp(0.0, 0.44);
-    } else {
-      // Hidden behind furthest card
-      stackedTop = 54.0 - ((visible - 1) * 18.0);
-      stackedScale = 0.82;
-      stackedOpacity = 0.0;
-      stackedRotX = -0.10;
-      stackedRotY = 0.0;
-      stackedRotZ = 0.0;
-      stackedTransX = 0.0;
-      stackedTransZ = -visible * 32.0;
-      stackedDimAlpha = 0.55;
-    }
-
-    // Cascade mode parameters
-    final double cascadeTop = cardIndex * 68.0 + 8.0;
-    const double cascadeScale = 1.0;
-    const double cascadeOpacity = 1.0;
-    const double cascadeRotX = -0.025;
-    const double cascadeRotY = 0.0;
-    const double cascadeRotZ = 0.0;
-    const double cascadeTransX = 0.0;
-    const double cascadeTransZ = 0.0;
-    final double cascadeDimAlpha = cardIndex == _current ? 0.0 : 0.08;
-
-    // Interpolate with fanVal
-    final top = ui.lerpDouble(stackedTop, cascadeTop, fanVal)!;
-    final scale = ui.lerpDouble(stackedScale, cascadeScale, fanVal)!;
-    final opacity =
-        ui.lerpDouble(stackedOpacity, cascadeOpacity, fanVal)!.clamp(0.0, 1.0);
-    final rotX = ui.lerpDouble(stackedRotX, cascadeRotX, fanVal)!;
-    final rotY = ui.lerpDouble(stackedRotY, cascadeRotY, fanVal)!;
-    final rotZ = ui.lerpDouble(stackedRotZ, cascadeRotZ, fanVal)!;
-    final transX = ui.lerpDouble(stackedTransX, cascadeTransX, fanVal)!;
-    final transZ = ui.lerpDouble(stackedTransZ, cascadeTransZ, fanVal)!;
-    final dimAlpha = ui.lerpDouble(stackedDimAlpha, cascadeDimAlpha, fanVal)!;
-
-    if (opacity <= 0.005) {
-      return const SizedBox.shrink();
-    }
-
-    final card = widget.cards[cardIndex];
-    final isTopCardInStack = !_isFannedOut && relDepth == 0;
-
-    final matrix = Matrix4.identity()
-      ..setEntry(3, 2, 0.0016)
-      ..setTranslationRaw(transX, 0.0, transZ)
-      ..rotateX(rotX)
-      ..rotateY(rotY)
-      ..rotateZ(rotZ);
+    final overlayDarkness =
+        (0.18 * depth * (1.0 - 0.5 * dragProgress)).clamp(0.0, 0.5);
 
     return Positioned(
-      top: top,
-      width: cardWidth,
-      child: Opacity(
-        opacity: opacity,
-        child: Transform(
-          alignment: Alignment.topCenter,
-          transform: matrix,
-          child: Transform.scale(
-            alignment: Alignment.topCenter,
-            scale: scale,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.42 : 0.18),
-                    blurRadius: 22,
-                    offset: const Offset(0, 10),
-                    spreadRadius: -2,
-                  ),
-                  if (isTopCardInStack)
-                    BoxShadow(
-                      color: AppColors.accent
-                          .withValues(alpha: isDark ? 0.14 : 0.08),
-                      blurRadius: 28,
-                      offset: const Offset(0, 4),
-                      spreadRadius: -4,
-                    ),
-                ],
-              ),
+      top: animatedTop,
+      left: 0,
+      right: 0,
+      height: computedCardHeight,
+      child: Transform.scale(
+        scale: animatedScale,
+        alignment: Alignment.topCenter,
+        child: Opacity(
+          opacity: animatedOpacity,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _animateToDelta(depth),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
               child: Stack(
-                clipBehavior: Clip.none,
                 children: [
-                  // The card widget
-                  IgnorePointer(
-                    ignoring: !_isFannedOut && relDepth != 0,
-                    child: widget.builder(context, card),
+                  widget.builder(context, card),
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        color: Colors.black.withValues(alpha: overlayDarkness),
+                      ),
+                    ),
                   ),
-
-                  // Ambient Occlusion / Darkening Overlay for rear cards
-                  if (dimAlpha > 0.01)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        ignoring: true,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(22),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withValues(
-                                    alpha: (dimAlpha * 0.35).clamp(0.0, 0.9)),
-                                Colors.black.withValues(
-                                    alpha: dimAlpha.clamp(0.0, 0.9)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Rear card tap detector to bring to front
-                  if (!_isFannedOut && relDepth != 0)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _jumpTo(cardIndex),
-                      ),
-                    ),
-
-                  // Cascade mode tap detector
-                  if (_isFannedOut)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () => _jumpTo(cardIndex),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -1624,652 +1710,9 @@ class _WalletCardDeckState extends State<_WalletCardDeck>
     );
   }
 
-  Widget _buildFloatingControlBar({
-    required BuildContext context,
-    required int count,
-    required bool isDark,
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-  }) {
-    final activeCard = widget.cards[_current];
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(
-                color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-                    .withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(
-                  color: (isDark ? Colors.white : Colors.black)
-                      .withValues(alpha: 0.08),
-                  width: 0.8,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Previous button
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left_rounded),
-                    iconSize: 20,
-                    splashRadius: 18,
-                    padding: const EdgeInsets.all(4),
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    color: primaryTextColor,
-                    tooltip: 'Thẻ trước',
-                    onPressed: () => _move(-1),
-                  ),
-                  const SizedBox(width: 4),
-                  // Dots
-                  for (int i = 0; i < count; i++) ...[
-                    GestureDetector(
-                      onTap: () => _jumpTo(i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 240),
-                        curve: Curves.easeOutCubic,
-                        width: i == _current ? 22 : 6.5,
-                        height: 6.5,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          color: i == _current
-                              ? AppColors.accent
-                              : (isDark
-                                  ? Colors.white.withValues(alpha: 0.25)
-                                  : Colors.black.withValues(alpha: 0.18)),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(width: 4),
-                  // Next button
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    iconSize: 20,
-                    splashRadius: 18,
-                    padding: const EdgeInsets.all(4),
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    color: primaryTextColor,
-                    tooltip: 'Thẻ kế tiếp',
-                    onPressed: () => _move(1),
-                  ),
-                  Container(
-                    height: 16,
-                    width: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    color: (isDark ? Colors.white : Colors.black)
-                        .withValues(alpha: 0.12),
-                  ),
-                  // Fan out toggle button
-                  InkWell(
-                    borderRadius: BorderRadius.circular(100),
-                    onTap: _toggleFan,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _isFannedOut
-                                ? Icons.layers_clear_rounded
-                                : Icons.style_rounded,
-                            size: 14,
-                            color: AppColors.accent,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            _isFannedOut ? 'Gom 3D' : 'Xòe thẻ',
-                            style: TextStyle(
-                              color: primaryTextColor,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 7),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 5.5,
-              height: 5.5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.accent,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.accent.withValues(alpha: 0.6),
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'Thẻ ${_current + 1}/$count: ${activeCard.name}',
-              style: TextStyle(
-                color: secondaryTextColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-            ),
-            if (!_isFannedOut) ...[
-              Text(
-                '  •  Vuốt lật 3D',
-                style: TextStyle(
-                  color: secondaryTextColor.withValues(alpha: 0.65),
-                  fontSize: 10.5,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _NormalWalletCard extends StatelessWidget {
-  final Wallet wallet;
-  final VoidCallback onDelete;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final bool isExpanded;
-
-  const _NormalWalletCard({
-    required this.wallet,
-    required this.onDelete,
-    required this.onTap,
-    required this.onEdit,
-    this.isExpanded = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
-    final gradient = studio?.getBankCardGradient(
-          walletId: wallet.id,
-          bankCode: wallet.bankCode,
-          name: wallet.name,
-          themeColor: wallet.themeColor,
-        ) ??
-        CreditCardPalette.gradient(
-          wallet.themeColor,
-          wallet.bankCode,
-          wallet.name,
-        );
-
-    final cardRadius = studio?.cardCornerRadius ?? 22.0;
-    final skin = studio?.resolveWalletCardSkinStyle(wallet.id) ??
-        AppCardSkinStyle.brandClassic;
-
-    final isCash = wallet.type == 'cash';
-    final cardHolder = (wallet.owner == 'wife' ||
-            wallet.ownerName.toLowerCase() == 'vợ' ||
-            wallet.name.toLowerCase().contains('vợ'))
-        ? 'VỢ'
-        : 'CHỒNG';
-
-    final dateLabel = (() {
-      try {
-        final d = DateTime.fromMillisecondsSinceEpoch(wallet.updatedAt);
-        final hour = d.hour.toString().padLeft(2, '0');
-        final min = d.minute.toString().padLeft(2, '0');
-        final day = d.day.toString().padLeft(2, '0');
-        final month = d.month.toString().padLeft(2, '0');
-        return '$hour:$min $day/$month';
-      } catch (_) {
-        return '';
-      }
-    })();
-
-    final cleanAccount = wallet.accountNumber != null &&
-            wallet.accountNumber!.length >= 4
-        ? '•••• ${wallet.accountNumber!.substring(wallet.accountNumber!.length - 4)}'
-        : (isCash ? 'TIỀN MẶT' : '•••• 8888');
-
-    final bool isLightSurface = skin == AppCardSkinStyle.whiteCeramic ||
-        skin == AppCardSkinStyle.titaniumFrost ||
-        (!isDark &&
-            (gradient.isEmpty ||
-                ThemeData.estimateBrightnessForColor(gradient.first) ==
-                    Brightness.light));
-    final cardTextColor =
-        isLightSurface ? const Color(0xFF0F172A) : Colors.white;
-    final cardSubTextColor = isLightSurface
-        ? const Color(0xFF475569)
-        : Colors.white.withValues(alpha: 0.78);
-    final cardBadgeBg = isLightSurface
-        ? Colors.black.withValues(alpha: 0.08)
-        : Colors.black.withValues(alpha: 0.22);
-    final cardBadgeBorder = isLightSurface
-        ? Colors.black.withValues(alpha: 0.15)
-        : Colors.white.withValues(alpha: 0.15);
-
-    return FinoraBankCardSurface(
-      skin: skin,
-      gradientColors: gradient,
-      borderRadius: cardRadius,
-      width: isExpanded ? double.infinity : 290,
-      height: 172,
-      bankCode: isCash ? null : wallet.bankCode,
-      bankName: wallet.bankName ?? wallet.name,
-      cardName: wallet.name,
-      accountNumber: wallet.accountNumber,
-      cardHolder: cardHolder,
-      cardNetwork: isCash ? null : 'napas',
-      isDark: isDark,
-      preserveBankColors: studio?.preserveBankCardColors ?? true,
-      onTap: onTap,
-      topTrailing: PopupMenuButton<String>(
-        onSelected: (val) {
-          if (val == 'edit') {
-            onEdit();
-          } else if (val == 'delete') {
-            onDelete();
-          }
-        },
-        icon: Icon(
-          Icons.more_vert,
-          size: 18,
-          color: cardTextColor,
-        ),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        itemBuilder: (_) => [
-          const PopupMenuItem(
-            value: 'edit',
-            child: Row(
-              children: [
-                Icon(Icons.edit, size: 16),
-                SizedBox(width: 8),
-                Text('Chỉnh sửa', style: TextStyle(fontSize: 13)),
-              ],
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'delete',
-            child: Row(
-              children: [
-                Icon(Icons.delete, size: 16, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Xóa', style: TextStyle(fontSize: 13, color: Colors.red)),
-              ],
-            ),
-          ),
-        ],
-      ),
-      bottomContent: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'SỐ DƯ KHẢ DỤNG',
-                      style: TextStyle(
-                        color: cardSubTextColor,
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    FinoraAnimatedAmount(
-                      amount: wallet.balance.toDouble(),
-                      style: TextStyle(
-                        color: cardTextColor,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: cardBadgeBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: cardBadgeBorder,
-                    width: 0.5,
-                  ),
-                ),
-                child: Text(
-                  cleanAccount,
-                  style: TextStyle(
-                    color: cardTextColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.person_rounded,
-                    size: 11,
-                    color: Colors.white.withValues(alpha: 0.70),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    cardHolder,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF34D399),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    dateLabel,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CreditCardRow extends StatelessWidget {
-  final Wallet wallet;
-  final VoidCallback onDelete;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onPay;
-
-  const _CreditCardRow({
-    required this.wallet,
-    required this.onDelete,
-    required this.onTap,
-    required this.onEdit,
-    required this.onPay,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final usedPercent = wallet.creditLimit > 0
-        ? (wallet.currentDebt / wallet.creditLimit)
-        : 0.0;
-    final displayPercent = (usedPercent * 100).toStringAsFixed(1);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
-    final gradient = studio?.getBankCardGradient(
-          walletId: wallet.id,
-          bankCode: wallet.bankCode,
-          name: wallet.name,
-          themeColor: wallet.themeColor,
-        ) ??
-        CreditCardPalette.gradient(
-            wallet.themeColor, wallet.bankCode, wallet.name);
-
-    final cardRadius = studio?.cardCornerRadius ?? 24.0;
-    final skin = studio?.resolveWalletCardSkinStyle(wallet.id) ??
-        AppCardSkinStyle.brandClassic;
-
-    final bool isLightSurface = skin == AppCardSkinStyle.whiteCeramic ||
-        skin == AppCardSkinStyle.titaniumFrost ||
-        (!isDark &&
-            (gradient.isEmpty ||
-                ThemeData.estimateBrightnessForColor(gradient.first) ==
-                    Brightness.light));
-    final cardTextColor =
-        isLightSurface ? const Color(0xFF0F172A) : Colors.white;
-    final cardSubTextColor = isLightSurface
-        ? const Color(0xFF475569)
-        : Colors.white.withValues(alpha: 0.85);
-
-    return FinoraBankCardSurface(
-      skin: skin,
-      gradientColors: gradient,
-      borderRadius: cardRadius,
-      height: 202,
-      bankCode: wallet.bankCode,
-      bankName: wallet.bankName ?? wallet.name,
-      cardName: wallet.name,
-      accountNumber: wallet.accountNumber,
-      cardHolder: (wallet.owner == 'wife' ||
-              wallet.ownerName.toLowerCase() == 'vợ' ||
-              wallet.name.toLowerCase().contains('vợ'))
-          ? 'VỢ'
-          : 'CHỒNG',
-      cardNetwork: 'visa',
-      isDark: isDark,
-      preserveBankColors: studio?.preserveBankCardColors ?? true,
-      onTap: onTap,
-      topTrailing: PopupMenuButton<String>(
-        onSelected: (val) {
-          if (val == 'edit') {
-            onEdit();
-          } else if (val == 'delete') {
-            onDelete();
-          }
-        },
-        icon: Icon(
-          Icons.more_vert,
-          size: 18,
-          color: cardTextColor,
-        ),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        itemBuilder: (_) => [
-          const PopupMenuItem(
-            value: 'edit',
-            child: Row(
-              children: [
-                Icon(Icons.edit, size: 16),
-                SizedBox(width: 8),
-                Text('Chỉnh sửa', style: TextStyle(fontSize: 13)),
-              ],
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'delete',
-            child: Row(
-              children: [
-                Icon(Icons.delete, size: 16, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Xóa', style: TextStyle(fontSize: 13, color: Colors.red)),
-              ],
-            ),
-          ),
-        ],
-      ),
-      bottomContent: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Hạn mức: ${formatVND(wallet.creditLimit)}',
-                style: TextStyle(
-                  color: cardSubTextColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                'Khả dụng: ${formatVND(wallet.creditLimit - wallet.currentDebt)}',
-                style: TextStyle(
-                  color: cardSubTextColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: usedPercent.clamp(0.0, 1.0),
-              minHeight: 4,
-              backgroundColor: isLightSurface
-                  ? Colors.black.withValues(alpha: 0.10)
-                  : Colors.white.withValues(alpha: 0.18),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                usedPercent > 0.85
-                    ? const Color(0xFFF87171)
-                    : (isLightSurface ? const Color(0xFF0F172A) : Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: onPay,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isLightSurface
-                        ? Colors.black.withValues(alpha: 0.08)
-                        : Colors.white.withValues(alpha: 0.20),
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(
-                      color: isLightSurface
-                          ? Colors.black.withValues(alpha: 0.18)
-                          : Colors.white.withValues(alpha: 0.30),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.payment_rounded,
-                          size: 12, color: cardTextColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Thanh toán thẻ',
-                        style: TextStyle(
-                          color: cardTextColor,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Đã dùng: $displayPercent%',
-                        style: TextStyle(
-                          color: cardSubTextColor,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      FinoraAnimatedAmount(
-                        amount: wallet.currentDebt.toDouble(),
-                        style: TextStyle(
-                          color: cardTextColor,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 10),
-                  // Authentic VISA badge
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'VISA',
-                      style: TextStyle(
-                        color: Color(0xFF1A1F71),
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildIndicatorRow(int count, bool isDark) => WalletDeckIndicator(
+        count: count,
+        current: _current,
+        onSelect: (index) => _animateToDelta(index - _current),
+      );
 }

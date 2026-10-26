@@ -1,9 +1,24 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+/// Portable JSON value coercion helpers for Supabase documents.
+// Money must never use the date fallback in toLongValue. Null/invalid values
+// remain distinguishable from a genuine zero opening balance.
+int? tryMoneyValue(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.isFinite ? value.toInt() : null;
+  if (value is String) {
+    final text = value.trim();
+    if (text.isEmpty) return null;
+    final integer = int.tryParse(text);
+    if (integer != null) return integer;
+    final number = num.tryParse(text);
+    return number != null && number.isFinite ? number.toInt() : null;
+  }
+  return null;
+}
 
-/// Firestore value coercion helpers — mirror FirestoreMapper.getXxxValue in Kotlin.
+int toMoneyValue(dynamic value) => tryMoneyValue(value) ?? 0;
+
 int toLongValue(dynamic value) {
   if (value == null) return 0;
-  if (value is Timestamp) return value.millisecondsSinceEpoch;
   if (value is num) return value.toInt();
   if (value is String) {
     final parsedInt = int.tryParse(value);
@@ -47,4 +62,3 @@ Map<String, dynamic> removeNulls(Map<String, dynamic> map) {
     map.entries.where((e) => e.value != null),
   );
 }
-

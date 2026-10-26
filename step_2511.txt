@@ -1,0 +1,68 @@
+Created At: 2026-09-29T14:53:35+07:00
+Completed At: 2026-09-29T14:53:35+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10677
+Total Bytes: 388701
+Showing lines 8211 to 8270
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8211:                 _showFeedback('Chạm nút tạo giao dịch nhanh');
+8212:               },
+8213:             ),
+8214:           ),
+8215:         ],
+8216:       ),
+8217:     );
+8218:   }
+8219: 
+8220:   Widget _buildLiveHeroCardProPreview({
+8221:     required ThemeStudioController studio,
+8222:     required bool isDark,
+8223:     required Color primary,
+8224:     required PaletteMeta palette,
+8225:   }) {
+8226:     final balanceFontSize = switch (studio.heroBalanceSize) {
+8227:       AppHeroBalanceSize.compact => 24.0,
+8228:       AppHeroBalanceSize.standard => 30.0,
+8229:       AppHeroBalanceSize.largeEmphasis => 36.0,
+8230:     };
+8231: 
+8232:     final cardTintColors = studio.getHeroCardGradient(isDark);
+8233: 
+8234:     return Column(
+8235:       children: [
+8236:         // Hero Card Pro Container
+8237:         AnimatedContainer(
+8238:           duration: const Duration(milliseconds: 280),
+8239:           curve: Curves.easeOutCubic,
+8240:           height: 165,
+8241:           padding: const EdgeInsets.all(16),
+8242:           decoration: BoxDecoration(
+8243:             gradient: LinearGradient(
+8244:               colors: cardTintColors,
+8245:               begin: Alignment.topLeft,
+8246:               end: Alignment.bottomRight,
+8247:             ),
+8248:             borderRadius: BorderRadius.circular(
+8249:                 studio.cardCornerRadius.clamp(16.0, 26.0)),
+8250:             border: Border.all(
+8251:               color: Colors.white.withValues(alpha: 0.22),
+8252:               width: 1.2,
+8253:             ),
+8254:             boxShadow: [
+8255:               BoxShadow(
+8256:                 color: cardTintColors.first.withValues(alpha: 0.35),
+8257:                 blurRadius: 18,
+8258:                 offset: const Offset(0, 6),
+8259:               ),
+8260:             ],
+8261:           ),
+8262:           child: Column(
+8263:             crossAxisAlignment: CrossAxisAlignment.start,
+8264:             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+8265:             children: [
+8266:               Wrap(
+8267:                 spacing: 12,
+8268:                 runSpacing: 8,
+8269:                 alignment: WrapAlignment.spaceBetween,
+8270:                 children: [
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

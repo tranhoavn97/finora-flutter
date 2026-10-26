@@ -1,16 +1,46 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../models/finance_models.dart';
+import 'dart:async';
 import '../models/category.dart';
-import '../models/transaction.dart';
 import '../models/coerce.dart';
+import '../models/finance_models.dart';
+import '../models/transaction.dart';
+import 'supabase_bridge.dart';
 
-FirebaseFirestore _db = FirebaseFirestore.instanceFor(
-  app: Firebase.app(),
-  databaseId: 'ai-studio-2b22d4a0-9f50-4bbc-a8ed-f26d36b92339',
-);
-CollectionReference<Map<String, dynamic>> _col(String userId, String name) =>
-    _db.collection('users').doc(userId).collection(name);
+String _now() => DateTime.now().toUtc().toIso8601String();
+
+Stream<List<T>> _watch<T>(String userId, String collection,
+        T Function(String id, Map<String, dynamic> data) fromMap) =>
+    SupabaseBridge.watchUserCollection(userId: userId, collection: collection)
+        .map((rows) => rows
+            .where((row) => row['deletedAt'] == null)
+            .map((row) => fromMap(row['id'].toString(), row))
+            .toList());
+
+Future<String> _create(
+    String userId, String collection, Map<String, dynamic> data) async {
+  final id = SupabaseBridge.newDocumentId();
+  await SupabaseBridge.saveUserDocument(
+    userId: userId,
+    collection: collection,
+    documentId: id,
+    replace: true,
+    data: removeNulls(
+        {...data, 'userId': userId, 'createdAt': _now(), 'updatedAt': _now()}),
+  );
+  return id;
+}
+
+Future<void> _update(String userId, String collection, String id,
+        Map<String, dynamic> data) =>
+    SupabaseBridge.saveUserDocument(
+      userId: userId,
+      collection: collection,
+      documentId: id,
+      data: removeNulls({...data, 'userId': userId, 'updatedAt': _now()}),
+    );
+
+Future<void> _delete(String userId, String collection, String id) =>
+    SupabaseBridge.deleteUserDocument(
+        userId: userId, collection: collection, documentId: id);
 
 String _currentMonthKey() {
   final now = DateTime.now();
@@ -18,252 +48,203 @@ String _currentMonthKey() {
 }
 
 class BudgetRepository {
-  Stream<List<Budget>> watchBudgets(String userId) => _col(userId, 'budgets')
-      .snapshots()
-      .map((s) => s.docs.map((d) => Budget.fromMap(d.id, d.data())).toList());
+  Stream<List<Budget>> watchBudgets(String userId, {String? familyId}) =>
+      _watch(userId, 'budgets', Budget.fromMap);
+  Future<String> createBudget(String userId, Budget budget,
+          {String? familyId}) =>
+      _create(userId, 'budgets', budget.toMap());
+  Future<void> updateBudget(String userId, String id, Budget budget,
+          {String? familyId}) =>
+      _update(userId, 'budgets', id, budget.toMap());
+  Future<void> deleteBudget(String userId, String id, {String? familyId}) =>
+      _delete(userId, 'budgets', id);
 
-  Future<String> createBudget(String userId, Budget budget) async {
-    final ts = FieldValue.serverTimestamp();
-    final ref = await _col(userId, 'budgets').add(removeNulls(budget.toMap()
-      ..['createdAt'] = ts
-      ..['updatedAt'] = ts));
-    return ref.id;
-  }
-
-  Future<void> updateBudget(String userId, String budgetId, Budget budget) async {
-    await _col(userId, 'budgets').doc(budgetId).update(removeNulls({
-      'limitAmount': budget.limitAmount,
-      'isRecurring': budget.isRecurring,
-      'alertThreshold': budget.alertThreshold,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }));
-  }
-
-  Future<void> deleteBudget(String userId, String budgetId) =>
-      _col(userId, 'budgets').doc(budgetId).delete();
-
-  /// Auto-creates recurring budgets for the current month (+ a notification).
   Future<void> ensureBudgets(
-      String userId, List<Budget> budgets, List<TransactionModel> transactions) async {
+      String userId, List<Budget> budgets, List<TransactionModel> transactions,
+      {String? familyId}) async {
     final monthKey = _currentMonthKey();
-    final currentCategoryIds = budgets
-        .where((b) => b.monthKey == monthKey)
-        .map((b) => b.categoryId)
+    final existing = budgets
+        .where((budget) => budget.monthKey == monthKey)
+        .map((budget) => budget.categoryId)
         .toSet();
-    final templates = budgets.where((b) => b.isRecurring && b.monthKey != monthKey);
-
-    final batch = _db.batch();
-    var hasOps = false;
-    for (final t in templates) {
-      if (currentCategoryIds.contains(t.categoryId)) continue;
-      currentCategoryIds.add(t.categoryId);
-      hasOps = true;
-      final ts = FieldValue.serverTimestamp();
-      final budgetRef = _col(userId, 'budgets').doc();
-      batch.set(budgetRef, removeNulls(t.toMap()
-        ..['monthKey'] = monthKey
-        ..['createdAt'] = ts
-        ..['updatedAt'] = ts));
-      final notifRef = _col(userId, 'notifications').doc();
-      batch.set(notifRef, removeNulls({
-        'userId': userId,
+    for (final template
+        in budgets.where((b) => b.isRecurring && b.monthKey != monthKey)) {
+      if (!existing.add(template.categoryId)) continue;
+      await _create(
+          userId, 'budgets', template.toMap()..['monthKey'] = monthKey);
+      await _create(userId, 'notifications', {
         'title': 'Ngân sách định kỳ mới',
-        'message': 'Ngân sách cho ${t.categoryName} đã được tự động tạo cho tháng này.',
+        'message':
+            'Ngân sách cho ${template.categoryName} đã được tự động tạo cho tháng này.',
         'type': 'info',
         'isRead': false,
-        'createdAt': ts,
-      }));
+      });
     }
-    if (hasOps) await batch.commit();
   }
 }
 
 class AssetRepository {
-  Stream<List<Asset>> watchAssets(String userId) => _col(userId, 'assets')
-      .snapshots()
-      .map((s) => s.docs.map((d) => Asset.fromMap(d.id, d.data())).toList());
-
-  Future<String> createAsset(String userId, Asset asset) async {
-    final ts = FieldValue.serverTimestamp();
-    final ref = await _col(userId, 'assets').add(removeNulls(asset.toMap()
-      ..['createdAt'] = ts
-      ..['updatedAt'] = ts));
-    return ref.id;
-  }
-
-  Future<void> updateAsset(String userId, String assetId, Asset asset) =>
-      _col(userId, 'assets').doc(assetId).update(removeNulls(asset.toMap()
-        ..['updatedAt'] = FieldValue.serverTimestamp()));
-
-  Future<void> deleteAsset(String userId, String assetId) =>
-      _col(userId, 'assets').doc(assetId).delete();
+  Stream<List<Asset>> watchAssets(String userId, {String? familyId}) =>
+      _watch(userId, 'assets', Asset.fromMap);
+  Future<String> createAsset(String userId, Asset asset, {String? familyId}) =>
+      _create(userId, 'assets', asset.toMap());
+  Future<void> updateAsset(String userId, String id, Asset asset,
+          {String? familyId}) =>
+      _update(userId, 'assets', id, asset.toMap());
+  Future<void> deleteAsset(String userId, String id, {String? familyId}) =>
+      _delete(userId, 'assets', id);
 }
 
 class LoanRepository {
-  Stream<List<Loan>> watchLoans(String userId) => _col(userId, 'loans')
-      .snapshots()
-      .map((s) => s.docs.map((d) => Loan.fromMap(d.id, d.data())).toList());
-
-  Future<String> createLoan(String userId, Loan loan) async {
-    final ts = FieldValue.serverTimestamp();
-    final ref = await _col(userId, 'loans').add(removeNulls(loan.toMap()
-      ..['createdAt'] = ts
-      ..['updatedAt'] = ts));
-    return ref.id;
-  }
-
-  Future<void> updateLoan(String userId, String loanId, Loan loan) =>
-      _col(userId, 'loans').doc(loanId).update(removeNulls(loan.toMap()
-        ..['updatedAt'] = FieldValue.serverTimestamp()));
-
-  Future<void> deleteLoan(String userId, String loanId) =>
-      _col(userId, 'loans').doc(loanId).delete();
+  Stream<List<Loan>> watchLoans(String userId, {String? familyId}) =>
+      _watch(userId, 'loans', Loan.fromMap);
+  Future<String> createLoan(String userId, Loan loan, {String? familyId}) =>
+      _create(userId, 'loans', loan.toMap());
+  Future<void> updateLoan(String userId, String id, Loan loan,
+          {String? familyId}) =>
+      _update(userId, 'loans', id, loan.toMap());
+  Future<void> deleteLoan(String userId, String id, {String? familyId}) =>
+      _delete(userId, 'loans', id);
 }
 
 class GoalRepository {
-  Stream<List<Goal>> watchGoals(String userId) => _col(userId, 'goals')
-      .snapshots()
-      .map((s) => s.docs.map((d) => Goal.fromMap(d.id, d.data())).toList());
-
-  Future<String> createGoal(String userId, Goal goal) async {
-    final ts = FieldValue.serverTimestamp();
-    final ref = await _col(userId, 'goals').add(removeNulls(goal.toMap()
-      ..['createdAt'] = ts
-      ..['updatedAt'] = ts));
-    return ref.id;
-  }
-
-  Future<void> updateGoal(String userId, String goalId, Goal goal) =>
-      _col(userId, 'goals').doc(goalId).update(removeNulls(goal.toMap()
-        ..['updatedAt'] = FieldValue.serverTimestamp()));
-
-  Future<void> deleteGoal(String userId, String goalId) =>
-      _col(userId, 'goals').doc(goalId).delete();
-
-  /// Mirrors the web app: one atomic operation updates the goal and creates a
-  /// saving transaction. Wallet balances are ledger-derived in Flutter, so the
-  /// new transaction immediately reduces the selected wallet's available cash.
-  Future<void> depositToGoal({
-    required String userId,
-    required Goal goal,
-    required String walletId,
-    required String walletName,
-    required int amount,
-    String? owner,
-    String? ownerName,
-    String? note,
-  }) async {
-    if (amount <= 0) throw ArgumentError('Số tiền phải lớn hơn 0');
-    final batch = _db.batch();
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final goalRef = _col(userId, 'goals').doc(goal.id);
-    final txRef = _col(userId, 'transactions').doc();
-    final newSaved = goal.savedAmount + amount;
-    batch.update(goalRef, {
-      'savedAmount': newSaved,
-      if (newSaved >= goal.targetAmount) 'status': 'completed',
-      if (newSaved >= goal.targetAmount) 'completedAt': now,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    batch.set(txRef, removeNulls({
-      'id': txRef.id,
-      'userId': userId,
-      'type': 'saving',
-      'amount': amount,
-      'walletId': walletId,
-      'walletName': walletName,
-      'owner': owner,
-      'ownerName': ownerName,
-      'goalId': goal.id,
-      'goalName': goal.name,
-      'note': note?.trim().isNotEmpty == true
-          ? note!.trim()
-          : 'Tiết kiệm cho: ${goal.name}',
-      'date': now,
-      'categoryId': 'goal_deposit',
-      'categoryName': 'Tiết kiệm',
-      'categoryGroup': 'saving',
-      'categoryColor': '#3B82F6',
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }));
-    await batch.commit();
-  }
-
-  Future<void> setGoalStatus(String userId, String goalId, String status) =>
-      _col(userId, 'goals').doc(goalId).update({
-        'status': status,
-        if (status == 'completed')
-          'completedAt': DateTime.now().millisecondsSinceEpoch,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-  Future<void> deleteGoalWithTransactions(String userId, String goalId) async {
-    final txs = await _col(userId, 'transactions')
-        .where('goalId', isEqualTo: goalId)
-        .get();
-    final batch = _db.batch();
-    batch.delete(_col(userId, 'goals').doc(goalId));
-    for (final doc in txs.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
-  }
+  Stream<List<Goal>> watchGoals(String userId, {String? familyId}) =>
+      _watch(userId, 'goals', Goal.fromMap);
+  Future<String> createGoal(String userId, Goal goal, {String? familyId}) =>
+      _create(userId, 'goals', goal.toMap());
+  Future<void> updateGoal(String userId, String id, Goal goal,
+          {String? familyId}) =>
+      _update(userId, 'goals', id, goal.toMap());
+  Future<void> deleteGoal(String userId, String id, {String? familyId}) =>
+      _delete(userId, 'goals', id);
 }
 
 class NotificationRepository {
-  Stream<List<AppNotification>> watchNotifications(String userId) =>
-      _col(userId, 'notifications').snapshots().map(
-          (s) => s.docs.map((d) => AppNotification.fromMap(d.id, d.data())).toList());
+  Stream<List<AppNotification>> watchNotifications(String userId,
+          {String? familyId}) =>
+      _watch(userId, 'notifications', AppNotification.fromMap);
+  Future<void> markAsRead(String userId, String id, {String? familyId}) =>
+      _update(userId, 'notifications', id, {'isRead': true});
+  Future<void> deleteNotification(String userId, String id,
+          {String? familyId}) =>
+      _delete(userId, 'notifications', id);
+}
 
-  Future<void> markAsRead(String userId, String id) =>
-      _col(userId, 'notifications').doc(id).update({'isRead': true});
+Stream<List<Category>> _combineCategoryStreams(
+    Stream<List<Category>> streamA, Stream<List<Category>> streamB) {
+  late StreamController<List<Category>> controller;
+  StreamSubscription<List<Category>>? subA;
+  StreamSubscription<List<Category>>? subB;
+  List<Category> lastA = [];
+  List<Category> lastB = [];
 
-  Future<void> deleteNotification(String userId, String id) =>
-      _col(userId, 'notifications').doc(id).delete();
+  void emit() {
+    if (!controller.isClosed) {
+      final seenIds = <String>{};
+      final combined = <Category>[];
+      for (final item in [...lastA, ...lastB]) {
+        if (seenIds.add(item.id)) {
+          combined.add(item);
+        }
+      }
+      controller.add(combined);
+    }
+  }
+
+  controller = StreamController<List<Category>>.broadcast(
+    onListen: () {
+      subA = streamA.listen((data) {
+        lastA = data;
+        emit();
+      }, onError: (e) {
+        if (!controller.isClosed) controller.addError(e);
+      });
+      subB = streamB.listen((data) {
+        lastB = data;
+        emit();
+      }, onError: (e) {
+        if (!controller.isClosed) controller.addError(e);
+      });
+    },
+    onCancel: () {
+      subA?.cancel();
+      subB?.cancel();
+    },
+  );
+  return controller.stream;
 }
 
 class CategoryRepository {
-  Stream<List<Category>> watchCategories(String userId) => _col(userId, 'categories')
-      .snapshots()
-      .map((s) => s.docs.map((d) => Category.fromMap(d.id, d.data())).toList());
-
-  Future<String> createCategory(String userId, Category category) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final ref = await _col(userId, 'categories').add(removeNulls({
-      'userId': userId,
-      'name': category.name,
-      'icon': category.icon,
-      'color': category.color ?? '#16C784',
-      'categoryGroup': category.categoryGroup,
-      'isArchived': category.isArchived,
-      'createdAt': now,
-      'updatedAt': now,
-    }));
-    return ref.id;
+  Stream<List<Category>> watchCategories(String userId, {String? familyId}) {
+    final catStream = _watch(userId, 'categories', Category.fromMap);
+    final merchantStream = _watch(userId, 'merchants', (id, data) {
+      final copy = Map<String, dynamic>.from(data);
+      if (copy['categoryGroup'] == null ||
+          copy['categoryGroup'].toString().isEmpty) {
+        copy['categoryGroup'] = 'merchant';
+      }
+      return Category.fromMap(id, copy);
+    });
+    return _combineCategoryStreams(catStream, merchantStream);
   }
 
-  Future<void> updateCategory(String userId, String categoryId, Category category) =>
-      _col(userId, 'categories').doc(categoryId).update(removeNulls({
+  Map<String, dynamic> _map(Category category) => {
         'name': category.name,
         'icon': category.icon,
-        'color': category.color ?? '#16C784',
+        'color': category.color ??
+            (category.categoryGroup == 'merchant' ? '#3861FB' : '#16C784'),
         'categoryGroup': category.categoryGroup,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      }));
+        'type': category.categoryGroup,
+        'isArchived': category.isArchived,
+      };
 
-  Future<void> deleteCategory(String userId, String categoryId) =>
-      _col(userId, 'categories').doc(categoryId).delete();
+  Future<String> createCategory(String userId, Category category,
+      {String? familyId}) {
+    final collection =
+        category.categoryGroup == 'merchant' ? 'merchants' : 'categories';
+    return _create(userId, collection, _map(category));
+  }
+
+  Future<void> updateCategory(String userId, String id, Category category,
+      {String? familyId}) async {
+    final collection =
+        category.categoryGroup == 'merchant' ? 'merchants' : 'categories';
+    await _update(userId, collection, id, _map(category));
+    // If it was previously saved in the other collection, clean up to avoid duplicates
+    if (category.categoryGroup == 'merchant') {
+      try {
+        await _delete(userId, 'categories', id);
+      } catch (_) {}
+    } else {
+      try {
+        await _delete(userId, 'merchants', id);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> deleteCategory(String userId, String id,
+      {String? familyId}) async {
+    await Future.wait([
+      _delete(userId, 'categories', id).catchError((_) {}),
+      _delete(userId, 'merchants', id).catchError((_) {}),
+    ]);
+  }
 }
 
 class SettingsRepository {
-  Future<AppSettings> getAppSettings(String userId) async {
-    final snap = await _col(userId, 'settings').doc('app').get();
-    if (!snap.exists) return const AppSettings();
-    return AppSettings.fromMap(snap.data());
+  Future<AppSettings> getAppSettings(String userId, {String? familyId}) async {
+    final rows = await SupabaseBridge.loadUserCollection(
+        userId: userId, collection: 'settings');
+    final app = rows.where((row) => row['id'] == 'app').firstOrNull;
+    return app == null ? const AppSettings() : AppSettings.fromMap(app);
   }
 
-  Future<void> saveAppSettings(String userId, AppSettings settings) =>
-      _col(userId, 'settings').doc('app').set(removeNulls(settings.toMap()
-        ..['updatedAt'] = DateTime.now().millisecondsSinceEpoch));
+  Future<void> saveAppSettings(String userId, AppSettings settings,
+          {String? familyId}) =>
+      SupabaseBridge.saveUserDocument(
+        userId: userId,
+        collection: 'settings',
+        documentId: 'app',
+        data: {...settings.toMap(), 'userId': userId, 'updatedAt': _now()},
+      );
 }

@@ -1,0 +1,104 @@
+Created At: 2026-09-29T14:49:32+07:00
+Completed At: 2026-09-29T14:49:32+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 9401 to 9615
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+9401:                                 ),
+9402:                               ),
+9403:                             ],
+9404:                           ),
+9405:                           Text(
+9406:                             seasonBadge != null
+9407:                                 ? '${seasonBadge.$1} Tết Giáp Thìn'
+9408:                                 : 'FINORA AI • Tổng quan',
+9409:                             style: TextStyle(
+9410:                               fontSize: 9,
+9411:                               color: isDark
+9412:                                   ? const Color(0xFF94A3B8)
+9413:                                   : const Color(0xFF64748B),
+9414:                             ),
+9415:                           ),
+9416:                         ],
+9417:                       ),
+9418:                     ),
+9419:                     // Notification Icon
+9420:                     Container(
+9421:                       width: 28,
+9422:                       height: 28,
+9423:                       decoration: studio.getIconContainerDecoration(
+9424:                         color: primary,
+9425:                         isDark: isDark,
+9426:                         size: 28,
+9427:                       ),
+9428:                       child: Center(
+9429:                         child: Icon(
+9430:                           LucideIcons.bell,
+9431:                           size: 14,
+9432:                           color: studio.resolveIconGlyphColor(primary, isDark),
+9433:                         ),
+9434:                       ),
+94
+<truncated 5153 bytes>
+        ),
+9557:                 Text(
+9558:                   'AppBar: ${(studio.appBarOpacity * 100).toInt()}% • Blur: ${studio.appBarBlur.toInt()}px',
+9559:                   style: TextStyle(
+9560:                       fontSize: 9.5,
+9561:                       color: isDark
+9562:                           ? const Color(0xFF94A3B8)
+9563:                           : const Color(0xFF64748B)),
+9564:                 ),
+9565:               ],
+9566:             ),
+9567:           ),
+9568:         ],
+9569:       ),
+9570:     );
+9571:   }
+9572: 
+9573:   Widget _buildMiniQuickAction(
+9574:     String label,
+9575:     IconData icon,
+9576:     Color color,
+9577:     ThemeStudioController studio,
+9578:     bool isDark,
+9579:   ) {
+9580:     return Column(
+9581:       mainAxisSize: MainAxisSize.min,
+9582:       children: [
+9583:         Container(
+9584:           width: 38,
+9585:           height: 38,
+9586:           decoration: studio.getIconContainerDecoration(
+9587:             color: color,
+9588:             isDark: isDark,
+9589:             size: 38,
+9590:           ),
+9591:           child: Center(
+9592:             child: Icon(
+9593:               icon,
+9594:               size: 16,
+9595:               color: studio.resolveIconGlyphColor(color, isDark),
+9596:             ),
+9597:           ),
+9598:         ),
+9599:         const SizedBox(height: 4),
+9600:         Text(
+9601:           label,
+9602:           style: TextStyle(
+9603:             fontSize: 9.5,
+9604:             fontWeight: FontWeight.w600,
+9605:             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+9606:           ),
+9607:         ),
+9608:       ],
+9609:     );
+9610:   }
+9611: 
+9612:   Widget _buildLiveButtonsAndLedgerPreview({
+9613:     required ThemeStudioController studio,
+9614:     required bool isDark,
+9615:     required Color primary,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

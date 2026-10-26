@@ -1,13 +1,10 @@
-import '../../core/widgets/finora_summary_card.dart';
-import '../../core/widgets/ai_context_button.dart';
-import 'dart:ui';
+import '../../core/widgets/finora_mascot.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/date_filter.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/premium_widgets.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../data/models/category.dart';
@@ -20,7 +17,7 @@ import '../../state/theme_studio_controller.dart';
 import '../../state/transaction_provider.dart';
 import '../transaction/transaction_history_sheet.dart';
 import '../../core/widgets/finora_motion.dart';
-import '../../core/widgets/studio_progress.dart';
+import '../../core/widgets/finora_privacy_mask.dart';
 
 /// Trang Quản lý Ngân sách chuẩn theo Hình 2:
 /// - Top Bar: Nút back tròn, Tiêu đề "Quản lý ngân sách", Nút thêm (+) tròn
@@ -29,7 +26,12 @@ import '../../core/widgets/studio_progress.dart';
 /// - Danh sách thẻ ngân sách danh mục: Icon pastel, tên danh mục, icon bút chì sửa, icon thùng rác xóa, số tiền đã chi / hạn mức, % hoàn thành và vạch tiến độ
 class BudgetScreen extends StatefulWidget {
   final String userId;
-  const BudgetScreen({super.key, required this.userId});
+  final bool isTab;
+  const BudgetScreen({
+    super.key,
+    required this.userId,
+    this.isTab = true,
+  });
 
   @override
   State<BudgetScreen> createState() => _BudgetScreenState();
@@ -352,7 +354,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
 
     final allTxs = txProv.transactions;
-    final now = DateTime.now();
     // Tính toán số tiền đã chi theo bộ lọc thành viên
     final effectiveItems = provider.budgetsWithSpent.map((item) {
       if (_memberFilter == 'all') return item;
@@ -385,73 +386,41 @@ class _BudgetScreenState extends State<BudgetScreen> {
       return BudgetSpentData(item.budget, spent, progress);
     }).toList();
 
-    final totalLimit =
-        effectiveItems.fold<int>(0, (sum, e) => sum + e.budget.limitAmount);
-    final totalSpent =
-        effectiveItems.fold<int>(0, (sum, e) => sum + e.spentAmount);
-    final remaining = totalLimit - totalSpent;
-    final progress =
-        totalLimit == 0 ? 0.0 : (totalSpent / totalLimit).clamp(0.0, 1.0);
-
-    return GlassScaffold(
-      extendBodyBehindAppBar: true,
-      appBar: GlassTopBar(
-        title: 'Quản lý ngân sách',
-        showBottomDivider: false,
-        onBack: () => Navigator.of(context).maybePop(),
-        actions: [AiContextButton(userId: widget.userId, screen: 'Ngân sách')],
-      ),
-      body: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        slivers: [
-          // 1. Thẻ tổng quan ngân sách Hero Card (Cuộn tự nhiên theo danh sách chuẩn Apple/Revolut)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                GlassScaffold.topInset(context, 8),
-                16,
-                8,
-              ),
-              child: _buildOrangeHeroCard(
-                totalLimit: totalLimit,
-                totalSpent: totalSpent,
-                remaining: remaining,
-                progress: progress,
-                month: now.month,
-                year: now.year,
-                isDark: isDark,
-              ),
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Pinned Toolbar (Bộ lọc thành viên + Nút AI + Nút Thêm)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildMemberSegmentedControl(isDark: isDark),
+                ),
+                const SizedBox(width: 8),
+                _buildAiAnalyzeButton(isDark: isDark),
+                const SizedBox(width: 8),
+                _buildAddBudgetButton(isDark: isDark),
+              ],
             ),
           ),
-
-          // 2. Thanh công cụ (Bộ lọc thành viên + Nút AI + Nút Thêm)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildMemberSegmentedControl(isDark: isDark),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildAiAnalyzeButton(isDark: isDark),
-                  const SizedBox(width: 8),
-                  _buildAddBudgetButton(isDark: isDark),
-                ],
+          // 2. Scrollable Budget List Area
+          Expanded(
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-            ),
-          ),
-          if (effectiveItems.isEmpty)
+              slivers: [
+                if (effectiveItems.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
                 child: Container(
-                  margin: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   padding:
-                      const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                      const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
                   alignment: Alignment.center,
                   decoration: studio?.getCardDecoration(
                         isDark: isDark,
@@ -469,32 +438,52 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.pie_chart_outline_rounded,
-                        size: 40,
-                        color: isDark
-                            ? const Color(0xFF475569)
-                            : const Color(0xFF94A3B8),
+                      const FinoraMascotImage(
+                        pose: FinoraMascotPose.focused,
+                        size: 76,
+                        withGlow: true,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Text(
                         'Chưa có ngân sách nào trong tháng',
                         style: TextStyle(
                           color:
-                              isDark ? Colors.white70 : const Color(0xFF64748B),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Hãy cùng mèo thần tài Finora thiết lập hạn mức chi tiêu thông minh!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color:
+                              isDark ? Colors.white60 : const Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
                       GestureDetector(
                         onTap: _openAdd,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                              horizontal: 18, vertical: 9),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEA580C),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0F6E56), Color(0xFF10B981)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             borderRadius: BorderRadius.circular(100),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.30),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: const Text(
                             '+ Thêm ngân sách danh mục',
@@ -534,10 +523,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ],
+  ),
+);
+}
 
   /// Bộ lọc thành viên (Hình 2): Tất cả | Chồng | Vợ (Chuẩn hóa FinoraMemberSegmentedFilter 34px)
   Widget _buildMemberSegmentedControl(
@@ -557,17 +549,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
         borderRadius: BorderRadius.circular(100),
         child: Container(
           height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2563EB), Color(0xFF0EA5E9)],
+            gradient: LinearGradient(
+              colors: isDark
+                  ? const [Color(0xFF0F766E), Color(0xFF14B8A6)]
+                  : const [Color(0xFF0D9488), Color(0xFF2DD4BF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(100),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2563EB).withValues(alpha: 0.30),
+                color: const Color(0xFF0D9488).withValues(alpha: 0.30),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -591,7 +585,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   size: 14,
                   color: Colors.white,
                 ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 5),
               const Text(
                 'AI gợi ý',
                 style: TextStyle(
@@ -616,47 +610,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  /// Hero Card Cam Hoàng Hôn chuẩn Hình 2
-  Widget _buildOrangeHeroCard({
-    required int totalLimit,
-    required int totalSpent,
-    required int remaining,
-    required double progress,
-    required int month,
-    required int year,
-    required bool isDark,
-  }) {
-    final pct = (progress * 100).round();
-    final badgeLabel = pct <= 75
-        ? 'An toàn ($pct%)'
-        : (pct <= 95 ? 'Cảnh báo ($pct%)' : 'Bội chi ($pct%)');
-    final badgeCol = pct <= 75
-        ? const Color(0xFF34C759)
-        : (pct <= 95 ? const Color(0xFFFF9500) : const Color(0xFFFF3B30));
-    return FinoraSummaryCard(
-        title: 'NGÂN SÁCH THÁNG ${month.toString().padLeft(2, '0')}/$year',
-        amount: totalLimit,
-        icon: Icons.pie_chart_outline_rounded,
-        accent: badgeCol,
-        subtitle: 'Hạn mức chi tiêu kế hoạch trong kỳ',
-        badgeText: badgeLabel,
-        badgeColor: badgeCol,
-        progress: progress,
-        metricColors: const [Color(0xFFFF3B30), Color(0xFF34C759)],
-        metrics: [('Đã chi tiêu', totalSpent), ('Còn lại', remaining)]);
-  }
-
-  /// Thẻ ngân sách từng danh mục chuẩn Theme Studio
+  /// Thẻ ngân sách từng danh mục chuẩn Apple HIG - Hiển thị đầy đủ nội dung & số tiền sát góc phải
   Widget _buildCategoryBudgetCard({
     required BudgetSpentData item,
     required int index,
     required bool isDark,
   }) {
-    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
-    final cardRadius = studio?.getCardRadius() ?? 20.0;
-    final cardPadding =
-        studio != null ? studio.getCardPadding(studio.globalDensity) : 15.0;
-
     final liveCategories = context.read<MoreProvider>().categories.where(
           (category) =>
               (item.budget.categoryId.isNotEmpty &&
@@ -668,93 +627,82 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final categoryIcon = liveCategory?.icon ?? item.budget.categoryIcon;
     final categoryName = liveCategory?.name ?? item.budget.categoryName;
     final categoryColor = liveCategory?.color ?? item.budget.categoryColor;
+    final budget = item.budget;
+    final spent = item.spentAmount;
     final progress = item.progress.clamp(0.0, 1.0);
     final percent = (item.progress * 100).round();
-    final remain = item.budget.limitAmount - item.spentAmount;
-    final isExceeded = remain < 0;
+    final remaining = budget.limitAmount - spent;
+    final isExceeded = spent > budget.limitAmount || item.progress >= 1.0;
 
-    // Màu theo tỷ lệ chi tiêu:
-    // >= 100%: đỏ
-    // >= 80%: cam/vàng
-    // < 80%: xanh lục / màu chủ đạo theme
+    // Màu theo tỷ lệ chi tiêu chuẩn yêu cầu:
+    // < 75%: Emerald #10B981
+    // 75–99%: Amber #F59E0B
+    // >= 100%: Rose #E11D48
     final Color statusColor;
-    if (item.progress >= 1.0) {
-      statusColor = const Color(0xFFEF4444);
-    } else if (item.progress >= 0.8) {
+    final String statusLabel;
+    if (isExceeded || percent >= 100) {
+      statusColor = const Color(0xFFE11D48);
+      statusLabel = 'Vượt hạn mức';
+    } else if (percent >= 75) {
       statusColor = const Color(0xFFF59E0B);
+      statusLabel = 'Sắp vượt';
     } else {
-      statusColor = studio?.primaryColor ?? const Color(0xFF10B981);
+      statusColor = const Color(0xFF10B981);
+      statusLabel = 'An toàn';
     }
-
-    final cardDecoration = studio?.getCardDecoration(
-          isDark: isDark,
-          radius: cardRadius,
-        ) ??
-        BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(cardRadius),
-          border: Border.all(
-            color: isDark
-                ? const Color(0xFF334155).withValues(alpha: 0.8)
-                : const Color(0xFFE2E8F0),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        );
-
-    final effectiveBlur = studio?.glassBlur ?? 18.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(cardRadius),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          if (cardDecoration.boxShadow != null) ...cardDecoration.boxShadow!,
-          if (studio != null) ...studio.getGlowShadows(isDark),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(cardRadius),
-        child: BackdropFilter(
-          filter:
-              ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          color: isDark
+              ? const Color(0xFF142033).withValues(alpha: 0.92)
+              : Colors.white.withValues(alpha: 0.98),
           child: InkWell(
             onTap: () => _showCategoryHistory(item),
-            borderRadius: BorderRadius.circular(cardRadius),
+            borderRadius: BorderRadius.circular(20),
             child: Container(
-              padding: EdgeInsets.all(cardPadding),
+              padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
               decoration: BoxDecoration(
-                color: studio?.getCardFillColor(isDark) ?? cardDecoration.color,
-                borderRadius: BorderRadius.circular(cardRadius),
-                border: studio?.getCardBorder(isDark) ?? cardDecoration.border,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black)
+                      .withValues(alpha: isDark ? 0.09 : 0.05),
+                  width: 1.0,
+                ),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Dòng 1: Icon + Tên danh mục + Badge phần trăm + Menu 3 chấm
+                  // Top Row: Circular CategoryIconBadge (38) + Expanded (Category Name + Status Pill) + Right-pinned Spent Amount + 3-dot menu
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Icon danh mục chuẩn Liquid Glass Badge
                       CategoryIconBadge(
                         icon: categoryIcon,
                         categoryName: categoryName,
-                        size: 44,
+                        size: 38,
                         color: BankIconRegistry.parseThemeColor(
                           categoryColor,
                           fallback: statusColor,
                         ),
                       ),
-                      const SizedBox(width: 12),
-
-                      // Tên danh mục & Badge trạng thái
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               categoryName,
@@ -762,53 +710,106 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                 color: isDark
                                     ? Colors.white
                                     : const Color(0xFF0F172A),
-                                fontSize: 15.5 * (studio?.fontScale ?? 1.0),
+                                fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                fontFamily: studio?.fontFamilyName,
                                 letterSpacing: -0.2,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(
-                                    alpha: isDark ? 0.20 : 0.09),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: statusColor.withValues(alpha: 0.25),
-                                  width: 0.8,
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2.5,
                                 ),
-                              ),
-                              child: Text(
-                                '$percent% • ${isExceeded ? "Vượt hạn mức" : (percent >= 80 ? "Gần chạm mức" : "Trong kiểm soát")}',
-                                style: TextStyle(
-                                  fontSize: 10.5 * (studio?.fontScale ?? 1.0),
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: studio?.fontFamilyName,
-                                  color: statusColor,
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(
+                                      alpha: isDark ? 0.20 : 0.12),
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(
+                                    color: statusColor.withValues(alpha: 0.32),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Text(
+                                  statusLabel,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: statusColor,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-
-                      // Nút 3 chấm thay cho nút sửa và xoá
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 112),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FinoraPrivacyMask(
+                                child: Text(
+                                  formatVND(spent),
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    color: isExceeded
+                                        ? const Color(0xFFE11D48)
+                                        : (isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A)),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$percent% đã dùng',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
                       PopupMenuButton<String>(
                         padding: EdgeInsets.zero,
-                        icon: Icon(
-                          Icons.more_vert_rounded,
-                          size: 20,
-                          color: isDark
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
+                        constraints: const BoxConstraints(minWidth: 140),
+                        icon: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: (isDark ? Colors.white : Colors.black)
+                                .withValues(alpha: isDark ? 0.06 : 0.04),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.more_horiz_rounded,
+                            size: 17,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
+                          ),
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         onSelected: (val) {
                           if (val == 'edit') {
@@ -823,7 +824,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                             child: Row(
                               children: [
                                 Icon(Icons.edit_outlined,
-                                    size: 16, color: Color(0xFF005FEA)),
+                                    size: 16, color: Color(0xFF0D9488)),
                                 SizedBox(width: 8),
                                 Text('Sửa ngân sách'),
                               ],
@@ -834,10 +835,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
                             child: Row(
                               children: [
                                 Icon(Icons.delete_outline_rounded,
-                                    size: 16, color: Color(0xFFEF4444)),
+                                    size: 16, color: Color(0xFFE11D48)),
                                 SizedBox(width: 8),
                                 Text('Xóa ngân sách',
-                                    style: TextStyle(color: Color(0xFFEF4444))),
+                                    style: TextStyle(color: Color(0xFFE11D48))),
                               ],
                             ),
                           ),
@@ -846,96 +847,101 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ],
                   ),
 
-                  // Đường hairline phân cách
+                  const SizedBox(height: 8),
+
+                  // Middle: Smooth 6px stadium-rounded progress bar with color-coded fill (<75% #10B981, 75-99% #F59E0B, >=100% #E11D48)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    child: Divider(
-                      height: 1,
-                      thickness: 0.8,
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.black.withValues(alpha: 0.05),
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Container(
+                      height: 6,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: (isDark ? Colors.white : Colors.black)
+                            .withValues(alpha: isDark ? 0.08 : 0.06),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final barWidth = constraints.maxWidth * progress;
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: barWidth,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                borderRadius: BorderRadius.circular(100),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: statusColor.withValues(
+                                        alpha: isDark ? 0.38 : 0.24),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
 
-                  // Dòng 2: Chi tiết số tiền: Đã chi / Hạn mức & Còn lại
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Đã chi / Hạn mức',
-                            style: TextStyle(
-                              fontSize: 11 * (studio?.fontScale ?? 1.0),
-                              color: isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
-                              fontWeight: FontWeight.w500,
-                              fontFamily: studio?.fontFamilyName,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${studio?.formatCurrency(item.spentAmount) ?? formatVND(item.spentAmount)} / ${studio?.formatCurrency(item.budget.limitAmount) ?? formatVND(item.budget.limitAmount)}',
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF0F172A),
-                              fontSize: 14 * (studio?.fontScale ?? 1.0),
-                              fontWeight: FontWeight.w800,
-                              fontFamily: studio?.fontFamilyName,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            isExceeded ? 'Vượt hạn mức' : 'Còn lại khả dụng',
-                            style: TextStyle(
-                              fontSize: 11 * (studio?.fontScale ?? 1.0),
-                              color: isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
-                              fontWeight: FontWeight.w500,
-                              fontFamily: studio?.fontFamilyName,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${isExceeded ? '-' : ''}${studio?.formatCurrency(remain.abs()) ?? formatVND(remain.abs())}',
-                            style: TextStyle(
-                              color: isExceeded
-                                  ? const Color(0xFFEF4444)
-                                  : (isDark
-                                      ? const Color(0xFF34D399)
-                                      : const Color(0xFF059669)),
-                              fontSize: 14.5 * (studio?.fontScale ?? 1.0),
-                              fontWeight: FontWeight.w900,
-                              fontFamily: studio?.fontFamilyName,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  const SizedBox(height: 7),
 
-                  const SizedBox(height: 11),
-
-                  // Dòng 3: Vạch tiến độ gradient bo tròn tinh tế
-                  StudioBudgetProgress(
-                    progress: progress,
-                    height: 5.5,
-                    color: statusColor,
-                    trackColor: isDark
-                        ? const Color(0xFF334155).withValues(alpha: 0.45)
-                        : const Color(0xFFE2E8F0).withValues(alpha: 0.70),
-                    style: studio?.budgetStyle ?? AppBudgetStyle.liquidBar,
+                  // Bottom Row: Left = Hạn mức: formatVND(budget.limitAmount), Right = Còn lại: formatVND(remaining) (or Vượt: formatVND(spent - budget.limitAmount) in red)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: FinoraPrivacyMask(
+                              child: Text(
+                                'Hạn mức: ${formatVND(budget.limitAmount)}',
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 148),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: FinoraPrivacyMask(
+                              child: Text(
+                                isExceeded
+                                    ? 'Vượt: ${formatVND(spent - budget.limitAmount)}'
+                                    : 'Còn lại: ${formatVND(remaining)}',
+                                maxLines: 1,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: isExceeded
+                                      ? const Color(0xFFE11D48)
+                                      : (isDark
+                                          ? const Color(0xFF34D399)
+                                          : const Color(0xFF059669)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1085,7 +1091,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
           TextField(
             controller: _amountController,
             keyboardType: TextInputType.number,
-            inputFormatters: [DotSeparatorTextInputFormatter()],
+            inputFormatters: const [DotSeparatorTextInputFormatter()],
             style: TextStyle(
               color: primaryTextColor,
               fontSize: 15,

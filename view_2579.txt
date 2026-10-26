@@ -1,0 +1,80 @@
+Created At: 2026-09-29T14:59:17+07:00
+Completed At: 2026-09-29T14:59:17+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10607
+Total Bytes: 386845
+Showing lines 8980 to 9120
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8980:                                     fontSize: 13,
+8981:                                     fontWeight: FontWeight.w800,
+8982:                                     color: isDark
+8983:                                         ? Colors.white
+8984:                                         : const Color(0xFF0F172A),
+8985:                                   ),
+8986:                                 ),
+8987:                                 Row(
+8988:                                   children: [
+8989:                                     if (seasonBadge != null)
+8990:                                       Text('${seasonBadge.$1} ',
+8991:                                           style:
+8992:                                               const TextStyle(fontSize: 10.5)),
+8993:                                     Text(
+8994:                                       seasonBadge != null
+8995:                                           ? 'Tết Giáp Thìn'
+8996:                                           : 'Finora AI Pro',
+8997:                                       style: TextStyle(
+8998:                                         fontSize: 10,
+8999:                                         color: isDark
+9000:                                             ? const Color(0xFF94A3B8)
+9001:                                             : const Color(0xFF64748B),
+9002:                                         fontWeight: FontWeight.w500,
+9003:                                       ),
+9004:                                     ),
+9005:                                   ],
+90
+<truncated 3442 bytes>
+77:               ),
+9078:               Text(
+9079:                 'Độ mờ: ${(studio.appBarOpacity * 100).toInt()}% • Nhòe: ${studio.appBarBlur.toInt()}px',
+9080:                 style: TextStyle(
+9081:                     fontSize: 10.5,
+9082:                     color: isDark
+9083:                         ? const Color(0xFF94A3B8)
+9084:                         : const Color(0xFF64748B)),
+9085:               ),
+9086:             ],
+9087:           ),
+9088:         ),
+9089:       ],
+9090:     );
+9091:   }
+9092: 
+9093:   Widget _buildLiveIconStudioPreview({
+9094:     required ThemeStudioController studio,
+9095:     required bool isDark,
+9096:     required Color primary,
+9097:     required PaletteMeta palette,
+9098:   }) {
+9099:     const demoCategories = [
+9100:       (icon: 'shopping-cart', name: 'Mua sắm', color: Color(0xFFEC4899)),
+9101:       (icon: 'utensils', name: 'Ăn uống', color: Color(0xFFF59E0B)),
+9102:       (icon: 'car', name: 'Đi lại', color: Color(0xFF3B82F6)),
+9103:       (icon: 'wallet', name: 'Tiền lương', color: Color(0xFF10B981)),
+9104:       (icon: 'receipt', name: 'Hóa đơn', color: Color(0xFF8B5CF6)),
+9105:       (icon: 'cross', name: 'Y tế', color: Color(0xFFEF4444)),
+9106:     ];
+9107: 
+9108:     return Column(
+9109:       children: [
+9110:         // 6 Category Icon Badges in a Row
+9111:         Container(
+9112:           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+9113:           decoration: BoxDecoration(
+9114:             color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+9115:                 .withValues(alpha: 0.85),
+9116:             borderRadius: BorderRadius.circular(16),
+9117:             border: Border.all(
+9118:               color: (isDark ? Colors.white : Colors.black)
+9119:                   .withValues(alpha: 0.08),
+9120:             ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

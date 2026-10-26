@@ -1,0 +1,96 @@
+Created At: 2026-09-29T14:58:14+07:00
+Completed At: 2026-09-29T14:58:14+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10613
+Total Bytes: 386413
+Showing lines 8500 to 8680
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8500:               cardHolder: 'NGUYEN VAN A',
+8501:               expiryDate: '12/29',
+8502:               isDark: isDark,
+8503:               bottomContent: Wrap(
+8504:                 spacing: 12,
+8505:                 runSpacing: 8,
+8506:                 alignment: WrapAlignment.spaceBetween,
+8507:                 children: [
+8508:                   Column(
+8509:                     crossAxisAlignment: CrossAxisAlignment.start,
+8510:                     mainAxisSize: MainAxisSize.min,
+8511:                     children: [
+8512:                       Text(
+8513:                         'Số Dư Khả Dụng',
+8514:                         style: TextStyle(
+8515:                           fontSize: 10,
+8516:                           color: Colors.white.withValues(alpha: 0.7),
+8517:                           fontWeight: FontWeight.w500,
+8518:                         ),
+8519:                       ),
+8520:                       const SizedBox(height: 2),
+8521:                       const Text(
+8522:                         '128.500.000 ₫',
+8523:                         style: TextStyle(
+8524:                           fontSize: 16,
+8525:                           color: Colors.white,
+8526:                           fontWeight: FontWeight.w800,
+8527:                           letterSpacing: 0.5,
+8528:                         ),
+8529:                       ),
+8530:                     ],
+8531:       ],
+8532:     );
+8533:   }
+8534: 
+8535:   Widget _buildLiveChartAndWidgetCardPreview({lues(alpha: 0.7),
+8536:                           fontWeight
+<truncated 4009 bytes>
+                      icon: 'shopping-cart',
+8632:                       categoryName: 'Mua sắm',
+8633:                       color: const Color(0xFFEC4899),
+8634:                       size: 28,
+8635:                       isDark: isDark,
+8636:                     ),
+8637:                     CategoryIconBadge(
+8638:                       icon: 'utensils',
+8639:                       categoryName: 'Ăn uống',
+8640:                       color: const Color(0xFFF59E0B),
+8641:                       size: 28,
+8642:                       isDark: isDark,
+8643:                     ),
+8644:                     CategoryIconBadge(
+8645:                       icon: 'car',
+8646:                       categoryName: 'Đi lại',
+8647:                       color: const Color(0xFF3B82F6),
+8648:                       size: 28,
+8649:                       isDark: isDark,
+8650:                     ),
+8651:                   ],
+8652:                 ),
+8653:               ),
+8654:             ),
+8655:           ],
+8656:         ),
+8657:       ],
+8658:     );
+8659:   }
+8660: 
+8661:   Widget _buildLiveChartAndWidgetCardPreview({
+8662:     required ThemeStudioController studio,
+8663:     required bool isDark,
+8664:     required Color primary,
+8665:     required PaletteMeta palette,
+8666:   }) {
+8667:     final chartColors = switch (studio.chartColorway) {
+8668:       AppChartColorway.paletteSync => [primary, studio.secondaryColor],
+8669:       AppChartColorway.cyberpunkVibrant => const [
+8670:           Color(0xFF06B6D4),
+8671:           Color(0xFFEC4899)
+8672:         ],
+8673:       AppChartColorway.emeraldFortune => const [
+8674:           Color(0xFF10B981),
+8675:           Color(0xFFF59E0B)
+8676:         ],
+8677:       AppChartColorway.sunsetPastel => const [
+8678:           Color(0xFFFB923C),
+8679:           Color(0xFFA855F7)
+8680:         ],
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

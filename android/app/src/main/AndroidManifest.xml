@@ -1,8 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.FLASHLIGHT"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
     <application
         android:label="Finora"
         android:name="${applicationName}"
@@ -36,15 +39,90 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <!-- Required to query banking apps and activities, see:
+         https://developer.android.com/training/package-visibility -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <!-- Vietnamese Banking & Wallet App Packages -->
+        <package android:name="com.VCB"/>
+        <package android:name="com.mbmobile"/>
+        <package android:name="vn.com.techcombank.bb.app"/>
+        <package android:name="com.vnpay.bidv"/>
+        <package android:name="com.vietinbank.ipay"/>
+        <package android:name="com.tpb.mb.gprsandroid"/>
+        <package android:name="com.vnpay.vpbankonline"/>
+        <package android:name="mobile.acb.com.vn"/>
+        <package android:name="com.vnpay.sacombank"/>
+        <package android:name="com.vnpay.agribank"/>
+        <package android:name="com.vib.vibmobile"/>
+        <package android:name="com.vnpay.hdbank"/>
+        <package android:name="com.vnpay.msb"/>
+        <package android:name="com.ocb.omni"/>
+        <package android:name="vn.shb.mbanking"/>
+        <package android:name="com.vnpay.eximbank"/>
+        <package android:name="vn.com.seabank.mb1"/>
+        <package android:name="timo.vn.bank"/>
+        <package android:name="xyz.be.cake"/>
+        <package android:name="com.mservice.momotransfer"/>
+        <package android:name="vn.com.vng.zalopay"/>
+        <package android:name="com.b2c.bankplus"/>
+        <package android:name="com.airpay.merchants"/>
+        <!-- Custom Schemes -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="vcb"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mbmobile"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="techcombank"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="bidv"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="vietinbankipay"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="tpbank"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="vpbank"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="acbone"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="momo"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="zalopay"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="vietqr"/>
         </intent>
     </queries>
 </manifest>

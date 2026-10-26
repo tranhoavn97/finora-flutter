@@ -1,9 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../design_system/app_colors.dart';
-import '../design_system/app_radius.dart';
-import '../utils/formatters.dart';
-import 'premium_widgets.dart';
 
 /// Quiet edge-to-edge background. Decorative light is deliberately subtle so
 /// financial content, not chrome, owns the visual hierarchy.
@@ -44,17 +41,7 @@ class PearlMeshBackground extends StatelessWidget {
   }
 
   Widget _buildBlob({required double size, required Color color}) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 110, sigmaY: 110),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 
@@ -130,11 +117,12 @@ class FrostedCard extends StatelessWidget {
       children: [
         cardWidget,
         Positioned(
-          bottom: -7,
+          bottom: -6,
           child: CustomPaint(
-            size: const Size(18, 9),
+            size: const Size(18, 8),
             painter: _NotchTrianglePainter(
-              color: isDark ? const Color(0xFF223157) : const Color(0xFF1E293B),
+              fillColor: cardBg,
+              borderColor: borderColor,
             ),
           ),
         ),
@@ -144,22 +132,29 @@ class FrostedCard extends StatelessWidget {
 }
 
 class _NotchTrianglePainter extends CustomPainter {
-  final Color color;
-  _NotchTrianglePainter({required this.color});
+  final Color fillColor;
+  final Color borderColor;
+  _NotchTrianglePainter({required this.fillColor, required this.borderColor});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
     final path = Path()
       ..moveTo(0, 0)
       ..lineTo(size.width / 2, size.height)
       ..lineTo(size.width, 0)
       ..close();
 
-    canvas.drawPath(path, paint);
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+
+    final strokePaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    canvas.drawPath(path, fillPaint);
+    canvas.drawPath(path, strokePaint);
   }
 
   @override
@@ -198,13 +193,16 @@ class CapsuleBadge extends StatelessWidget {
             Icon(icon, size: 12, color: textColor),
             const SizedBox(width: 4),
           ],
-          Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -485,6 +483,425 @@ class OverlapAvatarStack extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 7. GlowPillButton: Vibrant gradient pill button with soft colored glow (Indigo, Coral, Amber).
+enum GlowButtonStyle { indigo, coral, amber, outline }
+
+class GlowPillButton extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final GlowButtonStyle style;
+  final double height;
+  final double? width;
+  final EdgeInsetsGeometry padding;
+  final double fontSize;
+
+  const GlowPillButton({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onTap,
+    this.style = GlowButtonStyle.indigo,
+    this.height = 44.0,
+    this.width,
+    this.padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+    this.fontSize = 13.5,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    List<Color> gradientColors;
+    List<BoxShadow> shadows;
+    Color textColor = Colors.white;
+
+    switch (style) {
+      case GlowButtonStyle.indigo:
+        gradientColors = [const Color(0xFF6366F1), const Color(0xFF4338CA)];
+        shadows = [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.40),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ];
+        break;
+      case GlowButtonStyle.coral:
+        gradientColors = [const Color(0xFFEF4444), const Color(0xFFDC2626)];
+        shadows = [
+          BoxShadow(
+            color: const Color(0xFFEF4444).withValues(alpha: 0.40),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ];
+        break;
+      case GlowButtonStyle.amber:
+        gradientColors = [const Color(0xFFF97316), const Color(0xFFEA580C)];
+        shadows = [
+          BoxShadow(
+            color: const Color(0xFFF97316).withValues(alpha: 0.40),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ];
+        break;
+      case GlowButtonStyle.outline:
+        gradientColors = [Colors.transparent, Colors.transparent];
+        shadows = [];
+        textColor = isDark ? Colors.white : AppColors.sirenDarkNavy;
+        break;
+    }
+
+    final shape = BorderRadius.circular(999);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: shape,
+        child: Container(
+          width: width,
+          height: height,
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: shape,
+            gradient: style == GlowButtonStyle.outline
+                ? null
+                : LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            border: style == GlowButtonStyle.outline
+                ? Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1),
+                    width: 1.2,
+                  )
+                : null,
+            boxShadow: shadows,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (icon != null) ...[
+                const SizedBox(width: 6),
+                Icon(icon, color: textColor, size: fontSize + 2),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 8. VikramPillDropdown: Capsule Month/Filter pill (e.g. May, 2026 ˇ) with royal indigo background.
+class VikramPillDropdown extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const VikramPillDropdown({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4338CA),
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4338CA).withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 9. VikramToggleRow: Frosted card row with custom purple switch.
+class VikramToggleRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBgColor;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const VikramToggleRow({
+    super.key,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBgColor,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return FrostedCard(
+      radius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: secondaryTextColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.white,
+            activeTrackColor: const Color(0xFF4338CA),
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor:
+                isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 10. VikramTimelineNode: Timeline item connected with vertical line & colored ring node.
+class VikramTimelineNode extends StatelessWidget {
+  final Widget child;
+  final Color nodeColor;
+  final bool isFirst;
+  final bool isLast;
+
+  const VikramTimelineNode({
+    super.key,
+    required this.child,
+    required this.nodeColor,
+    this.isFirst = false,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final lineColor =
+        isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Timeline indicator column
+          SizedBox(
+            width: 24,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Top line
+                if (!isFirst)
+                  Positioned(
+                    top: 0,
+                    bottom: 12,
+                    child: Container(
+                      width: 2,
+                      color: lineColor,
+                    ),
+                  ),
+                // Bottom line
+                if (!isLast)
+                  Positioned(
+                    top: 12,
+                    bottom: 0,
+                    child: Container(
+                      width: 2,
+                      color: lineColor,
+                    ),
+                  ),
+                // Center ring node
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: nodeColor,
+                      width: 3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+/// 11. VikramInfoTile: Detail stat tile (e.g. Next Payment, Billing Cycle, Total Spent, Category).
+class VikramInfoTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String primaryValue;
+  final String secondaryValue;
+
+  const VikramInfoTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.primaryValue,
+    required this.secondaryValue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return FrostedCard(
+      radius: 20,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: secondaryTextColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: secondaryTextColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            primaryValue,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              color: primaryTextColor,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            secondaryValue,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: secondaryTextColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

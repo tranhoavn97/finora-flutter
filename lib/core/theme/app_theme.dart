@@ -1,34 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../state/theme_studio_controller.dart' show PaletteMeta, ThemeStudioController;
 import '../design_system/app_colors.dart';
 import '../design_system/app_typography.dart';
 import '../design_system/app_theme.dart' as ds;
 
-/// Brand / semantic accent colors.
+/// Brand / semantic accent colors (constant across light & dark).
 class Brand {
-  static const primaryBlue = AppColors.primary;
-  static const secondaryBlue = AppColors.secondary;
-  static const accentBlue = AppColors.secondary;
-  static const glowCyan = AppColors.cyan;
-  static const glowIndigo = AppColors.primary;
+  static const primaryBlue = AppColors.accent;
+  static const accentBlue = AppColors.accentLight;
+  static const glowCyan = AppColors.accentLight;
+  static const glowOcean = Color(0xFF0284C7);
   static const primaryGreen = AppColors.success;
   static const errorRed = AppColors.error;
   static const warningOrange = AppColors.warning;
-  static const accentWarm = AppColors.accent;
 }
 
-/// Theme-aware luxury fintech palette.
+/// Theme-aware glassmorphism palette (mirrors FinoraColors in the Kotlin app).
 @immutable
 class FinoraColors {
   final List<Color> bgGradient;
   final Color glowA;
   final Color glowB;
-  final Color surface;
-  final Color surfaceElevated;
-  final Color highlight;
+  final Color surface; // glass card fill (translucent)
+  final Color surfaceElevated; // recessed glass (tracks, chips)
+  final Color highlight; // tinted glass (highlighted summary card)
   final Color textPrimary;
   final Color textSecondary;
   final Color textTertiary;
-  final Color hairline;
+  final Color hairline; // glass edge / dividers
   final bool isDark;
 
   const FinoraColors({
@@ -46,12 +46,12 @@ class FinoraColors {
   });
 
   static const dark = FinoraColors(
-    bgGradient: [AppColors.darkBg, AppColors.darkBg, Color(0xFF111217)],
-    glowA: AppColors.primary,
-    glowB: AppColors.secondary,
+    bgGradient: [AppColors.darkBg, AppColors.darkBg],
+    glowA: AppColors.accent,
+    glowB: Color(0xFF0284C7),
     surface: AppColors.darkSurface,
     surfaceElevated: AppColors.darkSurfaceElevated,
-    highlight: AppColors.primary,
+    highlight: AppColors.accent,
     textPrimary: AppColors.darkTextPrimary,
     textSecondary: AppColors.darkTextSecondary,
     textTertiary: AppColors.darkTextTertiary,
@@ -60,12 +60,12 @@ class FinoraColors {
   );
 
   static const light = FinoraColors(
-    bgGradient: [AppColors.lightBg, AppColors.lightBg, AppColors.lightBgWarm],
-    glowA: AppColors.primaryLight,
-    glowB: Color(0xFFFFEEDB),
+    bgGradient: [AppColors.lightBg, AppColors.lightBg],
+    glowA: AppColors.accent,
+    glowB: AppColors.accentLight,
     surface: AppColors.lightSurface,
     surfaceElevated: AppColors.lightSurfaceElevated,
-    highlight: AppColors.primary,
+    highlight: AppColors.accent,
     textPrimary: AppColors.lightTextPrimary,
     textSecondary: AppColors.lightTextSecondary,
     textTertiary: AppColors.lightTextTertiary,
@@ -74,14 +74,34 @@ class FinoraColors {
   );
 }
 
+/// Convenience accessor: `context.fc` returns the active glass palette.
 extension FinoraColorsContext on BuildContext {
   FinoraColors get fc {
-    return Theme.of(this).brightness == Brightness.dark
-        ? FinoraColors.dark
-        : FinoraColors.light;
+    final dark = Theme.of(this).brightness == Brightness.dark;
+    final base = dark ? FinoraColors.dark : FinoraColors.light;
+    try {
+      final studio = Provider.of<ThemeStudioController?>(this, listen: false);
+      if (studio != null) {
+        return FinoraColors(
+          bgGradient: base.bgGradient,
+          glowA: base.glowA,
+          glowB: base.glowB,
+          surface: studio.getCardFillColor(dark),
+          surfaceElevated: studio.getCardFillColor(dark).withValues(alpha: (studio.glassOpacity + 0.12).clamp(0.25, 0.95)),
+          highlight: base.highlight,
+          textPrimary: base.textPrimary,
+          textSecondary: base.textSecondary,
+          textTertiary: base.textTertiary,
+          hairline: studio.getBorderColor(dark),
+          isDark: dark,
+        );
+      }
+    } catch (_) {}
+    return base;
   }
 }
 
+/// App-wide text styles (mirrors Type.kt).
 class AppText {
   static TextStyle get mainBalance => AppTypography.numericValue;
   static TextStyle get pageTitle => AppTypography.title2;
@@ -92,6 +112,35 @@ class AppText {
   static TextStyle get overline => AppTypography.caption2;
 }
 
-ThemeData buildFinoraTheme(Brightness brightness) {
-  return ds.buildAppleTheme(brightness);
+ThemeData buildFinoraTheme(
+  Brightness brightness, {
+  PaletteMeta? palette,
+  bool isAmoled = false,
+  double buttonRadius = 999.0,
+  double buttonHeight = 50.0,
+  EdgeInsetsGeometry? buttonPadding,
+  double? cardRadius,
+  Border? cardBorder,
+  Color? cardFillColor,
+  Color? modalFillColor,
+  String? fontFamily,
+  List<String>? fontFamilyFallback,
+}) {
+  return ds.buildAppleTheme(
+    brightness,
+    primaryColor: palette?.primary,
+    secondaryColor: palette?.secondary,
+    lightBg: palette?.lightBg,
+    darkBg: palette?.darkBg,
+    isAmoled: isAmoled,
+    buttonRadius: buttonRadius,
+    buttonHeight: buttonHeight,
+    buttonPadding: buttonPadding,
+    cardRadius: cardRadius,
+    cardBorder: cardBorder,
+    cardFillColor: cardFillColor,
+    modalFillColor: modalFillColor,
+    fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
+  );
 }

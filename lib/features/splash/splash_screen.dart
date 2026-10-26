@@ -4,7 +4,6 @@ import '../../core/design_system/app_colors.dart';
 import '../../core/design_system/app_radius.dart';
 import '../../core/design_system/app_spacing.dart';
 import '../../core/design_system/app_typography.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../core/widgets/app_logo.dart';
 import '../../main.dart'; // To navigate to AuthGate
@@ -28,15 +27,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 1500),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+    _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.elasticOut),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeIn),
+      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.6, curve: Curves.easeIn)),
     );
 
     _animController.forward();
@@ -44,14 +43,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _startTimer() async {
-    final prefsFuture = SharedPreferences.getInstance();
-    await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
 
-    final prefs = await prefsFuture;
+    final prefs = await SharedPreferences.getInstance();
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-
-    if (!mounted) return;
 
     if (!hasSeenOnboarding) {
       Navigator.of(context).pushReplacement(
@@ -60,7 +55,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           transitionsBuilder: (_, animation, __, child) {
             return FadeTransition(opacity: animation, child: child);
           },
-          transitionDuration: const Duration(milliseconds: 250),
         ),
       );
     } else {
@@ -70,7 +64,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           transitionsBuilder: (_, animation, __, child) {
             return FadeTransition(opacity: animation, child: child);
           },
-          transitionDuration: const Duration(milliseconds: 250),
         ),
       );
     }

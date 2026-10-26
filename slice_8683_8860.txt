@@ -1,0 +1,91 @@
+Created At: 2026-09-29T14:48:57+07:00
+Completed At: 2026-09-29T14:48:57+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 8683 to 8860
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8683:   Widget _buildLiveChartAndWidgetCardPreview({
+8684:     required ThemeStudioController studio,
+8685:     required bool isDark,
+8686:     required Color primary,
+8687:     required PaletteMeta palette,
+8688:   }) {
+8689:     final chartColors = switch (studio.chartColorway) {
+8690:       AppChartColorway.paletteSync => [primary, studio.secondaryColor],
+8691:       AppChartColorway.cyberpunkVibrant => const [
+8692:           Color(0xFF06B6D4),
+8693:           Color(0xFFEC4899)
+8694:         ],
+8695:       AppChartColorway.emeraldFortune => const [
+8696:           Color(0xFF10B981),
+8697:           Color(0xFFF59E0B)
+8698:         ],
+8699:       AppChartColorway.sunsetPastel => const [
+8700:           Color(0xFFFB923C),
+8701:           Color(0xFFA855F7)
+8702:         ],
+8703:     };
+8704: 
+8705:     return Column(
+8706:       children: [
+8707:         // Mini Chart Container
+8708:         ClipRRect(
+8709:           borderRadius:
+8710:               BorderRadius.circular(studio.cardCornerRadius.clamp(14.0, 24.0)),
+8711:           child: BackdropFilter(
+8712:             filter: ImageFilter.blur(
+8713:               sigmaX: studio.glassBlur.clamp(0.0, 30.0),
+8714:               sigmaY: studio.glassBlur.clamp(0.0, 30.0),
+8715:             ),
+8716:             child: Container(
+8717:               height: 145,
+8718:               padding: const EdgeInsets.all(14),
+8719:               decoration: BoxDecoration(
+8720:                 color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+8721:                     .withValues(alpha: studio.glassOp
+<truncated 4466 bytes>
+ild: Row(
+8819:             children: [
+8820:               Container(
+8821:                 width: 36,
+8822:                 height: 36,
+8823:                 decoration: BoxDecoration(
+8824:                   color: primary.withValues(alpha: 0.15),
+8825:                   shape: BoxShape.circle,
+8826:                 ),
+8827:                 child:
+8828:                     Icon(Icons.auto_awesome_rounded, size: 18, color: primary),
+8829:               ),
+8830:               const SizedBox(width: 12),
+8831:               Expanded(
+8832:                 child: Column(
+8833:                   crossAxisAlignment: CrossAxisAlignment.start,
+8834:                   children: [
+8835:                     Text(
+8836:                       'Thẻ Mẫu: ${_getWidgetCardName(studio.widgetCardStyle)}',
+8837:                       style: TextStyle(
+8838:                         fontSize: 12.5,
+8839:                         fontWeight: FontWeight.w700,
+8840:                         color: isDark ? Colors.white : const Color(0xFF0F172A),
+8841:                       ),
+8842:                     ),
+8843:                     const SizedBox(height: 2),
+8844:                     Text(
+8845:                       'Trong suốt: ${(studio.glassOpacity * 100).toInt()}% • Độ mờ: ${studio.glassBlur.toInt()}px',
+8846:                       style: TextStyle(
+8847:                         fontSize: 10.5,
+8848:                         color: isDark
+8849:                             ? const Color(0xFF94A3B8)
+8850:                             : const Color(0xFF64748B),
+8851:                       ),
+8852:                     ),
+8853:                   ],
+8854:                 ),
+8855:               ),
+8856:               Icon(Icons.chevron_right_rounded, size: 20, color: primary),
+8857:             ],
+8858:           ),
+8859:         ),
+8860:       ],
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

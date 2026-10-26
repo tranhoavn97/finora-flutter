@@ -1,0 +1,1809 @@
+﻿diff --git a/lib/features/dashboard/dashboard_screen.dart b/lib/features/dashboard/dashboard_screen.dart
+index 616dff8..7600f7e 100644
+--- a/lib/features/dashboard/dashboard_screen.dart
++++ b/lib/features/dashboard/dashboard_screen.dart
+@@ -1,4 +1,5 @@
+ import 'dart:math';
++import 'dart:ui';
+ import 'package:flutter/material.dart';
+ import 'package:flutter/cupertino.dart';
+ import 'package:flutter/services.dart';
+@@ -8,6 +9,7 @@ import 'package:intl/intl.dart';
+ import '../../core/utils/date_filter.dart';
+ import '../../core/utils/formatters.dart';
+ import '../../core/widgets/bank_icon.dart';
++import '../../core/widgets/finora_motion.dart';
+ import '../../core/widgets/custom_date_picker_dialog.dart';
+ import '../../core/widgets/morph_icon.dart';
+ import 'package:flutter_lucide/flutter_lucide.dart';
+@@ -37,6 +39,7 @@ import '../report/report_screen.dart';
+ class DashboardScreen extends StatefulWidget {
+   final String userId;
+   final String userName;
++  final String? familyId;
+   final String? userPhotoUrl;
+   final VoidCallback? onViewAllTransactions;
+   final VoidCallback? onViewWallets;
+@@ -45,6 +48,7 @@ class DashboardScreen extends StatefulWidget {
+     super.key,
+     required this.userId,
+     required this.userName,
++    this.familyId,
+     this.userPhotoUrl,
+     this.onViewAllTransactions,
+     this.onViewWallets,
+@@ -67,12 +71,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     super.initState();
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+       if (!mounted) return;
+-      context.read<DashboardProvider>().load(widget.userId);
+-      context.read<MoreProvider>().load(widget.userId);
+-      context.read<BudgetProvider>().load(widget.userId);
++      context
++          .read<DashboardProvider>()
++          .load(widget.userId, familyId: widget.familyId);
++      context
++          .read<MoreProvider>()
++          .load(widget.userId, familyId: widget.familyId);
++      context
++          .read<BudgetProvider>()
++          .load(widget.userId, familyId: widget.familyId);
+     });
+   }
+ 
++  @override
++  void didUpdateWidget(covariant DashboardScreen oldWidget) {
++    super.didUpdateWidget(oldWidget);
++    if (oldWidget.userId != widget.userId ||
++        oldWidget.familyId != widget.familyId) {
++      context
++          .read<DashboardProvider>()
++          .load(widget.userId, familyId: widget.familyId);
++      context
++          .read<MoreProvider>()
++          .load(widget.userId, familyId: widget.familyId);
++      context
++          .read<BudgetProvider>()
++          .load(widget.userId, familyId: widget.familyId);
++    }
++  }
++
+   @override
+   void dispose() {
+     _recentTxScrollController.dispose();
+@@ -94,7 +121,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             color: isDark ? const Color(0xFF0F172A) : Colors.white,
+             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+             border: Border.all(
+-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
++              color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+             ),
+           ),
+           padding: EdgeInsets.fromLTRB(
+@@ -203,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                     ? 'Đang chọn: ${DateFormat('dd/MM/yyyy').format(provider.customDate!)}'
+                     : 'Xem số liệu của một ngày bất kỳ',
+                 icon: Icons.edit_calendar_rounded,
+-                color: const Color(0xFF8B5CF6),
++                color: const Color(0xFF005FEA),
+                 isSelected: provider.customDate != null,
+                 isDark: isDark,
+                 onTap: () => Navigator.pop(ctx, 'custom'),
+@@ -254,12 +281,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         decoration: BoxDecoration(
+           color: isSelected
+               ? color.withValues(alpha: isDark ? 0.22 : 0.10)
+-              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
++              : (isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF8FAFC)),
+           borderRadius: BorderRadius.circular(16),
+           border: Border.all(
+             color: isSelected
+                 ? color
+-                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
++                : (isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA)),
+             width: isSelected ? 1.5 : 1,
+           ),
+         ),
+@@ -295,7 +322,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       style: TextStyle(
+                         fontSize: 11,
+                         color:
+-                            isDark ? Colors.white60 : const Color(0xFF64748B),
++                            isDark ? Colors.white60 : const Color(0xFF8E8E93),
+                       ),
+                     ),
+                   ],
+@@ -325,7 +352,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             color: isDark ? const Color(0xFF0F172A) : Colors.white,
+             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+             border: Border.all(
+-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
++              color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+             ),
+           ),
+           padding: EdgeInsets.fromLTRB(
+@@ -428,7 +455,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                                     fontSize: 11,
+                                     color: preset.isDark
+                                         ? Colors.white70
+-                                        : const Color(0xFF64748B),
++                                        : const Color(0xFF8E8E93),
+                                   ),
+                                 ),
+                               ],
+@@ -475,7 +502,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     final txList = d.recentTransactions;
+ 
+     return Scaffold(
+-      backgroundColor: Colors.transparent,
++      backgroundColor: Theme.of(context).brightness == Brightness.dark
++          ? const Color(0xFF1E1E24)
++          : const Color(0xFFF3F4F6),
+       body: SafeArea(
+         bottom: false,
+         child: RefreshIndicator(
+@@ -529,22 +558,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     return Row(
+       children: [
+         Container(
+-          width: 46,
+-          height: 46,
++          width: 42,
++          height: 42,
+           decoration: BoxDecoration(
+             shape: BoxShape.circle,
+-            gradient: const LinearGradient(
+-              colors: [Color(0xFF38BDF8), Color(0xFF6366F1)],
++            border: Border.all(
++              color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
++              width: 1,
+             ),
+-            boxShadow: [
+-              BoxShadow(
+-                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+-                blurRadius: 10,
+-                offset: const Offset(0, 3),
+-              ),
+-            ],
+           ),
+-          padding: const EdgeInsets.all(2),
+           child: ClipOval(
+             child: widget.userPhotoUrl != null
+                 ? Image.network(
+@@ -563,20 +585,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
+               Text(
+                 'Chào, ${widget.userName.isNotEmpty ? widget.userName : 'Hoà Trần'}',
+                 style: TextStyle(
+-                  fontSize: 18,
+-                  fontWeight: FontWeight.w900,
+-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
++                  fontSize: 20,
++                  fontWeight: FontWeight.w700,
++                  color: isDark ? Colors.white : const Color(0xFF000000),
++                  letterSpacing: -0.4,
+                 ),
+               ),
+               const SizedBox(height: 2),
+               Text(
+                 'Tài chính thông minh Finora AI',
+-                style: TextStyle(
+-                  fontSize: 12.5,
+-                  fontWeight: FontWeight.w500,
+-                  color: isDark
+-                      ? const Color(0xFF94A3B8)
+-                      : const Color(0xFF64748B),
++                style: const TextStyle(
++                  fontSize: 13,
++                  fontWeight: FontWeight.w400,
++                  color: Color(0xFF8E8E93),
++                  letterSpacing: -0.2,
+                 ),
+               ),
+             ],
+@@ -585,21 +607,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         GestureDetector(
+           onTap: () => _push(NotificationScreen(userId: widget.userId)),
+           child: Container(
+-            width: 42,
+-            height: 42,
++            width: 38,
++            height: 38,
+             decoration: BoxDecoration(
+               shape: BoxShape.circle,
+-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
++              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF),
+               border: Border.all(
+-                color:
+-                    isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
++                color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
++                width: 0.5,
+               ),
+               boxShadow: [
+-                BoxShadow(
+-                  color: Colors.black.withValues(alpha: 0.05),
+-                  blurRadius: 10,
+-                  offset: const Offset(0, 2),
+-                ),
++                if (!isDark)
++                  BoxShadow(
++                    color: Colors.black.withValues(alpha: 0.04),
++                    blurRadius: 8,
++                    offset: const Offset(0, 2),
++                  ),
+               ],
+             ),
+             child: Stack(
+@@ -607,8 +630,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+               children: [
+                 Icon(
+                   Icons.notifications_none_rounded,
+-                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+-                  size: 22,
++                  color: isDark ? Colors.white : const Color(0xFF000000),
++                  size: 20,
+                 ),
+                 Positioned(
+                   top: 9,
+@@ -697,58 +720,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     final cardBgGradient = isCustomStudioPalette
+         ? studio.currentPaletteMeta.heroGradient
+         : preset.gradientColors;
+-    final isLightCard = !isCustomStudioPalette && assetStyle == 5;
++    final isLightCard = !isDark;
+     final cardPadding = studio.getCardPadding(studio.dashboardDensity);
+     final cardRadius = studio.getCardRadius(studio.dashboardDensity);
+ 
+-    return Container(
+-      decoration: BoxDecoration(
+-        borderRadius: BorderRadius.circular(cardRadius),
+-        gradient: LinearGradient(
+-          begin: Alignment.topLeft,
+-          end: Alignment.bottomRight,
+-          colors: cardBgGradient,
+-        ),
+-        border: Border.all(
+-          color: isLightCard
+-              ? const Color(0xFFCBD5E1)
+-              : Colors.white.withValues(alpha: 0.16),
+-          width: 1.2,
+-        ),
+-        boxShadow: studio.cardShadows(
+-          isLightCard ? const Color(0xFF64748B) : cardPrimary,
+-        ),
+-      ),
++    return NeumorphicCard(
++      padding: EdgeInsets.zero,
++      radius: cardRadius,
+       child: ClipRRect(
+         borderRadius: BorderRadius.circular(cardRadius),
+         child: Stack(
+           children: [
+-            Positioned.fill(
+-              child: IgnorePointer(
+-                child: Opacity(
+-                  opacity: 0.20,
+-                  child: _buildThemeBackgroundGraphic(assetStyle, cardPrimary),
+-                ),
+-              ),
+-            ),
+-            // Top-right ambient light glow
+-            Positioned(
+-              top: -24,
+-              right: -24,
+-              child: Container(
+-                width: 120,
+-                height: 120,
+-                decoration: BoxDecoration(
+-                  shape: BoxShape.circle,
+-                  gradient: RadialGradient(
+-                    colors: [
+-                      cardPrimary.withValues(alpha: isLightCard ? 0.12 : 0.30),
+-                      Colors.transparent,
+-                    ],
+-                  ),
+-                ),
+-              ),
+-            ),
+             Padding(
+               padding: EdgeInsets.all(cardPadding),
+               child: Column(
+@@ -786,7 +768,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                             'TỔNG TÀI SẢN',
+                             style: TextStyle(
+                               color: isLightCard
+-                                  ? const Color(0xFF334155)
++                                  ? const Color(0xFF38383A)
+                                   : Colors.white.withValues(alpha: 0.85),
+                               fontSize: 12,
+                               fontWeight: FontWeight.w800,
+@@ -817,19 +799,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                         child: FittedBox(
+                           fit: BoxFit.scaleDown,
+                           alignment: Alignment.centerLeft,
+-                          child: Text(
+-                            _obscureBalance
+-                                ? '•••••••• đ'
+-                                : Formatters.formatCurrency(totalBalance),
+-                            style: TextStyle(
+-                              color: isLightCard
+-                                  ? const Color(0xFF0F172A)
+-                                  : Colors.white,
+-                              fontSize: 32,
+-                              fontWeight: FontWeight.w900,
+-                              letterSpacing: -0.6,
+-                            ),
+-                          ),
++                          child: _obscureBalance
++                              ? Text(
++                                  '•••••••• đ',
++                                  style: TextStyle(
++                                    color: isLightCard
++                                        ? const Color(0xFF0F172A)
++                                        : Colors.white,
++                                    fontSize: 32,
++                                    fontWeight: FontWeight.w900,
++                                    letterSpacing: -0.6,
++                                  ),
++                                )
++                              : FinoraAnimatedAmount(
++                                  amount: totalBalance,
++                                  style: TextStyle(
++                                    color: isLightCard
++                                        ? const Color(0xFF0F172A)
++                                        : Colors.white,
++                                    fontSize: 32,
++                                    fontWeight: FontWeight.w900,
++                                    letterSpacing: -0.6,
++                                  ),
++                                ),
+                         ),
+                       ),
+                       const SizedBox(width: 8),
+@@ -896,6 +888,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                             const Color(0xFF10B981),
+                             Icons.arrow_downward_rounded,
+                             isLightCard,
++                            numericValue: income,
++                            prefix: '+',
+                           ),
+                         ),
+                         Container(
+@@ -910,6 +904,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                             const Color(0xFFEF4444),
+                             Icons.arrow_upward_rounded,
+                             isLightCard,
++                            numericValue: expense,
++                            prefix: '-',
+                           ),
+                         ),
+                         Container(
+@@ -924,6 +920,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                             const Color(0xFF38BDF8),
+                             Icons.swap_vert_rounded,
+                             isLightCard,
++                            numericValue: netFlow,
++                            prefix: netFlow > 0 ? '+' : '',
+                           ),
+                         ),
+                       ],
+@@ -986,7 +984,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             color: const Color(0xFF2563EB),
+             bgColor: const Color(0xFFDBEAFE),
+             isDark: isDark,
+-            onTap: () => _push(AiAdvisorScreen(userId: widget.userId)),
++            onTap: () => _push(AiAdvisorScreen(
++              userId: widget.userId,
++              familyId: widget.familyId,
++            )),
+           ),
+         ),
+       ],
+@@ -1016,28 +1017,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
+   Widget _buildAiQuickLogBar(bool isDark, ThemeStudioController studio) {
+     final primary = studio.primaryColor;
+ 
+-    return InkWell(
++    return NeumorphicCard(
++      padding: EdgeInsets.zero,
++      radius: 12,
+       onTap: () => _showAiQuickLogModal(context),
+-      borderRadius: BorderRadius.circular(16),
+       child: Container(
+         height: 44,
+         padding: const EdgeInsets.symmetric(horizontal: 14),
+-        decoration: BoxDecoration(
+-          color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+-              .withValues(alpha: isDark ? 0.92 : 0.98),
+-          borderRadius: BorderRadius.circular(16),
+-          border: Border.all(
+-            color: primary.withValues(alpha: isDark ? 0.32 : 0.18),
+-            width: 1,
+-          ),
+-          boxShadow: [
+-            BoxShadow(
+-              color: primary.withValues(alpha: isDark ? 0.12 : 0.05),
+-              blurRadius: 10,
+-              offset: const Offset(0, 2),
+-            ),
+-          ],
+-        ),
+         child: Row(
+           children: [
+             Container(
+@@ -1058,8 +1044,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                   fontSize: 12.5,
+                   fontWeight: FontWeight.w500,
+                   color: isDark
+-                      ? const Color(0xFF94A3B8)
+-                      : const Color(0xFF64748B),
++                      ? const Color(0xFF8E8E93)
++                      : const Color(0xFF8E8E93),
+                 ),
+               ),
+             ),
+@@ -1134,7 +1120,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                     width: 44,
+                     height: 4,
+                     decoration: BoxDecoration(
+-                      color: const Color(0xFF94A3B8).withValues(alpha: 0.45),
++                      color: const Color(0xFF8E8E93).withValues(alpha: 0.45),
+                       borderRadius: BorderRadius.circular(100),
+                     ),
+                   ),
+@@ -1175,8 +1161,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                   style: TextStyle(
+                     fontSize: 12,
+                     color: isDark
+-                        ? const Color(0xFF94A3B8)
+-                        : const Color(0xFF64748B),
++                        ? const Color(0xFF8E8E93)
++                        : const Color(0xFF8E8E93),
+                   ),
+                 ),
+                 const SizedBox(height: 14),
+@@ -1194,7 +1180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                         fontSize: 13.5, color: Color(0xFF94A3B8)),
+                     filled: true,
+                     fillColor: isDark
+-                        ? const Color(0xFF1E293B)
++                        ? const Color(0xFF1C1C1E)
+                         : const Color(0xFFF8FAFC),
+                     contentPadding: const EdgeInsets.symmetric(
+                         horizontal: 14, vertical: 12),
+@@ -1202,16 +1188,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       borderRadius: BorderRadius.circular(16),
+                       borderSide: BorderSide(
+                         color: isDark
+-                            ? const Color(0xFF334155)
+-                            : const Color(0xFFE2E8F0),
++                            ? const Color(0xFF38383A)
++                            : const Color(0xFFE5E5EA),
+                       ),
+                     ),
+                     enabledBorder: OutlineInputBorder(
+                       borderRadius: BorderRadius.circular(16),
+                       borderSide: BorderSide(
+                         color: isDark
+-                            ? const Color(0xFF334155)
+-                            : const Color(0xFFE2E8F0),
++                            ? const Color(0xFF38383A)
++                            : const Color(0xFFE5E5EA),
+                       ),
+                     ),
+                     suffixIcon: IconButton(
+@@ -1247,13 +1233,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                                 horizontal: 10, vertical: 5),
+                             decoration: BoxDecoration(
+                               color: isDark
+-                                  ? const Color(0xFF1E293B)
+-                                  : const Color(0xFFF1F5F9),
++                                  ? const Color(0xFF1C1C1E)
++                                  : const Color(0xFFE5E5EA),
+                               borderRadius: BorderRadius.circular(100),
+                               border: Border.all(
+                                 color: isDark
+-                                    ? const Color(0xFF334155)
+-                                    : const Color(0xFFE2E8F0),
++                                    ? const Color(0xFF38383A)
++                                    : const Color(0xFFE5E5EA),
+                               ),
+                             ),
+                             child: Text(
+@@ -1473,7 +1459,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             const SizedBox(width: 1),
+             Icon(
+               Icons.keyboard_arrow_down_rounded,
+-              color: isLightCard ? const Color(0xFF64748B) : Colors.white70,
++              color: isLightCard ? const Color(0xFF8E8E93) : Colors.white70,
+               size: 13,
+             ),
+           ],
+@@ -1497,7 +1483,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             color: isDark ? const Color(0xFF0F172A) : Colors.white,
+             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+             border: Border.all(
+-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
++              color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+             ),
+           ),
+           padding: EdgeInsets.fromLTRB(
+@@ -1542,7 +1528,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                           size: 18,
+                           color: isDark
+                               ? Colors.white70
+-                              : const Color(0xFF64748B)),
++                              : const Color(0xFF8E8E93)),
+                     ),
+                   ),
+                 ],
+@@ -1553,7 +1539,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 filter: OwnerFilter.all,
+                 title: 'Tất cả thành viên',
+                 subtitle: 'Xem dữ liệu tổng hợp cả Vợ & Chồng',
+-                accentColor: const Color(0xFF6366F1),
++                accentColor: const Color(0xFF005FEA),
+                 isSelected: current == OwnerFilter.all,
+                 isDark: isDark,
+                 onTap: () {
+@@ -1568,7 +1554,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 filter: OwnerFilter.husband,
+                 title: 'Chồng',
+                 subtitle: 'Chỉ xem ví và giao dịch của Chồng',
+-                accentColor: const Color(0xFF173B70),
++                accentColor: const Color(0xFF0284C7),
+                 isSelected: current == OwnerFilter.husband,
+                 isDark: isDark,
+                 onTap: () {
+@@ -1616,12 +1602,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         decoration: BoxDecoration(
+           color: isSelected
+               ? accentColor.withValues(alpha: isDark ? 0.20 : 0.10)
+-              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
++              : (isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF8FAFC)),
+           borderRadius: BorderRadius.circular(18),
+           border: Border.all(
+             color: isSelected
+                 ? accentColor
+-                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
++                : (isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA)),
+             width: isSelected ? 1.5 : 1,
+           ),
+         ),
+@@ -1653,7 +1639,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       fontWeight: FontWeight.w800,
+                       color: isSelected
+                           ? (isDark ? Colors.white : const Color(0xFF0F172A))
+-                          : (isDark ? Colors.white : const Color(0xFF1E293B)),
++                          : (isDark ? Colors.white : const Color(0xFF1C1C1E)),
+                     ),
+                   ),
+                   const SizedBox(height: 2),
+@@ -1662,7 +1648,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                     style: TextStyle(
+                       fontSize: 12,
+                       fontWeight: FontWeight.w500,
+-                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
++                      color: isDark ? Colors.white60 : const Color(0xFF8E8E93),
+                     ),
+                   ),
+                 ],
+@@ -1745,7 +1731,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             const SizedBox(width: 1),
+             Icon(
+               Icons.keyboard_arrow_down_rounded,
+-              color: isLightCard ? const Color(0xFF64748B) : Colors.white70,
++              color: isLightCard ? const Color(0xFF8E8E93) : Colors.white70,
+               size: 13,
+             ),
+           ],
+@@ -1784,8 +1770,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     );
+   }
+ 
+-  Widget _buildColumnStat(String label, String value, Color color,
+-      IconData icon, bool isLightCard) {
++  Widget _buildColumnStat(
++      String label, String value, Color color, IconData icon, bool isLightCard,
++      {num? numericValue, String prefix = ''}) {
+     return Column(
+       children: [
+         Row(
+@@ -1796,7 +1783,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             Text(
+               label,
+               style: TextStyle(
+-                color: isLightCard ? const Color(0xFF64748B) : Colors.white70,
++                color: isLightCard ? const Color(0xFF8E8E93) : Colors.white70,
+                 fontSize: 11,
+                 fontWeight: FontWeight.w600,
+               ),
+@@ -1806,15 +1793,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         const SizedBox(height: 4),
+         FittedBox(
+           fit: BoxFit.scaleDown,
+-          child: Text(
+-            value,
+-            style: TextStyle(
+-              color: color,
+-              fontSize: 12.5,
+-              fontWeight: FontWeight.w800,
+-            ),
+-            maxLines: 1,
+-          ),
++          child: numericValue != null
++              ? FinoraAnimatedAmount(
++                  amount: numericValue,
++                  prefix: prefix,
++                  style: TextStyle(
++                    color: color,
++                    fontSize: 12.5,
++                    fontWeight: FontWeight.w800,
++                  ),
++                )
++              : Text(
++                  value,
++                  style: TextStyle(
++                    color: color,
++                    fontSize: 12.5,
++                    fontWeight: FontWeight.w800,
++                  ),
++                  maxLines: 1,
++                ),
+         ),
+       ],
+     );
+@@ -1831,29 +1828,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     const accent = Color(0xFF0D9488);
+     final percentInt = (progress * 100).toInt();
+ 
+-    return Container(
+-      padding: const EdgeInsets.all(18),
+-      decoration: BoxDecoration(
+-        borderRadius: BorderRadius.circular(24),
+-        gradient: LinearGradient(
+-          begin: Alignment.topLeft,
+-          end: Alignment.bottomRight,
+-          colors: isDark
+-              ? const [Color(0xFF0F262B), Color(0xFF131D24)]
+-              : const [Color(0xFFF0FDFA), Color(0xFFFFFFFF)],
+-        ),
+-        border: Border.all(
+-          color: accent.withValues(alpha: isDark ? 0.30 : 0.18),
+-          width: 1,
+-        ),
+-        boxShadow: [
+-          BoxShadow(
+-            color: accent.withValues(alpha: isDark ? 0.12 : 0.05),
+-            blurRadius: 18,
+-            offset: const Offset(0, 5),
+-          ),
+-        ],
+-      ),
++    return NeumorphicCard(
++      padding: const EdgeInsets.all(16),
++      radius: 16,
+       child: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+@@ -1951,7 +1928,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 style: TextStyle(
+                   fontSize: 12.5,
+                   fontWeight: FontWeight.w600,
+-                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
++                  color: isDark ? Colors.white60 : const Color(0xFF8E8E93),
+                 ),
+               ),
+               Text(
+@@ -1996,7 +1973,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 style: TextStyle(
+                   fontSize: 11.5,
+                   fontWeight: FontWeight.w700,
+-                  color: isDark ? Colors.white70 : const Color(0xFF334155),
++                  color: isDark ? Colors.white70 : const Color(0xFF38383A),
+                 ),
+               ),
+             ],
+@@ -2062,7 +2039,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         border: Border.all(
+           color: isDark
+               ? Colors.white.withValues(alpha: 0.07)
+-              : const Color(0xFFE2E8F0),
++              : const Color(0xFFE5E5EA),
+           width: 0.8,
+         ),
+       ),
+@@ -2132,7 +2109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+               minHeight: 4.5,
+               backgroundColor: isDark
+                   ? Colors.white.withValues(alpha: 0.06)
+-                  : const Color(0xFFE2E8F0),
++                  : const Color(0xFFE5E5EA),
+               valueColor: AlwaysStoppedAnimation<Color>(color),
+             ),
+           ),
+@@ -2144,8 +2121,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 'Đã dùng: ${Formatters.formatCurrency(spent)}',
+                 style: TextStyle(
+                   color: isDark
+-                      ? const Color(0xFF94A3B8)
+-                      : const Color(0xFF64748B),
++                      ? const Color(0xFF8E8E93)
++                      : const Color(0xFF8E8E93),
+                   fontSize: 10.5,
+                   fontWeight: FontWeight.w600,
+                 ),
+@@ -2154,8 +2131,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 'Hạn mức: ${Formatters.formatCurrency(limit)}',
+                 style: TextStyle(
+                   color: isDark
+-                      ? const Color(0xFF64748B)
+-                      : const Color(0xFF94A3B8),
++                      ? const Color(0xFF8E8E93)
++                      : const Color(0xFF8E8E93),
+                   fontSize: 10,
+                   fontWeight: FontWeight.w600,
+                 ),
+@@ -2181,13 +2158,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     final tier = d.aiHealthTier.isNotEmpty ? d.aiHealthTier : 'Xuất sắc 🏆';
+ 
+     return GestureDetector(
+-      onTap: () => _push(AiAdvisorScreen(userId: widget.userId)),
+-      child: FloatingGlassCard(
+-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+-        radius: 22,
+-        blur: 20,
+-        glow: true,
+-        glowColor: const Color(0xFF10B981),
++      onTap: () => _push(AiAdvisorScreen(
++        userId: widget.userId,
++        familyId: widget.familyId,
++      )),
++      child: NeumorphicCard(
++        padding: const EdgeInsets.all(16),
++        radius: 16,
+         child: Column(
+           crossAxisAlignment: CrossAxisAlignment.stretch,
+           children: [
+@@ -2200,37 +2177,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       width: 32,
+                       height: 32,
+                       decoration: BoxDecoration(
+-                        color: const Color(0xFFD1FAE5),
+-                        borderRadius: BorderRadius.circular(10),
++                        color: const Color(0xFF34C759).withValues(alpha: 0.15),
++                        shape: BoxShape.circle,
+                       ),
+                       child: const Icon(Icons.shield_outlined,
+-                          color: Color(0xFF059669), size: 18),
++                          color: Color(0xFF34C759), size: 18),
+                     ),
+                     const SizedBox(width: 10),
+                     Text(
+                       'Sức khỏe tài chính\nFinora AI',
+                       style: TextStyle(
+-                        fontSize: 14.5,
+-                        fontWeight: FontWeight.w900,
++                        fontSize: 14,
++                        fontWeight: FontWeight.w700,
+                         height: 1.2,
+-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
++                        color: isDark ? Colors.white : const Color(0xFF000000),
+                       ),
+                     ),
+                   ],
+                 ),
+                 Container(
+                   padding:
+-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
++                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                   decoration: BoxDecoration(
+-                    color: const Color(0xFFD1FAE5),
+-                    borderRadius: BorderRadius.circular(14),
++                    color: const Color(0xFF34C759).withValues(alpha: 0.15),
++                    borderRadius: BorderRadius.circular(999),
+                   ),
+                   child: Text(
+                     tier,
+                     style: const TextStyle(
+                       fontSize: 12,
+-                      fontWeight: FontWeight.w800,
+-                      color: Color(0xFF059669),
++                      fontWeight: FontWeight.w600,
++                      color: Color(0xFF34C759),
+                     ),
+                   ),
+                 ),
+@@ -2252,7 +2229,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                           value: (score / 100).clamp(0.0, 1.0),
+                           strokeWidth: 6,
+                           backgroundColor:
+-                              isDark ? Colors.white12 : const Color(0xFFE2E8F0),
++                              isDark ? Colors.white12 : const Color(0xFFE5E5EA),
+                           valueColor: const AlwaysStoppedAnimation<Color>(
+                               Color(0xFF059669)),
+                           strokeCap: StrokeCap.round,
+@@ -2312,7 +2289,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+           style: TextStyle(
+             fontSize: 12.5,
+             fontWeight: FontWeight.w500,
+-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
++            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+           ),
+         ),
+         Row(
+@@ -2447,7 +2424,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 decoration: BoxDecoration(
+                   color: isDark
+                       ? Colors.white.withValues(alpha: 0.08)
+-                      : const Color(0xFFE2E8F0),
++                      : const Color(0xFFE5E5EA),
+                   borderRadius: BorderRadius.circular(100),
+                 ),
+                 child: Text(
+@@ -2455,7 +2432,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                   style: TextStyle(
+                     fontSize: 11,
+                     fontWeight: FontWeight.w800,
+-                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
++                    color: isDark ? Colors.white70 : const Color(0xFF8E8E93),
+                   ),
+                 ),
+               ),
+@@ -2481,9 +2458,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     final hasGain = gainPercent != 0;
+ 
+     // Luxury matte card colors (no glossy neon glare)
+-    final cardBg = isDark ? const Color(0xFF111C30) : Colors.white;
++    final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+     final cardBorder =
+-        isDark ? const Color(0xFF1E2D4A) : const Color(0xFFE2E8F0);
++        isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA);
+     const emeraldAccent = Color(0xFF0D9488); // Deep forest teal-emerald
+     final emeraldBadgeBg = isDark
+         ? const Color(0xFF0D9488).withValues(alpha: 0.18)
+@@ -2495,7 +2472,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+         decoration: BoxDecoration(
+           color: cardBg,
+-          borderRadius: BorderRadius.circular(22),
++          borderRadius: BorderRadius.circular(16),
+           border: Border.all(
+             color: cardBorder,
+             width: 0.9,
+@@ -2537,8 +2514,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                         fontSize: 13,
+                         fontWeight: FontWeight.w600,
+                         color: isDark
+-                            ? const Color(0xFF94A3B8)
+-                            : const Color(0xFF64748B),
++                            ? const Color(0xFF8E8E93)
++                            : const Color(0xFF8E8E93),
+                         letterSpacing: -0.1,
+                       ),
+                     ),
+@@ -2654,8 +2631,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                                 fontSize: 11.5,
+                                 fontWeight: FontWeight.w500,
+                                 color: isDark
+-                                    ? const Color(0xFF94A3B8)
+-                                    : const Color(0xFF64748B),
++                                    ? const Color(0xFF8E8E93)
++                                    : const Color(0xFF8E8E93),
+                               ),
+                             ),
+                           ],
+@@ -2667,8 +2644,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                             fontSize: 11.5,
+                             fontWeight: FontWeight.w500,
+                             color: isDark
+-                                ? const Color(0xFF94A3B8)
+-                                : const Color(0xFF64748B),
++                                ? const Color(0xFF8E8E93)
++                                : const Color(0xFF8E8E93),
+                           ),
+                         ),
+                     ],
+@@ -2744,7 +2721,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+           borderRadius: BorderRadius.circular(10),
+           child: Container(
+             height: 6,
+-            color: isDark ? const Color(0xFF1E2D4A) : const Color(0xFFF1F5F9),
++            color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+             child: Row(
+               children: items.map((item) {
+                 final flex = (item.pct * 1000).clamp(1, 1000).toInt();
+@@ -2788,8 +2765,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                     fontSize: 11,
+                     fontWeight: FontWeight.w500,
+                     color: isDark
+-                        ? const Color(0xFF94A3B8)
+-                        : const Color(0xFF64748B),
++                        ? const Color(0xFF8E8E93)
++                        : const Color(0xFF8E8E93),
+                   ),
+                 ),
+                 Text(
+@@ -2797,7 +2774,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                   style: TextStyle(
+                     fontSize: 11,
+                     fontWeight: FontWeight.w700,
+-                    color: isDark ? Colors.white70 : const Color(0xFF334155),
++                    color: isDark ? Colors.white70 : const Color(0xFF38383A),
+                   ),
+                 ),
+               ],
+@@ -2822,9 +2799,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     );
+ 
+     // Luxury matte twin cards styling
+-    final cardBg = isDark ? const Color(0xFF111C30) : Colors.white;
++    final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+     final cardBorder =
+-        isDark ? const Color(0xFF1E2D4A) : const Color(0xFFE2E8F0);
++        isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA);
+ 
+     const lentColor = Color(0xFF0D9488); // Forest Emerald
+     const borrowedColor = Color(0xFFE11D48); // Deep Ruby Crimson
+@@ -2839,7 +2816,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+               decoration: BoxDecoration(
+                 color: cardBg,
+-                borderRadius: BorderRadius.circular(20),
++                borderRadius: BorderRadius.circular(16),
+                 border: Border.all(
+                   color: cardBorder,
+                   width: 0.9,
+@@ -2894,8 +2871,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                         CupertinoIcons.chevron_right,
+                         size: 12,
+                         color: isDark
+-                            ? const Color(0xFF64748B)
+-                            : const Color(0xFF94A3B8),
++                            ? const Color(0xFF8E8E93)
++                            : const Color(0xFF8E8E93),
+                       ),
+                     ],
+                   ),
+@@ -2924,8 +2901,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       fontSize: 11,
+                       fontWeight: FontWeight.w500,
+                       color: isDark
+-                          ? const Color(0xFF94A3B8)
+-                          : const Color(0xFF64748B),
++                          ? const Color(0xFF8E8E93)
++                          : const Color(0xFF8E8E93),
+                     ),
+                   ),
+                 ],
+@@ -2943,7 +2920,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+               decoration: BoxDecoration(
+                 color: cardBg,
+-                borderRadius: BorderRadius.circular(20),
++                borderRadius: BorderRadius.circular(16),
+                 border: Border.all(
+                   color: cardBorder,
+                   width: 0.9,
+@@ -2999,8 +2976,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                         CupertinoIcons.chevron_right,
+                         size: 12,
+                         color: isDark
+-                            ? const Color(0xFF64748B)
+-                            : const Color(0xFF94A3B8),
++                            ? const Color(0xFF8E8E93)
++                            : const Color(0xFF8E8E93),
+                       ),
+                     ],
+                   ),
+@@ -3018,7 +2995,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       color: totalBorrowed > 0
+                           ? (isDark ? const Color(0xFFFB7185) : borrowedColor)
+                           : (isDark
+-                              ? const Color(0xFF94A3B8)
++                              ? const Color(0xFF8E8E93)
+                               : const Color(0xFF0F172A)),
+                     ),
+                     maxLines: 1,
+@@ -3033,8 +3010,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       fontSize: 11,
+                       fontWeight: FontWeight.w500,
+                       color: isDark
+-                          ? const Color(0xFF94A3B8)
+-                          : const Color(0xFF64748B),
++                          ? const Color(0xFF8E8E93)
++                          : const Color(0xFF8E8E93),
+                     ),
+                   ),
+                 ],
+@@ -3086,10 +3063,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         child: Container(
+           padding: const EdgeInsets.all(16),
+           decoration: BoxDecoration(
+-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+-            borderRadius: BorderRadius.circular(20),
++            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
++            borderRadius: BorderRadius.circular(16),
+             border: Border.all(
+-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
++              color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+             ),
+           ),
+           child: Row(
+@@ -3165,10 +3142,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         child: Container(
+           padding: const EdgeInsets.all(16),
+           decoration: BoxDecoration(
+-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+-            borderRadius: BorderRadius.circular(20),
++            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
++            borderRadius: BorderRadius.circular(16),
+             border: Border.all(
+-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
++              color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+             ),
+           ),
+           child: Row(
+@@ -3271,7 +3248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+           color: isDark
+               ? Colors.white.withValues(alpha: 0.07)
+               : Colors.white.withValues(alpha: 0.76),
+-          borderRadius: BorderRadius.circular(20),
++          borderRadius: BorderRadius.circular(16),
+           border: Border.all(
+             color: isDark
+                 ? Colors.white.withValues(alpha: 0.12)
+@@ -3484,7 +3461,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         name.toLowerCase().contains('tiền mặt') ||
+         name.toLowerCase().contains('tien mat');
+ 
+-    return GestureDetector(
++    return NeumorphicCard(
++      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
++      radius: 16,
+       onTap: () {
+         if (widget.onViewWallets != null) {
+           widget.onViewWallets!();
+@@ -3492,29 +3471,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
+           _push(WalletScreen(userId: widget.userId));
+         }
+       },
+-      child: Container(
+-        width: 238,
+-        height: 136,
+-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+-        decoration: BoxDecoration(
+-          gradient: LinearGradient(
+-            begin: Alignment.topLeft,
+-            end: Alignment.bottomRight,
+-            colors: gradient,
+-          ),
+-          borderRadius: BorderRadius.circular(22),
+-          border: Border.all(
+-            color: Colors.white.withValues(alpha: 0.22),
+-            width: 1.1,
+-          ),
+-          boxShadow: [
+-            BoxShadow(
+-              color: gradient.first.withValues(alpha: isDark ? 0.40 : 0.26),
+-              blurRadius: 15,
+-              offset: const Offset(0, 5),
+-            ),
+-          ],
+-        ),
++      child: SizedBox(
++        width: 210,
++        height: 112,
+         child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+@@ -3552,10 +3511,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                     name,
+                     maxLines: 1,
+                     overflow: TextOverflow.ellipsis,
+-                    style: const TextStyle(
++                    style: TextStyle(
+                       fontSize: 13.5,
+                       fontWeight: FontWeight.w800,
+-                      color: Colors.white,
++                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                       letterSpacing: -0.2,
+                       height: 1.15,
+                     ),
+@@ -3563,7 +3522,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 ),
+                 Icon(
+                   Icons.contactless_rounded,
+-                  color: Colors.white.withValues(alpha: 0.60),
++                  color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.40),
+                   size: 20,
+                 ),
+               ],
+@@ -3577,7 +3536,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                     style: TextStyle(
+                       fontSize: 11,
+                       fontWeight: FontWeight.w700,
+-                      color: Colors.white.withValues(alpha: .72),
++                      color: (isDark ? Colors.white : Colors.black).withValues(alpha: .52),
+                     ),
+                   ),
+                 ],
+@@ -3589,10 +3548,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       _obscureBalance
+                           ? '••••••••'
+                           : Formatters.formatCurrency(balance),
+-                      style: const TextStyle(
++                      style: TextStyle(
+                         fontSize: 19,
+                         fontWeight: FontWeight.w900,
+-                        color: Colors.white,
++                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                         letterSpacing: -0.4,
+                       ),
+                     ),
+@@ -3719,11 +3678,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
+           Container(
+             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+             decoration: BoxDecoration(
+-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+-              borderRadius: BorderRadius.circular(24),
++              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
++              borderRadius: BorderRadius.circular(16),
+               border: Border.all(
+                 color:
+-                    isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
++                    isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+                 width: 1.5,
+               ),
+               boxShadow: [
+@@ -3765,7 +3724,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                   textAlign: TextAlign.center,
+                   style: TextStyle(
+                     fontSize: 12,
+-                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
++                    color: isDark ? Colors.white54 : const Color(0xFF8E8E93),
+                   ),
+                 ),
+                 const SizedBox(height: 14),
+@@ -3812,12 +3771,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         else
+           Container(
+             decoration: BoxDecoration(
+-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+-              borderRadius: BorderRadius.circular(24),
++              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
++              borderRadius: BorderRadius.circular(16),
+               border: Border.all(
+                 color: isDark
+-                    ? const Color(0xFF334155).withValues(alpha: 0.8)
+-                    : const Color(0xFFE2E8F0),
++                    ? const Color(0xFF38383A).withValues(alpha: 0.8)
++                    : const Color(0xFFE5E5EA),
+                 width: 1.2,
+               ),
+               boxShadow: [
+@@ -3829,7 +3788,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+               ],
+             ),
+             child: ClipRRect(
+-              borderRadius: BorderRadius.circular(24),
++              borderRadius: BorderRadius.circular(16),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                 children: [
+@@ -3842,7 +3801,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       thickness: 3.5,
+                       thumbColor: isDark
+                           ? const Color(0xFF475569).withValues(alpha: 0.6)
+-                          : const Color(0xFF94A3B8).withValues(alpha: 0.5),
++                          : const Color(0xFF8E8E93).withValues(alpha: 0.5),
+                       child: SingleChildScrollView(
+                         controller: _recentTxScrollController,
+                         physics: const BouncingScrollPhysics(),
+@@ -3852,19 +3811,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                           children: [
+                             for (int i = 0; i < displayList.length; i++) ...[
+                               if (i == 0 ||
+-                                  DateFormat('dd/MM/yyyy')
+-                                          .format(_parseTxDate(displayList[i].date)) !=
+-                                      DateFormat('dd/MM/yyyy')
+-                                          .format(_parseTxDate(displayList[i - 1].date)))
+-                                _buildTimelineDateHeader(
++                                  DateFormat('dd/MM/yyyy').format(
++                                          _parseTxDate(displayList[i].date)) !=
++                                      DateFormat('dd/MM/yyyy').format(
++                                          _parseTxDate(
++                                              displayList[i - 1].date)))
++                                _buildDateHeader(
+                                   _parseTxDate(displayList[i].date),
+                                   isDark,
+                                   isFirstDate: i == 0,
+                                 ),
+-                              _buildTimelineTransactionItem(
+-                                displayList[i],
+-                                isDark,
+-                                isLastOverall: i == displayList.length - 1,
++                              FinoraStaggeredItem(
++                                index: i,
++                                child: _buildTransactionCard(
++                                  displayList[i],
++                                  isDark,
++                                ),
+                               ),
+                             ],
+                           ],
+@@ -3878,7 +3840,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       thickness: 1,
+                       color: isDark
+                           ? Colors.white.withValues(alpha: 0.08)
+-                          : const Color(0xFFF1F5F9),
++                          : const Color(0xFFE5E5EA),
+                     ),
+                     InkWell(
+                       onTap: () {
+@@ -3920,185 +3882,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     );
+   }
+ 
+-  Widget _buildTimelineDateHeader(
++  Widget _buildDateHeader(
+     DateTime date,
+     bool isDark, {
+     required bool isFirstDate,
+   }) {
+-    return Column(
+-      crossAxisAlignment: CrossAxisAlignment.stretch,
+-      children: [
+-        if (!isFirstDate)
+-          Align(
+-            alignment: Alignment.centerLeft,
+-            child: Container(
+-              margin: const EdgeInsets.only(left: 15),
+-              width: 2,
+-              height: 10,
+-              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+-            ),
+-          ),
+-        Row(
+-          children: [
+-            Container(
+-              width: 6,
+-              height: 2,
+-              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+-            ),
+-            Container(
+-              padding:
+-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+-              decoration: BoxDecoration(
+-                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+-                borderRadius: BorderRadius.circular(100),
+-                border: Border.all(
+-                  color: const Color(0xFF005FEA)
+-                      .withValues(alpha: isDark ? 0.6 : 0.4),
+-                  width: 1.2,
+-                ),
+-                boxShadow: [
+-                  BoxShadow(
+-                    color: const Color(0xFF005FEA)
+-                        .withValues(alpha: isDark ? 0.25 : 0.08),
+-                    blurRadius: 6,
+-                    offset: const Offset(0, 1),
+-                  ),
+-                ],
+-              ),
+-              child: Row(
+-                mainAxisSize: MainAxisSize.min,
+-                children: [
+-                  const Icon(
+-                    Icons.calendar_today_rounded,
+-                    size: 11,
+-                    color: Color(0xFF005FEA),
+-                  ),
+-                  const SizedBox(width: 5),
+-                  Text(
+-                    _formatRecentDateLabel(date),
+-                    style: TextStyle(
+-                      fontSize: 11.5,
+-                      fontWeight: FontWeight.w700,
+-                      color: isDark
+-                          ? const Color(0xFFE2E8F0)
+-                          : const Color(0xFF1E293B),
+-                    ),
+-                  ),
+-                ],
+-              ),
+-            ),
+-            const SizedBox(width: 8),
+-            Expanded(
+-              child: Container(
+-                height: 1.5,
+-                decoration: BoxDecoration(
+-                  gradient: LinearGradient(
+-                    colors: [
+-                      isDark
+-                          ? const Color(0xFF334155)
+-                          : const Color(0xFFCBD5E1),
+-                      (isDark
+-                              ? const Color(0xFF334155)
+-                              : const Color(0xFFCBD5E1))
+-                          .withValues(alpha: 0.1),
+-                    ],
+-                  ),
+-                ),
+-              ),
+-            ),
+-          ],
+-        ),
+-        Align(
+-          alignment: Alignment.centerLeft,
+-          child: Container(
+-            margin: const EdgeInsets.only(left: 15),
+-            width: 2,
+-            height: 10,
+-            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+-          ),
+-        ),
+-      ],
+-    );
+-  }
+-
+-  Widget _buildTimelineTransactionItem(
+-    TransactionModel tx,
+-    bool isDark, {
+-    required bool isLastOverall,
+-  }) {
+-    final isExpense = TransactionVisuals.isOutflow(tx.type) &&
+-        !TransactionVisuals.isTransfer(tx.type);
+-    final isIncome = TransactionVisuals.isInflow(tx.type);
+-    final nodeColor = isIncome
+-        ? const Color(0xFF059669)
+-        : (isExpense ? const Color(0xFF005FEA) : const Color(0xFF0284C7));
+-
+-    return IntrinsicHeight(
++    return Padding(
++      padding: EdgeInsets.only(
++        top: isFirstDate ? 0 : 14,
++        bottom: 8,
++      ),
+       child: Row(
+-        crossAxisAlignment: CrossAxisAlignment.stretch,
+         children: [
+-          // Left timeline rail: vertical line + branch connector + node dot
+-          SizedBox(
+-            width: 32,
+-            child: Stack(
++          Container(
++            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
++            decoration: BoxDecoration(
++              color: isDark
++                  ? const Color(0xFF2C2C2E)
++                  : const Color(0xFFF2F2F7),
++              borderRadius: BorderRadius.circular(8),
++              border: Border.all(
++                color: isDark
++                    ? const Color(0xFF38383A)
++                    : const Color(0xFFE5E5EA),
++                width: 0.8,
++              ),
++            ),
++            child: Row(
++              mainAxisSize: MainAxisSize.min,
+               children: [
+-                // Continuous vertical line
+-                Positioned(
+-                  left: 15,
+-                  top: 0,
+-                  bottom: isLastOverall ? null : 0,
+-                  height: isLastOverall ? 33 : null,
+-                  width: 2,
+-                  child: Container(
+-                    color: isDark
+-                        ? const Color(0xFF334155)
+-                        : const Color(0xFFCBD5E1),
+-                  ),
++                Icon(
++                  Icons.calendar_today_rounded,
++                  size: 11,
++                  color: isDark
++                      ? const Color(0xFF8E8E93)
++                      : const Color(0xFF636366),
+                 ),
+-                // Horizontal branch connector to the separated transaction card
+-                Positioned(
+-                  left: 16,
+-                  top: 31,
+-                  right: 0,
+-                  height: 2,
+-                  child: Container(
++                const SizedBox(width: 5),
++                Text(
++                  _formatRecentDateLabel(date),
++                  style: TextStyle(
++                    fontSize: 11.5,
++                    fontWeight: FontWeight.w700,
+                     color: isDark
+-                        ? const Color(0xFF334155)
+-                        : const Color(0xFFCBD5E1),
+-                  ),
+-                ),
+-                // Timeline node dot
+-                Positioned(
+-                  left: 11,
+-                  top: 27,
+-                  child: Container(
+-                    width: 10,
+-                    height: 10,
+-                    decoration: BoxDecoration(
+-                      color: nodeColor,
+-                      shape: BoxShape.circle,
+-                      border: Border.all(
+-                        color: isDark
+-                            ? const Color(0xFF0F172A)
+-                            : const Color(0xFFF8FAFC),
+-                        width: 2,
+-                      ),
+-                      boxShadow: [
+-                        BoxShadow(
+-                          color: nodeColor.withValues(alpha: 0.35),
+-                          blurRadius: 5,
+-                          spreadRadius: 1,
+-                        ),
+-                      ],
+-                    ),
++                        ? const Color(0xFFE5E5EA)
++                        : const Color(0xFF1C1C1E),
++                    letterSpacing: -0.1,
+                   ),
+                 ),
+               ],
+             ),
+           ),
+-          // Right column: Separated individual transaction card
++          const SizedBox(width: 8),
+           Expanded(
+-            child: _buildTransactionCard(tx, isDark),
++            child: Divider(
++              height: 1,
++              thickness: 1,
++              color: isDark
++                  ? const Color(0xFF38383A).withValues(alpha: 0.5)
++                  : const Color(0xFFE5E5EA).withValues(alpha: 0.7),
++            ),
+           ),
+         ],
+       ),
+@@ -4134,6 +3977,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     final resolvedCategoryIcon = matchingCategory?.icon ?? tx.categoryIcon;
+     final resolvedCategoryName = matchingCategory?.name ?? tx.categoryName;
+     final resolvedCategoryColor = matchingCategory?.color ?? tx.categoryColor;
++
++    final wallets = context.watch<TransactionProvider>().wallets;
++    final wId = tx.walletId ?? tx.fromWalletId;
++    final wName = tx.walletName ?? tx.fromWalletName;
++    final matchingWallet = wallets.cast<Wallet?>().firstWhere(
++          (w) =>
++              (wId?.isNotEmpty == true && w?.id == wId) ||
++              (wName?.isNotEmpty == true && w?.name == wName),
++          orElse: () => null,
++        );
++    final displayName = matchingWallet?.name ?? wName ?? 'Ví chính';
++    var effectiveCode = matchingWallet?.bankCode ?? matchingWallet?.type;
++    if (effectiveCode == null || effectiveCode.isEmpty) {
++      final clean =
++          displayName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
++      if (clean.contains('tietkiem') ||
++          clean.contains('tiếtkiệm') ||
++          clean.contains('mb')) {
++        effectiveCode = 'mbbank';
++      } else if (clean.contains('tcb') || clean.contains('techcom')) {
++        effectiveCode = 'tcb';
++      }
++    }
++    final brand = BankIconRegistry.resolve(
++      effectiveCode ?? matchingWallet?.bankName,
++      bankName: displayName,
++    );
++
+     final isExpense = TransactionVisuals.isOutflow(tx.type) &&
+         !TransactionVisuals.isTransfer(tx.type);
+     final isIncome = TransactionVisuals.isInflow(tx.type);
+@@ -4141,22 +4012,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
+     final isInvestment = tx.type.toLowerCase() == 'investment';
+ 
+     final Color color;
+-    final String prefix;
+     if (isExpense) {
+       color = const Color(0xFFDC2626); // Đỏ: đã chi
+-      prefix = '-';
+     } else if (isIncome) {
+       color = const Color(0xFF059669); // Xanh lá: thu nhập
+-      prefix = '+';
+     } else if (isTransfer) {
+       color = const Color(0xFF005FEA); // Xanh dương Royal: chuyển tiền
+-      prefix = '';
+     } else if (isInvestment) {
+       color = const Color(0xFF0284C7); // Xanh Sky Cyan: đầu tư
+-      prefix = '';
+     } else {
+       color = isDark ? Colors.white70 : const Color(0xFF475569);
+-      prefix = '';
+     }
+     final txDate = _parseTxDate(tx.date);
+ 
+@@ -4179,8 +4044,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+         borderRadius: BorderRadius.circular(18),
+         border: Border.all(
+           color: isDark
+-              ? const Color(0xFF334155).withValues(alpha: 0.8)
+-              : const Color(0xFFE2E8F0),
++              ? const Color(0xFF38383A).withValues(alpha: 0.8)
++              : const Color(0xFFE5E5EA),
+           width: 1,
+         ),
+         boxShadow: [
+@@ -4201,14 +4066,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+             child: Row(
+               children: [
+-                // 1. Category Icon: placed safely INSIDE the card, not intersected by the timeline rail
+-                TransactionIconWidget(
+-                  type: tx.type,
+-                  categoryIcon: resolvedCategoryIcon,
+-                  categoryName: resolvedCategoryName ?? tx.note,
+-                  categoryColor: resolvedCategoryColor,
+-                  merchantId: tx.merchantId,
+-                  size: 40,
++                // 1. Category Icon with layered Bank/Wallet Logo Badge
++                Stack(
++                  clipBehavior: Clip.none,
++                  children: [
++                    TransactionIconWidget(
++                      type: tx.type,
++                      categoryIcon: resolvedCategoryIcon,
++                      categoryName: resolvedCategoryName ?? tx.note,
++                      categoryColor: resolvedCategoryColor,
++                      merchantId: tx.merchantId,
++                      size: 40,
++                    ),
++                    Positioned(
++                      bottom: -2,
++                      right: -2,
++                      child: Container(
++                        width: 17,
++                        height: 17,
++                        decoration: BoxDecoration(
++                          shape: BoxShape.circle,
++                          color:
++                              isDark ? const Color(0xFF1C1C1E) : Colors.white,
++                          border: Border.all(
++                            color:
++                                isDark ? const Color(0xFF1C1C1E) : Colors.white,
++                            width: 1.5,
++                          ),
++                          boxShadow: [
++                            BoxShadow(
++                              color: Colors.black.withValues(alpha: 0.18),
++                              blurRadius: 3,
++                            ),
++                          ],
++                        ),
++                        child: ClipRRect(
++                          borderRadius: BorderRadius.circular(100),
++                          child: brand.assetPath != null
++                              ? Image.asset(
++                                  brand.assetPath!,
++                                  fit: BoxFit.cover,
++                                )
++                              : (brand.code == 'cash'
++                                  ? Container(
++                                      color: const Color(0xFF10B981),
++                                      child: const Icon(
++                                        Icons.payments_rounded,
++                                        size: 9,
++                                        color: Colors.white,
++                                      ),
++                                    )
++                                  : Container(
++                                      color: const Color(0xFF005FEA),
++                                      child: const Icon(
++                                        Icons.account_balance_rounded,
++                                        size: 8.5,
++                                        color: Colors.white,
++                                      ),
++                                    )),
++                        ),
++                      ),
++                    ),
++                  ],
+                 ),
+                 const SizedBox(width: 12),
+                 // 2. Note & Detail Tags
+@@ -4306,17 +4225,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                   crossAxisAlignment: CrossAxisAlignment.end,
+                   mainAxisAlignment: MainAxisAlignment.center,
+                   children: [
+-                    FittedBox(
+-                      fit: BoxFit.scaleDown,
+-                      alignment: Alignment.centerRight,
+-                      child: Text(
+-                        prefix + Formatters.formatCurrency(tx.amount),
+-                        style: TextStyle(
+-                          fontSize: 15,
+-                          fontWeight: FontWeight.w900,
+-                          color: color,
++                    Row(
++                      mainAxisSize: MainAxisSize.min,
++                      children: [
++                        Container(
++                          width: 20,
++                          height: 20,
++                          decoration: BoxDecoration(
++                            color: isIncome
++                                ? const Color(0xFF059669)
++                                    .withValues(alpha: isDark ? 0.25 : 0.12)
++                                : (isTransfer
++                                    ? const Color(0xFF005FEA)
++                                        .withValues(alpha: isDark ? 0.25 : 0.12)
++                                    : (isInvestment
++                                        ? const Color(0xFF0284C7).withValues(
++                                            alpha: isDark ? 0.25 : 0.12)
++                                        : const Color(0xFFDC2626).withValues(
++                                            alpha: isDark ? 0.25 : 0.12))),
++                            shape: BoxShape.circle,
++                          ),
++                          child: Center(
++                            child: Icon(
++                              isIncome
++                                  ? Icons.arrow_downward_rounded
++                                  : (isTransfer
++                                      ? Icons.sync_alt_rounded
++                                      : (isInvestment
++                                          ? Icons.trending_up_rounded
++                                          : Icons.arrow_upward_rounded)),
++                              size: 12,
++                              color: color,
++                            ),
++                          ),
+                         ),
+-                      ),
++                        const SizedBox(width: 5),
++                        Text(
++                          Formatters.formatCurrency(tx.amount),
++                          style: TextStyle(
++                            fontSize: 14.5,
++                            fontWeight: FontWeight.w900,
++                            letterSpacing: -0.3,
++                            color: color,
++                          ),
++                        ),
++                      ],
+                     ),
+                     const SizedBox(height: 3),
+                     Text(
+@@ -4324,9 +4277,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                       style: TextStyle(
+                         fontSize: 11.5,
+                         fontWeight: FontWeight.w600,
+-                        color: isDark
+-                            ? Colors.white54
+-                            : const Color(0xFF94A3B8),
++                        color:
++                            isDark ? Colors.white54 : const Color(0xFF8E8E93),
+                       ),
+                     ),
+                   ],
+@@ -4379,12 +4331,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
+       decoration: BoxDecoration(
+         color: isDark
+             ? const Color(0xFF0F172A).withValues(alpha: 0.55)
+-            : const Color(0xFFF1F5F9),
++            : const Color(0xFFE5E5EA),
+         borderRadius: BorderRadius.circular(6),
+         border: Border.all(
+           color: isDark
+-              ? const Color(0xFF334155).withValues(alpha: 0.6)
+-              : const Color(0xFFE2E8F0),
++              ? const Color(0xFF38383A).withValues(alpha: 0.6)
++              : const Color(0xFFE5E5EA),
+           width: 0.8,
+         ),
+       ),
+@@ -4403,7 +4355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+                 errorBuilder: (_, __, ___) => Icon(
+                   Icons.account_balance_wallet_rounded,
+                   size: 11,
+-                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
++                  color: isDark ? Colors.white70 : const Color(0xFF8E8E93),
+                 ),
+               ),
+             )
+@@ -4411,7 +4363,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
+             Icon(
+               Icons.account_balance_wallet_rounded,
+               size: 11,
+-              color: isDark ? Colors.white70 : const Color(0xFF64748B),
++              color: isDark ? Colors.white70 : const Color(0xFF8E8E93),
+             ),
+           const SizedBox(width: 4),
+           Text(
+@@ -4679,55 +4631,30 @@ class _QuickActionItemWidgetState extends State<_QuickActionItemWidget> {
+         },
+         onTapCancel: () => setState(() => _isPressed = false),
+         child: AnimatedScale(
+-          scale: _isPressed ? 0.90 : 1.0,
++          scale: _isPressed ? 0.92 : 1.0,
+           duration: const Duration(milliseconds: 120),
+           curve: Curves.easeOutCubic,
+           child: Column(
+             mainAxisSize: MainAxisSize.min,
+             children: [
+-              Container(
+-                width: 58,
+-                height: 58,
+-                decoration: BoxDecoration(
+-                  shape: BoxShape.circle,
+-                  gradient: LinearGradient(
+-                    colors: [
+-                      isDark
+-                          ? color.withValues(alpha: 0.30)
+-                          : widget.bgColor.withValues(alpha: 0.85),
+-                      isDark ? const Color(0xFF1E293B) : Colors.white,
+-                    ],
+-                    begin: Alignment.topLeft,
+-                    end: Alignment.bottomRight,
+-                  ),
+-                  border: Border.all(
+-                    color: isDark
+-                        ? Colors.white.withValues(alpha: 0.22)
+-                        : Colors.white,
+-                    width: 2.2,
+-                  ),
+-                  boxShadow: [
+-                    BoxShadow(
+-                      color: color.withValues(alpha: isDark ? 0.26 : 0.16),
+-                      blurRadius: 12,
+-                      offset: const Offset(0, 4),
+-                    ),
+-                    BoxShadow(
+-                      color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.05),
+-                      blurRadius: 8,
+-                      offset: const Offset(0, 2),
++              SizedBox(
++                width: 56,
++                height: 56,
++                child: NeumorphicCard(
++                  isCircle: true,
++                  isPressed: _isPressed,
++                  padding: EdgeInsets.zero,
++                  color: isDark ? const Color(0xFF1E1E24) : const Color(0xFFF3F4F6),
++                  child: Center(
++                    child: Icon(
++                      widget.icon,
++                      color: isDark ? color.withValues(alpha: 0.9) : color,
++                      size: widget.icon == Icons.add_rounded ? 26 : 22,
+                     ),
+-                  ],
+-                ),
+-                child: Center(
+-                  child: Icon(
+-                    widget.icon,
+-                    color: color,
+-                    size: widget.icon == Icons.add_rounded ? 30 : 25,
+                   ),
+                 ),
+               ),
+-              const SizedBox(height: 8),
++              const SizedBox(height: 6),
+               Text(
+                 widget.label,
+                 textAlign: TextAlign.center,
+@@ -4735,8 +4662,8 @@ class _QuickActionItemWidgetState extends State<_QuickActionItemWidget> {
+                 overflow: TextOverflow.ellipsis,
+                 style: TextStyle(
+                   fontSize: 12,
+-                  fontWeight: FontWeight.w700,
+-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
++                  fontWeight: FontWeight.w500,
++                  color: isDark ? Colors.white : const Color(0xFF000000),
+                   letterSpacing: -0.2,
+                 ),
+               ),

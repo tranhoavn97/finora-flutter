@@ -33,7 +33,7 @@ class DashboardData {
   final List<TransactionModel> recentTransactions;
   final List<TransactionModel> periodTransactions;
   final List<TransactionModel> allTransactions;
-  
+
   // Date filter metrics
   final DateFilterOption selectedDateFilter;
   final DateTime? customDate;
@@ -108,7 +108,12 @@ class DashboardProvider extends ChangeNotifier {
   DateTime? customDate;
 
   String? _userId;
+  String? _familyId;
   final List<StreamSubscription> _subs = [];
+  final Set<String> _pending = {};
+  final Set<String> _failed = {};
+  bool _budgetRollOverStarted = false;
+  int _generation = 0;
   List<Wallet> _wallets = [];
   List<TransactionModel> _txs = [];
   List<Budget> _budgets = [];
@@ -128,30 +133,82 @@ class DashboardProvider extends ChangeNotifier {
     _recompute();
   }
 
-  void load(String userId) {
-    if (_userId == userId && _subs.isNotEmpty) return;
+  void load(String userId, {String? familyId, bool force = false}) {
+    final effectiveFamilyId =
+        familyId ?? (_userId == userId ? _familyId : null);
+    if (!force &&
+        _userId == userId &&
+        _familyId == effectiveFamilyId &&
+        _subs.isNotEmpty) return;
+    if (_userId != userId || _familyId != effectiveFamilyId) {
+      _wallets = [];
+      _txs = [];
+      _budgets = [];
+      _assets = [];
+      _loans = [];
+      _goals = [];
+      data = const DashboardData();
+    }
     _userId = userId;
+    _familyId = effectiveFamilyId;
     _cancel();
+    final generation = ++_generation;
+    _pending
+      ..clear()
+      ..addAll(
+          ['wallets', 'transactions', 'budgets', 'assets', 'loans', 'goals']);
+    _failed.clear();
+    _budgetRollOverStarted = false;
+    error = null;
     isLoading = true;
     notifyListeners();
-    _subs.add(_walletRepo.watchWallets(userId).listen((v) { _wallets = v; _recompute(); }, onError: _onErr));
-    _subs.add(_txRepo.watchTransactions(userId).listen((v) { _txs = v; _recompute(); }, onError: _onErr));
-    _subs.add(_budgetRepo.watchBudgets(userId).listen((v) { _budgets = v; _recompute(); }, onError: _onErr));
-    _subs.add(_assetRepo.watchAssets(userId).listen((v) { _assets = v; _recompute(); }, onError: _onErr));
-    _subs.add(_loanRepo.watchLoans(userId).listen((v) { _loans = v; _recompute(); }, onError: _onErr));
-    _subs.add(_goalRepo.watchGoals(userId).listen((v) { _goals = v; _recompute(); }, onError: _onErr));
+    void watch<T>(String key, Stream<T> stream, void Function(T) update) {
+      _subs.add(stream.listen((value) {
+        if (generation != _generation) return;
+        update(value);
+        _pending.remove(key);
+        _failed.remove(key);
+        _recompute();
+      }, onError: (Object e) {
+        if (generation != _generation) return;
+        _onErr(key);
+      }));
+    }
+
+    watch(
+        'wallets',
+        _walletRepo.watchWallets(userId, familyId: effectiveFamilyId),
+        (List<Wallet> v) => _wallets = v);
+    watch(
+        'transactions',
+        _txRepo.watchTransactions(userId, familyId: effectiveFamilyId),
+        (List<TransactionModel> v) => _txs = v);
+    watch(
+        'budgets',
+        _budgetRepo.watchBudgets(userId, familyId: effectiveFamilyId),
+        (List<Budget> v) => _budgets = v);
+    watch('assets', _assetRepo.watchAssets(userId, familyId: effectiveFamilyId),
+        (List<Asset> v) => _assets = v);
+    watch('loans', _loanRepo.watchLoans(userId, familyId: effectiveFamilyId),
+        (List<Loan> v) => _loans = v);
+    watch('goals', _goalRepo.watchGoals(userId, familyId: effectiveFamilyId),
+        (List<Goal> v) => _goals = v);
   }
 
-  void _onErr(Object e) {
-    error = 'Có lỗi xảy ra';
-    isLoading = false;
+  void _onErr(String key) {
+    _pending.remove(key);
+    _failed.add(key);
+    error = 'Không thể tải đủ dữ liệu tài chính';
+    isLoading = _pending.isNotEmpty;
     notifyListeners();
   }
 
   bool _isTxInPeriod(TransactionModel tx) {
     if (customDate != null) {
       final d = DateTime.fromMillisecondsSinceEpoch(tx.date);
-      return d.year == customDate!.year && d.month == customDate!.month && d.day == customDate!.day;
+      return d.year == customDate!.year &&
+          d.month == customDate!.month &&
+          d.day == customDate!.day;
     }
     return isDateInFilterOption(tx.date, selectedDateFilter);
   }
@@ -187,6 +244,8 @@ class DashboardProvider extends ChangeNotifier {
         return 'Tháng tùy chọn';
       case DateFilterOption.customDate:
         return 'Ngày tùy chọn';
+      case DateFilterOption.customRange:
+        return 'Khoảng ngày';
       case DateFilterOption.thisYear:
         return 'Năm ${now.year}';
       case DateFilterOption.allTime:
@@ -196,28 +255,54 @@ class DashboardProvider extends ChangeNotifier {
 
   void _recompute() {
     final uid = _userId;
-    if (uid != null) {
-      _budgetRepo.ensureBudgets(uid, _budgets, _txs);
+    if (uid != null &&
+        !_budgetRollOverStarted &&
+        _pending.isEmpty &&
+        _failed.isEmpty) {
+      _budgetRollOverStarted = true;
+      unawaited(
+          _budgetRepo.ensureBudgets(uid, _budgets, _txs).catchError((Object _) {
+        error = 'Không thể cập nhật ngân sách định kỳ';
+        notifyListeners();
+      }));
     }
-    final allComputedWallets = WalletRepository.computeWalletsWithBalances(_wallets, _txs);
+    final allComputedWallets = (_pending.contains('wallets') ||
+            _pending.contains('transactions'))
+        ? (data.wallets.isNotEmpty
+            ? data.wallets
+            : WalletRepository.computeWalletsWithBalances(_wallets, _txs))
+        : WalletRepository.computeWalletsWithBalances(_wallets, _txs);
     final walletMap = {for (final w in allComputedWallets) w.id: w};
 
     // Filter wallets by selected owner
-    final filteredWallets = allComputedWallets.where((w) => selectedOwner.matchWallet(w)).toList();
+    final filteredWallets =
+        allComputedWallets.where((w) => selectedOwner.matchWallet(w)).toList();
 
     // Filter transactions by selected owner
-    final filteredTxs = _txs.where((t) => selectedOwner.matchTransaction(t, walletMap: walletMap)).toList();
+    final filteredTxs = _txs
+        .where((t) => selectedOwner.matchTransaction(t, walletMap: walletMap))
+        .toList();
 
     // Filter assets & loans by selected owner
-    final filteredAssets = _assets.where((a) => selectedOwner.matchAsset(a, walletMap: walletMap)).toList();
-    final filteredLoans = _loans.where((l) => selectedOwner.matchLoan(l, walletMap: walletMap)).toList();
+    final filteredAssets = _assets
+        .where((a) => selectedOwner.matchAsset(a, walletMap: walletMap))
+        .toList();
+    final filteredLoans = _loans
+        .where((l) => selectedOwner.matchLoan(l, walletMap: walletMap))
+        .toList();
 
     final now = DateTime.now();
     final curMonthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
     final prevMonthDate = DateTime(now.year, now.month - 1, 1);
-    final prevMonthKey = '${prevMonthDate.year}-${prevMonthDate.month.toString().padLeft(2, '0')}';
+    final prevMonthKey =
+        '${prevMonthDate.year}-${prevMonthDate.month.toString().padLeft(2, '0')}';
 
-    var balance = 0, debt = 0, curIncome = 0, curExpense = 0, prevIncome = 0, prevExpense = 0;
+    var balance = 0,
+        debt = 0,
+        curIncome = 0,
+        curExpense = 0,
+        prevIncome = 0,
+        prevExpense = 0;
     var assetsVal = 0, borrowed = 0, lent = 0;
     var pIncome = 0, pExpense = 0;
 
@@ -261,7 +346,8 @@ class DashboardProvider extends ChangeNotifier {
         if (type == 'expense') {
           prevExpense += t.amount;
           final cat = t.categoryName ?? 'Khác';
-          prevCategoryExpenses[cat] = (prevCategoryExpenses[cat] ?? 0) + t.amount;
+          prevCategoryExpenses[cat] =
+              (prevCategoryExpenses[cat] ?? 0) + t.amount;
           categoryMeta[cat] = (t.categoryIcon, t.categoryColor);
         } else if (type == 'income') {
           prevIncome += t.amount;
@@ -273,12 +359,15 @@ class DashboardProvider extends ChangeNotifier {
       if (a.status == 'active') assetsVal += a.marketValue;
     }
     for (final l in filteredLoans) {
-      if (l.status == 'active' && l.type == 'borrowed') borrowed += l.remainingPrincipal;
-      if (l.status == 'active' && l.type == 'lent') lent += l.remainingPrincipal;
+      if (l.status == 'active' && l.type == 'borrowed')
+        borrowed += l.remainingPrincipal;
+      if (l.status == 'active' && l.type == 'lent')
+        lent += l.remainingPrincipal;
     }
 
     // Build MoM category comparisons
-    final allCats = {...curCategoryExpenses.keys, ...prevCategoryExpenses.keys}.toList();
+    final allCats =
+        {...curCategoryExpenses.keys, ...prevCategoryExpenses.keys}.toList();
     final momList = <CategoryMomComparison>[];
     for (final cat in allCats) {
       final cur = curCategoryExpenses[cat] ?? 0;
@@ -304,12 +393,19 @@ class DashboardProvider extends ChangeNotifier {
     momList.sort((a, b) => b.currentAmount.compareTo(a.currentAmount));
 
     // Calculate AI Health Score (0 - 100)
-    final monthlyExpenseBase = max(1, curExpense > 0 ? curExpense : (prevExpense > 0 ? prevExpense : 8000000));
+    final monthlyExpenseBase = max(
+        1,
+        curExpense > 0
+            ? curExpense
+            : (prevExpense > 0 ? prevExpense : 8000000));
     final runwayMonths = (balance / monthlyExpenseBase).clamp(0.0, 24.0);
     final runwayScore = ((runwayMonths / 6.0) * 40.0).clamp(0.0, 40.0);
 
-    final effectiveIncome = curIncome > 0 ? curIncome : (prevIncome > 0 ? prevIncome : 0);
-    final savingsRate = effectiveIncome > 0 ? max(0.0, (effectiveIncome - curExpense) / effectiveIncome * 100.0) : (balance > 10000000 ? 25.0 : 10.0);
+    final effectiveIncome =
+        curIncome > 0 ? curIncome : (prevIncome > 0 ? prevIncome : 0);
+    final savingsRate = effectiveIncome > 0
+        ? max(0.0, (effectiveIncome - curExpense) / effectiveIncome * 100.0)
+        : (balance > 10000000 ? 25.0 : 10.0);
     final savingsScore = ((savingsRate / 25.0) * 35.0).clamp(0.0, 35.0);
 
     final totalAssets = max(1, balance + assetsVal + lent);
@@ -326,7 +422,8 @@ class DashboardProvider extends ChangeNotifier {
       debtScore = 5.0;
     }
 
-    final totalScore = (runwayScore + savingsScore + debtScore).round().clamp(10, 100);
+    final totalScore =
+        (runwayScore + savingsScore + debtScore).round().clamp(10, 100);
     final String tier;
     if (totalScore >= 85) {
       tier = 'Xuất sắc 🏆';
@@ -374,8 +471,12 @@ class DashboardProvider extends ChangeNotifier {
       momCategoryTrends: momList,
     );
 
-    isLoading = false;
-    error = null;
+    isLoading = _pending.isNotEmpty;
+    if (_failed.isNotEmpty) {
+      error = 'Không thể tải đủ dữ liệu tài chính';
+    } else if (error != 'Không thể cập nhật ngân sách định kỳ') {
+      error = null;
+    }
     notifyListeners();
   }
 

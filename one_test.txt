@@ -1,0 +1,30 @@
+00:00 +0: loading D:/FINORA-/flutter-app/test/redesign_screens_test.dart
+00:00 +0: transactions 390.0 scale=2.0 light
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: null
+  Actual: FlutterError:<A RenderFlex overflowed by 104 pixels on the bottom.>
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///D:/FINORA-/flutter-app/test/redesign_screens_test.dart:210:13)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///D:/FINORA-/flutter-app/test/redesign_screens_test.dart line 210
+The test description was:
+  transactions 390.0 scale=2.0 light
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:01 +0 -1: transactions 390.0 scale=2.0 light [E]
+  Test failed. See exception logs above.
+  The test description was: transactions 390.0 scale=2.0 light
+  
+00:01 +0 -1: Some tests failed.
+
+Failing tests:
+  D:/FINORA-/flutter-app/test/redesign_screens_test.dart: transactions 390.0 scale=2.0 light

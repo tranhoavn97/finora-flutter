@@ -1,0 +1,39 @@
+Created At: 2026-09-29T14:57:49+07:00
+Completed At: 2026-09-29T14:57:49+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10730
+Total Bytes: 390850
+Showing lines 8620 to 8650
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8620:                         color: const Color(0xFFEC4899),
+8621:                         size: 28,
+8622:                         isDark: isDark,
+8623:                       ),
+8624:                       CategoryIconBadge(
+8625:                         icon: 'utensils',
+8626:                         categoryName: 'Ăn uống',
+8627:                         color: const Color(0xFFF59E0B),
+8628:                         size: 28,
+8629:                         isDark: isDark,
+8630:                       ),
+8631:                       CategoryIconBadge(
+8632:                         icon: 'car',
+8633:                         categoryName: 'Đi lại',
+8634:                         color: const Color(0xFF3B82F6),
+8635:                         size: 28,
+8636:                         isDark: isDark,
+8637:                       ),
+8638:                     ],
+8639:                   ),
+8640:                 ),
+8641:               ),
+8642:             ),
+8643:           ],
+8644:         ),
+8645:       ],
+8646:     );
+8647:   } ),
+8648:           ],
+8649:         ),
+8650:       ],
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

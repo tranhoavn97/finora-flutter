@@ -6,8 +6,9 @@ enum DateFilterOption {
   thisMonth('this_month', 'Tháng này'),
   lastMonth('last_month', 'Tháng trước'),
   thisYear('this_year', 'Năm nay'),
-  customMonth('custom_month', 'Tháng tùy chọn'),
-  customDate('custom_date', 'Ngày tùy chọn'),
+  customMonth('custom_month', 'Chọn tháng'),
+  customDate('custom_date', 'Chọn ngày'),
+  customRange('custom_range', 'Khoảng ngày'),
   allTime('all_time', 'Tất cả');
 
   final String key;
@@ -19,16 +20,19 @@ bool isDateInFilterOption(
   int timestampMs,
   DateFilterOption option, {
   DateTime? customDate,
+  DateTime? customStartDate,
+  DateTime? customEndDate,
   int? customYear,
   int? customMonth,
 }) {
   final now = DateTime.now();
   final todayStart = DateTime(now.year, now.month, now.day);
-  final d = DateTime.fromMillisecondsSinceEpoch(timestampMs);
+  final d = DateTime.fromMillisecondsSinceEpoch(
+      timestampMs > 100000000000 ? timestampMs : timestampMs * 1000);
   final dayStart = DateTime(d.year, d.month, d.day);
   bool inRange(DateTime start, DateTime end) =>
-      timestampMs >= start.millisecondsSinceEpoch &&
-      timestampMs < end.millisecondsSinceEpoch;
+      d.millisecondsSinceEpoch >= start.millisecondsSinceEpoch &&
+      d.millisecondsSinceEpoch < end.millisecondsSinceEpoch;
 
   switch (option) {
     case DateFilterOption.today:
@@ -48,21 +52,27 @@ bool isDateInFilterOption(
     case DateFilterOption.lastMonth:
       return inRange(DateTime(now.year, now.month - 1, 1),
           DateTime(now.year, now.month, 1));
-    case DateFilterOption.customMonth:
-      if (customYear != null && customMonth != null) {
-        return inRange(DateTime(customYear, customMonth, 1),
-            DateTime(customYear, customMonth + 1, 1));
-      }
-      return true;
-    case DateFilterOption.customDate:
-      if (customDate != null) {
-        final targetDay =
-            DateTime(customDate.year, customDate.month, customDate.day);
-        return dayStart == targetDay;
-      }
-      return true;
     case DateFilterOption.thisYear:
       return inRange(DateTime(now.year, 1, 1), DateTime(now.year + 1, 1, 1));
+    case DateFilterOption.customMonth:
+      final y = customYear ?? now.year;
+      final m = customMonth ?? now.month;
+      return d.year == y && d.month == m;
+    case DateFilterOption.customDate:
+      if (customDate == null) return true;
+      return d.year == customDate.year &&
+          d.month == customDate.month &&
+          d.day == customDate.day;
+    case DateFilterOption.customRange:
+      if (customStartDate == null && customEndDate == null) return true;
+      final start = customStartDate != null
+          ? DateTime(customStartDate.year, customStartDate.month, customStartDate.day)
+          : DateTime(2000);
+      final end = customEndDate != null
+          ? DateTime(customEndDate.year, customEndDate.month, customEndDate.day, 23, 59, 59, 999)
+          : DateTime(2100);
+      return d.millisecondsSinceEpoch >= start.millisecondsSinceEpoch &&
+          d.millisecondsSinceEpoch <= end.millisecondsSinceEpoch;
     case DateFilterOption.allTime:
       return true;
   }

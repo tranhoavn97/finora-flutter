@@ -1,0 +1,86 @@
+Created At: 2026-09-29T15:01:01+07:00
+Completed At: 2026-09-29T15:01:01+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10602
+Total Bytes: 387980
+Showing lines 8620 to 8740
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8620:                       categoryName: 'Mua sắm',
+8621:                       color: const Color(0xFFEC4899),
+8622:                       size: 28,
+8623:                       isDark: isDark,
+8624:                     ),
+8625:                     CategoryIconBadge(
+8626:                       icon: 'utensils',
+8627:                       categoryName: 'Ăn uống',
+8628:                       color: const Color(0xFFF59E0B),
+8629:                       size: 28,
+8630:                       isDark: isDark,
+8631:                     ),
+8632:                     CategoryIconBadge(
+8633:                       icon: 'car',
+8634:                       categoryName: 'Đi lại',
+8635:                       color: const Color(0xFF3B82F6),
+8636:                       size: 28,
+8637:                       isDark: isDark,
+8638:                     ),
+8639:                   ],
+8640:                 ),
+8641:               ),
+8642:             ),
+8643:           ],
+8644:         ),
+8645:       ],
+8646:     );
+8647:   }
+8648: 
+8649:   Widget _buildLiveChartAndWidgetCardPreview({
+8650:     required ThemeStudioController studio,
+8651:     required bool isDark,
+8652:     required Color primary,
+8653:     required PaletteMeta palette,
+8654:   }) {
+8655:     final chartColors = switch (studio.chartColorway) {
+8656:       AppChartColorway.paletteSync => [primary, studio.secondaryColor],
+8657:       AppChartColorway.cyberpunkVibrant => const [
+8658:           Color(0xFF06B6D4),
+8659:           Color(0xFFEC4899)
+8660:         ],
+8661:       AppChartColorway.emera
+<truncated 2019 bytes>
+                children: [
+8707:                             Icon(LucideIcons.trending_up,
+8708:                                 size: 14, color: chartColors.first),
+8709:                             const SizedBox(width: 6),
+8710:                             Text(
+8711:                               'Xu Hướng Chi Tiêu Tuần',
+8712:                               style: TextStyle(
+8713:                                 fontSize: 12,
+8714:                                 fontWeight: FontWeight.w700,
+8715:                                 color: isDark
+8716:                                     ? Colors.white
+8717:                                     : const Color(0xFF0F172A),
+8718:                               ),
+8719:                             ),
+8720:                           ],
+8721:                         ),
+8722:                         Container(
+8723:                           padding: const EdgeInsets.symmetric(
+8724:                               horizontal: 6, vertical: 2),
+8725:                           decoration: BoxDecoration(
+8726:                             color: chartColors.first.withValues(alpha: 0.15),
+8727:                             borderRadius: BorderRadius.circular(6),
+8728:                               return Column(
+8729:       children: [
+8730:         // Simulated Mobile Top Frame - Click to jump
+8731:         GestureDetector(
+8732:           onTap: () => _jumpToComponent(3, 'Thanh tiêu đề (AppBar)', previewMode: 3),
+8733:           child: Container(
+8734:             height: 155,
+8735:             decoration: BoxDecoration(
+8736:               color: (isDark ? const Color(0xFF090D16) : const Color(0xFFE2E8F0))
+8737:                   .withValues(alpha: 0.95),
+8738:               borderRadius: BorderRadius.circular(20),
+8739:               border: Border.all(
+8740:                 color:
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

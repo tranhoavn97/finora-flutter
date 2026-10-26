@@ -1,0 +1,80 @@
+Created At: 2026-09-29T15:08:07+07:00
+Completed At: 2026-09-29T15:08:15+07:00
+File Path: `file:///d:/FINORA-/flutter/original_view.txt`
+Total Lines: 75
+Total Bytes: 3535
+Showing lines 1 to 75
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: Created At: 2026-09-28T15:15:47+07:00
+2: Completed At: 2026-09-28T15:15:47+07:00
+3: File Path: `file:///D:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+4: Total Lines: 7934
+5: Total Bytes: 295658
+6: Showing lines 300 to 365
+7: The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8: 300:                 SingleChildScrollView(
+9: 301:                   scrollDirection: Axis.horizontal,
+10: 302:                   physics: const BouncingScrollPhysics(),
+11: 303:                   child: Row(
+12: 304:                     children: [
+13: 305:                       _buildPreviewModePill(0, '👑 Thẻ Hero Pro', primary, isDark),
+14: 306:                       const SizedBox(width: 6),
+15: 307:                       _buildPreviewModePill(1, '💳 Thẻ & Ví', primary, isDark),
+16: 308:                       const SizedBox(width: 6),
+17: 309:                       _buildPreviewModePill(2, '📈 Biểu Đồ & Thẻ', primary, isDark),
+18: 310:                       const SizedBox(width: 6),
+19: 311:                       _buildPreviewModePill(3, '📱 Thanh AppBar', primary, isDark),
+20: 312:                       const SizedBox(width: 6),
+21: 313:                       _buildPreviewModePill(4, '✨ Icon Studio', primary, isDark),
+22: 314:                     ],
+23: 315:                   ),
+24: 316:                 ),
+25: 317: 
+26: 318:                 const
+<truncated 247 bytes>
+: studio,
+32: 324:                     isDark: isDark,
+33: 325:                     primary: primary,
+34: 326:                     palette: palette,
+35: 327:                   )
+36: 328:                 else if (_previewModeIndex == 1)
+37: 329:                   _buildLiveBankCardAndDockPreview(
+38: 330:                     studio: studio,
+39: 331:                     isDark: isDark,
+40: 332:                     primary: primary,
+41: 333:                     palette: palette,
+42: 334:                   )
+43: 335:                 else if (_previewModeIndex == 2)
+44: 336:                   _buildLiveChartAndWidgetCardPreview(
+45: 337:                     studio: studio,
+46: 338:                     isDark: isDark,
+47: 339:                     primary: primary,
+48: 340:                     palette: palette,
+49: 341:                   )
+50: 342:                 else if (_previewModeIndex == 3)
+51: 343:                   _buildLiveAppBarPreview(
+52: 344:                     studio: studio,
+53: 345:                     isDark: isDark,
+54: 346:                     primary: primary,
+55: 347:                     palette: palette,
+56: 348:                   )
+57: 349:                 else
+58: 350:                   _buildLiveIconStudioPreview(
+59: 351:                     studio: studio,
+60: 352:                     isDark: isDark,
+61: 353:                     primary: primary,
+62: 354:                     palette: palette,
+63: 355:                   ),
+64: 356:               ],
+65: 357:             ),
+66: 358:           ),
+67: 359:         ),
+68: 360:       ),
+69: 361:     );
+70: 362:   }
+71: 363: 
+72: 364:   // ==========================================
+73: 365:   // 2. CATEGORY PILL SELECTOR (Horizontal)
+74: The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.
+75: 
+The above content shows the entire, complete file contents of the requested file.

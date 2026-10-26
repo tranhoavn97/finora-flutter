@@ -1,0 +1,88 @@
+Created At: 2026-09-29T14:49:43+07:00
+Completed At: 2026-09-29T14:49:44+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 9750 to 9850
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+9750:                     color: Color(0xFFF43F5E),
+9751:                   ),
+9752:                 ),
+9753:               ],
+9754:             ),
+9755:           ),
+9756: 
+9757:           const SizedBox(height: 10),
+9758: 
+9759:           // Indicator
+9760:           Container(
+9761:             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+9762:             decoration: BoxDecoration(
+9763:               color: primary.withValues(alpha: 0.10),
+9764:               borderRadius: BorderRadius.circular(10),
+9765:             ),
+9766:             child: Wrap(
+9767:               spacing: 12,
+9768:               runSpacing: 8,
+9769:               alignment: WrapAlignment.spaceBetween,
+9770:               children: [
+9771:                 Text(
+9772:                   'Bo nút: ${studio.getButtonRadius().toInt()}px • Cao: ${studio.getButtonHeight().toInt()}px',
+9773:                   style: TextStyle(
+9774:                       fontSize: 10,
+9775:                       fontWeight: FontWeight.w600,
+9776:                       color: primary),
+9777:                 ),
+9778:                 Text(
+9779:                   'Thẻ: Bo ${studio.cardCornerRadius.toInt()}px • Bề mặt: ${studio.surfaceStyle.name}',
+9780:                   style: TextStyle(
+9781:                       fontSize: 9.5,
+9782:                       color: isDark
+9783:                           ? const Color(0xFF94A3B8)
+9784:                           : const Color(0xFF64748B)),
+9785:                 ),
+9786:               ],
+9787:             ),
+9788:    
+<truncated 743 bytes>
+ desc: 'Bo góc 22px lơ lửng sang trọng tách rời mép màn hình',
+9812:         icon: Icons.layers_rounded,
+9813:       ),
+9814:       (
+9815:         behavior: AppAppBarScrollBehavior.scrollHide,
+9816:         title: 'Tự Động Ẩn Khi Cuộn',
+9817:         badge: 'Tự Ẩn',
+9818:         desc: 'Ẩn khi vuốt xuống, xuất hiện lại ngay khi vuốt lên',
+9819:         icon: Icons.visibility_off_rounded,
+9820:       ),
+9821:     ];
+9822: 
+9823:     return Column(
+9824:       children: [
+9825:         // 3 Behaviors
+9826:         ...behaviors.map((item) {
+9827:           final isSelected = studio.appBarScrollBehavior == item.behavior;
+9828:           return Padding(
+9829:             padding: const EdgeInsets.only(bottom: 8),
+9830:             child: GestureDetector(
+9831:               onTap: () async {
+9832:                 await studio.setAppBarScrollBehavior(item.behavior);
+9833:                 _showFeedback('Tiêu đề: ${item.title}');
+9834:               },
+9835:               child: AnimatedContainer(
+9836:                 duration: const Duration(milliseconds: 200),
+9837:                 padding: const EdgeInsets.all(12),
+9838:                 decoration: BoxDecoration(
+9839:                   color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+9840:                       .withValues(alpha: isSelected ? 0.95 : 0.65),
+9841:                   borderRadius: BorderRadius.circular(16),
+9842:                   border: Border.all(
+9843:                     color: isSelected
+9844:                         ? primary
+9845:                         : (isDark ? Colors.white : Colors.black)
+9846:                             .withValues(alpha: 0.08),
+9847:                     width: isSelected ? 1.8 : 1,
+9848:                   ),
+9849:                   boxShadow: isSelected
+9850:                       ? [
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,134 +1,886 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design_system/app_colors.dart';
-import '../../core/widgets/finora_summary_card.dart';
-import '../../core/design_system/v8/finora_v8.dart';
-import '../../core/widgets/premium_widgets.dart';
+import '../../core/utils/formatters.dart';
+import '../../core/widgets/bank_icon.dart';
+import '../../core/widgets/finora_date_picker_sheet.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/finance_models.dart';
+import '../../data/models/transaction.dart';
+import '../../data/models/wallet.dart';
 import '../../state/more_provider.dart';
-import '../../state/wallet_provider.dart';
 import '../../state/theme_studio_controller.dart';
-import '../../core/widgets/finora_motion.dart';
+import '../../state/transaction_provider.dart';
+import '../../state/wallet_provider.dart';
 
-class LoanScreen extends StatefulWidget {
+/// Apple-style Bottom Sheet to Add Loan with Source/Destination Wallet & Spender Selection
+/// (used by WealthHubScreen Tab 3: Sổ nợ)
+class AddLoanSheet extends StatefulWidget {
   final String userId;
-  const LoanScreen({super.key, required this.userId});
+  final String initialType;
+  const AddLoanSheet({
+    super.key,
+    required this.userId,
+    required this.initialType,
+  });
 
   @override
-  State<LoanScreen> createState() => _LoanScreenState();
+  State<AddLoanSheet> createState() => _AddLoanSheetState();
 }
 
-class _LoanScreenState extends State<LoanScreen> {
-  String _activeTab = 'lent'; // 'lent' (Cho vay) | 'borrowed' (Vay nợ)
+class _AddLoanSheetState extends State<AddLoanSheet> {
+  final _nameController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _noteController = TextEditingController();
+  late String _type; // 'lent' (Cho vay - Xuất tiền) | 'borrowed' (Đi vay - Nhận tiền)
+  String _owner = 'husband'; // 'husband' (Chồng) | 'wife' (Vợ)
+  String? _selectedWalletId;
+  DateTime? _dueDate;
+  bool _isSaving = false;
+  bool _showWalletList = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<MoreProvider>().load(widget.userId);
-        context.read<WalletProvider>().load(widget.userId);
-      }
-    });
+    _type = widget.initialType == 'borrowed' ? 'borrowed' : 'lent';
   }
 
-  void _openAdd() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => GlassBottomSheet(
-          radius: 30,
-          child: _AddLoanSheet(userId: widget.userId, initialType: _activeTab)),
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  List<Wallet> _resolveAvailableWallets(BuildContext context) {
+    final walletProv = Provider.of<WalletProvider?>(context, listen: true);
+    final txProv = Provider.of<TransactionProvider?>(context, listen: true);
+    final moreProv = Provider.of<MoreProvider?>(context, listen: true);
+
+    List<Wallet> raw = [];
+    if (walletProv != null && walletProv.wallets.isNotEmpty) {
+      raw = walletProv.wallets;
+    } else if (txProv != null && txProv.wallets.isNotEmpty) {
+      raw = txProv.wallets;
+    } else if (moreProv != null && moreProv.wallets.isNotEmpty) {
+      raw = moreProv.wallets;
+    }
+
+    final nonCredit = raw.where((w) => !w.isCreditCard).toList();
+    return nonCredit.isNotEmpty ? nonCredit : raw;
+  }
+
+  Wallet? _resolveSelectedWallet(List<Wallet> wallets) {
+    if (wallets.isEmpty) return null;
+    if (_selectedWalletId != null) {
+      final matched = wallets.where((w) => w.id == _selectedWalletId).firstOrNull;
+      if (matched != null) return matched;
+    }
+    return wallets.first;
+  }
+
+  Future<void> _pickDueDate() async {
+    HapticFeedback.selectionClick();
+    final picked = await FinoraDatePickerSheet.showSingleDate(
+      context,
+      initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 30)),
     );
+    if (picked != null && mounted) {
+      setState(() => _dueDate = picked);
+    }
   }
 
-  void _showRepayDialog(Loan loan) {
-    final controller = TextEditingController();
-    final walletProvider = context.read<WalletProvider>();
-    final wallets = walletProvider.wallets;
-    String selectedWalletId = wallets.isNotEmpty ? wallets.first.id : '';
+  Future<void> _handleSave(List<Wallet> wallets) async {
+    if (_isSaving) return;
+    final name = _nameController.text.trim();
+    final digits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final amount = int.tryParse(digits) ?? 0;
 
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: Text(
-              '${loan.type == 'lent' ? 'Thu hồi nợ' : 'Trả nợ'}: ${loan.personName}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                  'Số tiền còn lại: ${NumberFormat('#,##0', 'vi_VN').format(loan.remainingPrincipal)} đ'),
-              const SizedBox(height: 12),
-              if (wallets.isNotEmpty) ...[
-                DropdownButtonFormField<String>(
-                  value: selectedWalletId,
-                  decoration: InputDecoration(
-                    labelText:
-                        loan.type == 'lent' ? 'Ví nhận tiền' : 'Ví trả tiền',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  items: wallets.map((w) {
-                    return DropdownMenuItem<String>(
-                      value: w.id,
-                      child: Text(w.name),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDialogState(() => selectedWalletId = val);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                inputFormatters: [DotSeparatorTextInputFormatter()],
-                decoration: InputDecoration(
-                  labelText: loan.type == 'lent'
-                      ? 'Số tiền thu (VNĐ)'
-                      : 'Số tiền trả (VNĐ)',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14)),
+    if (name.isEmpty || amount <= 0) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            name.isEmpty
+                ? (_type == 'lent'
+                    ? 'Vui lòng nhập tên người vay'
+                    : 'Vui lòng nhập tên người cho vay (chủ nợ)')
+                : 'Vui lòng nhập số tiền hợp lệ lớn hơn 0',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    HapticFeedback.mediumImpact();
+
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final selectedWallet = _resolveSelectedWallet(wallets);
+      final rawNote = _noteController.text.trim();
+      final effectiveNote = selectedWallet != null
+          ? (rawNote.isNotEmpty
+              ? '[Ví: ${selectedWallet.name}] $rawNote'
+              : '[Ví: ${selectedWallet.name}]')
+          : (rawNote.isNotEmpty ? rawNote : null);
+
+      final loanId = 'loan_$now';
+      final loan = Loan(
+        id: loanId,
+        userId: widget.userId,
+        personName: name,
+        type: _type,
+        principalAmount: amount,
+        amount: amount,
+        remainingPrincipal: amount,
+        startDate: now,
+        dueDate: _dueDate?.millisecondsSinceEpoch,
+        walletId: selectedWallet?.id ?? '',
+        walletName: selectedWallet?.name,
+        note: effectiveNote,
+      );
+
+      final moreProv = context.read<MoreProvider>();
+      await moreProv.addLoan(widget.userId, loan);
+
+      // Sync wallet balance by recording the corresponding loan / borrowing transaction
+      if (selectedWallet != null && mounted) {
+        final txProv = Provider.of<TransactionProvider?>(context, listen: false);
+        if (txProv != null) {
+          final txNote = _type == 'lent'
+              ? 'Cho $name vay${rawNote.isNotEmpty ? " - $rawNote" : ""}'
+              : 'Vay tiền từ $name${rawNote.isNotEmpty ? " - $rawNote" : ""}';
+          final tx = TransactionModel(
+            userId: widget.userId,
+            amount: amount,
+            type: _type == 'lent' ? 'loan' : 'borrowing',
+            date: now,
+            walletId: selectedWallet.id,
+            walletName: selectedWallet.name,
+            owner: _owner,
+            ownerName: _owner == 'wife' ? 'Vợ' : 'Chồng',
+            creatorTag: _owner,
+            loanId: loanId,
+            categoryName: _type == 'lent' ? 'Cho vay' : 'Đi vay',
+            note: txNote,
+          );
+          await txProv.createTransaction(widget.userId, tx);
+        }
+        if (mounted) {
+          Provider.of<WalletProvider?>(context, listen: false)
+              ?.load(widget.userId, force: true);
+        }
+      }
+
+      if (mounted) Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final glassOpacity = studio?.glassOpacity ?? 0.95;
+    final primaryTextColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
+    final secondaryTextColor =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    final isLent = _type == 'lent';
+    final accentColor =
+        isLent ? const Color(0xFF0F6E56) : const Color(0xFFE11D48);
+    final accentBright =
+        isLent ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
+
+    final wallets = _resolveAvailableWallets(context);
+    final selectedWallet = _resolveSelectedWallet(wallets);
+    if (_selectedWalletId == null && selectedWallet != null) {
+      _selectedWalletId = selectedWallet.id;
+    }
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      decoration: BoxDecoration(
+        color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+            .withValues(alpha: glassOpacity.clamp(0.92, 1.0)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(
+          top: BorderSide(
+            color: (isDark ? Colors.white : Colors.black)
+                .withValues(alpha: isDark ? 0.12 : 0.06),
+            width: 1.0,
+          ),
+        ),
+      ),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Drag Handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
+            ),
+            const SizedBox(height: 14),
+
+            // Header Title & Close Button
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: isDark ? 0.22 : 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isLent
+                        ? Icons.call_made_rounded
+                        : Icons.call_received_rounded,
+                    color: isDark ? accentBright : accentColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isLent ? 'Thêm khoản cho vay' : 'Thêm khoản vay nợ',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isLent
+                            ? 'Xuất tiền từ ví cho người khác vay'
+                            : 'Nhận tiền vay vào ví và ghi nhận công nợ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: secondaryTextColor,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // 1. Type Selector Pills: Cho vay (Xuất tiền) vs Đi vay (Nhận tiền)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTypePill(
+                    label: 'Cho vay (Xuất tiền)',
+                    icon: Icons.arrow_outward_rounded,
+                    isSelected: isLent,
+                    activeColor: const Color(0xFF0F6E56),
+                    pastelBg: isDark
+                        ? const Color(0xFF0F6E56).withValues(alpha: 0.14)
+                        : const Color(0xFFECFDF5),
+                    isDark: isDark,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _type = 'lent');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildTypePill(
+                    label: 'Đi vay (Nhận tiền)',
+                    icon: Icons.south_west_rounded,
+                    isSelected: !isLent,
+                    activeColor: const Color(0xFFE11D48),
+                    pastelBg: isDark
+                        ? const Color(0xFFE11D48).withValues(alpha: 0.14)
+                        : const Color(0xFFFFF1F2),
+                    isDark: isDark,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _type = 'borrowed');
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // 2. Spender / Owner Selector Pills: Chồng vs Vợ
+            Row(
+              children: [
+                Text(
+                  isLent ? 'Người cho vay:' : 'Người đứng vay:',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: secondaryTextColor,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildOwnerPill(
+                          label: 'Chồng',
+                          icon: Icons.face_rounded,
+                          isSelected: _owner == 'husband',
+                          color: const Color(0xFF0284C7),
+                          isDark: isDark,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _owner = 'husband');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildOwnerPill(
+                          label: 'Vợ',
+                          icon: Icons.face_3_rounded,
+                          isSelected: _owner == 'wife',
+                          color: const Color(0xFFDB2777),
+                          isDark: isDark,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _owner = 'wife');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // 3. Person Name Field
+            TextField(
+              controller: _nameController,
+              textCapitalization: TextCapitalization.sentences,
+              inputFormatters: const [FirstLetterUpperCaseFormatter()],
+              style: TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: primaryTextColor,
+              ),
+              decoration: InputDecoration(
+                labelText:
+                    isLent ? 'Tên người vay' : 'Tên người cho vay (Chủ nợ)',
+                hintText: isLent ? 'VD: Anh Tuấn, Chị Mai...' : 'VD: Ngân hàng, Anh Hùng...',
+                prefixIcon: Icon(
+                  Icons.person_outline_rounded,
+                  size: 20,
+                  color: isDark ? accentBright : accentColor,
+                ),
+                filled: true,
+                fillColor: isDark
+                    ? const Color(0xFF1E293B).withValues(alpha: 0.65)
+                    : const Color(0xFFF8FAFC),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.10),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.10),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: accentColor, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 4. Amount Field
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              inputFormatters: const [DotSeparatorTextInputFormatter()],
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: isDark ? accentBright : accentColor,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Số tiền (VNĐ)',
+                hintText: '0',
+                prefixIcon: Icon(
+                  Icons.payments_outlined,
+                  size: 20,
+                  color: isDark ? accentBright : accentColor,
+                ),
+                suffixText: '₫',
+                suffixStyle: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: secondaryTextColor,
+                ),
+                filled: true,
+                fillColor: isDark
+                    ? const Color(0xFF1E293B).withValues(alpha: 0.65)
+                    : const Color(0xFFF8FAFC),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.10),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.10),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: accentColor, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 5. Source / Destination Wallet Selector
+            Text(
+              isLent
+                  ? 'Nguồn tiền cho vay (Trừ tiền từ ví)'
+                  : 'Ví nhận tiền vay (Cộng tiền vào ví)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: secondaryTextColor,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (wallets.isEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B).withValues(alpha: 0.5)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 18,
+                      color: secondaryTextColor,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Chưa có ví khả dụng (Sẽ chỉ ghi sổ nợ)',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              // Selected Wallet Interactive Apple Tile
+              InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _showWalletList = !_showWalletList);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF1E293B).withValues(alpha: 0.75)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: isDark ? 0.45 : 0.30),
+                      width: 1.1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildWalletBrandAvatar(selectedWallet!, size: 34),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              selectedWallet.name,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: primaryTextColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              isLent ? 'Xuất tiền cho vay' : 'Nhận tiền đi vay',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? accentBright : accentColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 112),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            formatVND(selectedWallet.balance),
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w900,
+                              color: primaryTextColor,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        _showWalletList
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: secondaryTextColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Quick Horizontal Wallet Chips / Expandable Picker
+              if (wallets.length > 1 || _showWalletList) ...[
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: wallets.map((w) {
+                      final isSelected = w.id == selectedWallet.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _selectedWalletId = w.id;
+                              _showWalletList = false;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(100),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? accentColor
+                                  : (isDark
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(100),
+                              border: Border.all(
+                                color: isSelected
+                                    ? accentColor
+                                    : (isDark ? Colors.white : Colors.black)
+                                        .withValues(alpha: 0.08),
+                                width: 0.9,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildWalletBrandAvatar(w, size: 18),
+                                const SizedBox(width: 6),
+                                Text(
+                                  w.name,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : primaryTextColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  '(${formatVND(w.balance)})',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: isSelected
+                                        ? Colors.white.withValues(alpha: 0.85)
+                                        : secondaryTextColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-            FilledButton(
-              onPressed: () async {
-                final digits =
-                    controller.text.replaceAll(RegExp(r'[^0-9]'), '');
-                final amount = int.tryParse(digits) ?? 0;
-                if (amount > 0 &&
-                    amount <= loan.remainingPrincipal &&
-                    selectedWalletId.isNotEmpty) {
-                  final provider = context.read<MoreProvider>();
-                  final opId = provider.newRepaymentId(widget.userId);
-                  await provider.repayLoan(
-                    widget.userId,
-                    loan.id,
-                    selectedWalletId,
-                    amount,
-                    opId,
-                  );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                }
-              },
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB)),
-              child: const Text('Xác nhận'),
+            const SizedBox(height: 12),
+
+            // 6. Due Date & Note Row
+            Row(
+              children: [
+                // Due Date Picker Tile
+                Expanded(
+                  flex: 5,
+                  child: InkWell(
+                    onTap: _pickDueDate,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 11),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF1E293B).withValues(alpha: 0.65)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _dueDate != null
+                              ? accentColor.withValues(alpha: 0.5)
+                              : (isDark ? Colors.white : Colors.black)
+                                  .withValues(alpha: 0.10),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.event_available_rounded,
+                            size: 17,
+                            color: _dueDate != null
+                                ? (isDark ? accentBright : accentColor)
+                                : secondaryTextColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              _dueDate != null
+                                  ? DateFormat('dd/MM/yyyy').format(_dueDate!)
+                                  : 'Hạn trả dự kiến',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: _dueDate != null
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                color: _dueDate != null
+                                    ? primaryTextColor
+                                    : secondaryTextColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (_dueDate != null)
+                            GestureDetector(
+                              onTap: () => setState(() => _dueDate = null),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 15,
+                                color: secondaryTextColor,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Optional Note Input
+                Expanded(
+                  flex: 6,
+                  child: SizedBox(
+                    height: 48,
+                    child: TextField(
+                      controller: _noteController,
+                      textCapitalization: TextCapitalization.sentences,
+                      inputFormatters: const [FirstLetterUpperCaseFormatter()],
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: primaryTextColor,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Ghi chú khoản vay...',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: secondaryTextColor,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.notes_rounded,
+                          size: 17,
+                          color: secondaryTextColor,
+                        ),
+                        filled: true,
+                        fillColor: isDark
+                            ? const Color(0xFF1E293B).withValues(alpha: 0.65)
+                            : const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 0,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: (isDark ? Colors.white : Colors.black)
+                                .withValues(alpha: 0.10),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: (isDark ? Colors.white : Colors.black)
+                                .withValues(alpha: 0.10),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: accentColor, width: 1.3),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 7. Solid Stadium-Pill Save Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : () => _handleSave(wallets),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: accentColor.withValues(alpha: 0.5),
+                  elevation: 0,
+                  shape: const StadiumBorder(),
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isLent
+                                ? Icons.check_circle_outline_rounded
+                                : Icons.downloading_rounded,
+                            size: 19,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              isLent
+                                  ? 'Lưu khoản cho vay'
+                                  : 'Lưu khoản vay nợ',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
             ),
           ],
         ),
@@ -136,707 +888,169 @@ class _LoanScreenState extends State<LoanScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryTextColor =
-        isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
-
-    final provider = context.watch<MoreProvider>();
-    final loans = provider.loans;
-
-    final isLent = _activeTab == 'lent';
-    final filtered = loans
-        .where((l) => l.type == _activeTab && l.status == 'active')
-        .toList();
-    final totalRemaining =
-        filtered.fold<int>(0, (s, l) => s + l.remainingPrincipal);
-
-    final displayTotal = totalRemaining;
-    final totalPaid = filtered.fold<int>(0, (s, l) => s + l.paidAmount);
-
-    return GlassScaffold(
-      extendBodyBehindAppBar: true,
-      appBar: GlassTopBar(
-        title: 'Khoản vay & Sổ nợ',
-        showBottomDivider: false,
-        onBack: () => Navigator.pop(context),
-        actions: const [],
-      ),
-      body: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                GlassScaffold.topInset(context, 8),
-                16,
-                8,
-              ),
-              child: _buildLoanSummaryCard(
-                isLent: isLent,
-                filteredCount: filtered.length,
-                displayTotal: displayTotal,
-                totalPaid: totalPaid,
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-              child: BouncyPillTabs(
-                labels: const ['Cho vay', 'Vay nợ'],
-                selectedIndex: _activeTab == 'lent' ? 0 : 1,
-                colors: const [Color(0xFF059669), Color(0xFFDC2626)],
-                height: 48,
-                onChanged: (i) => setState(
-                    () => _activeTab = i == 0 ? 'lent' : 'borrowed'),
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // 4. Section: DANH SÁCH CHO VAY + "+ Thêm" button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${isLent ? "DANH SÁCH CHO VAY" : "DANH SÁCH VAY NỢ"} (${filtered.length})',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: secondaryTextColor,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    FinoraAddButton(
-                      onPressed: _openAdd,
-                      tooltip: 'Thêm khoản vay',
-                      size: 34,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Loan Items List
-                if (filtered.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-                          .withValues(
-                              alpha: context
-                                  .watch<ThemeStudioController>()
-                                  .glassOpacity),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF334155)
-                            : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Column(children: [
-                      Icon(Icons.handshake_outlined,
-                          size: 36,
-                          color: isLent
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFFEF4444)),
-                      const SizedBox(height: 10),
-                      Text(
-                        isLent
-                            ? 'Chưa có khoản cho vay'
-                            : 'Bạn chưa có khoản vay nợ',
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 8),
-                      FinoraButton(
-                        onPressed: _openAdd,
-                        variant: FinoraButtonVariant.compact,
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_rounded),
-                            SizedBox(width: FinoraV8Space.x1),
-                            Text('Thêm khoản mới'),
-                          ],
-                        ),
-                      ),
-                    ]),
-                  )
-                else
-                  for (int i = 0; i < filtered.length; i++)
-                    FinoraStaggeredItem(
-                      index: i,
-                      child: _loanCard(filtered[i], isDark),
-                    ),
-              ]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoanSummaryCard({
-    required bool isLent,
-    required int filteredCount,
-    required int displayTotal,
-    required int totalPaid,
+  Widget _buildTypePill({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required Color activeColor,
+    required Color pastelBg,
+    required bool isDark,
+    required VoidCallback onTap,
   }) {
-    final accent = isLent ? const Color(0xFF34C759) : const Color(0xFFFF9500);
-    return FinoraSummaryCard(
-      title: isLent ? 'TỔNG CẦN THU VỀ' : 'TỔNG CẦN TRẢ ĐI',
-      amount: displayTotal,
-      icon: isLent ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-      accent: accent,
-      subtitle: isLent
-          ? 'Các khoản cho vay đang theo dõi trong sổ'
-          : 'Các khoản vay nợ cần thanh toán đúng hạn',
-      badgeText: '$filteredCount ${isLent ? "khoản cho vay" : "khoản vay nợ"}',
-      badgeColor: accent,
-      metricColors: [accent, const Color(0xFF007AFF)],
-      metrics: [
-        ('Còn lại', displayTotal),
-        (isLent ? 'Đã thu' : 'Đã trả', totalPaid),
-      ],
-    );
-  }
-
-  void _confirmDeleteLoan(Loan loan) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Xác nhận xóa'),
-        content: Text(
-            'Bạn có chắc chắn muốn xóa khoản vay "${loan.personName}" không?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await context
-                  .read<MoreProvider>()
-                  .deleteLoan(widget.userId, loan.id);
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Xóa'),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : pastelBg,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: isSelected
+                ? activeColor
+                : activeColor.withValues(alpha: isDark ? 0.35 : 0.25),
+            width: isSelected ? 1.2 : 0.9,
           ),
-        ],
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.28),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? Colors.white : activeColor,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? Colors.white : activeColor,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _loanCard(Loan loan, bool dark) {
-    final lent = loan.type == 'lent';
-    final accent = lent ? const Color(0xFF059669) : const Color(0xFFDC2626);
-    final progress = loan.principalAmount > 0
-        ? (loan.paidAmount / loan.principalAmount).clamp(0.0, 1.0)
-        : 0.0;
-    final percent = (progress * 100).round();
-    final money = NumberFormat('#,##0', 'vi_VN');
-
-    // Extract first letter of personName
-    String initial = '';
-    final trimmed = loan.personName.trim();
-    if (trimmed.isNotEmpty) {
-      initial = trimmed.characters.first.toUpperCase();
-    } else {
-      initial = lent ? 'C' : 'V';
-    }
-
-    final List<List<Color>> palette = [
-      [const Color(0xFF0284C7), const Color(0xFF38BDF8)], // Sky
-      [const Color(0xFF059669), const Color(0xFF34D399)], // Emerald
-      [const Color(0xFFD97706), const Color(0xFFFBBF24)], // Amber
-      [const Color(0xFF2563EB), const Color(0xFF60A5FA)], // Royal Blue
-      [const Color(0xFF0D9488), const Color(0xFF2DD4BF)], // Teal
-      [const Color(0xFFE11D48), const Color(0xFFFB7185)], // Rose
-      [const Color(0xFFEA580C), const Color(0xFFFB923C)], // Orange
-    ];
-    final colorPair = palette[loan.personName.hashCode.abs() % palette.length];
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: (dark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: context.watch<ThemeStudioController>().glassOpacity),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: dark
-              ? const Color(0xFF334155).withValues(alpha: 0.8)
-              : const Color(0xFFE2E8F0),
-          width: 1.2,
+  Widget _buildOwnerPill({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color
+              : color.withValues(alpha: isDark ? 0.14 : 0.08),
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: isSelected ? color : color.withValues(alpha: 0.28),
+            width: 0.9,
+          ),
         ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? Colors.white : color,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? Colors.white : color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletBrandAvatar(Wallet wallet, {required double size}) {
+    final brand = BankIconRegistry.resolve(
+      wallet.bankCode ?? wallet.type,
+      bankName: wallet.bankName ?? wallet.name,
+    );
+    final isCash = brand.code == 'cash' || wallet.type == 'cash';
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isCash ? const Color(0xFF10B981) : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.22 : 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 4,
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: Avatar, Name + Badges, Percent Pill
-          Row(
-            children: [
-              // Avatar with initial letter
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: colorPair,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.18)
-                        : Colors.white,
-                    width: 1.8,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorPair[0].withValues(alpha: dark ? 0.35 : 0.22),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ),
+      child: isCash
+          ? Center(
+              child: Icon(
+                Icons.payments_rounded,
+                color: Colors.white,
+                size: size * 0.52,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      loan.personName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        color: dark ? Colors.white : const Color(0xFF0F172A),
-                        letterSpacing: -0.2,
+            )
+          : (brand.assetPath != null && brand.assetPath!.isNotEmpty
+              ? ClipOval(
+                  child: Image.asset(
+                    brand.assetPath!,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Icon(
+                        Icons.account_balance_rounded,
+                        size: size * 0.52,
+                        color: brand.color,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: (lent
-                                    ? const Color(0xFF059669)
-                                    : const Color(0xFFDC2626))
-                                .withValues(alpha: dark ? 0.22 : 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            lent ? 'Khoản cho vay' : 'Khoản vay nợ',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: lent
-                                  ? (dark
-                                      ? const Color(0xFF34D399)
-                                      : const Color(0xFF059669))
-                                  : (dark
-                                      ? const Color(0xFFF87171)
-                                      : const Color(0xFFDC2626)),
-                            ),
-                          ),
-                        ),
-                        if (loan.startDate > 0) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            '•  ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(loan.startDate))}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: dark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (percent >= 100
-                          ? const Color(0xFF059669)
-                          : (dark
-                              ? const Color(0xFF334155)
-                              : const Color(0xFFF1F5F9)))
-                      .withValues(
-                          alpha: percent >= 100 ? (dark ? 0.25 : 0.12) : 1.0),
-                  borderRadius: BorderRadius.circular(100),
-                  border: percent >= 100
-                      ? Border.all(
-                          color: const Color(0xFF059669).withValues(alpha: 0.3),
-                          width: 1)
-                      : null,
-                ),
-                child: percent >= 100
-                    ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check_circle_rounded,
-                              size: 12, color: Color(0xFF059669)),
-                          SizedBox(width: 3),
-                          Text(
-                            'Tất toán',
-                            style: TextStyle(
-                              color: Color(0xFF059669),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        '$percent%',
-                        style: TextStyle(
-                          color: dark
-                              ? const Color(0xFFCBD5E1)
-                              : const Color(0xFF475569),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                        ),
-                      ),
-              ),
-              PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                icon: Icon(
-                  Icons.more_vert_rounded,
-                  size: 18,
-                  color: dark
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                onSelected: (val) {
-                  if (val == 'repay') {
-                    _showRepayDialog(loan);
-                  } else if (val == 'delete') {
-                    _confirmDeleteLoan(loan);
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'repay',
-                    child: Row(
-                      children: [
-                        Icon(
-                          lent
-                              ? Icons.south_west_rounded
-                              : Icons.north_east_rounded,
-                          size: 16,
-                          color: accent,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(lent ? 'Thu hồi nợ' : 'Trả nợ'),
-                      ],
-                    ),
                   ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline_rounded,
-                            size: 16, color: Color(0xFFEF4444)),
-                        SizedBox(width: 8),
-                        Text('Xóa khoản vay',
-                            style: TextStyle(color: Color(0xFFEF4444))),
-                      ],
-                    ),
+                )
+              : Center(
+                  child: Icon(
+                    Icons.account_balance_rounded,
+                    size: size * 0.52,
+                    color: brand.color,
                   ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // Hairline divider
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: dark
-                ? const Color(0xFF334155).withValues(alpha: 0.6)
-                : const Color(0xFFF1F5F9),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Amount & Action Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Còn lại: ',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: dark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B),
-                          ),
-                        ),
-                        FinoraAnimatedAmount(
-                          amount: loan.remainingPrincipal.toDouble(),
-                          style: TextStyle(
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.3,
-                            color:
-                                dark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Gốc: ${money.format(loan.principalAmount)} đ  •  Đã ${lent ? "thu" : "trả"}: ${money.format(loan.paidAmount)} đ',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: dark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => _showRepayDialog(loan),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: lent
-                          ? const [Color(0xFF059669), Color(0xFF10B981)]
-                          : const [Color(0xFFDC2626), Color(0xFFEF4444)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accent.withValues(alpha: dark ? 0.35 : 0.25),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        lent
-                            ? Icons.south_west_rounded
-                            : Icons.north_east_rounded,
-                        color: Colors.white,
-                        size: 13,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        lent ? 'Thu hồi nợ' : 'Trả nợ',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // Modern Rounded Progress Bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(100),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 5,
-              color: accent,
-              backgroundColor:
-                  dark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Bottom Sheet to Add Loan
-class _AddLoanSheet extends StatefulWidget {
-  final String userId;
-  final String initialType;
-  const _AddLoanSheet({required this.userId, required this.initialType});
-
-  @override
-  State<_AddLoanSheet> createState() => _AddLoanSheetState();
-}
-
-class _AddLoanSheetState extends State<_AddLoanSheet> {
-  final _nameController = TextEditingController();
-  final _amountController = TextEditingController();
-  late String _type;
-
-  @override
-  void initState() {
-    super.initState();
-    _type = widget.initialType;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryTextColor =
-        isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-          20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      decoration: BoxDecoration(
-        color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: context.watch<ThemeStudioController>().glassOpacity),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _type == 'lent' ? 'Thêm khoản cho vay' : 'Thêm khoản vay nợ',
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: primaryTextColor),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: _type == 'lent' ? 'Tên người vay' : 'Tên chủ nợ',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [DotSeparatorTextInputFormatter()],
-            decoration: InputDecoration(
-              labelText: 'Số tiền (VNĐ)',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () async {
-                final name = _nameController.text.trim();
-                final digits =
-                    _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
-                final amount = int.tryParse(digits) ?? 0;
-                if (name.isNotEmpty && amount > 0) {
-                  final now = DateTime.now().millisecondsSinceEpoch;
-                  final loan = Loan(
-                    userId: widget.userId,
-                    personName: name,
-                    type: _type,
-                    principalAmount: amount,
-                    amount: amount,
-                    remainingPrincipal: amount,
-                    startDate: now,
-                  );
-                  await context
-                      .read<MoreProvider>()
-                      .addLoan(widget.userId, loan);
-                  if (context.mounted) Navigator.pop(context);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                shape: const StadiumBorder(),
-              ),
-              child: const Text('Lưu khoản vay',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
-            ),
-          ),
-        ],
-      ),
+                )),
     );
   }
 }

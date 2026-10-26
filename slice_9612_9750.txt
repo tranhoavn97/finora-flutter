@@ -1,0 +1,90 @@
+Created At: 2026-09-29T14:49:37+07:00
+Completed At: 2026-09-29T14:49:37+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 9612 to 9750
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+9612:   Widget _buildLiveButtonsAndLedgerPreview({
+9613:     required ThemeStudioController studio,
+9614:     required bool isDark,
+9615:     required Color primary,
+9616:     required PaletteMeta palette,
+9617:   }) {
+9618:     return Container(
+9619:       padding: const EdgeInsets.all(14),
+9620:       decoration: BoxDecoration(
+9621:         color: (isDark ? const Color(0xFF090D16) : const Color(0xFFF1F5F9))
+9622:             .withValues(alpha: 0.95),
+9623:         borderRadius: BorderRadius.circular(20),
+9624:         border: Border.all(
+9625:           color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+9626:         ),
+9627:       ),
+9628:       child: Column(
+9629:         crossAxisAlignment: CrossAxisAlignment.start,
+9630:         children: [
+9631:           Text(
+9632:             'Xem Trước Nút Bấm & Phong Cách Sổ Cái',
+9633:             style: TextStyle(
+9634:               fontSize: 12.5,
+9635:               fontWeight: FontWeight.w700,
+9636:               color: isDark ? Colors.white : const Color(0xFF0F172A),
+9637:             ),
+9638:           ),
+9639:           const SizedBox(height: 12),
+9640: 
+9641:           // Primary & Secondary Buttons Row
+9642:           Row(
+9643:             children: [
+9644:               Expanded(
+9645:                 child: Container(
+9646:                   height: studio.getButtonHeight(),
+9647:                   padding: studio.getButtonPadding(),
+9648:                   decoration: BoxDecoration(
+9649:                     gradient: LinearGradient(colors: palette.hero
+<truncated 2480 bytes>
+        ),
+9709:             child: Row(
+9710:               children: [
+9711:                 CategoryIconBadge(
+9712:                   icon: 'utensils',
+9713:                   categoryName: 'Ăn uống',
+9714:                   color: const Color(0xFFF59E0B),
+9715:                   size: 38,
+9716:                   isDark: isDark,
+9717:                 ),
+9718:                 const SizedBox(width: 10),
+9719:                 Expanded(
+9720:                   child: Column(
+9721:                     crossAxisAlignment: CrossAxisAlignment.start,
+9722:                     children: [
+9723:                       Text(
+9724:                         'Cà phê sáng Highlands',
+9725:                         style: TextStyle(
+9726:                           fontSize: 12.5,
+9727:                           fontWeight: FontWeight.w700,
+9728:                           color:
+9729:                               isDark ? Colors.white : const Color(0xFF0F172A),
+9730:                         ),
+9731:                       ),
+9732:                       const SizedBox(height: 2),
+9733:                       Text(
+9734:                         'Hôm nay • Ăn uống & giải trí',
+9735:                         style: TextStyle(
+9736:                           fontSize: 10,
+9737:                           color: isDark
+9738:                               ? const Color(0xFF94A3B8)
+9739:                               : const Color(0xFF64748B),
+9740:                         ),
+9741:                       ),
+9742:                     ],
+9743:                   ),
+9744:                 ),
+9745:                 const Text(
+9746:                   '-45.000 ₫',
+9747:                   style: TextStyle(
+9748:                     fontSize: 13,
+9749:                     fontWeight: FontWeight.w800,
+9750:                     color: Color(0xFFF43F5E),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

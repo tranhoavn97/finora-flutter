@@ -1,0 +1,26 @@
+Created At: 2026-09-29T14:57:26+07:00
+Completed At: 2026-09-29T14:57:26+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10707
+Total Bytes: 390784
+Showing lines 8448 to 8465
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8448:                               SizedBox(width: 4),
+8449:                               Expanded(
+8450:                                 child: Text(
+8451:                                   '-18.650.000 ₫',
+8452:                                   style: TextStyle(
+8453:                                       fontSize: 10.5,
+8454:                                       fontWeight: FontWeight.w700,
+8455:                                       color: Color(0xFFF43F5E)),
+8456:                                   overflow: TextOverflow.ellipsis,
+8457:                                 ),
+8458:                        Widget _buildLiveBankCardAndDockPreview({
+8459:     required ThemeStudioController studio,
+8460:     required bool isDark,
+8461:     required Color primary,
+8462:     required PaletteMeta palette,
+8463:   }) {
+8464:     return Column(
+8465:       children: [
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

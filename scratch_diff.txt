@@ -1,0 +1,96 @@
+Created At: 2026-09-29T14:59:05+07:00
+Completed At: 2026-09-29T14:59:08+07:00
+The following changes were made by the replace_file_content tool to: d:\FINORA-\flutter\lib\features\settings\theme_customizer_screen.dart. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -8670,157 +8670,163 @@
+ 
+     return Column(
+       children: [
+-        // Mini Chart Container
+-        ClipRRect(
+-          borderRadius:
+-              BorderRadius.circular(studio.cardCornerRadius.clamp(14.0, 24.0)),
+-          child: BackdropFilter(
+-            filter: ImageFilter.blur(
+-              sigmaX: studio.glassBlur.clamp(0.0, 30.0),
+-              sigmaY: studio.glassBlur.clamp(0.0, 30.0),
+-            ),
+-            child: Container(
+-              height: 145,
+-              padding: const EdgeInsets.all(14),
+-              decoration: BoxDecoration(
+-                color: (isDark ? const Color(0xFF0F172A) : Colors.white)
+-                    .withValues(alpha: studio.glassOpacity.clamp(0.1, 1.0)),
+-                borderRadius: BorderRadius.circular(
+-                    studio.cardCornerRadius.clamp(14.0, 24.0)),
+-                border: Border.all(
+-                  color: (isDark ? Colors.white : Colors.black)
+-                      .withValues(alpha: 0.08),
+-                ),
+-              ),
+-              child: Column(
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Wrap(
+-                    spacing: 12,
+-                    runSpacing: 8,
+-                    alignment: WrapAlignment.spaceBetween,
+-                    children: [
+-                      Row(
+-                        children: [
+-                          Icon(LucideIcons.trending_up,
+-                              size: 14, color: chartColors.first),
+-                          const SizedBox(width: 6),
+-                          Text(
+-                            'Xu Hướng Chi Tiêu Tuần',
+-             
+<truncated 9608 bytes>
+0.0),
++            blur: studio.glassBlur,
++            child: Row(
++              children: [
++                Container(
++                  width: 36,
++                  height: 36,
++                  decoration: BoxDecoration(
++                    color: primary.withValues(alpha: 0.15),
++                    shape: BoxShape.circle,
++                  ),
++                  child:
++                      Icon(Icons.auto_awesome_rounded, size: 18, color: primary),
++                ),
++                const SizedBox(width: 12),
++                Expanded(
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Text(
++                        'Thẻ Mẫu: ${_getWidgetCardName(studio.widgetCardStyle)}',
++                        style: TextStyle(
++                          fontSize: 12.5,
++                          fontWeight: FontWeight.w700,
++                          color: isDark ? Colors.white : const Color(0xFF0F172A),
++                        ),
++                      ),
++                      const SizedBox(height: 2),
++                      Text(
++                        'Trong suốt: ${(studio.glassOpacity * 100).toInt()}% • Độ mờ: ${studio.glassBlur.toInt()}px',
++                        style: TextStyle(
++                          fontSize: 10.5,
++                          color: isDark
++                              ? const Color(0xFF94A3B8)
++                              : const Color(0xFF64748B),
++                        ),
++                      ),
++                    ],
++                  ),
++                ),
++                Icon(Icons.chevron_right_rounded, size: 20, color: primary),
++              ],
++            ),
+           ),
+         ),
+       ],
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.

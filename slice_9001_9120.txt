@@ -1,0 +1,85 @@
+Created At: 2026-09-29T14:49:09+07:00
+Completed At: 2026-09-29T14:49:09+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 9001 to 9120
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+9001:                             child: Column(
+9002:                               crossAxisAlignment: CrossAxisAlignment.start,
+9003:                               mainAxisSize: MainAxisSize.min,
+9004:                               children: [
+9005:                                 Text(
+9006:                                   'Chào, Hoà Trần',
+9007:                                   style: TextStyle(
+9008:                                     fontSize: 13,
+9009:                                     fontWeight: FontWeight.w800,
+9010:                                     color: isDark
+9011:                                         ? Colors.white
+9012:                                         : const Color(0xFF0F172A),
+9013:                                   ),
+9014:                                 ),
+9015:                                 Row(
+9016:                                   children: [
+9017:                                     if (seasonBadge != null)
+9018:                                       Text('${seasonBadge.$1} ',
+9019:                                           style:
+9020:                                               const TextStyle(fontSize: 10.5)),
+9021:                                     Text(
+9022:                                       seasonBadge != null
+9023:                                           ? 'Tết Giáp Thìn'
+9024:                                           : 'Finora AI Pro',
+9025:                                       style: TextStyle(
+9026:                                         fontSize: 10,
+9027:         
+<truncated 2519 bytes>
+         ),
+9073:                               ],
+9074:                             ),
+9075:                           ),
+9076:                         ],
+9077:                       ),
+9078:                     ),
+9079:                   ),
+9080:                 ),
+9081:               ),
+9082:             ],
+9083:           ),
+9084:         ),
+9085: 
+9086:         const SizedBox(height: 10),
+9087: 
+9088:         // Indicator Bar
+9089:         Container(
+9090:           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+9091:           decoration: BoxDecoration(
+9092:             color: (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
+9093:                 .withValues(alpha: 0.8),
+9094:             borderRadius: BorderRadius.circular(12),
+9095:           ),
+9096:           child: Wrap(
+9097:             spacing: 12,
+9098:             runSpacing: 8,
+9099:             alignment: WrapAlignment.spaceBetween,
+9100:             children: [
+9101:               Text(
+9102:                 'Kiểu: ${isFloating ? 'Đảo Nổi Độc Lập' : (studio.appBarScrollBehavior == AppAppBarScrollBehavior.pinned ? 'Ghim Kính Cố Định' : 'Tự Động Ẩn Khi Cuộn')}',
+9103:                 style: TextStyle(
+9104:                     fontSize: 11, fontWeight: FontWeight.w700, color: primary),
+9105:               ),
+9106:               Text(
+9107:                 'Độ mờ: ${(studio.appBarOpacity * 100).toInt()}% • Nhòe: ${studio.appBarBlur.toInt()}px',
+9108:                 style: TextStyle(
+9109:                     fontSize: 10.5,
+9110:                     color: isDark
+9111:                         ? const Color(0xFF94A3B8)
+9112:                         : const Color(0xFF64748B)),
+9113:               ),
+9114:             ],
+9115:           ),
+9116:         ),
+9117:       ],
+9118:     );
+9119:   }
+9120: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

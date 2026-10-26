@@ -1,0 +1,75 @@
+Created At: 2026-09-29T14:49:27+07:00
+Completed At: 2026-09-29T14:49:28+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 9279 to 9400
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+9279:   Widget _buildLiveOverviewMiniPreview({
+9280:     required ThemeStudioController studio,
+9281:     required bool isDark,
+9282:     required Color primary,
+9283:     required PaletteMeta palette,
+9284:   }) {
+9285:     final isFloating =
+9286:         studio.appBarScrollBehavior == AppAppBarScrollBehavior.floating;
+9287:     final seasonBadge = studio.getSeasonalBadge();
+9288:     final surfaceBase = studio.getStyleSurfaceBase(isDark);
+9289:     final effectiveBorder = studio.getCardBorder(isDark);
+9290: 
+9291:     return Container(
+9292:       padding: const EdgeInsets.all(12),
+9293:       decoration: BoxDecoration(
+9294:         color: (isDark ? const Color(0xFF090D16) : const Color(0xFFF1F5F9))
+9295:             .withValues(alpha: 0.95),
+9296:         borderRadius: BorderRadius.circular(20),
+9297:         border: Border.all(
+9298:           color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+9299:         ),
+9300:       ),
+9301:       child: Column(
+9302:         children: [
+9303:           // 1. Mini Top Bar
+9304:           ClipRRect(
+9305:             borderRadius: BorderRadius.circular(isFloating ? 16 : 12),
+9306:             child: BackdropFilter(
+9307:               filter: ImageFilter.blur(
+9308:                 sigmaX: studio.appBarBlur.clamp(0.0, 30.0),
+9309:                 sigmaY: studio.appBarBlur.clamp(0.0, 30.0),
+9310:               ),
+9311:               child: Container(
+9312:                 padding:
+9313:                     const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+9314:               
+<truncated 2936 bytes>
+                         style: TextStyle(
+9372:                                   fontSize: 11.5,
+9373:                                   fontWeight: FontWeight.w700,
+9374:                                   color: isDark
+9375:                                       ? Colors.white
+9376:                                       : const Color(0xFF0F172A),
+9377:                                 ),
+9378:                               ),
+9379:                               const SizedBox(width: 5),
+9380:                               Container(
+9381:                                 padding: const EdgeInsets.symmetric(
+9382:                                     horizontal: 5, vertical: 1.5),
+9383:                                 decoration: BoxDecoration(
+9384:                                   color: const Color(0xFFF59E0B)
+9385:                                       .withValues(alpha: 0.18),
+9386:                                   borderRadius: BorderRadius.circular(6),
+9387:                                   border: Border.all(
+9388:                                       color: const Color(0xFFF59E0B)
+9389:                                           .withValues(alpha: 0.4),
+9390:                                       width: 0.6),
+9391:                                 ),
+9392:                                 child: Text(
+9393:                                   studio.membershipTier ==
+9394:                                           AppMembershipTierBadge.diamondCrown
+9395:                                       ? '👑 VIP'
+9396:                                       : '⭐ PRO',
+9397:                                   style: const TextStyle(
+9398:                                       fontSize: 8.5,
+9399:                                       fontWeight: FontWeight.w800,
+9400:                                       color: Color(0xFFF59E0B)),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

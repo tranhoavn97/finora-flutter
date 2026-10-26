@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../core/design_system/app_colors.dart';
 import '../../core/design_system/app_radius.dart';
@@ -24,7 +23,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnboardingPageData(
       icon: Icons.account_balance_wallet_outlined,
       title: 'Quản lý Dòng tiền',
-      description: 'Theo dõi chi tiết các tài khoản, thẻ tín dụng, khoản vay và nợ ở một nơi duy nhất với giao diện kính mờ tuyệt đẹp.',
+      description: 'Theo dõi chi tiết các tài khoản, thẻ tín dụng, khoản vay và nợ ở một nơi duy nhất với giao diện Material 3 mượt mà và trực quan.',
     ),
     _OnboardingPageData(
       icon: Icons.donut_large_outlined,

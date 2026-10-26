@@ -1,0 +1,98 @@
+Created At: 2026-09-29T14:54:51+07:00
+Completed At: 2026-09-29T14:54:51+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10677
+Total Bytes: 388701
+Showing lines 8156 to 8250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8156:   Widget _buildMiniDockPreview({
+8157:     required ThemeStudioController studio,
+8158:     required Color primary,
+8159:     required bool isDark,
+8160:   }) {
+8161:     return Container(
+8162:       padding: const EdgeInsets.symmetric(vertical: 4),
+8163:       decoration: BoxDecoration(
+8164:         color: (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9))
+8165:             .withValues(alpha: 0.7),
+8166:         borderRadius: BorderRadius.circular(16),
+8167:         border: Border.all(
+8168:           color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+8169:         ),
+8170:       ),
+8171:       child: Column(
+8172:         children: [
+8173:           Padding(
+8174:             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+8175:             child: Wrap(
+8176:               spacing: 12,
+8177:               runSpacing: 8,
+8178:               alignment: WrapAlignment.spaceBetween,
+8179:               children: [
+8180:                 Text(
+8181:                   'Thanh Dock (${_getDockNavName(studio.dockNavStyle)})',
+8182:                   style: TextStyle(
+8183:                     fontSize: 11,
+8184:                     fontWeight: FontWeight.w600,
+8185:                     color: isDark
+8186:                         ? const Color(0xFF94A3B8)
+8187:                         : const Color(0xFF64748B),
+8188:                   ),
+8189:                 ),
+8190:                 Text(
+8191:                   'Chạm tab để thử hiệu ứng',
+8192:                   style: TextStyle(
+8193:  
+<truncated 259 bytes>
+       ),
+8201:           const SizedBox(height: 2),
+8202:           ClipRect(
+8203:             child: FinoraNavigation(
+8204:               index: _previewTab,
+8205:               onTap: (idx) {
+8206:                 HapticFeedback.selectionClick();
+8207:                 setState(() => _previewTab = idx);
+8208:               },
+8209:               onAddTap: () {
+8210:                 HapticFeedback.lightImpact();
+8211:                 _showFeedback('Chạm nút tạo giao dịch nhanh');
+8212:               },
+8213:             ),
+8214:           ),
+8215:         ],
+8216:       ),
+8217:     );
+8218:   }
+8219: 
+8220:   Widget _buildLiveHeroCardProPreview({
+8221:     required ThemeStudioController studio,
+8222:     required bool isDark,
+8223:     required Color primary,
+8224:     required PaletteMeta palette,
+8225:   }) {
+8226:     final balanceFontSize = switch (studio.heroBalanceSize) {
+8227:       AppHeroBalanceSize.compact => 24.0,
+8228:       AppHeroBalanceSize.standard => 30.0,
+8229:       AppHeroBalanceSize.largeEmphasis => 36.0,
+8230:     };
+8231: 
+8232:     final cardTintColors = studio.getHeroCardGradient(isDark);
+8233: 
+8234:     return Column(
+8235:       children: [
+8236:         // Hero Card Pro Container
+8237:         AnimatedContainer(
+8238:           duration: const Duration(milliseconds: 280),
+8239:           curve: Curves.easeOutCubic,
+8240:           height: 165,
+8241:           padding: const EdgeInsets.all(16),
+8242:           decoration: BoxDecoration(
+8243:             gradient: LinearGradient(
+8244:               colors: cardTintColors,
+8245:               begin: Alignment.topLeft,
+8246:               end: Alignment.bottomRight,
+8247:             ),
+8248:             borderRadius: BorderRadius.circular(
+8249:                 studio.cardCornerRadius.clamp(16.0, 26.0)),
+8250:             border: Border.all(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

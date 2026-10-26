@@ -1,0 +1,84 @@
+Created At: 2026-09-29T14:59:13+07:00
+Completed At: 2026-09-29T14:59:13+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10607
+Total Bytes: 386845
+Showing lines 8835 to 8980
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8835: 
+8836:   Widget _buildLiveAppBarPreview({
+8837:     required ThemeStudioController studio,
+8838:     required bool isDark,
+8839:     required Color primary,
+8840:     required PaletteMeta palette,
+8841:   }) {
+8842:     final isFloating =
+8843:         studio.appBarScrollBehavior == AppAppBarScrollBehavior.floating;
+8844:     final seasonBadge = studio.getSeasonalBadge();
+8845: 
+8846:     return Column(
+8847:       children: [
+8848:         // Simulated Mobile Top Frame
+8849:         Container(
+8850:           height: 155,
+8851:           decoration: BoxDecoration(
+8852:             color: (isDark ? const Color(0xFF090D16) : const Color(0xFFE2E8F0))
+8853:                 .withValues(alpha: 0.95),
+8854:             borderRadius: BorderRadius.circular(20),
+8855:             border: Border.all(
+8856:               color:
+8857:                   (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+8858:             ),
+8859:           ),
+8860:           child: Stack(
+8861:             children: [
+8862:               // Content placeholder inside screen
+8863:               Positioned.fill(
+8864:                 top: 72,
+8865:                 child: Padding(
+8866:                   padding:
+8867:                       const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+8868:                   child: Row(
+8869:                     children: [
+8870:                       Expanded(
+8871:                         child: Container(
+8872:                           height: 52,
+8873:                           decoration: BoxDecoration(
+8874
+<truncated 3687 bytes>
+hildren: [
+8947:                           // Avatar
+8948:                           Container(
+8949:                             width: 36,
+8950:                             height: 36,
+8951:                             decoration: BoxDecoration(
+8952:                               shape: BoxShape.circle,
+8953:                               gradient:
+8954:                                   LinearGradient(colors: palette.heroGradient),
+8955:                               boxShadow: [
+8956:                                 BoxShadow(
+8957:                                   color: primary.withValues(alpha: 0.35),
+8958:                                   blurRadius: 8,
+8959:                                   offset: const Offset(0, 2),
+8960:                                 ),
+8961:                               ],
+8962:                             ),
+8963:                             child: const Center(
+8964:                               child: Text('H',
+8965:                                   style: TextStyle(
+8966:                                       color: Colors.white,
+8967:                                       fontWeight: FontWeight.w900,
+8968:                                       fontSize: 16)),
+8969:                             ),
+8970:                           ),
+8971:                           const SizedBox(width: 10),
+8972:                           Expanded(
+8973:                             child: Column(
+8974:                               crossAxisAlignment: CrossAxisAlignment.start,
+8975:                               mainAxisSize: MainAxisSize.min,
+8976:                               children: [
+8977:                                 Text(
+8978:                                   'Chào, Hoà Trần',
+8979:                                   style: TextStyle(
+8980:                                     fontSize: 13,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

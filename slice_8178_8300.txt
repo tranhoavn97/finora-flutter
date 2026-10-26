@@ -1,0 +1,91 @@
+Created At: 2026-09-29T14:48:37+07:00
+Completed At: 2026-09-29T14:48:38+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 8178 to 8300
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8178:   Widget _buildLiveHeroCardProPreview({
+8179:     required ThemeStudioController studio,
+8180:     required bool isDark,
+8181:     required Color primary,
+8182:     required PaletteMeta palette,
+8183:   }) {
+8184:     final balanceFontSize = switch (studio.heroBalanceSize) {
+8185:       AppHeroBalanceSize.compact => 24.0,
+8186:       AppHeroBalanceSize.standard => 30.0,
+8187:       AppHeroBalanceSize.largeEmphasis => 36.0,
+8188:     };
+8189: 
+8190:     final cardTintColors = studio.getHeroCardGradient(isDark);
+8191: 
+8192:     return Column(
+8193:       children: [
+8194:         // Hero Card Pro Container
+8195:         AnimatedContainer(
+8196:           duration: const Duration(milliseconds: 280),
+8197:           curve: Curves.easeOutCubic,
+8198:           height: 165,
+8199:           padding: const EdgeInsets.all(16),
+8200:           decoration: BoxDecoration(
+8201:             gradient: LinearGradient(
+8202:               colors: cardTintColors,
+8203:               begin: Alignment.topLeft,
+8204:               end: Alignment.bottomRight,
+8205:             ),
+8206:             borderRadius: BorderRadius.circular(
+8207:                 studio.cardCornerRadius.clamp(16.0, 26.0)),
+8208:             border: Border.all(
+8209:               color: Colors.white.withValues(alpha: 0.22),
+8210:               width: 1.2,
+8211:             ),
+8212:             boxShadow: [
+8213:               BoxShadow(
+8214:                 color: cardTintColors.first.withValues(alpha: 0.35),
+8215:                 blurRadius: 18,
+8216:                 offset: const 
+<truncated 1924 bytes>
+                  color: Colors.white.withValues(alpha: 0.2),
+8259:                           width: 0.8),
+8260:                     ),
+8261:                     child: Text(
+8262:                       _getHeroStyleName(studio.heroCardStyle),
+8263:                       style: const TextStyle(
+8264:                         fontSize: 9.5,
+8265:                         color: Colors.white,
+8266:                         fontWeight: FontWeight.w700,
+8267:                       ),
+8268:                     ),
+8269:                   ),
+8270:                 ],
+8271:               ),
+8272:               Row(
+8273:                 crossAxisAlignment: CrossAxisAlignment.baseline,
+8274:                 textBaseline: TextBaseline.alphabetic,
+8275:                 children: [
+8276:                   Text(
+8277:                     '128.500.000',
+8278:                     style: TextStyle(
+8279:                       fontSize: balanceFontSize,
+8280:                       fontWeight: FontWeight.w900,
+8281:                       color: Colors.white,
+8282:                       letterSpacing: -0.5,
+8283:                     ),
+8284:                   ),
+8285:                   const SizedBox(width: 4),
+8286:                   Text(
+8287:                     '₫',
+8288:                     style: TextStyle(
+8289:                       fontSize: balanceFontSize * 0.65,
+8290:                       fontWeight: FontWeight.w700,
+8291:                       color: Colors.white.withValues(alpha: 0.85),
+8292:                     ),
+8293:                   ),
+8294:                 ],
+8295:               ),
+8296:               if (studio.heroCardStyle == AppHeroCardStyle.executiveBlackVip)
+8297:                 Wrap(
+8298:                   spacing: 12,
+8299:                   runSpacing: 8,
+8300:                   alignment: WrapAlignment.spaceBetween,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

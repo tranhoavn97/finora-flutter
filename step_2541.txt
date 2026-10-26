@@ -1,0 +1,83 @@
+Created At: 2026-09-29T14:56:25+07:00
+Completed At: 2026-09-29T14:56:26+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10707
+Total Bytes: 390784
+Showing lines 8440 to 8650
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8440:                           decoration: BoxDecoration(
+8441:                             color: Colors.black.withValues(alpha: 0.2),
+8442:                             borderRadius: BorderRadius.circular(8),
+8443:                           ),
+8444:                           child: const Row(
+8445:                             children: [
+8446:                               Icon(Icons.arrow_upward_rounded,
+8447:                                   size: 12, color: Color(0xFFF43F5E)),
+8448:                               SizedBox(width: 4),
+8449:                               Expanded(
+8450:                                 child: Text(
+8451:                                   '-18.650.000 ₫',
+8452:                                   style: TextStyle(
+8453:                                       fontSize: 10.5,
+8454:                                       fontWeight: FontWeight.w700,
+8455:                                       color: Color(0xFFF43F5E)),
+8456:                                   overflow: TextOverflow.ellipsis,
+8457:                                 ),
+8458:                        Widget _buildLiveBankCardAndDockPreview({
+8459:     required ThemeStudioController studio,
+8460:     required bool isDark,
+8461:     required Color primary,
+8462:     required PaletteMeta palette,
+8463:   }) {
+8464:     return Column(
+8465:       children: [
+8466:         // Live Morphing Bank Card Preview - Click to jump to Card & Wallet studio
+8467:         GestureDetector(
+8468:           onTap: () => _jumpToComponent(2, 'Thẻ & ví (Chất liệu, góc bo, 
+<truncated 6499 bytes>
+oryIconBadge(
+8607:                         icon: 'utensils',
+8608:                         categoryName: 'Ăn uống',
+8609:                         color: const Color(0xFFF59E0B),
+8610:                         size: 28,
+8611:                         isDark: isDark,
+8612:                       ),
+8613:                       CategoryIconBadge(
+8614:                         icon: 'car',
+8615:                         categoryName: 'Đi lại',
+8616:                         color: const Color(0xFF3B82F6),
+8617:                         size: 28,
+8618:                         isDark: isDark,
+8619:                       ),
+8620:                     ],
+8621:                   ),
+8622:                 ),
+8623:               ),
+8624:             ),
+8625:           ],
+8626:         ),
+8627:       ],
+8628:     );
+8629:   }r: Colors.white.withValues(alpha: 0.7),
+8630:                           fontWeight: FontWeight.w500,
+8631:                         ),
+8632:                       ),
+8633:                       const SizedBox(height: 2),
+8634:                       const Text(
+8635:                         '128.500.000 ₫',
+8636:                         style: TextStyle(
+8637:                           fontSize: 16,
+8638:                           color: Colors.white,
+8639:                           fontWeight: FontWeight.w800,
+8640:                           letterSpacing: 0.5,
+8641:                         ),
+8642:                       ),
+8643:                     ],
+8644:                   ),
+8645:                   Container(
+8646:                     padding:
+8647:                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+8648:                     decoration: BoxDecoration(
+8649:                       color: Colors.black.withValues(alpha: 0.35),
+8650:                       borderRadius: BorderRadius.circular(8),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

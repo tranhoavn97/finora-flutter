@@ -1,0 +1,93 @@
+Created At: 2026-09-29T14:57:54+07:00
+Completed At: 2026-09-29T14:57:54+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10730
+Total Bytes: 390850
+Showing lines 8645 to 8780
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8645:       ],
+8646:     );
+8647:   } ),
+8648:           ],
+8649:         ),
+8650:       ],
+8651:     );
+8652:   }r: Colors.white.withValues(alpha: 0.7),
+8653:                           fontWeight: FontWeight.w500,
+8654:                         ),
+8655:                       ),
+8656:                       const SizedBox(height: 2),
+8657:                       const Text(
+8658:                         '128.500.000 ₫',
+8659:                         style: TextStyle(
+8660:                           fontSize: 16,
+8661:                           color: Colors.white,
+8662:                           fontWeight: FontWeight.w800,
+8663:                           letterSpacing: 0.5,
+8664:                         ),
+8665:                       ),
+8666:                     ],
+8667:                   ),
+8668:                   Container(
+8669:                     padding:
+8670:                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+8671:                     decoration: BoxDecoration(
+8672:                       color: Colors.black.withValues(alpha: 0.35),
+8673:                       borderRadius: BorderRadius.circular(8),
+8674:                       border: Border.all(
+8675:                         color: Colors.white.withValues(alpha: 0.25),
+8676:                         width: 0.8,
+8677:                       ),
+8678:                     ),
+8679:                     child: Text(
+8680:                       _previewVisaMode ? 'Thẻ Tín Dụng' : 'Thẻ ATM',
+8681:                       style: const TextStyle(
+8682:               
+<truncated 1984 bytes>
+     decoration: BoxDecoration(
+8736:                   color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+8737:                       .withValues(alpha: 0.6),
+8738:                   borderRadius: BorderRadius.circular(12),
+8739:                   border: Border.all(
+8740:                     color: (isDark ? Colors.white : Colors.black)
+8741:                         .withValues(alpha: 0.08),
+8742:                   ),
+8743:                 ),
+8744:                 child: Row(
+8745:                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+8746:                   children: [
+8747:                     CategoryIconBadge(
+8748:                       icon: 'shopping-cart',
+8749:                       categoryName: 'Mua sắm',
+8750:                       color: const Color(0xFFEC4899),
+8751:                       size: 28,
+8752:                       isDark: isDark,
+8753:                     ),
+8754:                     CategoryIconBadge(
+8755:                       icon: 'utensils',
+8756:                       categoryName: 'Ăn uống',
+8757:                       color: const Color(0xFFF59E0B),
+8758:                       size: 28,
+8759:                       isDark: isDark,
+8760:                     ),
+8761:                     CategoryIconBadge(
+8762:                       icon: 'car',
+8763:                       categoryName: 'Đi lại',
+8764:                       color: const Color(0xFF3B82F6),
+8765:                       size: 28,
+8766:                       isDark: isDark,
+8767:                     ),
+8768:                   ],
+8769:                 ),
+8770:               ),
+8771:             ),
+8772:           ],
+8773:         ),
+8774:       ],
+8775:     );
+8776:   }
+8777: 
+8778:   Widget _buildLiveChartAndWidgetCardPreview({
+8779:     required ThemeStudioController studio,
+8780:     required bool isDark,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

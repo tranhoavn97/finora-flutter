@@ -1,0 +1,95 @@
+Created At: 2026-09-29T14:48:49+07:00
+Completed At: 2026-09-29T14:48:49+07:00
+File Path: `file:///d:/FINORA-/flutter/lib/features/settings/theme_customizer_screen.dart`
+Total Lines: 10635
+Total Bytes: 387266
+Showing lines 8401 to 8520
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8401:                           ],
+8402:                         ),
+8403:                       ),
+8404:                     ),
+8405:                   ],
+8406:                 ),
+8407:             ],
+8408:           ),
+8409:         ),
+8410: 
+8411:         const SizedBox(height: 10),
+8412: 
+8413:         // Live Action Buttons Row
+8414:         Row(
+8415:           children: [
+8416:             Expanded(
+8417:               child: GradientButton(
+8418:                 height: 38,
+8419:                 onPressed: () => _showFeedback('Chạm nút Nạp tiền'),
+8420:                 child: const Row(
+8421:                   mainAxisAlignment: MainAxisAlignment.center,
+8422:                   children: [
+8423:                     Icon(Icons.add_rounded, size: 15, color: Colors.white),
+8424:                     SizedBox(width: 4),
+8425:                     Text('Nạp',
+8426:                         style: TextStyle(
+8427:                             fontSize: 11.5,
+8428:                             fontWeight: FontWeight.w700,
+8429:                             color: Colors.white)),
+8430:                   ],
+8431:                 ),
+8432:               ),
+8433:             ),
+8434:             const SizedBox(width: 8),
+8435:             Expanded(
+8436:               child: Container(
+8437:                 height: 38,
+8438:                 decoration: BoxDecoration(
+8439:                   color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+8440:                       .withValues(alpha: 0.8),
+8441:                   borderRadius: BorderRadiu
+<truncated 1711 bytes>
+              borderRadius: BorderRadius.circular(studio.getButtonRadius()),
+8477:                   border: Border.all(
+8478:                       color: (isDark ? Colors.white : Colors.black)
+8479:                           .withValues(alpha: 0.1)),
+8480:                 ),
+8481:                 child: InkWell(
+8482:                   onTap: () => _showFeedback('Chạm nút Quét QR'),
+8483:                   borderRadius: BorderRadius.circular(studio.getButtonRadius()),
+8484:                   child: Center(
+8485:                     child: Row(
+8486:                       mainAxisAlignment: MainAxisAlignment.center,
+8487:                       children: [
+8488:                         Icon(LucideIcons.qr_code, size: 14, color: primary),
+8489:                         const SizedBox(width: 4),
+8490:                         Text('Quét QR',
+8491:                             style: TextStyle(
+8492:                                 fontSize: 11.5,
+8493:                                 fontWeight: FontWeight.w700,
+8494:                                 color: isDark
+8495:                                     ? Colors.white
+8496:                                     : const Color(0xFF0F172A))),
+8497:                       ],
+8498:                     ),
+8499:                   ),
+8500:                 ),
+8501:               ),
+8502:             ),
+8503:           ],
+8504:         ),
+8505: 
+8506:         const SizedBox(height: 10),
+8507: 
+8508:         // Mini Dock Bar
+8509:         _buildMiniDockPreview(studio: studio, primary: primary, isDark: isDark),
+8510:       ],
+8511:     );
+8512:   }
+8513: 
+8514:   Widget _buildLiveBankCardAndDockPreview({
+8515:     required ThemeStudioController studio,
+8516:     required bool isDark,
+8517:     required Color primary,
+8518:     required PaletteMeta palette,
+8519:   }) {
+8520:     return Column(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

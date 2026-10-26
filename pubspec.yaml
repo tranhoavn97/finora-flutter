@@ -13,8 +13,6 @@ dependencies:
   # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
-  cloud_firestore: ^5.4.4
-  firebase_storage: ^12.3.4
   google_sign_in: ^6.2.1
 
   # State management (ViewModel-like ChangeNotifiers)
@@ -23,15 +21,17 @@ dependencies:
   # Charts (Vico equivalent)
   fl_chart: ^0.69.0
 
-  # Voice & AI multimodal
-  speech_to_text: ^7.0.0
-  image_picker: ^1.1.2
-
   # Utilities
   intl: ^0.19.0
   cached_network_image: ^3.4.1
   shared_preferences: ^2.3.2
   cupertino_icons: ^1.0.8
+  flutter_lucide: ^1.43.0
+  image_picker: ^1.1.2
+  http: ^1.2.2
+  uuid: ^4.5.3
+  url_launcher: ^6.3.3
+  mobile_scanner: ^7.4.2
 
 dev_dependencies:
   flutter_test:
@@ -42,5 +42,42 @@ flutter:
   uses-material-design: true
   assets:
     - assets/banks/
+    - assets/wallpapers/
+    - assets/hero_cards/
+    - assets/fonts/
+    - assets/mascot/
     - assets/branding/
 
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf
+    - family: BeVietnamPro
+      fonts:
+        - asset: assets/fonts/BeVietnamPro.ttf
+        - asset: assets/fonts/BeVietnamPro-Bold.ttf
+          weight: 700
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit.ttf
+    - family: Lexend
+      fonts:
+        - asset: assets/fonts/Lexend.ttf
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope.ttf
+    - family: SegoeUI
+      fonts:
+        - asset: assets/fonts/SegoeUI.ttf
+    - family: Bahnschrift
+      fonts:
+        - asset: assets/fonts/Bahnschrift.ttf
+    - family: Arial
+      fonts:
+        - asset: assets/fonts/Arial.ttf
+    - family: Georgia
+      fonts:
+        - asset: assets/fonts/Georgia.ttf

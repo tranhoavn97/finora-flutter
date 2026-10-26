@@ -1,7 +1,7 @@
 import 'dart:math';
 import '../models/category.dart';
 import '../models/wallet.dart';
-import 'ai_service.dart';
+import '../models/finance_models.dart';
 
 class FinoraNlpEngine {
   /// Chuẩn hóa tiếng Việt (bỏ dấu, chuyển chữ thường) để so khớp từ khóa
@@ -84,7 +84,9 @@ class FinoraNlpEngine {
         // Dots/commas before a currency suffix are normally Vietnamese
         // thousands separators (50.000đ), not decimal punctuation.
         if (RegExp(r'^\d{1,3}(?:[.,]\d{3})+$').hasMatch(unitMatch.group(1)!)) {
-          return int.tryParse(unitMatch.group(1)!.replaceAll(RegExp(r'[.,]'), '')) ?? 0;
+          return int.tryParse(
+                  unitMatch.group(1)!.replaceAll(RegExp(r'[.,]'), '')) ??
+              0;
         }
         return numVal.round();
       }
@@ -157,7 +159,8 @@ class FinoraNlpEngine {
 
     // Generic capture verbs/products add no value when a merchant name is
     // already present (e.g. "cafe Highland" -> "Highland").
-    note = note.replaceAll(RegExp(r'\b(cafe|ca phe|cà phê)\b', caseSensitive: false), ' ');
+    note = note.replaceAll(
+        RegExp(r'\b(cafe|ca phe|cà phê)\b', caseSensitive: false), ' ');
 
     note = note.replaceAll(RegExp(r'\s+'), ' ').trim();
     note = note.replaceAll(RegExp(r'^[,.;:\s-]+|[,.;:\s-]+$'), '').trim();
@@ -216,11 +219,23 @@ class FinoraNlpEngine {
         norm.contains('rut tien')) {
       return 'transfer';
     }
-    if (norm.contains('cho vay') ||
-        norm.contains('di vay') ||
-        norm.contains('muon tien') ||
-        norm.contains('tra no')) {
-      return 'debt';
+    if (norm.contains('cho vay') || norm.contains('cho muon')) {
+      return 'lending';
+    }
+    if (norm.contains('tra no') ||
+        norm.contains('tra no tien') ||
+        norm.contains('thanh toan no')) {
+      return 'debt_repayment';
+    }
+    if (norm.contains('di vay') ||
+        norm.contains('vay tien') ||
+        norm.contains('muon tien')) {
+      return 'borrowing';
+    }
+    if (norm.contains('thu no') ||
+        norm.contains('doi no') ||
+        norm.contains('duoc tra no')) {
+      return 'loan_repayment_received';
     }
     return 'expense';
   }
@@ -239,6 +254,11 @@ class FinoraNlpEngine {
       final catNorm = normalize(cat.name);
       if (catNorm.length >= 3 && norm.contains(catNorm)) return cat.name;
     }
+
+    if (type == 'lending') return 'Cho vay';
+    if (type == 'debt_repayment') return 'Trả nợ';
+    if (type == 'borrowing') return 'Đi vay';
+    if (type == 'loan_repayment_received') return 'Thu hồi nợ';
 
     if (type == 'income') {
       if (norm.contains('luong')) {
@@ -386,7 +406,7 @@ class FinoraNlpEngine {
           t.length >= 3 &&
           !{'tai', 'khoan', 'cua', 'chong', 'vo', 'chung'}.contains(t));
       var score = tokens.where(norm.contains).length * 3;
-      final owner = normalize(wallet.owner ?? '');
+      final owner = normalize(wallet.owner);
       if ((norm.contains('chong') &&
               (owner.contains('husband') || owner.contains('chong'))) ||
           (norm.contains('vo') &&
@@ -599,7 +619,10 @@ class FinoraNlpEngine {
   /// Nhận diện xem người dùng đang hỏi thông tin (Query) hay ghi chép (Transaction)
   static bool isFinancialQuery(String text) {
     final norm = normalize(text);
-    return norm.contains('tieu gi') ||
+    return RegExp(
+                'ra soat|phan bo|so sanh|mo phong|kiem tra|sao ke|cham tran|cat giam')
+            .hasMatch(norm) ||
+        norm.contains('tieu gi') ||
         norm.contains('hom nay') &&
             (norm.contains('chi') ||
                 norm.contains('tieu') ||
@@ -639,7 +662,7 @@ class FinoraNlpEngine {
         norm.contains('ban la ai') ||
         norm.contains('huong dan') ||
         norm.contains('giup')) {
-      return SmartChatResult(
+      return const SmartChatResult(
         intent: 'greeting',
         replyText:
             'Xin chào! Tôi là **Finora AI Copilot** — trợ lý tài chính thông minh của bạn 🌟\n\n'
@@ -665,7 +688,12 @@ class FinoraNlpEngine {
           DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
 
       final todayTxs = txs.where((t) {
-        final date = t['date'] as int? ?? 0;
+        final rawDate = t['date'];
+        final date = rawDate is num
+            ? (rawDate.toInt() < 100000000000
+                ? rawDate.toInt() * 1000
+                : rawDate.toInt())
+            : 0;
         return date >= todayStart;
       }).toList();
 
@@ -759,7 +787,7 @@ class FinoraNlpEngine {
         norm.contains('tong tien') ||
         norm.contains('vi')) {
       if (wallets.isEmpty) {
-        return SmartChatResult(
+        return const SmartChatResult(
           intent: 'wallet_summary',
           replyText:
               'Hiện tại bạn chưa liên kết ví nào. Hãy vào mục **Tài khoản** để thêm ví tiền mặt hoặc ngân hàng nhé!',
@@ -784,7 +812,7 @@ class FinoraNlpEngine {
     }
 
     // 6. Lời khuyên tiết kiệm chung
-    return SmartChatResult(
+    return const SmartChatResult(
       intent: 'general_advice',
       replyText: '💡 **Lời khuyên tài chính thông minh dành cho bạn**:\n\n'
           '1. **Nguyên tắc 24 Giờ**: Với các món đồ mua sắm trên 500.000 đ, hãy chờ 24 giờ trước khi thanh toán để tránh mua theo cảm xúc.\n'

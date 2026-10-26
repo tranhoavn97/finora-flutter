@@ -5,15 +5,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// (the navy glass look).
 class ThemeController extends ChangeNotifier {
   static const _key = 'theme_mode';
-  String _mode = 'dark'; // "system" | "light" | "dark"
+  String _mode = 'dark'; // "system" | "light" | "dark" | "amoled"
 
   String get mode => _mode;
+  bool get isAmoled => _mode == 'amoled';
 
   ThemeMode get themeMode {
     switch (_mode) {
       case 'light':
         return ThemeMode.light;
       case 'dark':
+      case 'amoled':
         return ThemeMode.dark;
       default:
         return ThemeMode.system;

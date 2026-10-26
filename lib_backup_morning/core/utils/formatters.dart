@@ -1,0 +1,171 @@
+import 'package:intl/intl.dart';
+
+final NumberFormat _vnd = NumberFormat('#,##0', 'vi_VN');
+
+String formatVND(int amount) => '${_vnd.format(amount)} ₫';
+
+class Formatters {
+  static String formatCurrency(num amount) {
+    return '${_vnd.format(amount.toInt())} đ';
+  }
+}
+
+/// Mirrors CategoryIconHelper.resolveIcon — maps icon names to emoji.
+class CategoryIconHelper {
+  static const Map<String, String> _iconMap = {
+    'wallet': '💳',
+    'credit-card': '💳',
+    'banknote': '💵',
+    'piggy-bank': '🐷',
+    'chart-pie': '📊',
+    'target': '🎯',
+    'briefcase': '💼',
+    'landmark': '🏦',
+    'trending-up': '📈',
+    'trending-down': '📉',
+    'receipt': '🧾',
+    'shopping-bag': '🛍️',
+    'badge-percent': '🏷️',
+    'party-popper': '🎉',
+    'construction': '🚧',
+    'youtube': '▶️',
+    'gift': '🎁',
+    'shield': '🛡️',
+    'repeat': '🔄',
+    'more-horizontal': '💸',
+    'utensils': '🍜',
+    'car': '🚗',
+    'home': '🏠',
+    'gamepad': '🎮',
+    'heart': '❤️',
+    'graduation-cap': '🎓',
+    'plane': '✈️',
+    'coins': '🪙',
+    'bitcoin': '🪙',
+    'box': '📦',
+    'users': '👥',
+    'search': '🔍',
+    'sparkles': '✨',
+    'command': '⌨️',
+    'arrowrightleft': '🔄',
+    'layoutgrid': '🎛️',
+    'piechart': '📊',
+    'handcoins': '🫱🪙',
+    'activity': '📈',
+    'item-award': '🏆',
+    'item-key': '🔑',
+    'item-play': '▶️',
+    'dollar-sign': '💵',
+    'euro': '💶',
+    'pound-sterling': '💷',
+    'shopping-cart': '🛒',
+    'store': '🏪',
+    'shirt': '👕',
+    'gem': '💎',
+    'coffee': '☕',
+    'cake': '🍰',
+    'bus': '🚌',
+    'train': '🚆',
+    'bike': '🚲',
+    'ship': '🚢',
+    'fuel': '⛽',
+    'building': '🏢',
+    'zap': '⚡',
+    'droplet': '💧',
+    'flame': '🔥',
+    'wrench': '🔧',
+    'music': '🎵',
+    'ticket': '🎫',
+    'clapperboard': '🎬',
+    'tv': '📺',
+    'dumbbell': '🏋️',
+    'stethoscope': '🩺',
+    'pill': '💊',
+    'book': '📖',
+    'smartphone': '📱',
+    'laptop': '💻',
+    'monitor': '🖥️',
+    'camera': '📷',
+    'watch': '⌚',
+    'headset': '🎧',
+    'dog': '🐶',
+    'cat': '🐱',
+    'award': '🏆',
+    'key': '🔑',
+    'play': '▶️',
+    'phone': '📞',
+    'wifi': '📶',
+    'scissors': '✂️',
+    'brush': '🖌️',
+    'glass-water': '🥤',
+    'baby': '👶',
+    'flower': '🌸',
+    'leaf': '🍃',
+    'heart-pulse': '❤️‍🩹',
+    'first-aid': '🩹',
+    'shield-alert': '🛡️',
+    'alert-triangle': '⚠️',
+    'clock': '⏰',
+    'calendar': '📅',
+    'apple': '🍎',
+    'croissant': '🥐',
+    'pizza': '🍕',
+    'beer': '🍺',
+    'wine': '🍷',
+    'trophy': '🏆',
+    'calculator': '🧮',
+    'school': '🏫',
+    'umbrella': '☂️',
+    'cloud': '☁️',
+    'sun': '☀️',
+    'moon': '🌙',
+    'wind': '💨',
+    'snowflake': '❄️',
+    'hammer': '🔨',
+    'trash': '🗑️',
+    'lock': '🔒',
+    'unlock': '🔓',
+    'eye': '👁️',
+    'mail': '✉️',
+    'map-pin': '📍',
+    'wa': '💳', 'cr': '💳', 'ba': '💵', 'pi': '🐷', 'ch': '📊', 'ta': '🎯',
+    'br': '💼', 'la': '🏦', 'tr': '📈', 're': '🧾', 'sh': '🛍️', 'gi': '🎁',
+    'mo': '💬', 'ut': '🍲', 'ca': '🚗', 'ho': '🏠', 'ga': '🎮', 'he': '❤️',
+    'gr': '🎓', 'pl': '✈️', 'co': '🪙', 'bi': '🪙', 'bo': '📦', 'us': '👥',
+    'se': '🔍', 'sp': '✨', 'ar': '🔄', 'ha': '🫱🪙', 'ac': '📈', 'it': '🏆',
+  };
+
+  static String resolveIcon(String? iconStr) {
+    if (iconStr == null || iconStr.trim().isEmpty) return '💸';
+    final clean = iconStr.trim();
+    final lower = clean.toLowerCase();
+    final mapped = _iconMap[lower];
+    if (mapped != null) return mapped;
+    
+    // Check if it's NOT a standard Lucide identifier (lowercase alphanumeric and dashes/underscores).
+    // If it contains non-alphanumeric characters, spaces, or is already an emoji, return it as-is.
+    final lucideIdRegex = RegExp(r'^[a-z0-9_-]+$');
+    if (!lucideIdRegex.hasMatch(lower)) {
+      return clean;
+    }
+    return '💸';
+  }
+
+  static String resolveTransactionIcon({
+    required String transactionType,
+    String? categoryIcon,
+  }) {
+    switch (transactionType) {
+      case 'transfer':
+        return '⇄';
+      case 'credit_card_payment':
+        return '💳';
+      case 'loan_repayment_received':
+        return '🪙';
+      case 'debt_repayment_paid':
+        return '🧾';
+      default:
+        return resolveIcon(categoryIcon);
+    }
+  }
+}
