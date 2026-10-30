@@ -1,3 +1,5 @@
+import '../../core/widgets/finora_notice.dart';
+import '../../core/widgets/fresh_design.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -137,7 +139,7 @@ class _AddAssetPageState extends State<AddAssetPage> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FinoraNotice.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập tên tài sản')),
       );
       return;
@@ -242,7 +244,7 @@ class _AddAssetPageState extends State<AddAssetPage> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi: $e')),
         );
       }
@@ -261,7 +263,7 @@ class _AddAssetPageState extends State<AddAssetPage> {
 
     return Scaffold(
       backgroundColor:
-          isDark ? const Color(0xFF0B1120) : const Color(0xFFF8FAFC),
+          isDark ? const Color(0xFF0B1120) : FreshColors.background,
       appBar: AppBar(
         title: Text(
           widget.asset == null ? 'Thêm tài sản mới' : 'Cập nhật tài sản',
@@ -282,6 +284,10 @@ class _AddAssetPageState extends State<AddAssetPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            const FreshPageIntro(
+                eyebrow: 'DANH MỤC CỦA BẠN',
+                title: 'Ghi nhận một giá trị.',
+                subtitle: 'Chọn loại tài sản và thông tin phù hợp.'),
             // Asset Subtype Selector
             Text(
               'CHỌN LOẠI TÀI SẢN',
@@ -584,7 +590,7 @@ class _AddAssetPageState extends State<AddAssetPage> {
           fontSize: 13,
         ),
         filled: true,
-        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        fillColor: isDark ? const Color(0xFF0F172A) : FreshColors.background,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(

@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// (the navy glass look).
 class ThemeController extends ChangeNotifier {
   static const _key = 'theme_mode';
-  String _mode = 'dark'; // "system" | "light" | "dark" | "amoled"
+  String _mode = 'light'; // "system" | "light" | "dark" | "amoled"
 
   String get mode => _mode;
   bool get isAmoled => _mode == 'amoled';
@@ -24,7 +24,7 @@ class ThemeController extends ChangeNotifier {
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    _mode = prefs.getString(_key) ?? 'dark';
+    _mode = prefs.getString(_key) ?? 'light';
     notifyListeners();
   }
 

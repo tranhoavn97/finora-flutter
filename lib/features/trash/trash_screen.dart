@@ -1,3 +1,4 @@
+import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -47,7 +48,7 @@ class _TrashScreenState extends State<TrashScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           SnackBar(content: Text('Không thể tải thùng rác: $e')),
         );
       }
@@ -66,7 +67,7 @@ class _TrashScreenState extends State<TrashScreen> {
         _items.removeWhere((i) => i.id == item.id);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           SnackBar(
             content: Text('Đã khôi phục "${item.label}" thành công!'),
             backgroundColor: AppColors.success,
@@ -75,7 +76,7 @@ class _TrashScreenState extends State<TrashScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi khi khôi phục: $e')),
         );
       }
@@ -102,13 +103,13 @@ class _TrashScreenState extends State<TrashScreen> {
           _items.removeWhere((i) => i.id == item.id);
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          FinoraNotice.of(context).showSnackBar(
             const SnackBar(content: Text('Đã xóa vĩnh viễn mục này.')),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          FinoraNotice.of(context).showSnackBar(
             SnackBar(content: Text('Lỗi khi xóa vĩnh viễn: $e')),
           );
         }

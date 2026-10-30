@@ -47,7 +47,11 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
 
   List<ActivityLogModel> get _filteredLogs {
     if (_selectedFilter == 'all') return _logs;
-    return _logs.where((l) => l.action.toLowerCase().contains(_selectedFilter) || l.collectionName.toLowerCase().contains(_selectedFilter)).toList();
+    return _logs
+        .where((l) =>
+            l.action.toLowerCase().contains(_selectedFilter) ||
+            l.collectionName.toLowerCase().contains(_selectedFilter))
+        .toList();
   }
 
   @override
@@ -62,12 +66,13 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
 
     return GlassScaffold(
       appBar: GlassTopBar(
-        title: 'Nhật ký hoạt động',
+        title: 'Lịch sử thay đổi',
         onBack: () => Navigator.of(context).pop(),
         actions: [
           IconButton(
             onPressed: _fetchLogs,
-            icon: Icon(Icons.refresh_rounded, color: primaryTextColor, size: 22),
+            icon:
+                Icon(Icons.refresh_rounded, color: primaryTextColor, size: 22),
           ),
         ],
       ),
@@ -76,7 +81,8 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              padding: EdgeInsets.fromLTRB(
+                  16, GlassScaffold.topInset(context, 8), 16, 8),
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -85,7 +91,9 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
                       : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Row(
@@ -105,7 +113,7 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Kiểm toán hoạt động minh bạch',
+                            'Ai đã thay đổi điều gì?',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -127,7 +135,6 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
                 ),
               ),
             ),
-
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -156,26 +163,34 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
                           itemCount: displayLogs.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final log = displayLogs[index];
                             final timeStr = log.createdAt != null
-                                ? DateFormat('dd/MM/yyyy HH:mm').format(log.createdAt!)
+                                ? DateFormat('dd/MM/yyyy HH:mm')
+                                    .format(log.createdAt!)
                                 : 'Vừa xong';
 
-                            final (badgeBg, badgeColor, icon) = _getActionVisual(log.action);
+                            final (badgeBg, badgeColor, icon) =
+                                _getActionVisual(log.action);
 
                             return Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(18),
                                 border: Border.all(
-                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                  color: isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFE2E8F0),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                                    color: Colors.black
+                                        .withOpacity(isDark ? 0.2 : 0.03),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -190,12 +205,14 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
                                       color: badgeBg,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Icon(icon, color: badgeColor, size: 20),
+                                    child:
+                                        Icon(icon, color: badgeColor, size: 20),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
@@ -223,17 +240,23 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
                                           _formatActionText(log),
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: primaryTextColor.withOpacity(0.9),
+                                            color: primaryTextColor
+                                                .withOpacity(0.9),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
-                                        if (log.details != null && log.details!.isNotEmpty) ...[
+                                        if (log.details != null &&
+                                            log.details!.isNotEmpty) ...[
                                           const SizedBox(height: 4),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: isDark
+                                                  ? const Color(0xFF0F172A)
+                                                  : const Color(0xFFF8FAFC),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               log.details!,
@@ -262,15 +285,31 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
   (Color, Color, IconData) _getActionVisual(String action) {
     final a = action.toLowerCase();
     if (a.contains('delete') || a.contains('xóa')) {
-      return (const Color(0xFFFFE4E6), AppColors.error, Icons.delete_outline_rounded);
+      return (
+        const Color(0xFFFFE4E6),
+        AppColors.error,
+        Icons.delete_outline_rounded
+      );
     }
     if (a.contains('create') || a.contains('add') || a.contains('thêm')) {
-      return (const Color(0xFFDCFCE7), AppColors.success, Icons.add_circle_outline_rounded);
+      return (
+        const Color(0xFFDCFCE7),
+        AppColors.success,
+        Icons.add_circle_outline_rounded
+      );
     }
     if (a.contains('update') || a.contains('edit') || a.contains('sửa')) {
-      return (const Color(0xFFDBEAFE), const Color(0xFF2563EB), Icons.edit_note_rounded);
+      return (
+        const Color(0xFFDBEAFE),
+        const Color(0xFF2563EB),
+        Icons.edit_note_rounded
+      );
     }
-    return (const Color(0xFFFEF3C7), const Color(0xFFD97706), Icons.sync_rounded);
+    return (
+      const Color(0xFFFEF3C7),
+      const Color(0xFFD97706),
+      Icons.sync_rounded
+    );
   }
 
   String _formatActionText(ActivityLogModel log) {

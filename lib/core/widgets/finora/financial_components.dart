@@ -1,3 +1,4 @@
+import '../bank_icon.dart';
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import '../../../data/models/transaction.dart';
@@ -120,7 +121,8 @@ class TransactionRow extends StatelessWidget {
                 'loan_repayment_received' => 'Thu gốc nợ',
                 _ => 'Giao dịch khác'
               };
-    final date = DateTime.fromMillisecondsSinceEpoch(tx.date);
+    final date = DateTime.fromMillisecondsSinceEpoch(
+        tx.date < 100000000000 ? tx.date * 1000 : tx.date);
     final metadata = [
       type,
       if (tx.walletName?.isNotEmpty == true) tx.walletName!,
@@ -149,20 +151,13 @@ class TransactionRow extends StatelessWidget {
               return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                            color: scheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Icon(
-                            income
-                                ? Icons.south_west
-                                : expense
-                                    ? Icons.north_east
-                                    : Icons.swap_horiz,
-                            color: color,
-                            size: 18)),
+                    CategoryIconBadge(
+                        icon: tx.categoryIcon,
+                        categoryName: tx.categoryName,
+                        size: 36,
+                        color: BankIconRegistry.parseThemeColor(
+                            tx.categoryColor,
+                            fallback: color)),
                     const SizedBox(width: 8),
                     Expanded(
                         child: Column(

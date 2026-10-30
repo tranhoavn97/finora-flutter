@@ -556,8 +556,7 @@ class _PeriodPickerState extends State<PeriodPicker> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
-                  borderRadius: BorderRadius.circular(
-                      studio?.getButtonRadius() ?? 16),
+                  borderRadius: BorderRadius.circular(100),
                   boxShadow: [
                     BoxShadow(
                       color: primaryAccent.withValues(alpha: 0.35),
@@ -569,8 +568,7 @@ class _PeriodPickerState extends State<PeriodPicker> {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(
-                        studio?.getButtonRadius() ?? 16),
+                    borderRadius: BorderRadius.circular(100),
                     onTap: () {
                       final result = _buildResult();
                       Navigator.pop(context, result);

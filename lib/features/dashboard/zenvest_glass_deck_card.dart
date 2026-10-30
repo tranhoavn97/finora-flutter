@@ -1,13 +1,12 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../core/design_system/credit_card_palette.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/finora_mascot.dart';
-import '../../core/widgets/finora_interactive_mascot.dart';
+import '../../core/widgets/finora_member_filter.dart';
+import '../../core/widgets/finora_quick_action_icon.dart';
 import '../../core/theme/finora_tokens.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/transaction.dart';
@@ -20,6 +19,7 @@ import '../transaction/add_transaction_page.dart';
 import '../transaction/transaction_detail_sheet.dart';
 import '../transaction/transaction_theme_sheet.dart';
 import '../wallet/wealth_hub_screen.dart';
+import '../qr_pay/qr_scanner_screen.dart';
 
 /// Zenvest Glass Deck Card
 /// Thiết kế chuẩn giao diện quản lý tài chính quốc tế theo phong cách Zenvest:
@@ -50,6 +50,7 @@ class ZenvestGlassDeckCard extends StatefulWidget {
   final VoidCallback? onDateFilterTap;
   final VoidCallback? onAiQuickLogTap;
   final VoidCallback? onAiAdvisorTap;
+  final Widget? filterBar;
 
   const ZenvestGlassDeckCard({
     super.key,
@@ -73,6 +74,7 @@ class ZenvestGlassDeckCard extends StatefulWidget {
     this.onDateFilterTap,
     this.onAiQuickLogTap,
     this.onAiAdvisorTap,
+    this.filterBar,
   });
 
   @override
@@ -81,7 +83,6 @@ class ZenvestGlassDeckCard extends StatefulWidget {
 
 class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
   late PageController _pageController;
-  int _activeCardIndex = 0;
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'vi_VN');
 
   @override
@@ -114,7 +115,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final wallets = widget.provider.data.wallets;
-    final totalCards = 1 + wallets.length; // Card 0: Tổng tài sản; Card 1..N: Ví cụ thể
+    final totalCards =
+        1 + wallets.length; // Card 0: Tổng tài sản; Card 1..N: Ví cụ thể
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -122,191 +124,47 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         // 1. Zenvest Floating Frosted Glass Card Deck
         _buildCardDeck(wallets, totalCards, isDark),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
-        // 2. Finora AI 3D Interactive Companion Lounge (Linh thú 3D sống động ngay trên đầu trang chủ)
-        _buildFinora3DCompanionLounge(isDark),
-
-        const SizedBox(height: 14),
-
-        // 3. Widget Chi tiêu, Thu nhập, Số dư ở dưới card widget tổng quan
+        // 2. 3 Mini Widgets: Thu nhập, Chi tiêu, Số dư (Tiền mặt)
         _buildExpenseIncomeBalanceStats(isDark),
 
+        // 3. Filter Bar (Tất cả & Hôm nay) - Placed directly below the 3 mini widgets!
+        if (widget.filterBar != null) ...[
+          const SizedBox(height: 12),
+          widget.filterBar!,
+        ],
+
+        const SizedBox(height: 14),
+        _buildFinora3DCompanionLounge(isDark),
         const SizedBox(height: 16),
 
-        // 4. Zenvest Fast Action Buttons Row (Chuyển tiền ↗, Nhận tiền ✓, ⋮, (+))
-        _buildActionRow(isDark),
-
-        const SizedBox(height: 18),
-
-        // 5. Khối AI Thông Minh (Nhập nhanh AI, Sức khoẻ AI, Cho vay & Vay nợ)
+        // 5. Khối AI Thông Minh (Nhập nhanh AI, Sức khoẻ tài chính, Cho vay & Vay nợ)
         _buildZenvestAiSection(isDark),
 
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
 
-        // 6. Zenvest Transactions Surface Container (Khối giao dịch bo tròn kiểu Sheet)
+        // 6. Zenvest Transactions Surface Container
         _buildTransactionsSurface(isDark),
       ],
     );
   }
 
   // 2. Zenvest Card Carousel
+  // 2. Zenvest Net Worth Master Card (Gọn gàng, sang trọng, không xếp chồng ví đằng sau)
   Widget _buildCardDeck(List<Wallet> wallets, int totalCards, bool isDark) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 208,
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              dragDevices: {
-                PointerDeviceKind.touch,
-                PointerDeviceKind.mouse,
-                PointerDeviceKind.trackpad,
-                PointerDeviceKind.stylus,
-              },
-            ),
-            child: PageView.builder(
-              controller: _pageController,
-              physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
-              itemCount: totalCards,
-              onPageChanged: (idx) {
-                setState(() => _activeCardIndex = idx);
-                HapticFeedback.selectionClick();
-              },
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  // Card 0: Tổng tài sản ròng (Master Net Worth Card)
-                  return _buildMasterGlassCard(
-                    title: 'Tổng số dư',
-                    currency: 'VND',
-                    balance: widget.totalBalance,
-                    accountNumber: '${wallets.length} VÍ HOẠT ĐỘNG',
-                    validDate: 'FINORA',
-                    tierBadge: 'TỔNG TÀI SẢN',
-                    isDark: isDark,
-                    isMaster: true,
-                  );
-                } else {
-                  // Card 1..N: Các ví chi tiết
-                  final wallet = wallets[index - 1];
-                  final brand = BankIconRegistry.resolve(
-                    wallet.bankCode,
-                    bankName: wallet.bankName ?? wallet.name,
-                  );
-                  final lowerName = wallet.name.toLowerCase();
-                  final isCash = wallet.type == 'cash' ||
-                      brand.code == 'cash' ||
-                      lowerName.contains('tiền mặt') ||
-                      lowerName.contains('cash');
-
-                  final String displayAccount;
-                  if (isCash) {
-                    displayAccount = 'TIỀN MẶT';
-                  } else {
-                    final maskedId = wallet.accountNumber?.isNotEmpty == true
-                        ? (wallet.accountNumber!.length > 4
-                            ? wallet.accountNumber!.substring(wallet.accountNumber!.length - 4)
-                            : wallet.accountNumber!)
-                        : (wallet.id.length > 4 ? wallet.id.substring(wallet.id.length - 4) : '0000');
-                    displayAccount = '•••• $maskedId';
-                  }
-
-                  final String tierBadge;
-                  if (wallet.isCreditCard) {
-                    tierBadge = 'THẺ TÍN DỤNG';
-                  } else if (wallet.type == 'bank') {
-                    tierBadge = 'TÀI KHOẢN';
-                  } else if (isCash) {
-                    tierBadge = 'VÍ TIỀN MẶT';
-                  } else {
-                    tierBadge = 'VÍ TÀI SẢN';
-                  }
-
-                  final String cardTierOrDate;
-                  if (wallet.isCreditCard) {
-                    if (lowerName.contains('gold') || lowerName.contains('vàng')) {
-                      cardTierOrDate = 'FINORA GOLD';
-                    } else if (lowerName.contains('sliver') || lowerName.contains('silver') || lowerName.contains('bạc')) {
-                      cardTierOrDate = 'FINORA SILVER';
-                    } else if (lowerName.contains('plat')) {
-                      cardTierOrDate = 'FINORA PLATINUM';
-                    } else {
-                      cardTierOrDate = 'CREDIT CARD';
-                    }
-                  } else if (wallet.type == 'bank') {
-                    cardTierOrDate = 'DEBIT CARD';
-                  } else if (isCash) {
-                    cardTierOrDate = 'TIỀN MẶT';
-                  } else {
-                    cardTierOrDate = 'FINORA PAY';
-                  }
-
-                  final num displayBalance = wallet.isCreditCard && wallet.creditLimit > 0
-                      ? (wallet.creditLimit - wallet.currentDebt)
-                      : wallet.balance;
-
-                  final String displayCurrency = (brand.code != 'cash' && !isCash)
-                      ? brand.name.toUpperCase()
-                      : (isCash ? 'TIỀN MẶT' : 'VND');
-
-                  return _buildMasterGlassCard(
-                    title: wallet.name,
-                    currency: displayCurrency,
-                    balance: displayBalance,
-                    accountNumber: displayAccount,
-                    validDate: cardTierOrDate,
-                    tierBadge: tierBadge,
-                    isDark: isDark,
-                    isMaster: false,
-                    wallet: wallet,
-                    brand: brand,
-                  );
-                }
-              },
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        // Indicator Pills
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(totalCards, (idx) {
-            final isCurrent = idx == _activeCardIndex;
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                _pageController.animateToPage(
-                  idx,
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutCubic,
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutCubic,
-                  width: isCurrent ? 18 : 6,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: isCurrent
-                        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56))
-                        : (isDark ? const Color(0xFF23322C) : const Color(0xFFD5E2DC)),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
-      ],
+    return _buildMasterGlassCard(
+      title: 'Tổng tài sản',
+      currency: 'VND',
+      balance: widget.totalBalance,
+      accountNumber: '',
+      validDate: '',
+      tierBadge: 'TỔNG TÀI SẢN',
+      isDark: isDark,
+      isMaster: true,
     );
   }
 
-  // Khối Thẻ Kính Mờ Lơ Lửng (Frosted Glass Card) - Chuẩn màu sang trọng như trong Ví Tiền, không pha trắng
   Widget _buildMasterGlassCard({
     required String title,
     required String currency,
@@ -316,582 +174,585 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     required String tierBadge,
     required bool isDark,
     required bool isMaster,
-    Wallet? wallet,
-    BankBrand? brand,
   }) {
-    final isMasked = widget.masked;
-    final isCash = !isMaster &&
-        (brand?.code == 'cash' ||
-            wallet?.type == 'cash' ||
-            title.toLowerCase().contains('tiền mặt') ||
-            title.toLowerCase().contains('cash'));
-    final isBankBrand = !isMaster && !isCash && brand != null && brand.code != 'cash';
-
-    // Màu thẻ chuẩn mực từ CreditCardPalette ("màu đẹp như trong ví tiền") tuyệt đối KHÔNG pha trắng
-    final List<Color> cardColors;
-    final Color brandColor;
-
-    if (isMaster) {
-      // Thẻ Tổng tài sản: Ngọc lục bảo Finora Emerald thuần khiết chuẩn nhận diện thương hiệu
-      cardColors = isDark
-          ? const [Color(0xFF083A2C), Color(0xFF0F6E56), Color(0xFF147A60)]
-          : const [Color(0xFF0B4F3E), Color(0xFF0F6E56), Color(0xFF158064)];
-      brandColor = const Color(0xFF0F6E56);
-    } else if (isCash) {
-      // Ví tiền mặt: Ngọc bích đậm sang trọng như trong WebWalletCard (ví tiền)
-      cardColors = const [Color(0xFF06281D), Color(0xFF093527), Color(0xFF041A13)];
-      brandColor = const Color(0xFF10B981);
-    } else {
-      final walletName = (wallet?.name ?? title).toLowerCase();
-      var skin = wallet?.themeColor ?? '';
-      if (skin.isEmpty) {
-        if (RegExp(r'gold|vàng').hasMatch(walletName)) {
-          skin = 'gold';
-        } else if (RegExp(r'silver|sliver|bạc|platinum').hasMatch(walletName)) {
-          skin = 'silver';
-        } else if (brand != null && ['mbbank', 'mb', 'bidv', 'acb', 'vtb', 'vietinbank', 'scb'].contains(brand.code)) {
-          skin = 'blue';
-        } else if (brand != null && ['vcb', 'vietcombank', 'vpb', 'vpbank', 'ocb'].contains(brand.code)) {
-          skin = 'emerald';
-        } else if (brand != null && ['tcb', 'techcombank', 'cake', 'hdb', 'hdbank', 'agri', 'agribank'].contains(brand.code)) {
-          skin = 'rose';
-        } else if (brand != null && ['tpb', 'tpbank', 'timo'].contains(brand.code)) {
-          skin = 'purple';
-        } else if (brand != null && ['shb', 'sea', 'seabank'].contains(brand.code)) {
-          skin = 'orange';
-        } else if (brand != null && ['vib', 'zalo', 'zalopay'].contains(brand.code)) {
-          skin = 'cyan';
-        } else if (brand != null && ['momo'].contains(brand.code)) {
-          skin = 'pink';
-        }
-      }
-
-      final resolvedColors = skin.isNotEmpty ? CreditCardPalette.skins[skin.toLowerCase()] : null;
-      if (resolvedColors != null) {
-        cardColors = resolvedColors;
-        brandColor = resolvedColors.length >= 2 ? resolvedColors[1] : (brand?.color ?? const Color(0xFF0070F3));
-      } else if (brand != null && brand.code != 'cash') {
-        brandColor = brand.color;
-        cardColors = [
-          Color.lerp(const Color(0xFF080C14), brandColor, 0.55)!,
-          Color.lerp(const Color(0xFF141A28), brandColor, 0.85)!,
-          Color.lerp(const Color(0xFF04060A), brandColor, 0.40)!,
-        ];
-      } else {
-        cardColors = CreditCardPalette.skins['black']!;
-        brandColor = const Color(0xFF334155);
-      }
-    }
+    final wallets = widget.provider.data.wallets;
+    final walletCount = wallets.length;
+    final net = widget.income - widget.expense;
+    final isPositiveNet = net >= 0;
+    final dateFilterLabel = widget.provider.customDate != null
+        ? DateFormat('dd/MM/yyyy').format(widget.provider.customDate!)
+        : widget.provider.selectedDateFilter.label;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      key: const ValueKey('compact-total-assets'),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: (isMaster ? const Color(0xFF0F6E56) : brandColor)
-                .withValues(alpha: isDark ? 0.42 : 0.30),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-            spreadRadius: -2,
+            color: const Color(0xFF047857)
+                .withValues(alpha: isDark ? 0.45 : 0.28),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          children: [
-            // Layer 1: Nền thẻ màu sang trọng như trong ví tiền
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: cardColors,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF022C22),
+                Color(0xFF064E3B),
+                Color(0xFF047857),
+                Color(0xFF0D9488),
+              ],
+              stops: [0.0, 0.35, 0.72, 1.0],
             ),
-
-            // Specular Sheen Overlay: Phản quang bóng kính tinh tế
-            Positioned.fill(
-              child: IgnorePointer(
+            border: Border.all(
+              color: Colors.white.withValues(alpha: isDark ? 0.26 : 0.22),
+              width: 1.2,
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Crystal Aurora Light Orbs
+              Positioned(
+                top: -35,
+                right: -25,
                 child: Container(
+                  width: 165,
+                  height: 165,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: const Alignment(-0.8, -1.0),
-                      end: const Alignment(0.8, 1.0),
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
                       colors: [
-                        Colors.white.withValues(alpha: 0.14),
-                        Colors.white.withValues(alpha: 0.0),
-                        Colors.black.withValues(alpha: 0.22),
+                        const Color(0xFF34D399).withValues(alpha: 0.36),
+                        const Color(0xFF10B981).withValues(alpha: 0.0),
                       ],
-                      stops: const [0.0, 0.45, 1.0],
                     ),
                   ),
                 ),
               ),
-            ),
-
-            // Layer 2: Hào quang ngọc lục bảo nhẹ nhàng tinh khiết
-            Positioned.fill(
-              child: CustomPaint(
-                painter: isMaster
-                    ? _IridescentBloomPainter(isDark: isDark)
-                    : _BankBloomPainter(brandColor: brandColor, isDark: isDark),
-              ),
-            ),
-
-            // Layer 3: Viền pha lê cao cấp
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    width: 1.1,
+              Positioned(
+                bottom: -45,
+                left: -25,
+                child: Container(
+                  width: 145,
+                  height: 145,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF2DD4BF).withValues(alpha: 0.22),
+                        const Color(0xFF064E3B).withValues(alpha: 0.0),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            // Layer 4: Nội dung thông số thẻ chuẩn Zenvest với chữ trắng sắc nét
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Hàng trên: Quốc kỳ / Logo Ngân Hàng & Tên + Sóng thanh toán Contactless
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Flag & Currency / Bank Logo Pill
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(100),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.22),
-                              width: 0.8,
+              // Subtle Specular Top Highlight
+              Positioned(
+                top: 0,
+                left: 24,
+                right: 24,
+                child: Container(
+                  height: 1.2,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.0),
+                        Colors.white.withValues(alpha: 0.45),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Ambient Mascot Watermark
+              const FinoraAmbientMascotWatermark(
+                pose: FinoraMascotPose.happy,
+                size: 132,
+                opacity: 0.10,
+                alignment: Alignment.bottomRight,
+                offset: Offset(18, 18),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 18, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Row: [ 🇻🇳 VND ] <-------> [ 🏛️ Tổng tài sản ]
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.28),
+                                width: 0.9,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const VietnamCurrencyFlag(),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    currency,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      color: Colors.white,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Flag Icon or Bank Logo Avatar
-                              if (isBankBrand && brand.assetPath != null)
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 5.5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.20),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFF6EE7B7)
+                                    .withValues(alpha: 0.35),
+                                width: 0.9,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.account_balance_rounded,
+                                  size: 13.5,
+                                  color: Color(0xFF6EE7B7),
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    'Tổng tài sản',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      color: Colors.white.withValues(alpha: 0.96),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Balance Row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  widget.masked
+                                      ? '••••••••'
+                                      : _formatAmount(balance),
+                                  style: const TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    color: Colors.white,
+                                    fontSize: 35,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.9,
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                                ),
+                                if (!widget.masked) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.16),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '₫',
+                                      style: TextStyle(
+                                        fontFamily: 'BeVietnamPro',
+                                        color: Colors.white
+                                            .withValues(alpha: 0.92),
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              widget.onToggleMask();
+                            },
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.16),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.28),
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  widget.masked
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
+                                  color: Colors.white.withValues(alpha: 0.95),
+                                  size: 19,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Luxury Frosted Status Footer Bar
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Container(
-                                  width: 19,
-                                  height: 19,
+                                  width: 7.5,
+                                  height: 7.5,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors.white,
+                                    color: const Color(0xFF34D399),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.12),
-                                        blurRadius: 3,
+                                        color: const Color(0xFF34D399)
+                                            .withValues(alpha: 0.6),
+                                        blurRadius: 6,
                                       ),
                                     ],
                                   ),
-                                  child: ClipOval(
-                                    child: Image.asset(
-                                      brand.assetPath!,
-                                      width: 19,
-                                      height: 19,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        color: brand.color,
-                                        child: Center(
-                                          child: Text(
-                                            brand.name.isNotEmpty ? brand.name[0] : 'B',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              else if (isCash)
-                                Container(
-                                  width: 19,
-                                  height: 19,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFF10B981),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.payments_rounded,
-                                      color: Colors.white,
-                                      size: 11,
-                                    ),
-                                  ),
-                                )
-                              else
-                                const FinoraMascotImage(
-                                  pose: FinoraMascotPose.leafLogo,
-                                  size: 18,
                                 ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
+                                const SizedBox(width: 6),
+                                Flexible(
                                   child: Text(
-                                    currency,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                      color: Colors.white,
+                                    '$walletCount ví hoạt động',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      color: Colors.white.withValues(alpha: 0.90),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // Contactless Wave Icon & Tier Badge
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerRight,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                tierBadge,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                Icons.contactless_rounded,
-                                color: Colors.white.withValues(alpha: 0.85),
-                                size: 19,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Hàng giữa: Nhãn số dư + Số tiền lớn + Nút con mắt ẩn số dư
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                isMasked ? '••••••••' : '₫ ${_formatAmount(balance)}',
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.8,
-                                  color: Colors.white,
-                                ),
-                              ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              widget.onToggleMask();
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                isMasked ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                size: 18,
-                                color: Colors.white.withValues(alpha: 0.85),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isPositiveNet
+                                        ? Icons.trending_up_rounded
+                                        : Icons.trending_down_rounded,
+                                    size: 14,
+                                    color: isPositiveNet
+                                        ? const Color(0xFF6EE7B7)
+                                        : const Color(0xFFFDA4AF),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    widget.masked
+                                        ? '$dateFilterLabel • ••••••'
+                                        : '$dateFilterLabel: ${isPositiveNet ? "+" : "−"}${_formatAmount(net.abs())} ₫',
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      color: isPositiveNet
+                                          ? const Color(0xFF6EE7B7)
+                                          : const Color(0xFFFDA4AF),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-
-                  // Hàng dưới: 2 cột (Số tài khoản & Hạn thẻ)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                isMaster
-                                    ? 'Danh mục ví'
-                                    : ((wallet?.isCreditCard == true)
-                                        ? 'Số thẻ tín dụng'
-                                        : (isCash ? 'Loại ví' : 'Số tài khoản')),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white.withValues(alpha: 0.70),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                accountNumber,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.8,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                isMaster ? 'Hệ sinh thái' : 'Hạn thẻ / Hạng',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white.withValues(alpha: 0.70),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                validDate,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // 3. Zenvest Action Row (Chuyển tiền ↗, Nhận tiền ✓ - 2 nút căn chỉnh cân đối)
+  // 3. Zenvest Action Row: 4 nút tác vụ tròn chuẩn Emerald Fintech (Chuyển tiền ↗, Nhận tiền ✓, Quét QR, Thêm)
+  // 3. Zenvest Action Row: 4 nút tác vụ tròn chuẩn Emerald Fintech (Chuyển tiền, Nhận tiền, Quét QR, Mục tiêu)
   Widget _buildActionRow(bool isDark) {
-    return Row(
-      children: [
-          // Nút 1: Chuyển tiền ↗
-          Expanded(
-            child: _buildActionPill(
-              label: 'Chuyển tiền',
-              icon: LucideIcons.arrow_up_right,
-              isDark: isDark,
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AddTransactionPage(
-                      userId: widget.userId,
-                      initialType: 'expense',
-                    ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: FinoraTokens.calmCardDecoration(
+        isDark: isDark,
+        radius: 20,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildCircularActionItem(
+            label: 'Chuyển tiền',
+            icon: LucideIcons.arrow_up_right,
+            themeColor: const Color(0xFF0284C7),
+            isDark: isDark,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => AddTransactionPage(
+                    userId: widget.userId,
+                    initialType: 'transfer',
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-
-          const SizedBox(width: 12),
-
-          // Nút 2: Nhận tiền ✓
-          Expanded(
-            child: _buildActionPill(
-              label: 'Nhận tiền',
-              icon: Icons.check_rounded,
-              isDark: isDark,
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AddTransactionPage(
-                      userId: widget.userId,
-                      initialType: 'income',
-                    ),
+          _buildCircularActionItem(
+            label: 'Nhận tiền',
+            icon: LucideIcons.arrow_down_left,
+            themeColor: const Color(0xFF00875A),
+            isDark: isDark,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => AddTransactionPage(
+                    userId: widget.userId,
+                    initialType: 'income',
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          ),
+          _buildCircularActionItem(
+            label: 'Quét QR',
+            icon: LucideIcons.qr_code,
+            themeColor: const Color(0xFFD97706),
+            isDark: isDark,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => QrScannerScreen(
+                    userId: widget.userId,
+                  ),
+                ),
+              );
+            },
+          ),
+          _buildCircularActionItem(
+            label: 'Mục tiêu',
+            icon: LucideIcons.target,
+            themeColor: const Color(0xFF0D9488),
+            isDark: isDark,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              if (widget.onViewPlanning != null) {
+                widget.onViewPlanning!();
+              }
+            },
           ),
         ],
+      ),
     );
   }
 
-  Widget _buildActionPill({
+  Widget _buildCircularActionItem({
     required String label,
     required IconData icon,
+    required Color themeColor,
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF121A17) : Colors.white,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.08)
-                : const Color(0xFFE3EBE7),
-            width: 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF0F6E56).withValues(alpha: 0.25)
-                        : const Color(0xFFE8F5F0),
-                    shape: BoxShape.circle,
+    final podBg = themeColor.withValues(alpha: isDark ? 0.20 : 0.12);
+    final borderColor = themeColor.withValues(alpha: isDark ? 0.40 : 0.25);
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: podBg,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: borderColor,
+                    width: 1.2,
                   ),
-                  child: Icon(
-                    icon,
-                    size: 13.5,
-                    color: isDark
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFF0F6E56),
-                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeColor.withValues(alpha: isDark ? 0.22 : 0.10),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
+                child: FinoraMascotActionIcon(
+                  action: switch (label) {
+                    'Chuyển tiền' => FinoraQuickAction.send,
+                    'Nhận tiền' => FinoraQuickAction.receive,
+                    'Quét QR' => FinoraQuickAction.scan,
+                    _ => FinoraQuickAction.goal,
+                  },
+                  color: themeColor,
+                ),
+              ),
+              const SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
                   label,
-                  maxLines: 1,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                    color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0D1F1A),
+                    fontFamily: 'BeVietnamPro',
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // 2. Widget Chi tiêu, Thu nhập, Số dư (Ngay dưới Card Deck Tổng Quan)
+  // 2. Widget Chi tiêu, Thu nhập, Số dư (Tiền mặt)
   Widget _buildExpenseIncomeBalanceStats(bool isDark) {
+    final wallets = widget.provider.data.wallets;
+    final cashBalance = wallets
+        .where((w) =>
+            w.type == 'cash' || w.name.toLowerCase().contains('tiền mặt'))
+        .fold<num>(0, (sum, w) => sum + w.balance);
+
     return Row(
       children: [
-        // 1. Chi tiêu
-        Expanded(
-          child: _buildMetricMiniCard(
-            label: 'Chi tiêu',
-            amount: widget.expense,
-            prefix: '-',
-            color: const Color(0xFFEF4444), // Red
-            icon: Icons.arrow_upward_rounded,
-            isDark: isDark,
-            onTap: widget.onViewTransactions,
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // 2. Thu nhập
         Expanded(
           child: _buildMetricMiniCard(
             label: 'Thu nhập',
+            subtitle: 'Tháng này',
             amount: widget.income,
             prefix: '+',
-            color: const Color(0xFF10B981), // Emerald
-            icon: Icons.arrow_downward_rounded,
+            color: const Color(0xFF059669),
+            icon: Icons.south_west_rounded,
             isDark: isDark,
             onTap: widget.onViewTransactions,
           ),
         ),
         const SizedBox(width: 8),
-
-        // 3. Số dư
+        Expanded(
+          child: _buildMetricMiniCard(
+            label: 'Chi tiêu',
+            subtitle: 'Tháng này',
+            amount: widget.expense,
+            prefix: '−',
+            color: const Color(0xFFE11D48),
+            icon: Icons.north_east_rounded,
+            isDark: isDark,
+            onTap: widget.onViewTransactions,
+          ),
+        ),
+        const SizedBox(width: 8),
         Expanded(
           child: _buildMetricMiniCard(
             label: 'Số dư',
-            amount: widget.totalBalance,
+            subtitle: 'Tiền mặt',
+            amount: cashBalance,
             prefix: '',
-            color: const Color(0xFF0F6E56), // Finora Emerald
+            color: const Color(0xFF0284C7),
             icon: Icons.account_balance_wallet_rounded,
             isDark: isDark,
             onTap: widget.onViewWallets,
@@ -903,6 +764,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
 
   Widget _buildMetricMiniCard({
     required String label,
+    required String subtitle,
     required num amount,
     required String prefix,
     required Color color,
@@ -910,64 +772,146 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     required bool isDark,
     VoidCallback? onTap,
   }) {
-    final formattedValue = widget.masked
-        ? '••••••'
-        : '$prefix${_formatAmount(amount)} đ';
+    final formattedValue =
+        widget.masked ? '••••••' : '$prefix${_formatAmount(amount)} ₫';
+
+    final valueColor = widget.masked
+        ? (isDark ? Colors.white : const Color(0xFF0F172A))
+        : (label == 'Thu nhập'
+            ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+            : (label == 'Chi tiêu'
+                ? (isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48))
+                : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7))));
+
+    final cardAlpha = widget.studio.glassOpacity.clamp(0.25, 1.0);
+    final baseSurface = isDark
+        ? Color.alphaBlend(
+            color.withValues(alpha: 0.08), const Color(0xFF1E293B))
+        : Color.alphaBlend(color.withValues(alpha: 0.04), Colors.white);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          if (onTap != null) onTap();
+        },
+        borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          decoration: FinoraTokens.calmCardDecoration(
-            isDark: isDark,
-            radius: 16,
+          padding: const EdgeInsets.fromLTRB(11, 11, 11, 11),
+          decoration: BoxDecoration(
+            color: baseSurface.withValues(alpha: cardAlpha),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: color.withValues(alpha: isDark ? 0.36 : 0.24),
+              width: 1.15,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: isDark ? 0.16 : 0.07),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Top: Circular Jewel Icon Badge + Label
               Row(
                 children: [
                   Container(
-                    width: 22,
-                    height: 22,
+                    width: 30,
+                    height: 30,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: isDark ? 0.20 : 0.10),
                       shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          color.withValues(alpha: isDark ? 0.30 : 0.18),
+                          color.withValues(alpha: isDark ? 0.14 : 0.08),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: color.withValues(alpha: isDark ? 0.45 : 0.28),
+                        width: 1.0,
+                      ),
                     ),
                     child: Center(
-                      child: Icon(icon, color: color, size: 13),
+                      child: Icon(icon, color: color, size: 15),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 7),
                   Expanded(
                     child: Text(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: FinoraTokens.footnote(
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
-                        weight: FontWeight.w600,
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: isDark
+                            ? const Color(0xFFE2E8F0)
+                            : const Color(0xFF1E293B),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
+
+              // Value
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
                   formattedValue,
                   maxLines: 1,
-                  style: FinoraTokens.headline(
-                    color: isDark ? Colors.white : const Color(0xFF0D1F1A),
-                    weight: FontWeight.w800,
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                    color: valueColor,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 6),
+
+              // Bottom Accent Bar + Subtitle
+              Row(
+                children: [
+                  Container(
+                    width: 14,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.75),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1003,8 +947,10 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
       builder: (context) {
         final budgetProv = context.watch<BudgetProvider?>();
         final budgets = budgetProv?.budgetsWithSpent ?? [];
-        final totalBudgetLimit = budgets.fold<int>(0, (s, b) => s + b.budget.limitAmount);
-        final totalBudgetSpent = budgets.fold<int>(0, (s, b) => s + b.spentAmount);
+        final totalBudgetLimit =
+            budgets.fold<int>(0, (s, b) => s + b.budget.limitAmount);
+        final totalBudgetSpent =
+            budgets.fold<int>(0, (s, b) => s + b.spentAmount);
         final budgetProgress = totalBudgetLimit > 0
             ? (totalBudgetSpent / totalBudgetLimit).clamp(0.0, 1.0)
             : 0.0;
@@ -1013,35 +959,74 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         final String speechText;
         if (totalBudgetLimit > 0) {
           if (isOver) {
-            speechText = 'Cảnh báo! Đã dùng ${(budgetProgress * 100).toInt()}% hạn mức tháng.';
+            speechText =
+                'Cảnh báo! Đã dùng ${(budgetProgress * 100).toInt()}% hạn mức tháng.';
           } else {
-            speechText = 'Tiến độ an toàn! Đã dùng ${(budgetProgress * 100).toInt()}% hạn mức.';
+            speechText =
+                'Tiến độ an toàn! Đã dùng ${(budgetProgress * 100).toInt()}% hạn mức.';
           }
         } else {
-          speechText = 'Chào bạn! Chạm vào tớ để tương tác 3D và khám phá tài chính.';
+          speechText = 'Mình giúp bạn ghi chép nhanh và hiểu rõ thu chi.';
         }
 
-        final statusColor = isOver ? FinoraTokens.appleCoral : FinoraTokens.appleMint;
+        final statusColor =
+            isOver ? FinoraTokens.appleCoral : const Color(0xFF00866A);
 
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: widget.onViewPlanning,
-            borderRadius: BorderRadius.circular(FinoraTokens.radiusCard),
+            onTap: isOver
+                ? widget.onViewPlanning
+                : (widget.onAiAdvisorTap ?? widget.onViewPlanning),
+            borderRadius: BorderRadius.circular(18),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: FinoraTokens.ambientIslandDecoration(isDark: isDark),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF13221E) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF34D399).withValues(alpha: 0.24)
+                      : const Color(0xFF34D399).withValues(alpha: 0.35),
+                  width: 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF003D35)
+                        .withValues(alpha: isDark ? 0.32 : 0.05),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
-                  // 1. Linh thú Finora 3D tương tác mượt mà
-                  SizedBox(
-                    width: 58,
-                    height: 58,
-                    child: FinoraInteractive3DMascot(
-                      size: 54,
-                      showSpeechBubbleOnTap: false,
-                      budgetSpentRatio: budgetProgress,
-                      onTap: widget.onViewPlanning,
+                  // 1. Linh thú Rồng ngọc Finora 3D chính thức (Đồng hành tài chính)
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: isDark
+                          ? const Color(0xFF1D332B)
+                          : const Color(0xFFE8F7F0),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              const Color(0xFF34D399).withValues(alpha: 0.22),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Image.asset(
+                      isOver
+                          ? 'assets/mascot/expression-03-focused.png'
+                          : 'assets/mascot/expression-01-happy.png',
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.contain,
                     ),
                   ),
 
@@ -1063,48 +1048,71 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: statusColor.withValues(alpha: 0.5),
+                                    color: statusColor.withValues(alpha: 0.6),
                                     blurRadius: 4,
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              isOver ? 'CẢNH BÁO HẠN MỨC' : 'TRỢ LÝ FINORA AI',
-                              style: FinoraTokens.microBadge(
-                                color: statusColor,
+                            Expanded(
+                              child: Text(
+                                isOver
+                                    ? 'CẢNH BÁO HẠN MỨC'
+                                    : 'TRỢ LÝ FINORA AI',
+                                style: TextStyle(
+                                  fontFamily: 'BeVietnamPro',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: statusColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Spacer(),
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 10,
-                              color: isDark ? Colors.white38 : Colors.black26,
+                            const SizedBox(width: 4),
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 15,
+                                color: statusColor,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 3),
                         Text(
                           speechText,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: FinoraTokens.subhead(
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            weight: FontWeight.w600,
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
+                            height: 1.3,
                           ),
                         ),
                         if (totalBudgetLimit > 0) ...[
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 6),
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(100),
+                            borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
                               value: budgetProgress.clamp(0.0, 1.0),
-                              minHeight: 3.5,
+                              minHeight: 5.0,
                               backgroundColor: isDark
                                   ? Colors.white.withValues(alpha: 0.10)
                                   : Colors.black.withValues(alpha: 0.06),
-                              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(statusColor),
                             ),
                           ),
                         ],
@@ -1161,10 +1169,11 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                       : const Color(0xFFEFF7F4),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const FinoraMascotImage(
-                  pose: FinoraMascotPose.focused,
-                  size: 38,
-                ),
+                child: Icon(Icons.auto_awesome_rounded,
+                    color: isDark
+                        ? const Color(0xFF6EE7B7)
+                        : const Color(0xFF00866A),
+                    size: 24),
               ),
               const SizedBox(width: 12),
 
@@ -1174,53 +1183,28 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            'Nhập nhanh với AI',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                              color: isDark ? Colors.white : const Color(0xFF0D1F1A),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F6E56).withValues(alpha: isDark ? 0.24 : 0.10),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'FINORA AI',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textScaler: TextScaler.noScaling,
-                              style: TextStyle(
-                                fontSize: 9.0,
-                                fontWeight: FontWeight.w800,
-                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Finora AI',
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: isDark
+                            ? const Color(0xFF34D399)
+                            : const Color(0xFF00866A),
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '"Ăn trưa 45k", "Đổ xăng 70k ví Momo"...',
+                      'Nhập nhanh giao dịch',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF0D1F1A),
                       ),
                     ),
                   ],
@@ -1242,7 +1226,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   child: Icon(
                     Icons.mic_none_rounded,
                     size: 16,
-                    color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                    color: isDark
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFF0F6E56),
                   ),
                 ),
               ),
@@ -1262,7 +1248,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     final savings = d.savingsRatePercent > 0
         ? d.savingsRatePercent.toInt().toString()
         : '46';
-    final debt = d.debtRatioPercent > 0 ? d.debtRatioPercent.toInt().toString() : '1';
+    final debt =
+        d.debtRatioPercent > 0 ? d.debtRatioPercent.toInt().toString() : '1';
     final tier = d.aiHealthTier.isNotEmpty ? d.aiHealthTier : 'Xuất sắc';
 
     return Material(
@@ -1292,7 +1279,17 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
               ),
             ],
           ),
-          child: Column(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              FinoraAmbientMascotWatermark(
+                pose: FinoraMascotPose.thinking,
+                size: 96,
+                opacity: isDark ? 0.08 : 0.06,
+                alignment: Alignment.bottomRight,
+                offset: const Offset(10, 12),
+              ),
+              Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header row: Clean Icon Badge + Title + Tier Badge
@@ -1310,16 +1307,19 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     child: Icon(
                       Icons.shield_outlined,
                       size: 15,
-                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                      color: isDark
+                          ? const Color(0xFF34D399)
+                          : const Color(0xFF0F6E56),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Sức khỏe tài chính Finora AI',
+                      'Sức khoẻ tài chính',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.2,
@@ -1328,38 +1328,26 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 130),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                      decoration: BoxDecoration(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF0F6E56).withValues(alpha: 0.22)
+                          : const Color(0xFFE8F5F0),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      tier,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                         color: isDark
-                            ? const Color(0xFF0F6E56).withValues(alpha: 0.22)
-                            : const Color(0xFFE8F5F0),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              tier,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 13,
-                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
-                          ),
-                        ],
+                            ? const Color(0xFF34D399)
+                            : const Color(0xFF0F6E56),
                       ),
                     ),
                   ),
@@ -1387,7 +1375,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                             backgroundColor: isDark
                                 ? Colors.white.withValues(alpha: 0.08)
                                 : const Color(0xFFE2E8F0),
-                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Color(0xFF10B981)),
                             strokeCap: StrokeCap.round,
                           ),
                         ),
@@ -1427,11 +1416,14 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _buildZenvestAiMetricRow('Quỹ khẩn cấp', '$runway tháng', isDark),
+                          _buildZenvestAiMetricRow(
+                              'Quỹ khẩn cấp', '$runway tháng', isDark),
                           const SizedBox(height: 4),
-                          _buildZenvestAiMetricRow('Tỷ lệ tích lũy', '$savings%', isDark),
+                          _buildZenvestAiMetricRow(
+                              'Tỷ lệ tích lũy', '$savings%', isDark),
                           const SizedBox(height: 4),
-                          _buildZenvestAiMetricRow('Tỷ lệ nợ/tài sản', '$debt%', isDark),
+                          _buildZenvestAiMetricRow(
+                              'Tỷ lệ nợ/tài sản', '$debt%', isDark),
                         ],
                       ),
                     ),
@@ -1439,6 +1431,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                 ],
               ),
             ],
+          ),
+          ],
           ),
         ),
       ),
@@ -1487,16 +1481,27 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
   Widget _buildLendingAndDebtWidget(bool isDark) {
     final moreProv = context.watch<MoreProvider>();
     final loans = moreProv.loans;
-    final lentLoans = loans.where((l) => l.type == 'lent' && l.status == 'active').toList();
-    final borrowedLoans = loans.where((l) => l.type == 'borrowed' && l.status == 'active').toList();
+    final lentLoans =
+        loans.where((l) => l.type == 'lent' && l.status == 'active').toList();
+    final borrowedLoans = loans
+        .where((l) => l.type == 'borrowed' && l.status == 'active')
+        .toList();
 
     final totalLent = lentLoans.fold<int>(
       0,
-      (sum, l) => sum + (l.remainingPrincipal > 0 ? l.remainingPrincipal : (l.amount - l.paidAmount)),
+      (sum, l) =>
+          sum +
+          (l.remainingPrincipal > 0
+              ? l.remainingPrincipal
+              : (l.amount - l.paidAmount)),
     );
     final totalBorrowed = borrowedLoans.fold<int>(
       0,
-      (sum, l) => sum + (l.remainingPrincipal > 0 ? l.remainingPrincipal : (l.amount - l.paidAmount)),
+      (sum, l) =>
+          sum +
+          (l.remainingPrincipal > 0
+              ? l.remainingPrincipal
+              : (l.amount - l.paidAmount)),
     );
 
     return Material(
@@ -1555,7 +1560,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     child: Center(
                       child: Icon(
                         Icons.handshake_outlined,
-                        color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                        color: isDark
+                            ? const Color(0xFF34D399)
+                            : const Color(0xFF0F6E56),
                         size: 15,
                       ),
                     ),
@@ -1589,14 +1596,18 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                              color: isDark
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFF0F6E56),
                             ),
                           ),
                           const SizedBox(width: 2),
                           Icon(
                             Icons.arrow_forward_ios_rounded,
                             size: 11,
-                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                            color: isDark
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFF0F6E56),
                           ),
                         ],
                       ),
@@ -1612,7 +1623,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   // Cho vay
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: isDark
                             ? const Color(0xFF0F6E56).withValues(alpha: 0.12)
@@ -1647,7 +1659,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF52665E),
                                   ),
                                 ),
                               ),
@@ -1658,12 +1672,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              widget.masked ? '••••••' : '${_formatAmount(totalLent)} đ',
+                              widget.masked
+                                  ? '••••••'
+                                  : '${_formatAmount(totalLent)} đ',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.4,
-                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                                color: isDark
+                                    ? const Color(0xFF34D399)
+                                    : const Color(0xFF0F6E56),
                               ),
                             ),
                           ),
@@ -1673,7 +1691,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
-                              color: isDark ? const Color(0xFF64748B) : const Color(0xFF83968E),
+                              color: isDark
+                                  ? const Color(0xFF64748B)
+                                  : const Color(0xFF83968E),
                             ),
                           ),
                         ],
@@ -1685,7 +1705,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   // Vay nợ
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: isDark
                             ? const Color(0xFFD97706).withValues(alpha: 0.10)
@@ -1720,7 +1741,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF52665E),
                                   ),
                                 ),
                               ),
@@ -1731,12 +1754,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              widget.masked ? '••••••' : '${_formatAmount(totalBorrowed)} đ',
+                              widget.masked
+                                  ? '••••••'
+                                  : '${_formatAmount(totalBorrowed)} đ',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.4,
-                                color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+                                color: isDark
+                                    ? const Color(0xFFFBBF24)
+                                    : const Color(0xFFD97706),
                               ),
                             ),
                           ),
@@ -1746,7 +1773,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
-                              color: isDark ? const Color(0xFF64748B) : const Color(0xFF83968E),
+                              color: isDark
+                                  ? const Color(0xFF64748B)
+                                  : const Color(0xFF83968E),
                             ),
                           ),
                         ],
@@ -1794,7 +1823,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF23322C) : const Color(0xFFDDE7E2),
+                color:
+                    isDark ? const Color(0xFF23322C) : const Color(0xFFDDE7E2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1815,13 +1845,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.04),
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.04),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     LucideIcons.sliders_horizontal,
                     size: 16,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF52665E),
                   ),
                 ),
               ),
@@ -1862,7 +1895,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   child: Icon(
                     Icons.palette_outlined,
                     size: 16,
-                    color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                    color: isDark
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFF0F6E56),
                   ),
                 ),
               ),
@@ -1878,13 +1913,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.04),
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.04),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     LucideIcons.search,
                     size: 16,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF52665E),
                   ),
                 ),
               ),
@@ -1903,13 +1941,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF52665E),
               ),
             ),
             const SizedBox(height: 8),
 
             // Lấy tối đa 5 giao dịch gần nhất
-            ...txList.take(5).map((tx) => _buildZenvestTransactionItem(tx, isDark)),
+            ...txList
+                .take(5)
+                .map((tx) => _buildZenvestTransactionItem(tx, isDark)),
 
             const SizedBox(height: 8),
 
@@ -1927,7 +1968,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                      color: isDark
+                          ? const Color(0xFF34D399)
+                          : const Color(0xFF0F6E56),
                     ),
                   ),
                 ),
@@ -1969,7 +2012,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: (isDark ? Colors.white : const Color(0xFF0F172A)).withValues(alpha: 0.08),
+                color: (isDark ? Colors.white : const Color(0xFF0F172A))
+                    .withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
@@ -1994,7 +2038,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     final isMasked = widget.masked;
 
     // Đồng nhất hoàn toàn icon và màu sắc với danh mục của người dùng
-    final categories = Provider.of<MoreProvider?>(context, listen: false)?.categories ?? [];
+    final categories =
+        Provider.of<MoreProvider?>(context, listen: false)?.categories ?? [];
     final txCatId = tx.categoryId?.trim().toLowerCase();
     final txCatName = tx.categoryName?.trim().toLowerCase();
     final matchingCategory = categories.cast<dynamic>().firstWhere(
@@ -2002,8 +2047,12 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         if (c == null) return false;
         final cId = c.id?.toString().trim().toLowerCase();
         final cName = c.name?.toString().trim().toLowerCase();
-        if (txCatId != null && txCatId.isNotEmpty && cId == txCatId) return true;
-        if (txCatName != null && txCatName.isNotEmpty && cName == txCatName) return true;
+        if (txCatId != null && txCatId.isNotEmpty && cId == txCatId) {
+          return true;
+        }
+        if (txCatName != null && txCatName.isNotEmpty && cName == txCatName) {
+          return true;
+        }
         return false;
       },
       orElse: () => null,
@@ -2020,12 +2069,19 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
       tx.type,
       categoryColor: matchingCategory?.color ?? tx.categoryColor,
     );
-    final effectiveIconColor = isDark ? catColor : Color.lerp(catColor, Colors.black, 0.15)!;
+    final effectiveIconColor =
+        isDark ? catColor : Color.lerp(catColor, Colors.black, 0.15)!;
 
-    final catDisplayName = matchingCategory?.name ?? tx.categoryName ?? 'Giao dịch';
-    final title = (tx.note != null && tx.note!.trim().isNotEmpty) ? tx.note!.trim() : catDisplayName;
+    final catDisplayName =
+        matchingCategory?.name ?? tx.categoryName ?? 'Giao dịch';
+    final title = (tx.note != null && tx.note!.trim().isNotEmpty)
+        ? tx.note!.trim()
+        : catDisplayName;
     final txDate = DateTime.fromMillisecondsSinceEpoch(tx.date);
-    final subtitle = '$catDisplayName • ↻ ${_formatRelativeDate(txDate)}';
+    final shortWallet = formatShortWalletName(tx.walletName);
+    final ownerRole = (tx.owner ?? tx.creatorTag ?? 'all').trim();
+    final bankCode = tx.bankTransactionCode?.trim();
+    final subtitle = '$catDisplayName • $shortWallet • ${_formatRelativeDate(txDate)}';
 
     final statusColor = TransactionVisuals.colorFor(tx.type);
     final statusLabel = switch (tx.type.toLowerCase()) {
@@ -2042,82 +2098,171 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     };
 
     final amountPrefix = isTransfer ? '' : (isFlowIn ? '+' : '-');
-    final amountText = isMasked
-        ? '••••••'
-        : '$amountPrefix${_formatAmount(tx.amount)} ₫';
+    final amountText =
+        isMasked ? '••••••' : '$amountPrefix${_formatAmount(tx.amount)} ₫';
 
-    final isPhoto = CategoryIconHelper.isPhoto(resolvedIconStr, catDisplayName) ||
-        (BankIconRegistry.resolve(resolvedIconStr, bankName: catDisplayName).code != 'cash' &&
-            BankIconRegistry.resolve(resolvedIconStr, bankName: catDisplayName).assetPath != null);
+    final isPhoto = CategoryIconHelper.isPhoto(
+            resolvedIconStr, catDisplayName) ||
+        (BankIconRegistry.resolve(resolvedIconStr, bankName: catDisplayName)
+                    .code !=
+                'cash' &&
+            BankIconRegistry.resolve(resolvedIconStr, bankName: catDisplayName)
+                    .assetPath !=
+                null);
 
     final listStyle = widget.studio.transactionListStyle;
     final isCompact = listStyle == AppTransactionListStyle.compactTable;
     final isBento = listStyle == AppTransactionListStyle.bentoCards;
     final isTimeline = listStyle == AppTransactionListStyle.timelineRail;
+    final isMagazine = listStyle == AppTransactionListStyle.magazineLedger;
     final isMinimal = listStyle == AppTransactionListStyle.minimalDivided;
 
     final rowContent = Row(
       children: [
         if (isTimeline) ...[
           Container(
-            width: 3,
-            height: 36,
+            width: 3.5,
+            height: 40,
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.75),
-              borderRadius: BorderRadius.circular(2),
+              color: statusColor.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
           const SizedBox(width: 8),
         ],
-        // Circular Avatar Icon: Đồng nhất với danh mục, KHÔNG viền bao quanh, icon FULL hoàn toàn
-        Container(
-          width: isCompact ? 34 : 42,
-          height: isCompact ? 34 : 42,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: isPhoto ? Colors.transparent : catColor.withValues(alpha: isDark ? 0.22 : 0.14),
-            shape: isBento ? BoxShape.rectangle : BoxShape.circle,
-            borderRadius: isBento ? BorderRadius.circular(12) : null,
-          ),
-          child: Center(
-            child: CategoryIconWidget(
-              icon: resolvedIconStr,
-              categoryName: catDisplayName,
-              size: isPhoto ? (isCompact ? 34 : 42) : (isCompact ? 18 : 22),
-              color: effectiveIconColor,
+        // Circular Avatar Icon + Member Avatar Badge
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: isCompact ? 34 : (isMagazine ? 46 : 42),
+              height: isCompact ? 34 : (isMagazine ? 46 : 42),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: isPhoto
+                    ? Colors.transparent
+                    : catColor.withValues(alpha: isDark ? 0.22 : 0.14),
+                shape: isBento ? BoxShape.rectangle : BoxShape.circle,
+                borderRadius: isBento ? BorderRadius.circular(14) : null,
+              ),
+              child: Center(
+                child: CategoryIconWidget(
+                  icon: resolvedIconStr,
+                  categoryName: catDisplayName,
+                  size: isPhoto
+                      ? (isCompact ? 34 : (isMagazine ? 46 : 42))
+                      : (isCompact ? 18 : 22),
+                  color: effectiveIconColor,
+                ),
+              ),
             ),
-          ),
+            Positioned(
+              right: -3,
+              bottom: -2,
+              child: Container(
+                padding: const EdgeInsets.all(1.5),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF121A17) : Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: FinoraMemberAvatar(
+                  role: ownerRole,
+                  size: isCompact ? 13 : 15,
+                  studio: widget.studio,
+                ),
+              ),
+            ),
+          ],
         ),
 
         const SizedBox(width: 12),
 
-        // Title & Subtitle
+        // Title & Subtitle + Short Wallet + Bank Code
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: isCompact ? 13.5 : 14.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
-                ),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isCompact ? 13.5 : (isMagazine ? 15 : 14.5),
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: isDark
+                            ? const Color(0xFFF1F5F9)
+                            : const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: (isDark ? Colors.white : const Color(0xFF0F172A))
+                            .withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        shortWallet,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               if (!isCompact) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.2,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                    if (bankCode != null && bankCode.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '#$bankCode',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ],
@@ -2128,7 +2273,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
 
         // Amount & Status Badge (Always pinned flush right)
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 112),
+          constraints: const BoxConstraints(maxWidth: 116),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
@@ -2140,8 +2285,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   amountText,
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    fontSize: isCompact ? 13.5 : 14.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: isCompact ? 13.5 : (isMagazine ? 15.5 : 14.5),
+                    fontWeight: FontWeight.w900,
                     fontFeatures: const [FontFeature.tabularFigures()],
                     color: isTransfer
                         ? (isDark
@@ -2162,12 +2307,19 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
-                  child: Text(
-                    statusLabel,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      statusLabel,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
                     ),
                   ),
                 ),
@@ -2187,140 +2339,49 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           userId: widget.userId,
         );
       },
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: isBento ? 4 : 0),
+        margin: EdgeInsets.symmetric(vertical: (isBento || isMagazine) ? 4 : 1.5),
         padding: EdgeInsets.symmetric(
-          vertical: isCompact ? 6 : 9,
-          horizontal: isBento ? 10 : 2,
+          vertical: isCompact ? 6 : (isMagazine ? 11 : 9),
+          horizontal: (isBento || isMagazine) ? 12 : 4,
         ),
         decoration: isBento
             ? BoxDecoration(
-                color: (isDark ? Colors.white : const Color(0xFF0F172A)).withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(14),
+                color: (isDark ? Colors.white : const Color(0xFF0F172A))
+                    .withValues(alpha: 0.045),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: (isDark ? Colors.white : const Color(0xFF0F172A)).withValues(alpha: 0.07),
+                  color: catColor.withValues(alpha: 0.22),
                 ),
               )
-            : isMinimal
+            : isMagazine
                 ? BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06),
-                        width: 0.6,
-                      ),
+                    gradient: LinearGradient(
+                      colors: [
+                        catColor.withValues(alpha: isDark ? 0.14 : 0.08),
+                        (isDark ? Colors.white : const Color(0xFF0F172A))
+                            .withValues(alpha: 0.02),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: catColor.withValues(alpha: 0.18),
                     ),
                   )
-                : null,
+                : isMinimal
+                    ? BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: (isDark ? Colors.white : Colors.black)
+                                .withValues(alpha: 0.06),
+                            width: 0.7,
+                          ),
+                        ),
+                      )
+                    : null,
         child: rowContent,
       ),
     );
   }
 }
-
-/// Iridescent Bloom Painter
-/// Vẽ dải hào quang ngọc lục bảo Finora tinh khiết mượt mà bên phải thẻ
-class _IridescentBloomPainter extends CustomPainter {
-  final bool isDark;
-  const _IridescentBloomPainter({this.isDark = false});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.84, size.height * 0.42);
-
-    // 1. Vầng sáng xanh ngọc mint mềm mại (Soft Emerald Mint Glow)
-    final paint1 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF34D399).withValues(alpha: isDark ? 0.22 : 0.28),
-          const Color(0xFF10B981).withValues(alpha: isDark ? 0.10 : 0.14),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.50, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: size.height * 0.85));
-    canvas.drawCircle(center, size.height * 0.85, paint1);
-
-    // 2. Vầng phản quang trắng ngọc cực nhẹ ở góc trên phải
-    final paint2 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          Colors.white.withValues(alpha: isDark ? 0.08 : 0.12),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.80],
-      ).createShader(Rect.fromCircle(center: Offset(size.width * 0.92, size.height * 0.18), radius: size.height * 0.55));
-    canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.18), size.height * 0.55, paint2);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Bank Card Bloom Painter
-/// Vẽ dải hào quang màu thương hiệu ngân hàng mượt mà phát sáng bên phải thẻ
-class _BankBloomPainter extends CustomPainter {
-  final Color brandColor;
-  final bool isDark;
-
-  const _BankBloomPainter({
-    required this.brandColor,
-    this.isDark = false,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.82, size.height * 0.50);
-
-    // 1. Vầng màu thương hiệu chính (Primary Bank Glow)
-    final paint1 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          brandColor.withValues(alpha: isDark ? 0.40 : 0.42),
-          brandColor.withValues(alpha: isDark ? 0.20 : 0.22),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.45, 1.0],
-      ).createShader(Rect.fromCircle(
-        center: center.translate(-15, -10),
-        radius: size.height * 0.75,
-      ));
-    canvas.drawCircle(center.translate(-15, -10), size.height * 0.75, paint1);
-
-    // 2. Vầng điểm sáng pha trắng / pastel nhẹ (Luminous Tint Flare)
-    final highlightColor = Color.lerp(brandColor, Colors.white, 0.45)!;
-    final paint2 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          highlightColor.withValues(alpha: isDark ? 0.28 : 0.38),
-          highlightColor.withValues(alpha: isDark ? 0.12 : 0.18),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.50, 1.0],
-      ).createShader(Rect.fromCircle(
-        center: center.translate(14, 16),
-        radius: size.height * 0.65,
-      ));
-    canvas.drawCircle(center.translate(14, 16), size.height * 0.65, paint2);
-
-    // 3. Vầng màu bổ trợ mềm mại (Soft Ambient Halo)
-    final ambientColor = Color.lerp(brandColor, const Color(0xFFFFD1A9), 0.35)!;
-    final paint3 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          ambientColor.withValues(alpha: isDark ? 0.20 : 0.30),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.85],
-      ).createShader(Rect.fromCircle(
-        center: center.translate(-30, 22),
-        radius: size.height * 0.55,
-      ));
-    canvas.drawCircle(center.translate(-30, 22), size.height * 0.55, paint3);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BankBloomPainter oldDelegate) {
-    return oldDelegate.brandColor != brandColor || oldDelegate.isDark != isDark;
-  }
-}
-

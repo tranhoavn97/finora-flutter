@@ -54,15 +54,15 @@ enum AmbientBlurPreset {
 
 enum AppFontFamily {
   plusJakartaSans, // Neo-Fintech Flagship (Plus Jakarta Sans)
-  beVietnamPro,    // Bản Sắc Việt Tối Ưu Dấu 100% (Be Vietnam Pro)
-  inter,           // Chuẩn Mực Thụy Sĩ Hiện Đại (Inter Display)
-  outfit,          // Geometric Luxury Tròn Trị (Outfit)
-  lexend,          // Quét Thị Giác Tài Chính Nhanh (Lexend Deca)
-  manrope,         // Châu Âu Thanh Lịch Đẳng Cấp (Manrope)
-  systemModern,    // Arial Cổ Điển
+  beVietnamPro, // Bản Sắc Việt Tối Ưu Dấu 100% (Be Vietnam Pro)
+  inter, // Chuẩn Mực Thụy Sĩ Hiện Đại (Inter Display)
+  outfit, // Geometric Luxury Tròn Trị (Outfit)
+  lexend, // Quét Thị Giác Tài Chính Nhanh (Lexend Deca)
+  manrope, // Châu Âu Thanh Lịch Đẳng Cấp (Manrope)
+  systemModern, // Arial Cổ Điển
   roundedFriendly, // Segoe UI Mềm Mại
-  fintechMonospace,// Bahnschrift DIN
-  executiveSerif,  // Georgia Sang Trọng
+  fintechMonospace, // Bahnschrift DIN
+  executiveSerif, // Georgia Sang Trọng
 }
 
 enum CardBorderGlowStyle {
@@ -704,6 +704,15 @@ class CuratedCommunityThemePreset {
 }
 
 class ThemeStudioController extends ChangeNotifier {
+  bool _freshAppearance = false;
+  bool get freshAppearance => _freshAppearance;
+  Future<void> setFreshAppearance(bool value) async {
+    _freshAppearance = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('finora_fresh_appearance_v1', value);
+  }
+
   static const _paletteKey = 'finora_studio_palette';
   static const _ambientBlurKey = 'finora_studio_ambient_blur';
   static const _densityKey = 'finora_studio_density';
@@ -787,7 +796,8 @@ class ThemeStudioController extends ChangeNotifier {
   static const _dockIconStyleKey = 'finora_studio_dock_icon_style';
   static const _widgetCardStyleKey = 'finora_studio_widget_card_style';
   static const _categoryIconStyleKey = 'finora_studio_category_icon_style';
-  static const _appBarScrollBehaviorKey = 'finora_studio_app_bar_scroll_behavior';
+  static const _appBarScrollBehaviorKey =
+      'finora_studio_app_bar_scroll_behavior';
   static const _highRefreshRate120HzKey = 'finora_studio_120hz';
   static const _iconBgColorModeKey = 'finora_studio_icon_bg_color_mode';
   static const _iconGlyphColorModeKey = 'finora_studio_icon_glyph_color_mode';
@@ -795,14 +805,17 @@ class ThemeStudioController extends ChangeNotifier {
   static const _lockedComponentsKey = 'finora_studio_locked_components';
   static const _customUserPresetsKey = 'finora_studio_custom_user_presets';
   static const _widgetBorderWidthKey = 'finora_studio_widget_border_width';
-  static const _customCardCornerRadiusKey = 'finora_studio_custom_card_corner_radius';
-  static const _customButtonCornerRadiusKey = 'finora_studio_custom_button_corner_radius';
+  static const _customCardCornerRadiusKey =
+      'finora_studio_custom_card_corner_radius';
+  static const _customButtonCornerRadiusKey =
+      'finora_studio_custom_button_corner_radius';
   static const _pageVerticalGapKey = 'finora_studio_page_vertical_gap';
   static const _dockHeightScaleKey = 'finora_studio_dock_height_scale';
   static const _dockOpacityKey = 'finora_studio_dock_opacity';
   static const _dockBlurKey = 'finora_studio_dock_blur';
   static const _dockActiveColorKey = 'finora_studio_dock_active_color';
   static const _dockInactiveColorKey = 'finora_studio_dock_inactive_color';
+  static const _dockPlusColorKey = 'finora_studio_dock_plus_color';
   static const _chartHeightScaleKey = 'finora_studio_chart_height_scale';
   static const _chartShowAreaFillKey = 'finora_studio_chart_show_area_fill';
   static const _chartShowGridLinesKey = 'finora_studio_chart_show_grid_lines';
@@ -812,12 +825,67 @@ class ThemeStudioController extends ChangeNotifier {
   static const _iconLabelScaleKey = 'finora_studio_icon_label_scale';
   static const _backgroundTintOpacityKey = 'finora_studio_bg_tint_opacity';
   static const _loadingStyleKey = 'finora_studio_loading_style';
-  static const _systemWideLiquidGlassKey = 'finora_studio_system_wide_liquid_glass';
-  static const _liquidGlassSpecularHighlightKey = 'finora_studio_liquid_specular';
-  static const _liquidGlassCausticRefractionKey = 'finora_studio_liquid_caustic';
+  static const _systemWideLiquidGlassKey =
+      'finora_studio_system_wide_liquid_glass';
+  static const _liquidGlassSpecularHighlightKey =
+      'finora_studio_liquid_specular';
+  static const _liquidGlassCausticRefractionKey =
+      'finora_studio_liquid_caustic';
   static const _useCustomRgbMeshBgKey = 'finora_studio_use_custom_rgb_mesh_bg';
   static const _customBgColor1Key = 'finora_studio_custom_bg_color1';
   static const _customBgColor2Key = 'finora_studio_custom_bg_color2';
+  static const _husbandAvatarKey = 'finora_husband_avatar';
+  static const _wifeAvatarKey = 'finora_wife_avatar';
+  static const _jointFamilyAvatarKey = 'finora_joint_family_avatar';
+
+  String? _husbandAvatar;
+  String? _wifeAvatar;
+  String? _jointFamilyAvatar;
+  String? get husbandAvatar => _husbandAvatar;
+  String? get wifeAvatar => _wifeAvatar;
+  String? get jointFamilyAvatar => _jointFamilyAvatar;
+
+  Future<void> setHusbandAvatar(String? value) async {
+    final clean = value?.trim();
+    _husbandAvatar = (clean == null || clean.isEmpty) ? null : clean;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_husbandAvatar == null) {
+        await prefs.remove(_husbandAvatarKey);
+      } else {
+        await prefs.setString(_husbandAvatarKey, _husbandAvatar!);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> setWifeAvatar(String? value) async {
+    final clean = value?.trim();
+    _wifeAvatar = (clean == null || clean.isEmpty) ? null : clean;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_wifeAvatar == null) {
+        await prefs.remove(_wifeAvatarKey);
+      } else {
+        await prefs.setString(_wifeAvatarKey, _wifeAvatar!);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> setJointFamilyAvatar(String? value) async {
+    final clean = value?.trim();
+    _jointFamilyAvatar = (clean == null || clean.isEmpty) ? null : clean;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_jointFamilyAvatar == null) {
+        await prefs.remove(_jointFamilyAvatarKey);
+      } else {
+        await prefs.setString(_jointFamilyAvatarKey, _jointFamilyAvatar!);
+      }
+    } catch (_) {}
+  }
   static const _customBgColor3Key = 'finora_studio_custom_bg_color3';
   static const _customBgIntensityKey = 'finora_studio_custom_bg_intensity';
   static const _customBgBlurKey = 'finora_studio_custom_bg_blur';
@@ -981,27 +1049,27 @@ class ThemeStudioController extends ChangeNotifier {
     DashboardModuleId.loansDebts,
   ];
 
-  AppColorPalette _palette = AppColorPalette.slateMinimal;
-  AmbientBlurPreset _ambientBlur = AmbientBlurPreset.obsidianSlate;
+  AppColorPalette _palette = AppColorPalette.emeraldWealth;
+  AmbientBlurPreset _ambientBlur = AmbientBlurPreset.emeraldMatrix;
   AppWallpaperPreset _wallpaperPreset = AppWallpaperPreset.none;
   CardDensity _globalDensity = CardDensity.standard;
   CardDensity _dashboardDensity = CardDensity.standard;
   CardDensity _transactionDensity = CardDensity.compact;
-  CardSurfaceStyle _surfaceStyle = CardSurfaceStyle.solidModern;
+  CardSurfaceStyle _surfaceStyle = CardSurfaceStyle.liquidGlass;
   CardCornerStyle _cornerStyle = CardCornerStyle.rounded;
   CardShadowIntensity _shadowIntensity = CardShadowIntensity.soft;
   bool _showAiInsight = true;
   bool _showQuickLog = true;
-  double _glassOpacity = 1.0;
-  double _glassBlur = 0.0;
+  double _glassOpacity = 0.88;
+  double _glassBlur = 20.0;
   double _pageHorizontalMargin = 16.0;
-  AppButtonShape _buttonShape = AppButtonShape.rounded;
+  AppButtonShape _buttonShape = AppButtonShape.pill;
   AppIconStyle _iconStyle = AppIconStyle.round;
   AppIconShape _iconShape = AppIconShape.squircle;
   AppIconVisualEffect _iconVisualEffect = AppIconVisualEffect.flatMinimal;
   AppButtonSize _buttonSize = AppButtonSize.standard;
   double _fontScale = 1.0;
-  AppUiUxStyle _uiUxStyle = AppUiUxStyle.ledgerEditorial;
+  AppUiUxStyle _uiUxStyle = AppUiUxStyle.cupertinoMinimal;
   double _gradientVibrancy = 1.0;
   AppFontFamily _fontFamily = AppFontFamily.beVietnamPro;
   CardBorderGlowStyle _borderGlowStyle = CardBorderGlowStyle.subtleHairline;
@@ -1091,11 +1159,14 @@ class ThemeStudioController extends ChangeNotifier {
   AppDockIconStyle _dockIconStyle = AppDockIconStyle.materialSystem;
   AppWidgetCardStyle _widgetCardStyle = AppWidgetCardStyle.solidCleanCard;
   AppCategoryIconStyle _categoryIconStyle = AppCategoryIconStyle.minimalCircle;
-  AppAppBarScrollBehavior _appBarScrollBehavior = AppAppBarScrollBehavior.pinned;
+  AppAppBarScrollBehavior _appBarScrollBehavior =
+      AppAppBarScrollBehavior.pinned;
   bool _highRefreshRate120Hz = true;
-  AppLoadingIndicatorStyle _loadingStyle = AppLoadingIndicatorStyle.infinityDots;
+  AppLoadingIndicatorStyle _loadingStyle =
+      AppLoadingIndicatorStyle.infinityDots;
   AppIconBgColorMode _iconBgColorMode = AppIconBgColorMode.categoryOriginal;
-  AppIconGlyphColorMode _iconGlyphColorMode = AppIconGlyphColorMode.autoContrast;
+  AppIconGlyphColorMode _iconGlyphColorMode =
+      AppIconGlyphColorMode.autoContrast;
   double _iconBgOpacity = 0.22;
   double _widgetBorderWidth = 0.8;
   double? _customCardCornerRadius;
@@ -1106,6 +1177,7 @@ class ThemeStudioController extends ChangeNotifier {
   double _dockBlur = 0.0;
   Color? _dockActiveColor;
   Color? _dockInactiveColor;
+  Color? _dockPlusColor;
   double _chartHeightScale = 1.0;
   bool _chartShowAreaFill = true;
   bool _chartShowGridLines = true;
@@ -1119,10 +1191,10 @@ class ThemeStudioController extends ChangeNotifier {
   bool _liquidGlassSpecularHighlight = false;
   bool _liquidGlassCausticRefraction = false;
 
-  bool get systemWideLiquidGlass => false;
-  bool get isSystemWideLiquidGlass => false;
-  bool get liquidGlassSpecularHighlight => false;
-  bool get liquidGlassCausticRefraction => false;
+  bool get systemWideLiquidGlass => _systemWideLiquidGlass;
+  bool get isSystemWideLiquidGlass => _systemWideLiquidGlass;
+  bool get liquidGlassSpecularHighlight => _liquidGlassSpecularHighlight;
+  bool get liquidGlassCausticRefraction => _liquidGlassCausticRefraction;
 
   double get iconScale => _iconScale;
   double get iconCornerRadius => _iconCornerRadius;
@@ -1150,9 +1222,13 @@ class ThemeStudioController extends ChangeNotifier {
   double get dockBlur => _dockBlur;
   Color? get dockActiveColor => _dockActiveColor;
   Color? get dockInactiveColor => _dockInactiveColor;
+  Color? get dockPlusColor => _dockPlusColor;
   Color get resolvedDockActiveColor => _dockActiveColor ?? resolvedPrimary;
+  Color get resolvedDockPlusColor =>
+      _dockPlusColor ?? _dockActiveColor ?? resolvedPrimary;
   Color resolvedDockInactiveColor(bool isDark) =>
-      _dockInactiveColor ?? (isDark ? const Color(0xFFA3B4D4) : const Color(0xFF64748B));
+      _dockInactiveColor ??
+      (isDark ? const Color(0xFFA3B4D4) : const Color(0xFF64748B));
   Set<String> get lockedComponents => Set.unmodifiable(_lockedComponents);
   bool isLocked(String component) => _lockedComponents.contains(component);
   List<String> get customPresetNames => _customPresetsMap.keys.toList();
@@ -1237,18 +1313,24 @@ class ThemeStudioController extends ChangeNotifier {
   CardDensity get transactionDensity => _transactionDensity;
   CardSurfaceStyle get surfaceStyle => _surfaceStyle;
   CardCornerStyle get cornerStyle => _cornerStyle;
-  double get cardCornerRadius => _customCardCornerRadius ?? switch (_cornerStyle) {
-        CardCornerStyle.sharp => 8.0,
-        CardCornerStyle.subtle => 16.0,
-        CardCornerStyle.rounded => 22.0,
-        CardCornerStyle.extraRounded => 30.0,
-        CardCornerStyle.pillUltra => 36.0,
-      };
-  double get buttonCornerRadius => _customButtonCornerRadius ?? switch (_buttonShape) {
-        AppButtonShape.pill => 999.0,
-        AppButtonShape.squircle => 16.0,
-        AppButtonShape.rounded => 10.0,
-      };
+  double get cardCornerRadius => _freshAppearance
+      ? 24
+      : _customCardCornerRadius ??
+          switch (_cornerStyle) {
+            CardCornerStyle.sharp => 8.0,
+            CardCornerStyle.subtle => 16.0,
+            CardCornerStyle.rounded => 22.0,
+            CardCornerStyle.extraRounded => 30.0,
+            CardCornerStyle.pillUltra => 36.0,
+          };
+  double get buttonCornerRadius => _freshAppearance
+      ? 999
+      : _customButtonCornerRadius ??
+          switch (_buttonShape) {
+            AppButtonShape.pill => 999.0,
+            AppButtonShape.squircle => 24.0,
+            AppButtonShape.rounded => 20.0,
+          };
   CardShadowIntensity get shadowIntensity => _shadowIntensity;
   bool get showAiInsight => _showAiInsight;
   bool get showQuickLog => _showQuickLog;
@@ -1318,7 +1400,8 @@ class ThemeStudioController extends ChangeNotifier {
   List<Color> getEffectiveCustomBgGradientColors(bool isDark) {
     if (isDark) {
       if (_customBgGradientColors.isNotEmpty &&
-          ThemeData.estimateBrightnessForColor(_customBgGradientColors.first) == Brightness.light) {
+          ThemeData.estimateBrightnessForColor(_customBgGradientColors.first) ==
+              Brightness.light) {
         return const [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF312E81)];
       }
       return _customBgGradientColors;
@@ -1334,6 +1417,7 @@ class ThemeStudioController extends ChangeNotifier {
       return const [Color(0xFFF8FAFC), Color(0xFFF1F5F9), Color(0xFFE2E8F0)];
     }
   }
+
   int get customBgGradientAngle => _customBgGradientAngle;
   bool get useCustomBgGradient => _useCustomBgGradient;
   double get backgroundTintOpacity => _backgroundTintOpacity;
@@ -1667,6 +1751,18 @@ class ThemeStudioController extends ChangeNotifier {
   ];
 
   PaletteMeta get currentPaletteMeta {
+    if (_freshAppearance) {
+      return const PaletteMeta(
+        palette: AppColorPalette.oceanicSapphire,
+        title: 'Sáng trong & Xanh tươi',
+        subtitle: 'Trắng dịu, xanh trong và bo mềm',
+        primary: Color(0xFF0066CC),
+        secondary: Color(0xFF147D64),
+        lightBg: Color(0xFFF5F8FF),
+        darkBg: Color(0xFF111820),
+        heroGradient: [Color(0xFF007AFF), Color(0xFF36A5FF)],
+      );
+    }
     if (_palette == AppColorPalette.custom &&
         _selectedCustomPaletteId != null) {
       final matches =
@@ -1817,6 +1913,23 @@ class ThemeStudioController extends ChangeNotifier {
   Future<void> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final v27Migrated =
+          prefs.getBool('finora_migrated_v27_apple_minimalist_rev_3') ?? false;
+      if (!v27Migrated) {
+        _freshAppearance = false;
+        await prefs.setBool('finora_fresh_appearance_v1', false);
+        _uiUxStyle = AppUiUxStyle.cupertinoMinimal;
+        _heroCardStyle = AppHeroCardStyle.zenvestGlassDeck;
+        _dockNavStyle = AppDockNavStyle.balancedFloatingCta;
+        _palette = AppColorPalette.emeraldWealth;
+        _ambientBlur = AmbientBlurPreset.emeraldMatrix;
+        _surfaceStyle = CardSurfaceStyle.liquidGlass;
+        _glassOpacity = 0.88;
+        _glassBlur = 20.0;
+        await prefs.setBool('finora_migrated_v27_apple_minimalist_rev_3', true);
+      } else {
+        _freshAppearance = prefs.getBool('finora_fresh_appearance_v1') ?? false;
+      }
       final pIdx = _readInt(prefs, _paletteKey);
       if (pIdx != null && pIdx >= 0 && pIdx < AppColorPalette.values.length) {
         _palette = AppColorPalette.values[pIdx];
@@ -1857,6 +1970,9 @@ class ThemeStudioController extends ChangeNotifier {
       }
       _showAiInsight = true;
       _showQuickLog = true;
+      _husbandAvatar = prefs.getString(_husbandAvatarKey);
+      _wifeAvatar = prefs.getString(_wifeAvatarKey);
+      _jointFamilyAvatar = prefs.getString(_jointFamilyAvatarKey);
       final op = _readDouble(prefs, _glassOpacityKey);
       if (op != null) {
         _glassOpacity = op.clamp(0.20, 1.0);
@@ -2112,7 +2228,8 @@ class ThemeStudioController extends ChangeNotifier {
         _customBgGradientColors =
             rawBgGradient.map((s) => Color(int.parse(s))).toList();
       }
-      final rawBgGradientLight = prefs.getStringList('${_customBgGradientKey}_light');
+      final rawBgGradientLight =
+          prefs.getStringList('${_customBgGradientKey}_light');
       if (rawBgGradientLight != null && rawBgGradientLight.isNotEmpty) {
         _customBgGradientColorsLight =
             rawBgGradientLight.map((s) => Color(int.parse(s))).toList();
@@ -2143,7 +2260,8 @@ class ThemeStudioController extends ChangeNotifier {
           blendStyleIdx < MeshBlendStyle.values.length) {
         _meshBlendStyle = MeshBlendStyle.values[blendStyleIdx];
       }
-      final preserveBank = prefs.getBool('finora_studio_preserve_bank_card_colors');
+      final preserveBank =
+          prefs.getBool('finora_studio_preserve_bank_card_colors');
       if (preserveBank != null) _preserveBankCardColors = preserveBank;
       final dockLblIdx = _readInt(prefs, _dockLabelStyleKey);
       if (dockLblIdx != null &&
@@ -2244,7 +2362,8 @@ class ThemeStudioController extends ChangeNotifier {
       final pin = prefs.getBool(_pinHeaderKey);
       if (pin != null) _pinHeader = pin;
       if (!(prefs.getBool('finora_wallet_web_parity_v1') ?? false)) {
-        await prefs.setInt(_walletViewStyleKey, AppWalletViewStyle.webCards.index);
+        await prefs.setInt(
+            _walletViewStyleKey, AppWalletViewStyle.webCards.index);
         await prefs.setBool('finora_wallet_web_parity_v1', true);
       }
       final wvsIdx = _readInt(prefs, _walletViewStyleKey);
@@ -2254,23 +2373,33 @@ class ThemeStudioController extends ChangeNotifier {
         _walletViewStyle = AppWalletViewStyle.values[wvsIdx];
       }
       final seasonIdx = _readInt(prefs, _seasonalThemeKey);
-      if (seasonIdx != null && seasonIdx >= 0 && seasonIdx < AppSeasonalTheme.values.length) {
+      if (seasonIdx != null &&
+          seasonIdx >= 0 &&
+          seasonIdx < AppSeasonalTheme.values.length) {
         _seasonalTheme = AppSeasonalTheme.values[seasonIdx];
       }
       final iconPackIdx = _readInt(prefs, _systemIconPackKey);
-      if (iconPackIdx != null && iconPackIdx >= 0 && iconPackIdx < AppSystemIconPack.values.length) {
+      if (iconPackIdx != null &&
+          iconPackIdx >= 0 &&
+          iconPackIdx < AppSystemIconPack.values.length) {
         _systemIconPack = AppSystemIconPack.values[iconPackIdx];
       }
       final tabSelIdx = _readInt(prefs, _tabSelectStyleKey);
-      if (tabSelIdx != null && tabSelIdx >= 0 && tabSelIdx < AppTabSelectStyle.values.length) {
+      if (tabSelIdx != null &&
+          tabSelIdx >= 0 &&
+          tabSelIdx < AppTabSelectStyle.values.length) {
         _tabSelectStyle = AppTabSelectStyle.values[tabSelIdx];
       }
       final btnKindIdx = _readInt(prefs, _buttonVisualKindKey);
-      if (btnKindIdx != null && btnKindIdx >= 0 && btnKindIdx < AppButtonStyle.values.length) {
+      if (btnKindIdx != null &&
+          btnKindIdx >= 0 &&
+          btnKindIdx < AppButtonStyle.values.length) {
         _buttonVisualKind = AppButtonStyle.values[btnKindIdx];
       }
       final btnColorIdx = _readInt(prefs, _buttonColorModeKey);
-      if (btnColorIdx != null && btnColorIdx >= 0 && btnColorIdx < AppButtonColorMode.values.length) {
+      if (btnColorIdx != null &&
+          btnColorIdx >= 0 &&
+          btnColorIdx < AppButtonColorMode.values.length) {
         _buttonColorMode = AppButtonColorMode.values[btnColorIdx];
       }
       final customBtnVal = _readInt(prefs, _customButtonColorKey);
@@ -2278,34 +2407,49 @@ class ThemeStudioController extends ChangeNotifier {
         _customButtonColor = Color(customBtnVal);
       }
       final dockIconIdx = _readInt(prefs, _dockIconStyleKey);
-      if (dockIconIdx != null && dockIconIdx >= 0 && dockIconIdx < AppDockIconStyle.values.length) {
+      if (dockIconIdx != null &&
+          dockIconIdx >= 0 &&
+          dockIconIdx < AppDockIconStyle.values.length) {
         _dockIconStyle = AppDockIconStyle.values[dockIconIdx];
       }
       final wCardIdx = _readInt(prefs, _widgetCardStyleKey);
-      if (wCardIdx != null && wCardIdx >= 0 && wCardIdx < AppWidgetCardStyle.values.length) {
+      if (wCardIdx != null &&
+          wCardIdx >= 0 &&
+          wCardIdx < AppWidgetCardStyle.values.length) {
         _widgetCardStyle = AppWidgetCardStyle.values[wCardIdx];
       }
       final catIconIdx = _readInt(prefs, _categoryIconStyleKey);
-      if (catIconIdx != null && catIconIdx >= 0 && catIconIdx < AppCategoryIconStyle.values.length) {
+      if (catIconIdx != null &&
+          catIconIdx >= 0 &&
+          catIconIdx < AppCategoryIconStyle.values.length) {
         _categoryIconStyle = AppCategoryIconStyle.values[catIconIdx];
       }
       final appBarBehaviorIdx = _readInt(prefs, _appBarScrollBehaviorKey);
-      if (appBarBehaviorIdx != null && appBarBehaviorIdx >= 0 && appBarBehaviorIdx < AppAppBarScrollBehavior.values.length) {
-        _appBarScrollBehavior = AppAppBarScrollBehavior.values[appBarBehaviorIdx];
+      if (appBarBehaviorIdx != null &&
+          appBarBehaviorIdx >= 0 &&
+          appBarBehaviorIdx < AppAppBarScrollBehavior.values.length) {
+        _appBarScrollBehavior =
+            AppAppBarScrollBehavior.values[appBarBehaviorIdx];
         _pinHeader = (_appBarScrollBehavior == AppAppBarScrollBehavior.pinned);
       }
       final hr120 = prefs.getBool(_highRefreshRate120HzKey);
       if (hr120 != null) _highRefreshRate120Hz = hr120;
       final loadStyleIdx = _readInt(prefs, _loadingStyleKey);
-      if (loadStyleIdx != null && loadStyleIdx >= 0 && loadStyleIdx < AppLoadingIndicatorStyle.values.length) {
+      if (loadStyleIdx != null &&
+          loadStyleIdx >= 0 &&
+          loadStyleIdx < AppLoadingIndicatorStyle.values.length) {
         _loadingStyle = AppLoadingIndicatorStyle.values[loadStyleIdx];
       }
       final iconBgIdx = _readInt(prefs, _iconBgColorModeKey);
-      if (iconBgIdx != null && iconBgIdx >= 0 && iconBgIdx < AppIconBgColorMode.values.length) {
+      if (iconBgIdx != null &&
+          iconBgIdx >= 0 &&
+          iconBgIdx < AppIconBgColorMode.values.length) {
         _iconBgColorMode = AppIconBgColorMode.values[iconBgIdx];
       }
       final iconGlyphIdx = _readInt(prefs, _iconGlyphColorModeKey);
-      if (iconGlyphIdx != null && iconGlyphIdx >= 0 && iconGlyphIdx < AppIconGlyphColorMode.values.length) {
+      if (iconGlyphIdx != null &&
+          iconGlyphIdx >= 0 &&
+          iconGlyphIdx < AppIconGlyphColorMode.values.length) {
         _iconGlyphColorMode = AppIconGlyphColorMode.values[iconGlyphIdx];
       }
       final iconOpacity = prefs.getDouble(_iconBgOpacityKey);
@@ -2333,6 +2477,8 @@ class ThemeStudioController extends ChangeNotifier {
       if (dActCol != null) _dockActiveColor = Color(dActCol);
       final dInactCol = _readInt(prefs, _dockInactiveColorKey);
       if (dInactCol != null) _dockInactiveColor = Color(dInactCol);
+      final dPlusCol = _readInt(prefs, _dockPlusColorKey);
+      if (dPlusCol != null) _dockPlusColor = Color(dPlusCol);
       final chs = _readDouble(prefs, _chartHeightScaleKey);
       if (chs != null) _chartHeightScale = chs.clamp(0.70, 1.40);
       final csaf = prefs.getBool(_chartShowAreaFillKey);
@@ -2391,7 +2537,8 @@ class ThemeStudioController extends ChangeNotifier {
 
         await prefs.setInt(_uiUxStyleKey, AppUiUxStyle.googleMinimal.index);
         await prefs.setInt(_surfaceKey, CardSurfaceStyle.solidModern.index);
-        await prefs.setInt(_widgetCardStyleKey, AppWidgetCardStyle.solidCleanCard.index);
+        await prefs.setInt(
+            _widgetCardStyleKey, AppWidgetCardStyle.solidCleanCard.index);
         await prefs.setBool(_systemWideLiquidGlassKey, false);
         await prefs.setBool(_liquidGlassSpecularHighlightKey, false);
         await prefs.setBool(_liquidGlassCausticRefractionKey, false);
@@ -2402,12 +2549,16 @@ class ThemeStudioController extends ChangeNotifier {
         await prefs.setDouble(_dockOpacityKey, 1.0);
         await prefs.setInt(_topBarStyleKey, AppTopBarStyle.seamlessBlend.index);
         await prefs.setInt(_dockNavKey, AppDockNavStyle.classicDock.index);
-        await prefs.setInt(_systemIconPackKey, AppSystemIconPack.materialExpressive.index);
-        await prefs.setInt(_dockIconStyleKey, AppDockIconStyle.materialSystem.index);
-        await prefs.setInt(_iconVisualEffectKey, AppIconVisualEffect.flatMinimal.index);
+        await prefs.setInt(
+            _systemIconPackKey, AppSystemIconPack.materialExpressive.index);
+        await prefs.setInt(
+            _dockIconStyleKey, AppDockIconStyle.materialSystem.index);
+        await prefs.setInt(
+            _iconVisualEffectKey, AppIconVisualEffect.flatMinimal.index);
         await prefs.setBool(_particleSparklesKey, false);
         await prefs.setDouble(_ambientIntensityKey, 0.0);
-        await prefs.setInt(_loadingStyleKey, AppLoadingIndicatorStyle.infinityDots.index);
+        await prefs.setInt(
+            _loadingStyleKey, AppLoadingIndicatorStyle.infinityDots.index);
         await prefs.setBool('finora_migrated_material_3_clean_v1', true);
       }
 
@@ -2437,7 +2588,8 @@ class ThemeStudioController extends ChangeNotifier {
 
         await prefs.setInt(_uiUxStyleKey, AppUiUxStyle.googleMinimal.index);
         await prefs.setInt(_surfaceKey, CardSurfaceStyle.solidModern.index);
-        await prefs.setInt(_widgetCardStyleKey, AppWidgetCardStyle.solidCleanCard.index);
+        await prefs.setInt(
+            _widgetCardStyleKey, AppWidgetCardStyle.solidCleanCard.index);
         await prefs.setBool(_systemWideLiquidGlassKey, false);
         await prefs.setBool(_liquidGlassSpecularHighlightKey, false);
         await prefs.setBool(_liquidGlassCausticRefractionKey, false);
@@ -2448,16 +2600,21 @@ class ThemeStudioController extends ChangeNotifier {
         await prefs.setDouble(_dockOpacityKey, 1.0);
         await prefs.setInt(_topBarStyleKey, AppTopBarStyle.seamlessBlend.index);
         await prefs.setInt(_dockNavKey, AppDockNavStyle.classicDock.index);
-        await prefs.setInt(_systemIconPackKey, AppSystemIconPack.materialExpressive.index);
-        await prefs.setInt(_dockIconStyleKey, AppDockIconStyle.materialSystem.index);
-        await prefs.setInt(_iconVisualEffectKey, AppIconVisualEffect.flatMinimal.index);
+        await prefs.setInt(
+            _systemIconPackKey, AppSystemIconPack.materialExpressive.index);
+        await prefs.setInt(
+            _dockIconStyleKey, AppDockIconStyle.materialSystem.index);
+        await prefs.setInt(
+            _iconVisualEffectKey, AppIconVisualEffect.flatMinimal.index);
         await prefs.setBool(_particleSparklesKey, false);
         await prefs.setDouble(_ambientIntensityKey, 0.0);
-        await prefs.setInt(_loadingStyleKey, AppLoadingIndicatorStyle.infinityDots.index);
+        await prefs.setInt(
+            _loadingStyleKey, AppLoadingIndicatorStyle.infinityDots.index);
         await prefs.setBool('finora_migrated_material_3_full_v2', true);
       }
 
-      if (!(prefs.getBool('finora_migrated_minimalist_circle_icons_v1') ?? false)) {
+      if (!(prefs.getBool('finora_migrated_minimalist_circle_icons_v1') ??
+          false)) {
         _categoryIconStyle = AppCategoryIconStyle.minimalCircle;
         _iconShape = AppIconShape.circle;
         _iconVisualEffect = AppIconVisualEffect.flatMinimal;
@@ -2466,18 +2623,24 @@ class ThemeStudioController extends ChangeNotifier {
         _systemIconPack = AppSystemIconPack.solarCurved;
         _dockIconStyle = AppDockIconStyle.modernLucide;
 
-        await prefs.setInt(_categoryIconStyleKey, AppCategoryIconStyle.minimalCircle.index);
+        await prefs.setInt(
+            _categoryIconStyleKey, AppCategoryIconStyle.minimalCircle.index);
         await prefs.setInt(_iconShapeKey, AppIconShape.circle.index);
-        await prefs.setInt(_iconVisualEffectKey, AppIconVisualEffect.flatMinimal.index);
+        await prefs.setInt(
+            _iconVisualEffectKey, AppIconVisualEffect.flatMinimal.index);
         await prefs.setInt(_iconStyleKey, AppIconStyle.round.index);
-        await prefs.setInt(_widgetCardStyleKey, AppWidgetCardStyle.solidCleanCard.index);
-        await prefs.setInt(_dockIconStyleKey, AppDockIconStyle.modernLucide.index);
+        await prefs.setInt(
+            _widgetCardStyleKey, AppWidgetCardStyle.solidCleanCard.index);
+        await prefs.setInt(
+            _dockIconStyleKey, AppDockIconStyle.modernLucide.index);
         await prefs.setBool('finora_migrated_minimalist_circle_icons_v1', true);
       }
 
-      if (!(prefs.getBool('finora_migrated_health_above_transactions_v2') ?? false)) {
+      if (!(prefs.getBool('finora_migrated_health_above_transactions_v2') ??
+          false)) {
         _dashboardOrder.remove(DashboardModuleId.aiHealthScore);
-        final txIdx = _dashboardOrder.indexOf(DashboardModuleId.recentTransactions);
+        final txIdx =
+            _dashboardOrder.indexOf(DashboardModuleId.recentTransactions);
         if (txIdx >= 0) {
           _dashboardOrder.insert(txIdx, DashboardModuleId.aiHealthScore);
         } else {
@@ -2488,37 +2651,82 @@ class ThemeStudioController extends ChangeNotifier {
             _dashboardOrderKey, _dashboardOrder.map((m) => m.name).toList());
         await prefs.setStringList(_dashboardDisabledKey,
             _disabledDashboardModules.map((m) => m.name).toList());
-        await prefs.setBool('finora_migrated_health_above_transactions_v2', true);
+        await prefs.setBool(
+            'finora_migrated_health_above_transactions_v2', true);
       }
 
-      if (!(prefs.getBool('finora_migrated_balanced_floating_cta_v1') ?? false)) {
+      if (!(prefs.getBool('finora_migrated_balanced_floating_cta_v1') ??
+          false)) {
         _dockNavStyle = AppDockNavStyle.balancedFloatingCta;
-        await prefs.setInt(_dockNavKey, AppDockNavStyle.balancedFloatingCta.index);
+        await prefs.setInt(
+            _dockNavKey, AppDockNavStyle.balancedFloatingCta.index);
         await prefs.setBool('finora_migrated_balanced_floating_cta_v1', true);
       }
 
-      if (!(prefs.getBool('finora_migrated_net_worth_modern_deck_v1') ?? false)) {
+      if (!(prefs.getBool('finora_migrated_net_worth_modern_deck_v1') ??
+          false)) {
         _heroCardStyle = AppHeroCardStyle.netWorthModernDeck;
-        await prefs.setInt(_heroCardStyleKey, AppHeroCardStyle.netWorthModernDeck.index);
+        await prefs.setInt(
+            _heroCardStyleKey, AppHeroCardStyle.netWorthModernDeck.index);
         await prefs.setBool('finora_migrated_net_worth_modern_deck_v1', true);
       }
 
       if (!(prefs.getBool('finora_migrated_zenvest_glass_deck_v1') ?? false)) {
         _heroCardStyle = AppHeroCardStyle.zenvestGlassDeck;
-        await prefs.setInt(_heroCardStyleKey, AppHeroCardStyle.zenvestGlassDeck.index);
+        await prefs.setInt(
+            _heroCardStyleKey, AppHeroCardStyle.zenvestGlassDeck.index);
         await prefs.setBool('finora_migrated_zenvest_glass_deck_v1', true);
       }
 
-      if (!(prefs.getBool('finora_migrated_brand_emerald_minimal_v1') ?? false)) {
+      if (!(prefs.getBool('finora_migrated_brand_emerald_minimal_v1') ??
+          false)) {
         _palette = AppColorPalette.emeraldWealth;
         _ambientBlur = AmbientBlurPreset.emeraldMatrix;
         _heroCardStyle = AppHeroCardStyle.zenvestGlassDeck;
         _dockNavStyle = AppDockNavStyle.balancedFloatingCta;
         await prefs.setInt(_paletteKey, AppColorPalette.emeraldWealth.index);
-        await prefs.setInt(_ambientBlurKey, AmbientBlurPreset.emeraldMatrix.index);
-        await prefs.setInt(_heroCardStyleKey, AppHeroCardStyle.zenvestGlassDeck.index);
-        await prefs.setInt(_dockNavKey, AppDockNavStyle.balancedFloatingCta.index);
+        await prefs.setInt(
+            _ambientBlurKey, AmbientBlurPreset.emeraldMatrix.index);
+        await prefs.setInt(
+            _heroCardStyleKey, AppHeroCardStyle.zenvestGlassDeck.index);
+        await prefs.setInt(
+            _dockNavKey, AppDockNavStyle.balancedFloatingCta.index);
         await prefs.setBool('finora_migrated_brand_emerald_minimal_v1', true);
+      }
+
+      if (!(prefs.getBool('finora_migrated_v27_apple_minimalist_rev_1') ??
+          false)) {
+        _uiUxStyle = AppUiUxStyle.cupertinoMinimal;
+        _palette = AppColorPalette.emeraldWealth;
+        _ambientBlur = AmbientBlurPreset.emeraldMatrix;
+        _heroCardStyle = AppHeroCardStyle.zenvestGlassDeck;
+        _dockNavStyle = AppDockNavStyle.balancedFloatingCta;
+        _surfaceStyle = CardSurfaceStyle.liquidGlass;
+        _glassOpacity = 0.88;
+        _glassBlur = 20.0;
+        _fontFamily = AppFontFamily.beVietnamPro;
+        await prefs.setInt(_uiUxStyleKey, AppUiUxStyle.cupertinoMinimal.index);
+        await prefs.setInt(_paletteKey, AppColorPalette.emeraldWealth.index);
+        await prefs.setInt(
+            _ambientBlurKey, AmbientBlurPreset.emeraldMatrix.index);
+        await prefs.setInt(
+            _heroCardStyleKey, AppHeroCardStyle.zenvestGlassDeck.index);
+        await prefs.setInt(
+            _dockNavKey, AppDockNavStyle.balancedFloatingCta.index);
+        await prefs.setInt(_surfaceKey, CardSurfaceStyle.liquidGlass.index);
+        await prefs.setDouble(_glassOpacityKey, 0.88);
+        await prefs.setDouble(_glassBlurKey, 20.0);
+        await prefs.setInt(_fontFamilyKey, AppFontFamily.beVietnamPro.index);
+        await prefs.setBool('finora_migrated_v27_apple_minimalist_rev_1', true);
+      }
+
+      if (!(prefs.getBool('finora_migrated_unified_pill_buttons_v2') ??
+          false)) {
+        _buttonShape = AppButtonShape.pill;
+        _customButtonCornerRadius = null;
+        await prefs.setInt(_buttonShapeKey, AppButtonShape.pill.index);
+        await prefs.remove(_customButtonCornerRadiusKey);
+        await prefs.setBool('finora_migrated_unified_pill_buttons_v2', true);
       }
     } catch (e) {
       debugPrint('[ThemeStudioController] load error: $e');
@@ -2597,7 +2805,8 @@ class ThemeStudioController extends ChangeNotifier {
     await prefs.setInt(_buttonVisualKindKey, val.index);
   }
 
-  Future<void> setButtonColorMode(AppButtonColorMode val, [Color? customColor]) async {
+  Future<void> setButtonColorMode(AppButtonColorMode val,
+      [Color? customColor]) async {
     _buttonColorMode = val;
     if (customColor != null) {
       _customButtonColor = customColor;
@@ -2654,6 +2863,18 @@ class ThemeStudioController extends ChangeNotifier {
       await prefs.setInt(_dockInactiveColorKey, val.toARGB32());
     } else {
       await prefs.remove(_dockInactiveColorKey);
+    }
+  }
+
+  Future<void> setDockPlusColor(Color? val) async {
+    _dockPlusColor = val;
+    notifyListeners();
+    performHaptic();
+    final prefs = await SharedPreferences.getInstance();
+    if (val != null) {
+      await prefs.setInt(_dockPlusColorKey, val.toARGB32());
+    } else {
+      await prefs.remove(_dockPlusColorKey);
     }
   }
 
@@ -2780,7 +3001,9 @@ class ThemeStudioController extends ChangeNotifier {
         } else if (effect == AppIconVisualEffect.cyberNeon) {
           return categoryColor;
         } else {
-          return isDark ? categoryColor : Color.lerp(categoryColor, Colors.black, 0.15)!;
+          return isDark
+              ? categoryColor
+              : Color.lerp(categoryColor, Colors.black, 0.15)!;
         }
     }
   }
@@ -2935,36 +3158,37 @@ class ThemeStudioController extends ChangeNotifier {
     }
     final glowShadows = getGlowShadows(isDark);
 
-    final effectiveGlassOpacity = isDark
-        ? glassOpacity
-        : (0.88 + glassOpacity * 0.10).clamp(0.85, 0.98);
+    final effectiveGlassOpacity = glassOpacity.clamp(0.15, 1.0);
 
     switch (_widgetCardStyle) {
       case AppWidgetCardStyle.liquidGlassCard:
         final bool isDefaultCardBase = customBg == null ||
             customBg == Colors.white ||
             (customBg.r >= 0.90 && customBg.g >= 0.90 && customBg.b >= 0.90) ||
-            (isDark && (customBg.r < 0.15 && customBg.g < 0.15 && customBg.b < 0.20));
+            (isDark &&
+                (customBg.r < 0.15 && customBg.g < 0.15 && customBg.b < 0.20));
         final glassGrad = isDefaultCardBase
             ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: isDark
                     ? [
-                        Color.alphaBlend(
-                            primary.withValues(alpha: 0.12),
-                            const Color(0xFF142036)).withValues(
-                            alpha: (_glassOpacity * 0.95).clamp(0.85, 0.96)),
+                        Color.alphaBlend(primary.withValues(alpha: 0.12),
+                                const Color(0xFF142036))
+                            .withValues(
+                                alpha:
+                                    (_glassOpacity * 0.96).clamp(0.15, 0.96)),
                         const Color(0xFF0C1424).withValues(
-                            alpha: (_glassOpacity * 0.98).clamp(0.88, 0.98)),
+                            alpha: (_glassOpacity * 0.98).clamp(0.18, 0.98)),
                       ]
                     : [
                         Colors.white.withValues(
-                            alpha: (_glassOpacity * 0.96).clamp(0.90, 0.98)),
-                        Color.alphaBlend(
-                            primary.withValues(alpha: 0.05),
-                            const Color(0xFFF6F9FD)).withValues(
-                            alpha: (_glassOpacity * 0.92).clamp(0.88, 0.96)),
+                            alpha: (_glassOpacity * 0.98).clamp(0.15, 0.98)),
+                        Color.alphaBlend(primary.withValues(alpha: 0.05),
+                                const Color(0xFFF6F9FD))
+                            .withValues(
+                                alpha:
+                                    (_glassOpacity * 0.94).clamp(0.15, 0.96)),
                       ],
               )
             : null;
@@ -3011,7 +3235,9 @@ class ThemeStudioController extends ChangeNotifier {
               ? null
               : (effectiveBorder ??
                   Border.all(
-                    color: (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    color: (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
                     width: _widgetBorderWidth,
                   )),
           boxShadow: [
@@ -3053,8 +3279,9 @@ class ThemeStudioController extends ChangeNotifier {
         return BoxDecoration(
           color: customBg != null
               ? applyWhiteTransparency(customBg, isDark: isDark)
-              : (isDark ? const Color(0xFF0F172A) : Colors.white)
-                  .withValues(alpha: isDark ? (glassOpacity * 0.40).clamp(0.05, 0.95) : 0.92),
+              : (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(
+                  alpha:
+                      isDark ? (glassOpacity * 0.40).clamp(0.05, 0.95) : 0.92),
           borderRadius: BorderRadius.circular(radius),
           border: _widgetBorderWidth <= 0.05
               ? null
@@ -3162,7 +3389,9 @@ class ThemeStudioController extends ChangeNotifier {
 
   Future<void> setPinHeader(bool val) async {
     _pinHeader = val;
-    _appBarScrollBehavior = val ? AppAppBarScrollBehavior.pinned : AppAppBarScrollBehavior.scrollHide;
+    _appBarScrollBehavior = val
+        ? AppAppBarScrollBehavior.pinned
+        : AppAppBarScrollBehavior.scrollHide;
     notifyListeners();
     performHaptic();
     final prefs = await SharedPreferences.getInstance();
@@ -3179,6 +3408,7 @@ class ThemeStudioController extends ChangeNotifier {
   }
 
   Future<void> setUiUxStyle(AppUiUxStyle val) async {
+    await setFreshAppearance(false);
     _uiUxStyle = val;
     if (val == AppUiUxStyle.googleMinimal) {
       _surfaceStyle = CardSurfaceStyle.solidModern;
@@ -3233,6 +3463,7 @@ class ThemeStudioController extends ChangeNotifier {
   }
 
   Future<void> setPalette(AppColorPalette val) async {
+    await setFreshAppearance(false);
     _palette = val;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
@@ -3337,16 +3568,19 @@ class ThemeStudioController extends ChangeNotifier {
     await prefs.setDouble(_customCardCornerRadiusKey, _customCardCornerRadius!);
   }
 
-  Future<void> setCustomCardCornerRadius(double val) => setCardCornerRadius(val);
+  Future<void> setCustomCardCornerRadius(double val) =>
+      setCardCornerRadius(val);
 
   Future<void> setButtonCornerRadius(double val) async {
     _customButtonCornerRadius = val.clamp(4.0, 28.0);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_customButtonCornerRadiusKey, _customButtonCornerRadius!);
+    await prefs.setDouble(
+        _customButtonCornerRadiusKey, _customButtonCornerRadius!);
   }
 
-  Future<void> setCustomButtonCornerRadius(double val) => setButtonCornerRadius(val);
+  Future<void> setCustomButtonCornerRadius(double val) =>
+      setButtonCornerRadius(val);
 
   Future<void> setPageVerticalGap(double val) async {
     _pageVerticalGap = val.clamp(6.0, 28.0);
@@ -3798,12 +4032,15 @@ class ThemeStudioController extends ChangeNotifier {
   }
 
   Future<void> setCustomBgGradient(
-      {required List<Color> colors, int angle = 0, List<Color>? colorsLight}) async {
+      {required List<Color> colors,
+      int angle = 0,
+      List<Color>? colorsLight}) async {
     _customBgGradientColors = List.from(colors);
     if (colorsLight != null) {
       _customBgGradientColorsLight = List.from(colorsLight);
     } else {
-      _customBgGradientColorsLight = colors.map((c) => Color.lerp(c, Colors.white, 0.88)!).toList();
+      _customBgGradientColorsLight =
+          colors.map((c) => Color.lerp(c, Colors.white, 0.88)!).toList();
     }
     _customBgGradientAngle = angle;
     _useCustomBgGradient = true;
@@ -3868,7 +4105,8 @@ class ThemeStudioController extends ChangeNotifier {
     _backgroundTintOpacity = val.clamp(0.05, 1.0);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('finora_studio_bg_tint_opacity', _backgroundTintOpacity);
+    await prefs.setDouble(
+        'finora_studio_bg_tint_opacity', _backgroundTintOpacity);
   }
 
   Future<void> setBackgroundBlurSigma(double val) async {
@@ -4642,40 +4880,52 @@ class ThemeStudioController extends ChangeNotifier {
       final jsonStr = utf8.decode(base64Url.decode(raw));
       final map = jsonDecode(jsonStr) as Map<String, dynamic>;
 
-      if (map['palette'] != null && (map['palette'] as int) < AppColorPalette.values.length) {
+      if (map['palette'] != null &&
+          (map['palette'] as int) < AppColorPalette.values.length) {
         _palette = AppColorPalette.values[map['palette'] as int];
       }
-      if (map['mode'] != null && (map['mode'] as int) < AppUiUxStyle.values.length) {
+      if (map['mode'] != null &&
+          (map['mode'] as int) < AppUiUxStyle.values.length) {
         _uiUxStyle = AppUiUxStyle.values[map['mode'] as int];
       }
-      if (map['seasonal'] != null && (map['seasonal'] as int) < AppSeasonalTheme.values.length) {
+      if (map['seasonal'] != null &&
+          (map['seasonal'] as int) < AppSeasonalTheme.values.length) {
         _seasonalTheme = AppSeasonalTheme.values[map['seasonal'] as int];
       }
-      if (map['dockNav'] != null && (map['dockNav'] as int) < AppDockNavStyle.values.length) {
+      if (map['dockNav'] != null &&
+          (map['dockNav'] as int) < AppDockNavStyle.values.length) {
         _dockNavStyle = AppDockNavStyle.values[map['dockNav'] as int];
       }
-      if (map['dockIcon'] != null && (map['dockIcon'] as int) < AppDockIconStyle.values.length) {
+      if (map['dockIcon'] != null &&
+          (map['dockIcon'] as int) < AppDockIconStyle.values.length) {
         _dockIconStyle = AppDockIconStyle.values[map['dockIcon'] as int];
       }
-      if (map['dockLabel'] != null && (map['dockLabel'] as int) < AppDockLabelStyle.values.length) {
+      if (map['dockLabel'] != null &&
+          (map['dockLabel'] as int) < AppDockLabelStyle.values.length) {
         _dockLabelStyle = AppDockLabelStyle.values[map['dockLabel'] as int];
       }
-      if (map['btnVisual'] != null && (map['btnVisual'] as int) < AppButtonStyle.values.length) {
+      if (map['btnVisual'] != null &&
+          (map['btnVisual'] as int) < AppButtonStyle.values.length) {
         _buttonVisualKind = AppButtonStyle.values[map['btnVisual'] as int];
       }
-      if (map['btnColor'] != null && (map['btnColor'] as int) < AppButtonColorMode.values.length) {
+      if (map['btnColor'] != null &&
+          (map['btnColor'] as int) < AppButtonColorMode.values.length) {
         _buttonColorMode = AppButtonColorMode.values[map['btnColor'] as int];
       }
-      if (map['btnShape'] != null && (map['btnShape'] as int) < AppButtonShape.values.length) {
+      if (map['btnShape'] != null &&
+          (map['btnShape'] as int) < AppButtonShape.values.length) {
         _buttonShape = AppButtonShape.values[map['btnShape'] as int];
       }
-      if (map['btnSize'] != null && (map['btnSize'] as int) < AppButtonSize.values.length) {
+      if (map['btnSize'] != null &&
+          (map['btnSize'] as int) < AppButtonSize.values.length) {
         _buttonSize = AppButtonSize.values[map['btnSize'] as int];
       }
-      if (map['widgetCard'] != null && (map['widgetCard'] as int) < AppWidgetCardStyle.values.length) {
+      if (map['widgetCard'] != null &&
+          (map['widgetCard'] as int) < AppWidgetCardStyle.values.length) {
         _widgetCardStyle = AppWidgetCardStyle.values[map['widgetCard'] as int];
       }
-      if (map['catIcon'] != null && (map['catIcon'] as int) < AppCategoryIconStyle.values.length) {
+      if (map['catIcon'] != null &&
+          (map['catIcon'] as int) < AppCategoryIconStyle.values.length) {
         _categoryIconStyle = AppCategoryIconStyle.values[map['catIcon'] as int];
       }
       if (map['glassOp'] != null) {
@@ -4691,64 +4941,83 @@ class ThemeStudioController extends ChangeNotifier {
         _appBarOpacity = ((map['appBarOp'] as num) / 100.0).clamp(0.0, 1.0);
       }
       if (map['pageMargin'] != null) {
-        _pageHorizontalMargin = (map['pageMargin'] as num).toDouble().clamp(8.0, 32.0);
+        _pageHorizontalMargin =
+            (map['pageMargin'] as num).toDouble().clamp(8.0, 32.0);
       }
-      if (map['corner'] != null && (map['corner'] as int) < CardCornerStyle.values.length) {
+      if (map['corner'] != null &&
+          (map['corner'] as int) < CardCornerStyle.values.length) {
         _cornerStyle = CardCornerStyle.values[map['corner'] as int];
       }
-      if (map['borderGlow'] != null && (map['borderGlow'] as int) < CardBorderGlowStyle.values.length) {
+      if (map['borderGlow'] != null &&
+          (map['borderGlow'] as int) < CardBorderGlowStyle.values.length) {
         _borderGlowStyle = CardBorderGlowStyle.values[map['borderGlow'] as int];
       }
-      if (map['avatarGlow'] != null && (map['avatarGlow'] as int) < AppAvatarGlowStyle.values.length) {
+      if (map['avatarGlow'] != null &&
+          (map['avatarGlow'] as int) < AppAvatarGlowStyle.values.length) {
         _avatarGlowStyle = AppAvatarGlowStyle.values[map['avatarGlow'] as int];
       }
-      if (map['tier'] != null && (map['tier'] as int) < AppMembershipTierBadge.values.length) {
+      if (map['tier'] != null &&
+          (map['tier'] as int) < AppMembershipTierBadge.values.length) {
         _membershipTier = AppMembershipTierBadge.values[map['tier'] as int];
       }
-      if (map['iconBg'] != null && (map['iconBg'] as int) < AppIconBgColorMode.values.length) {
+      if (map['iconBg'] != null &&
+          (map['iconBg'] as int) < AppIconBgColorMode.values.length) {
         _iconBgColorMode = AppIconBgColorMode.values[map['iconBg'] as int];
       }
-      if (map['iconGlyph'] != null && (map['iconGlyph'] as int) < AppIconGlyphColorMode.values.length) {
-        _iconGlyphColorMode = AppIconGlyphColorMode.values[map['iconGlyph'] as int];
+      if (map['iconGlyph'] != null &&
+          (map['iconGlyph'] as int) < AppIconGlyphColorMode.values.length) {
+        _iconGlyphColorMode =
+            AppIconGlyphColorMode.values[map['iconGlyph'] as int];
       }
       if (map['fps120'] != null) {
         _highRefreshRate120Hz = (map['fps120'] as int) == 1;
       }
-      if (map['txList'] != null && (map['txList'] as int) < AppTransactionListStyle.values.length) {
-        _transactionListStyle = AppTransactionListStyle.values[map['txList'] as int];
+      if (map['txList'] != null &&
+          (map['txList'] as int) < AppTransactionListStyle.values.length) {
+        _transactionListStyle =
+            AppTransactionListStyle.values[map['txList'] as int];
       }
-      if (map['font'] != null && (map['font'] as int) < AppFontFamily.values.length) {
+      if (map['font'] != null &&
+          (map['font'] as int) < AppFontFamily.values.length) {
         _fontFamily = AppFontFamily.values[map['font'] as int];
       }
       if (map['fontScale'] != null) {
         _fontScale = ((map['fontScale'] as num) / 100.0).clamp(0.85, 1.25);
       }
-      if (map['loading'] != null && (map['loading'] as int) < AppLoadingIndicatorStyle.values.length) {
+      if (map['loading'] != null &&
+          (map['loading'] as int) < AppLoadingIndicatorStyle.values.length) {
         _loadingStyle = AppLoadingIndicatorStyle.values[map['loading'] as int];
       }
-      if (map['heroCard'] != null && (map['heroCard'] as int) < AppHeroCardStyle.values.length) {
+      if (map['heroCard'] != null &&
+          (map['heroCard'] as int) < AppHeroCardStyle.values.length) {
         _heroCardStyle = AppHeroCardStyle.values[map['heroCard'] as int];
       }
-      if (map['chartCurve'] != null && (map['chartCurve'] as int) < AppChartCurveStyle.values.length) {
+      if (map['chartCurve'] != null &&
+          (map['chartCurve'] as int) < AppChartCurveStyle.values.length) {
         _chartCurveStyle = AppChartCurveStyle.values[map['chartCurve'] as int];
       }
-      if (map['ambient'] != null && (map['ambient'] as int) < AmbientBlurPreset.values.length) {
+      if (map['ambient'] != null &&
+          (map['ambient'] as int) < AmbientBlurPreset.values.length) {
         _ambientBlur = AmbientBlurPreset.values[map['ambient'] as int];
       }
       if (map['bgTint'] != null) {
-        _backgroundTintOpacity = ((map['bgTint'] as num) / 100.0).clamp(0.05, 1.0);
+        _backgroundTintOpacity =
+            ((map['bgTint'] as num) / 100.0).clamp(0.05, 1.0);
       }
       if (map['cardRadius'] != null) {
-        _customCardCornerRadius = (map['cardRadius'] as num).toDouble().clamp(4.0, 36.0);
+        _customCardCornerRadius =
+            (map['cardRadius'] as num).toDouble().clamp(4.0, 36.0);
       }
       if (map['btnRadius'] != null) {
-        _customButtonCornerRadius = (map['btnRadius'] as num).toDouble().clamp(4.0, 28.0);
+        _customButtonCornerRadius =
+            (map['btnRadius'] as num).toDouble().clamp(4.0, 28.0);
       }
       if (map['iconScale'] != null) {
         _iconScale = ((map['iconScale'] as num) / 100.0).clamp(0.65, 1.45);
       }
       if (map['iconRadius'] != null) {
-        _iconCornerRadius = (map['iconRadius'] as num).toDouble().clamp(0.0, 36.0);
+        _iconCornerRadius =
+            (map['iconRadius'] as num).toDouble().clamp(0.0, 36.0);
       }
       if (map['swlg'] != null) {
         _systemWideLiquidGlass = (map['swlg'] as int) == 1;
@@ -4797,10 +5066,12 @@ class ThemeStudioController extends ChangeNotifier {
       await prefs.setInt(_ambientBlurKey, _ambientBlur.index);
       await prefs.setDouble(_backgroundTintOpacityKey, _backgroundTintOpacity);
       if (_customCardCornerRadius != null) {
-        await prefs.setDouble(_customCardCornerRadiusKey, _customCardCornerRadius!);
+        await prefs.setDouble(
+            _customCardCornerRadiusKey, _customCardCornerRadius!);
       }
       if (_customButtonCornerRadius != null) {
-        await prefs.setDouble(_customButtonCornerRadiusKey, _customButtonCornerRadius!);
+        await prefs.setDouble(
+            _customButtonCornerRadiusKey, _customButtonCornerRadius!);
       }
       await prefs.setDouble(_iconScaleKey, _iconScale);
       await prefs.setDouble(_iconCornerRadiusKey, _iconCornerRadius);
@@ -4985,7 +5256,8 @@ class ThemeStudioController extends ChangeNotifier {
   ];
 
   /// Kích hoạt Preset Cộng Đồng tuyển chọn và lưu trữ
-  Future<void> applyCuratedCommunityPreset(CuratedCommunityThemePreset preset) async {
+  Future<void> applyCuratedCommunityPreset(
+      CuratedCommunityThemePreset preset) async {
     if (!_lockedComponents.contains('palette')) {
       _palette = preset.palette;
     }
@@ -5030,10 +5302,12 @@ class ThemeStudioController extends ChangeNotifier {
     await prefs.setInt(_buttonVisualKindKey, _buttonVisualKind.index);
     await prefs.setInt(_loadingStyleKey, _loadingStyle.index);
     if (_customCardCornerRadius != null) {
-      await prefs.setDouble(_customCardCornerRadiusKey, _customCardCornerRadius!);
+      await prefs.setDouble(
+          _customCardCornerRadiusKey, _customCardCornerRadius!);
     }
     if (_customButtonCornerRadius != null) {
-      await prefs.setDouble(_customButtonCornerRadiusKey, _customButtonCornerRadius!);
+      await prefs.setDouble(
+          _customButtonCornerRadiusKey, _customButtonCornerRadius!);
     }
     await prefs.setInt(_ambientBlurKey, _ambientBlur.index);
     await prefs.setBool(_highRefreshRate120HzKey, _highRefreshRate120Hz);
@@ -5118,7 +5392,8 @@ class ThemeStudioController extends ChangeNotifier {
     return true;
   }
 
-  Future<void> applyMasterUiPreset(AppMasterUiPreset preset, {bool respectLocks = true}) async {
+  Future<void> applyMasterUiPreset(AppMasterUiPreset preset,
+      {bool respectLocks = true}) async {
     final meta = allMasterUiPresets.firstWhere((p) => p.preset == preset);
     if (!respectLocks || !isLocked('palette')) {
       _palette = meta.palette;
@@ -5137,7 +5412,8 @@ class ThemeStudioController extends ChangeNotifier {
         _iconVisualEffect = meta.iconVisualEffect!;
       }
     }
-    if (meta.seasonalTheme != null && (!respectLocks || !isLocked('seasonalTheme'))) {
+    if (meta.seasonalTheme != null &&
+        (!respectLocks || !isLocked('seasonalTheme'))) {
       _seasonalTheme = meta.seasonalTheme!;
     }
     _heroCardStyle = meta.heroCardStyle;
@@ -5163,21 +5439,26 @@ class ThemeStudioController extends ChangeNotifier {
       _cornerStyle = meta.cornerStyle;
     }
     if (meta.ambientBlur != null) _ambientBlur = meta.ambientBlur!;
-    final bool typographyLocked = isLocked('typography') || isLocked('fontFamily');
+    final bool typographyLocked =
+        isLocked('typography') || isLocked('fontFamily');
     if (!respectLocks || !typographyLocked) {
       if (meta.fontFamily != null) _fontFamily = meta.fontFamily!;
     }
     if (meta.density != null) _globalDensity = meta.density!;
-    final bool buttonLocked = isLocked('button_style') || isLocked('buttonStyle') || isLocked('buttonShape');
+    final bool buttonLocked = isLocked('button_style') ||
+        isLocked('buttonStyle') ||
+        isLocked('buttonShape');
     if (!respectLocks || !buttonLocked) {
       if (meta.buttonShape != null) _buttonShape = meta.buttonShape!;
     }
     if (meta.motion != null) _motionDynamics = meta.motion!;
-    final bool borderGlowLocked = isLocked('border_glow') || isLocked('borderGlow');
+    final bool borderGlowLocked =
+        isLocked('border_glow') || isLocked('borderGlow');
     if (!respectLocks || !borderGlowLocked) {
       if (meta.borderGlow != null) _borderGlowStyle = meta.borderGlow!;
     }
-    final bool glassLocked = isLocked('glass_optics') || isLocked('glassOptics');
+    final bool glassLocked =
+        isLocked('glass_optics') || isLocked('glassOptics');
     if (!respectLocks || !glassLocked) {
       if (meta.glassOpacity != null) {
         _glassOpacity = meta.glassOpacity!.clamp(0.08, 1.0);
@@ -5559,6 +5840,9 @@ class ThemeStudioController extends ChangeNotifier {
   }
 
   Color getCardFillColor(bool isDark) {
+    if (_freshAppearance) {
+      return isDark ? const Color(0xFF1B2531) : Colors.white;
+    }
     final base = getStyleSurfaceBase(isDark) ??
         (isDark ? const Color(0xFF131B26) : Colors.white);
     return base;
@@ -5567,7 +5851,11 @@ class ThemeStudioController extends ChangeNotifier {
   /// Lấy màu nền thực tế ở đỉnh màn hình để AppBar/Header kính mờ hòa quyện đồng điệu
   /// theo đúng màu nền/wallpaper/gradient đang áp dụng, triệt tiêu hoàn toàn mảng trắng đục.
   Color getScreenTopBackgroundColor(bool isDark) {
-    if (_useCustomBgGradient || _wallpaperPreset == AppWallpaperPreset.customGradient) {
+    if (_freshAppearance) {
+      return isDark ? const Color(0xFF111820) : const Color(0xFFF5F8FF);
+    }
+    if (_useCustomBgGradient ||
+        _wallpaperPreset == AppWallpaperPreset.customGradient) {
       final customColors = getEffectiveCustomBgGradientColors(isDark);
       if (customColors.isNotEmpty) return customColors.first;
     }
@@ -5582,11 +5870,14 @@ class ThemeStudioController extends ChangeNotifier {
     if (meta.preset != AmbientBlurPreset.rainbowAurora) {
       final raw = isDark ? meta.bgColorsDark : meta.bgColorsLight;
       if (raw.isNotEmpty) {
-        return Color.alphaBlend(primaryColor.withValues(alpha: isDark ? 0.12 : 0.05), raw.first);
+        return Color.alphaBlend(
+            primaryColor.withValues(alpha: isDark ? 0.12 : 0.05), raw.first);
       }
     }
-    final paletteBg = isDark ? currentPaletteMeta.darkBg : currentPaletteMeta.lightBg;
-    return Color.alphaBlend(primaryColor.withValues(alpha: isDark ? 0.12 : 0.04), paletteBg);
+    final paletteBg =
+        isDark ? currentPaletteMeta.darkBg : currentPaletteMeta.lightBg;
+    return Color.alphaBlend(
+        primaryColor.withValues(alpha: isDark ? 0.12 : 0.04), paletteBg);
   }
 
   /// Palette accents remain independently editable; these surfaces define the
@@ -5820,22 +6111,38 @@ class ThemeStudioController extends ChangeNotifier {
     double size = 40,
   }) {
     final (AppIconShape shape, AppIconVisualEffect effect) = switch (style) {
-      AppCategoryIconStyle.modernSquircle =>
-        (AppIconShape.squircle, AppIconVisualEffect.gradientFlow),
-      AppCategoryIconStyle.minimalCircle =>
-        (AppIconShape.circle, AppIconVisualEffect.flatMinimal),
-      AppCategoryIconStyle.glassSphere =>
-        (AppIconShape.circle, AppIconVisualEffect.liquidGlass),
-      AppCategoryIconStyle.duotoneTonal =>
-        (AppIconShape.roundedSquare, AppIconVisualEffect.duotoneGlass),
-      AppCategoryIconStyle.neonBadge =>
-        (AppIconShape.hexagon, AppIconVisualEffect.cyberNeon),
-      AppCategoryIconStyle.paperEmbossed =>
-        (AppIconShape.squircle, AppIconVisualEffect.neumorphicSoft),
-      AppCategoryIconStyle.minimalOutline =>
-        (AppIconShape.roundedSquare, AppIconVisualEffect.outlineMinimal),
-      AppCategoryIconStyle.diamondFacet =>
-        (AppIconShape.diamond, AppIconVisualEffect.jewelCrystal),
+      AppCategoryIconStyle.modernSquircle => (
+          AppIconShape.squircle,
+          AppIconVisualEffect.gradientFlow
+        ),
+      AppCategoryIconStyle.minimalCircle => (
+          AppIconShape.circle,
+          AppIconVisualEffect.flatMinimal
+        ),
+      AppCategoryIconStyle.glassSphere => (
+          AppIconShape.circle,
+          AppIconVisualEffect.liquidGlass
+        ),
+      AppCategoryIconStyle.duotoneTonal => (
+          AppIconShape.roundedSquare,
+          AppIconVisualEffect.duotoneGlass
+        ),
+      AppCategoryIconStyle.neonBadge => (
+          AppIconShape.hexagon,
+          AppIconVisualEffect.cyberNeon
+        ),
+      AppCategoryIconStyle.paperEmbossed => (
+          AppIconShape.squircle,
+          AppIconVisualEffect.neumorphicSoft
+        ),
+      AppCategoryIconStyle.minimalOutline => (
+          AppIconShape.roundedSquare,
+          AppIconVisualEffect.outlineMinimal
+        ),
+      AppCategoryIconStyle.diamondFacet => (
+          AppIconShape.diamond,
+          AppIconVisualEffect.jewelCrystal
+        ),
     };
     return getIconContainerDecorationExplicit(
       shape: shape,
@@ -5863,11 +6170,13 @@ class ThemeStudioController extends ChangeNotifier {
         baseShape = const CircleBorder();
       case AppIconShape.squircle:
         baseShape = RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(_iconCornerRadius.clamp(2.0, size * 0.48)),
+          borderRadius:
+              BorderRadius.circular(_iconCornerRadius.clamp(2.0, size * 0.48)),
         );
       case AppIconShape.roundedSquare:
         baseShape = RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular((_iconCornerRadius * 0.7).clamp(2.0, size * 0.45)),
+          borderRadius: BorderRadius.circular(
+              (_iconCornerRadius * 0.7).clamp(2.0, size * 0.45)),
         );
       case AppIconShape.teardrop:
         baseShape = RoundedRectangleBorder(
@@ -5925,7 +6234,8 @@ class ThemeStudioController extends ChangeNotifier {
           colors: [
             isDark
                 ? effectiveColor.withValues(alpha: (op * 1.6).clamp(0.15, 0.95))
-                : effectiveColor.withValues(alpha: (op * 1.1).clamp(0.10, 0.90)),
+                : effectiveColor.withValues(
+                    alpha: (op * 1.1).clamp(0.10, 0.90)),
             isDark ? const Color(0xFF1E293B) : Colors.white,
           ],
         );
@@ -6199,8 +6509,9 @@ class ThemeStudioController extends ChangeNotifier {
 
       case AppUiUxStyle.cupertinoMinimal:
         return BoxDecoration(
-          color:
-              customFill ?? (isDark ? const Color(0xFF161B26) : Colors.white),
+          color: customFill ??
+              (isDark ? const Color(0xFF161B26) : Colors.white)
+                  .withValues(alpha: _glassOpacity.clamp(0.15, 1.0)),
           borderRadius: BorderRadius.circular(effectiveRadius),
           border: computeBorder(
             Border.all(

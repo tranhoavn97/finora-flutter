@@ -13,8 +13,13 @@ class _TestTransactionProvider extends TransactionProvider {
   }
   @override
   List<Wallet> get wallets => [
-        const Wallet(id: 'w1', name: 'Ví tiền mặt', balance: 5000000, type: 'cash'),
-        const Wallet(id: 'w2', name: 'Tài khoản Techcombank', balance: 15000000, type: 'bank'),
+        const Wallet(
+            id: 'w1', name: 'Ví tiền mặt', balance: 5000000, type: 'cash'),
+        const Wallet(
+            id: 'w2',
+            name: 'Tài khoản Techcombank',
+            balance: 15000000,
+            type: 'bank'),
       ];
 }
 
@@ -31,8 +36,10 @@ void main() {
   }) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<TransactionProvider>(create: (_) => _TestTransactionProvider()),
-        ChangeNotifierProvider<ThemeStudioController>(create: (_) => ThemeStudioController()),
+        ChangeNotifierProvider<TransactionProvider>(
+            create: (_) => _TestTransactionProvider()),
+        ChangeNotifierProvider<ThemeStudioController>(
+            create: (_) => ThemeStudioController()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -55,24 +62,26 @@ void main() {
     );
   }
 
-  testWidgets('ProfileScreen renders essential persona & settings, without redundant tabs or fake stats', (tester) async {
+  testWidgets(
+      'ProfileScreen renders essential persona & settings, without redundant tabs or fake stats',
+      (tester) async {
     await tester.pumpWidget(buildProfileHarness());
     await tester.pumpAndSettle();
 
     // 1. Verify User Persona
     expect(find.text('Hòa Trần'), findsOneWidget);
     expect(find.text('tranhoavn97@gmail.com'), findsOneWidget);
-    expect(find.text('Hoạt động'), findsOneWidget);
-    expect(find.text('2 ví tài chính đang quản lý'), findsOneWidget);
+    expect(find.text('Gia đình'), findsOneWidget);
 
     // 2. Verify AI Advisor banner
-    expect(find.text('Trợ lý tài chính AI'), findsOneWidget);
+    expect(find.text('Trợ lý tài chính FINORA'), findsOneWidget);
 
     // 3. Verify Real Settings & Utilities
     expect(find.text('Danh mục thu chi'), findsOneWidget);
-    expect(find.text('Thông báo & Nhắc nhở'), findsOneWidget);
+    expect(find.text('Thông báo'), findsOneWidget);
     expect(find.text('Chế độ hiển thị & Giao diện'), findsOneWidget);
-    expect(find.text('Nhật ký kiểm toán hoạt động'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Lịch sử thay đổi'), 150);
+    expect(find.text('Lịch sử thay đổi'), findsOneWidget);
     expect(find.text('Thùng rác phục hồi 30 ngày'), findsOneWidget);
 
     // Scroll to see logout button
@@ -92,20 +101,27 @@ void main() {
     expect(find.text('DIAMOND'), findsNothing);
   });
 
-  testWidgets('ProfileScreen logout button triggers confirmation dialog', (tester) async {
+  testWidgets('ProfileScreen logout button triggers confirmation dialog',
+      (tester) async {
     bool signedOut = false;
-    await tester.pumpWidget(buildProfileHarness(onSignOut: () => signedOut = true));
+    await tester
+        .pumpWidget(buildProfileHarness(onSignOut: () => signedOut = true));
     await tester.pumpAndSettle();
 
     final logoutButton = find.text('Đăng xuất tài khoản');
     await tester.scrollUntilVisible(logoutButton, 200);
     expect(logoutButton, findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -150));
+    await tester.pumpAndSettle();
 
     await tester.tap(logoutButton);
     await tester.pumpAndSettle();
 
     // Verify confirmation dialog
-    expect(find.text('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này trên thiết bị không?'), findsOneWidget);
+    expect(
+        find.text(
+            'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này trên thiết bị không?'),
+        findsOneWidget);
 
     // Tap confirm 'Đăng xuất' button in dialog
     final confirmBtn = find.widgetWithText(ElevatedButton, 'Đăng xuất');
@@ -115,7 +131,8 @@ void main() {
     expect(signedOut, isTrue);
   });
 
-  testWidgets('ProfileScreen layout check at 320px width with textScaler 1.5', (tester) async {
+  testWidgets('ProfileScreen layout check at 320px width with textScaler 1.5',
+      (tester) async {
     await tester.pumpWidget(buildProfileHarness(
       width: 320,
       height: 700,

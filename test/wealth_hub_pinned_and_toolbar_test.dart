@@ -53,7 +53,7 @@ class _TestTransactionProvider extends TransactionProvider {
   }
   @override
   List<TransactionModel> get transactions => [
-    TransactionModel(
+    const TransactionModel(
       id: 't1',
       userId: 'test_user',
       walletId: 'w1',
@@ -105,9 +105,12 @@ void main() {
     await tester.pumpWidget(buildWealthHubHarness(initialTab: 0));
     await tester.pumpAndSettle();
 
-    // 1. Transparent Header exists
-    final now = DateTime.now();
-    expect(find.text('Tháng ${now.month}, ${now.year}'), findsOneWidget);
+    // 1. Top Header promotes 4 tabs without "Giao dịch & Tài sản" title text
+    expect(find.text('Giao dịch & Tài sản'), findsNothing);
+    expect(find.text('Giao dịch'), findsOneWidget);
+    expect(find.text('Ví tiền'), findsOneWidget);
+    expect(find.text('Đầu tư'), findsOneWidget);
+    expect(find.text('Sổ nợ'), findsOneWidget);
 
     // 2. "DANH SÁCH GIAO DỊCH" header text MUST BE ABSENT
     expect(find.textContaining('DANH SÁCH GIAO DỊCH'), findsNothing);

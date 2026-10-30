@@ -140,14 +140,17 @@ Stream<List<Category>> _combineCategoryStreams(
 
   void emit() {
     if (!controller.isClosed) {
-      final seenIds = <String>{};
-      final combined = <Category>[];
-      for (final item in [...lastA, ...lastB]) {
-        if (seenIds.add(item.id)) {
-          combined.add(item);
+      final byId = <String, Category>{};
+      for (final item in lastA) {
+        byId[item.id] = item;
+      }
+      for (final item in lastB) {
+        final existing = byId[item.id];
+        if (existing == null || item.updatedAt >= existing.updatedAt) {
+          byId[item.id] = item;
         }
       }
-      controller.add(combined);
+      controller.add(byId.values.toList());
     }
   }
 
@@ -179,10 +182,7 @@ class CategoryRepository {
     final catStream = _watch(userId, 'categories', Category.fromMap);
     final merchantStream = _watch(userId, 'merchants', (id, data) {
       final copy = Map<String, dynamic>.from(data);
-      if (copy['categoryGroup'] == null ||
-          copy['categoryGroup'].toString().isEmpty) {
-        copy['categoryGroup'] = 'merchant';
-      }
+      copy['categoryGroup'] = 'merchant';
       return Category.fromMap(id, copy);
     });
     return _combineCategoryStreams(catStream, merchantStream);

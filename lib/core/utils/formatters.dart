@@ -1,13 +1,133 @@
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 final NumberFormat _vnd = NumberFormat('#,##0', 'vi_VN');
 
 String formatVND(int amount) => '${_vnd.format(amount)} ₫';
 
+/// Tự động viết hoa chữ cái đầu tiên của chuỗi nhập liệu (hỗ trợ bộ gõ tiếng Việt IME).
+String capitalizeFirstLetter(String input) {
+  if (input.isEmpty) return input;
+  final trimmedLeft = input.trimLeft();
+  if (trimmedLeft.isEmpty) return input;
+  final leadingSpaces = input.length - trimmedLeft.length;
+  final firstChar = trimmedLeft[0].toUpperCase();
+  if (firstChar == trimmedLeft[0]) return input;
+  return '${input.substring(0, leadingSpaces)}$firstChar${trimmedLeft.substring(1)}';
+}
+
+/// Formatter chuẩn hóa viết hoa chữ cái đầu tiên khi người dùng nhập liệu trên toàn bộ Finora.
+class FinoraCapitalizeFirstFormatter extends TextInputFormatter {
+  const FinoraCapitalizeFirstFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    final capitalized = capitalizeFirstLetter(newValue.text);
+    if (capitalized == newValue.text) return newValue;
+    return newValue.copyWith(
+      text: capitalized,
+      selection: newValue.selection,
+      composing: newValue.composing,
+    );
+  }
+}
+
+/// Rút gọn tên ví hiển thị ngắn gọn, súc tích trong danh sách giao dịch.
+String formatShortWalletName(String? rawName) {
+  if (rawName == null || rawName.trim().isEmpty) return 'Ví chính';
+  final clean = rawName.trim();
+  final lower = clean.toLowerCase();
+
+  // Nhận diện nhanh các ngân hàng / ví phổ biến để hiển thị mã ngắn gọn kèm hậu tố nếu có
+  String? bankShort;
+  if (lower.contains('techcombank') || lower.contains('tcb')) {
+    bankShort = 'TCB';
+  } else if (lower.contains('vietcombank') || lower.contains('vcb')) {
+    bankShort = 'VCB';
+  } else if (lower.contains('mbbank') ||
+      RegExp(r'\bmb\b').hasMatch(lower) ||
+      lower.contains('mb bank')) {
+    bankShort = 'MB';
+  } else if (lower.contains('vietinbank') ||
+      lower.contains('vtb') ||
+      lower.contains('ctg')) {
+    bankShort = 'VTB';
+  } else if (lower.contains('bidv')) {
+    bankShort = 'BIDV';
+  } else if (lower.contains('vpbank') || lower.contains('vpb')) {
+    bankShort = 'VPB';
+  } else if (lower.contains('tpbank') || lower.contains('tpb')) {
+    bankShort = 'TPB';
+  } else if (lower.contains('acb')) {
+    bankShort = 'ACB';
+  } else if (lower.contains('sacombank') || lower.contains('stb')) {
+    bankShort = 'STB';
+  } else if (lower.contains('agribank') || lower.contains('agri')) {
+    bankShort = 'Agri';
+  } else if (lower.contains('hdbank') || lower.contains('hdb')) {
+    bankShort = 'HDB';
+  } else if (lower.contains('vib')) {
+    bankShort = 'VIB';
+  } else if (lower.contains('shb')) {
+    bankShort = 'SHB';
+  } else if (lower.contains('msb')) {
+    bankShort = 'MSB';
+  } else if (lower.contains('ocb')) {
+    bankShort = 'OCB';
+  } else if (lower.contains('seabank')) {
+    bankShort = 'SeABank';
+  } else if (lower.contains('momo')) {
+    bankShort = 'MoMo';
+  } else if (lower.contains('zalopay') || lower.contains('zalo')) {
+    bankShort = 'ZaloPay';
+  } else if (lower.contains('shopeepay')) {
+    bankShort = 'ShopeePay';
+  } else if (lower.contains('vnpay')) {
+    bankShort = 'VNPay';
+  } else if (lower.contains('tiền mặt') || lower.contains('tien mat')) {
+    return 'Tiền mặt';
+  }
+
+  if (bankShort != null) {
+    if (lower.contains('tín dụng') || lower.contains('credit')) {
+      return '$bankShort Tín dụng';
+    }
+    if (lower.contains('tiết kiệm') || lower.contains('tiet kiem')) {
+      return '$bankShort TK';
+    }
+    return bankShort;
+  }
+
+  // Rút gọn các cụm từ dài phổ biến
+  var shortened = clean
+      .replaceAll(RegExp(r'^Ví\s+', caseSensitive: false), '')
+      .replaceAll(RegExp(r'^Tài khoản\s+', caseSensitive: false), '')
+      .replaceAll(RegExp(r'^Thẻ\s+', caseSensitive: false), '')
+      .replaceAll(RegExp(r'\s*\(.*?\)\s*'), ' ')
+      .trim();
+
+  if (shortened.length > 12) {
+    final parts = shortened.split(RegExp(r'[\s\-·]+'));
+    if (parts.length >= 2) {
+      final candidate = '${parts.first} ${parts.last}';
+      if (candidate.length <= 14) return candidate;
+    }
+    return '${shortened.substring(0, 11)}…';
+  }
+  return shortened.isEmpty ? clean : shortened;
+}
+
 class Formatters {
   static String formatCurrency(num amount) {
     return '${_vnd.format(amount.toInt())} đ';
   }
+
+  static String shortWalletName(String? rawName) =>
+      formatShortWalletName(rawName);
 }
 
 /// Mirrors CategoryIconHelper.resolveIcon — maps icon names to emoji.
@@ -302,12 +422,18 @@ class CategoryIconHelper {
       final clean = iconStr.trim();
       final lower = clean.toLowerCase();
 
-      // If iconStr is an image URL or storage path, NEVER return the URL string as an emoji!
+      // If iconStr is an image URL, asset path, or storage path, NEVER return the path string as an emoji!
       if (lower.startsWith('http://') ||
           lower.startsWith('https://') ||
           lower.startsWith('//') ||
+          lower.startsWith('assets/') ||
           lower.contains('/storage/') ||
-          lower.startsWith('data:image')) {
+          lower.startsWith('data:image') ||
+          lower.endsWith('.png') ||
+          lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.webp') ||
+          lower.endsWith('.svg')) {
         // Fall through to keyword fallback below
       } else {
         var mapped = _iconMap[lower];

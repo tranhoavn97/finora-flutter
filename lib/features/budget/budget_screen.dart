@@ -1,5 +1,8 @@
+import '../../core/widgets/finora_notice.dart';
 import '../../core/widgets/finora_mascot.dart';
+import '../../core/theme/finora_tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -99,7 +102,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final transactionProvider = context.read<TransactionProvider>();
     final budgets = budgetProvider.budgetsWithSpent;
     if (budgets.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FinoraNotice.of(context).showSnackBar(
         const SnackBar(content: Text('Hãy tạo ít nhất một ngân sách trước.')),
       );
       return;
@@ -124,7 +127,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       );
       if (!mounted) return;
       if (suggestions.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           const SnackBar(
             content: Text(
               'Chưa đủ dữ liệu chi tiêu để đề xuất hạn mức phù hợp.',
@@ -391,145 +394,375 @@ class _BudgetScreenState extends State<BudgetScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Pinned Toolbar (Bộ lọc thành viên + Nút AI + Nút Thêm)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildMemberSegmentedControl(isDark: isDark),
-                ),
-                const SizedBox(width: 8),
-                _buildAiAnalyzeButton(isDark: isDark),
-                const SizedBox(width: 8),
-                _buildAddBudgetButton(isDark: isDark),
-              ],
-            ),
-          ),
-          // 2. Scrollable Budget List Area
+          // Vùng cuộn: widget tổng quan → bộ lọc thành viên/công cụ → danh sách
           Expanded(
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
               slivers: [
-                if (effectiveItems.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-                  alignment: Alignment.center,
-                  decoration: studio?.getCardDecoration(
-                        isDark: isDark,
-                        radius: studio.getCardRadius(),
-                      ) ??
-                      BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF334155)
-                              : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const FinoraMascotImage(
-                        pose: FinoraMascotPose.focused,
-                        size: 76,
-                        withGlow: true,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Chưa có ngân sách nào trong tháng',
-                        style: TextStyle(
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Hãy cùng mèo thần tài Finora thiết lập hạn mức chi tiêu thông minh!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color:
-                              isDark ? Colors.white60 : const Color(0xFF64748B),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      GestureDetector(
-                        onTap: _openAdd,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 9),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0F6E56), Color(0xFF10B981)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(100),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.30),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: Builder(
+                      builder: (context) {
+                        final totalLimit = effectiveItems.fold<int>(
+                            0, (sum, item) => sum + item.budget.limitAmount);
+                        final totalSpent = effectiveItems.fold<int>(
+                            0, (sum, item) => sum + item.spentAmount);
+                        final remaining = totalLimit - totalSpent;
+                        final overallProgress = totalLimit > 0
+                            ? (totalSpent / totalLimit).clamp(0.0, 1.0)
+                            : 0.0;
+                        final percentSpent = (overallProgress * 100).round();
+
+                        return Column(
+                          children: [
+                            // Monthly Budget Hero Card (Emerald Gradient)
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: FinoraTokens.emeraldCardDecoration(
+                                isDark: isDark,
+                                radius: 24,
                               ),
-                            ],
-                          ),
-                          child: const Text(
-                            '+ Thêm ngân sách danh mục',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'NGÂN SÁCH THÁNG ${DateTime.now().month}/${DateTime.now().year}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontFamily: 'BeVietnamPro',
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.8,
+                                            color: Color(0xFFE6F7F0),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      InkWell(
+                                        onTap: _openAdd,
+                                        borderRadius:
+                                            BorderRadius.circular(100),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.18),
+                                            borderRadius:
+                                                BorderRadius.circular(100),
+                                            border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.25),
+                                              width: 0.8,
+                                            ),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.add_rounded,
+                                                size: 13,
+                                                color: Colors.white,
+                                              ),
+                                              SizedBox(width: 3),
+                                              Text(
+                                                'Thêm',
+                                                style: TextStyle(
+                                                  fontFamily: 'BeVietnamPro',
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Chủ động từng khoản chi.',
+                                              style: TextStyle(
+                                                fontFamily: 'BeVietnamPro',
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: -0.4,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'Hạn mức còn lại',
+                                              style: TextStyle(
+                                                fontFamily: 'BeVietnamPro',
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w500,
+                                                color:
+                                                    Colors.white.withValues(alpha: 0.80),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            FinoraPrivacyMask(
+                                              child: FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                alignment: Alignment.centerLeft,
+                                                child: Text(
+                                                  effectiveItems.isEmpty
+                                                      ? '₫ 0'
+                                                      : '₫ ${formatVND(remaining).replaceAll(' đ', '').replaceAll(' ₫', '')}',
+                                                  style: const TextStyle(
+                                                    fontFamily: 'BeVietnamPro',
+                                                    fontSize: 28,
+                                                    fontWeight: FontWeight.w800,
+                                                    letterSpacing: -0.8,
+                                                    color: Colors.white,
+                                                    fontFeatures: [
+                                                      FontFeature.tabularFigures()
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      // 3D Saving Dragon Mascot
+                                      Container(
+                                        width: 72,
+                                        height: 72,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.16),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Image.asset(
+                                          'assets/mascot/animation-keypose-02-saving.png',
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (effectiveItems.isNotEmpty) ...[
+                                    const SizedBox(height: 14),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(100),
+                                      child: LinearProgressIndicator(
+                                        value: overallProgress,
+                                        minHeight: 8.0,
+                                        backgroundColor: Colors.white
+                                            .withValues(alpha: 0.18),
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF34D399),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            'Đã chi: ${formatVND(totalSpent)}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontFamily: 'BeVietnamPro',
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.85),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Đã dùng $percentSpent%',
+                                          style: const TextStyle(
+                                            fontFamily: 'BeVietnamPro',
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF6EE7B7),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
+
+                            const SizedBox(height: 12),
+
+                            // Bộ lọc thành viên + Nút AI + Nút Thêm (đặt dưới widget)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildMemberSegmentedControl(
+                                      isDark: isDark, height: 40),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildAiAnalyzeButton(isDark: isDark),
+                                const SizedBox(width: 8),
+                                _buildAddBudgetButton(isDark: isDark),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 130),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final item = effectiveItems[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: FinoraStaggeredItem(
-                        index: index,
-                        child: _buildCategoryBudgetCard(
-                          item: item,
-                          index: index,
-                          isDark: isDark,
+                if (effectiveItems.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 20),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 28, horizontal: 20),
+                        alignment: Alignment.center,
+                        decoration: studio?.getCardDecoration(
+                              isDark: isDark,
+                              radius: studio.getCardRadius(),
+                            ) ??
+                            BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const FinoraMascotImage(
+                              pose: FinoraMascotPose.focused,
+                              size: 76,
+                              withGlow: true,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Chưa có ngân sách nào trong tháng',
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Hãy cùng mèo thần tài Finora thiết lập hạn mức chi tiêu thông minh!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.white60
+                                    : const Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            GestureDetector(
+                              onTap: _openAdd,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 9),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF0F6E56),
+                                      Color(0xFF10B981)
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(100),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.30),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Text(
+                                  '+ Thêm ngân sách danh mục',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                  childCount: effectiveItems.length,
-                ),
-              ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 130),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final item = effectiveItems[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: FinoraStaggeredItem(
+                              index: index,
+                              child: _buildCategoryBudgetCard(
+                                item: item,
+                                index: index,
+                                isDark: isDark,
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: effectiveItems.length,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    ],
-  ),
-);
-}
+    );
+  }
 
   /// Bộ lọc thành viên (Hình 2): Tất cả | Chồng | Vợ (Chuẩn hóa FinoraMemberSegmentedFilter 34px)
   Widget _buildMemberSegmentedControl(
@@ -1032,51 +1265,179 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
             ),
           ),
           const SizedBox(height: 6),
-          DropdownButtonFormField<Category>(
-            initialValue: _selectedCategory,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor:
-                  isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-            ),
-            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-            hint: const Text('Chọn một danh mục...'),
-            items: categories.map((c) {
-              return DropdownMenuItem<Category>(
-                value: c,
-                child: Row(
-                  children: [
-                    CategoryIconWidget(
-                      icon: c.icon,
-                      categoryName: c.name,
-                      size: 28,
-                      color: BankIconRegistry.parseThemeColor(c.color),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(child: Text(c.name)),
-                  ],
+          InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (ctx) => Container(
+                  height: MediaQuery.of(ctx).size.height * 0.65,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 8),
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Chọn danh mục',
+                              style: TextStyle(
+                                fontFamily: 'BeVietnamPro',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: categories.length,
+                          separatorBuilder: (_, __) => Divider(
+                            height: 1,
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                          ),
+                          itemBuilder: (ctx, i) {
+                            final c = categories[i];
+                            final isSel = _selectedCategory?.id == c.id;
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              leading: CategoryIconBadge(
+                                icon: c.icon,
+                                categoryName: c.name,
+                                colorHex: c.color,
+                                size: 36,
+                                isDark: isDark,
+                              ),
+                              title: Text(
+                                c.name,
+                                style: TextStyle(
+                                  fontFamily: 'BeVietnamPro',
+                                  fontSize: 14,
+                                  fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              trailing: isSel
+                                  ? const Icon(Icons.check_circle_rounded, color: Color(0xFF00866A), size: 20)
+                                  : null,
+                              onTap: () {
+                                setState(() => _selectedCategory = c);
+                                Navigator.pop(ctx);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
-            }).toList(),
-            onChanged: (val) => setState(() => _selectedCategory = val),
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  width: 1.0,
+                ),
+              ),
+              child: Row(
+                children: [
+                  if (_selectedCategory != null) ...[
+                    CategoryIconBadge(
+                      icon: _selectedCategory!.icon,
+                      categoryName: _selectedCategory!.name,
+                      colorHex: _selectedCategory!.color,
+                      size: 34,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _selectedCategory!.name,
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                      child: Icon(
+                        Icons.category_outlined,
+                        size: 18,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Chạm để chọn danh mục...',
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 14,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00866A).withValues(alpha: isDark ? 0.20 : 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Đổi ▾',
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF00866A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 14),
           Text(

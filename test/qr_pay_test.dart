@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:finora/data/services/qr_payment_draft_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:finora/core/utils/bank_launcher_helper.dart';
 import 'package:finora/data/models/vietqr_data.dart';
 import 'package:finora/data/models/wallet.dart';
+import 'package:finora/data/models/transaction.dart';
 import 'package:finora/features/qr_pay/bank_app_selector_sheet.dart';
 import 'package:finora/features/qr_pay/qr_confirm_expense_sheet.dart';
 import 'package:finora/state/transaction_provider.dart';
 import 'package:finora/state/wallet_provider.dart';
 
+class _NoWrites extends TransactionProvider {
+  int writes = 0;
+  @override
+  Future<void> createTransaction(String userId, TransactionModel tx) async {
+    writes++;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   final sampleQrData = VietQrData(
     bankBin: '970436',
@@ -53,8 +65,6 @@ void main() {
   group('QR Pay Widget & UI Tests', () {
     testWidgets('BankAppSelectorSheet renders recommended bank and other banks',
         (tester) async {
-      bool canceled = false;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -63,35 +73,28 @@ void main() {
               amount: 150000.0,
               memo: 'Cafe sang',
               preferredBankBin: '970436',
-              onCancelTransaction: () => canceled = true,
             ),
           ),
         ),
       );
 
-      // Verify header and summary
-      expect(find.text('Đã ghi sổ vào Finora!'), findsOneWidget);
-      expect(find.text('Mở Vietcombank'), findsOneWidget);
-      expect(find.text('Chép STK'), findsOneWidget);
-
-      // Verify undo button
-      final undoBtn = find.text('Huỷ ghi sổ (Nếu bạn không thanh toán)');
-      expect(undoBtn, findsOneWidget);
-      await tester.tap(undoBtn);
-      await tester.pump();
-      expect(canceled, isTrue);
+      expect(find.text('Mở ngân hàng'), findsOneWidget);
+      expect(find.text('Mở MB Bank'), findsOneWidget);
+      expect(find.text('Mở Techcombank'), findsOneWidget);
+      expect(find.text('Đã ghi sổ vào Finora!'), findsNothing);
     });
 
     testWidgets('QrConfirmExpenseSheet renders inputs and pre-selected details',
         (tester) async {
-      final txProvider = TransactionProvider();
+      final txProvider = _NoWrites();
       final walletProvider = WalletProvider();
       walletProvider.wallets = [sampleWallet];
 
       await tester.pumpWidget(
         MultiProvider(
           providers: [
-            ChangeNotifierProvider<TransactionProvider>.value(value: txProvider),
+            ChangeNotifierProvider<TransactionProvider>.value(
+                value: txProvider),
             ChangeNotifierProvider<WalletProvider>.value(value: walletProvider),
           ],
           child: MaterialApp(
@@ -107,6 +110,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
+      final localDrafts = await QrPaymentDraftStore.list('user_test');
+      expect(localDrafts, hasLength(1));
+      expect(localDrafts.single.amount, 150000);
       // Verify bank info
       expect(find.text('Vietcombank'), findsOneWidget);
       expect(find.text('STK: 1012345678'), findsOneWidget);
@@ -115,17 +121,28 @@ void main() {
       expect(find.text('150.000'), findsOneWidget);
 
       // Verify Action buttons
-      expect(find.text('Ghi sổ & Mở App Ngân hàng'), findsOneWidget);
-      expect(find.text('Chỉ ghi sổ vào Finora (Đã thanh toán rồi)'), findsOneWidget);
+      expect(find.text('Mở MB / Techcombank'), findsOneWidget);
+      expect(find.text('Đã thanh toán · Ghi chi vào Finora'), findsOneWidget);
+      expect(txProvider.writes, 0);
+      final open = find.text('Mở MB / Techcombank');
+      await tester.ensureVisible(open);
+      await tester.tap(open);
+      await tester.pumpAndSettle();
+      expect(find.text('Mở MB Bank'), findsOneWidget);
+      expect(find.text('Mở Techcombank'), findsOneWidget);
+      expect(txProvider.writes, 0,
+          reason: 'Opening the bank selector must not post a paid expense');
+      expect(await QrPaymentDraftStore.list('user_test'), hasLength(1));
     });
 
-    testWidgets('Defensive Layout Audit: QrConfirmExpenseSheet at 320px & textScaler 1.5',
+    testWidgets(
+        'Defensive Layout Audit: QrConfirmExpenseSheet at 320px & textScaler 1.5',
         (tester) async {
       tester.view.physicalSize = const Size(320 * 2.0, 800 * 2.0);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      final txProvider = TransactionProvider();
+      final txProvider = _NoWrites();
       final walletProvider = WalletProvider();
       walletProvider.wallets = [sampleWallet];
 
@@ -137,8 +154,10 @@ void main() {
           ),
           child: MultiProvider(
             providers: [
-              ChangeNotifierProvider<TransactionProvider>.value(value: txProvider),
-              ChangeNotifierProvider<WalletProvider>.value(value: walletProvider),
+              ChangeNotifierProvider<TransactionProvider>.value(
+                  value: txProvider),
+              ChangeNotifierProvider<WalletProvider>.value(
+                  value: walletProvider),
             ],
             child: MaterialApp(
               home: Scaffold(
@@ -153,7 +172,8 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
+      final err = tester.takeException();
+      expect(err, isNull);
     });
   });
 }

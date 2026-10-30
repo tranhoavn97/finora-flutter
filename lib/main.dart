@@ -175,11 +175,20 @@ class FinoraApp extends StatelessWidget {
               final effectiveScaler = TextScaler.linear(
                   (baseScale * studio.fontScale).clamp(0.85, 1.35));
 
+              final wrappedChild = DefaultTextStyle.merge(
+                style: TextStyle(
+                  fontFamily: studio.fontFamilyName,
+                  fontFamilyFallback: studio.fontFamilyFallback,
+                  letterSpacing: -0.05,
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+
               if (!isWide) {
                 return AppErrorBoundary(
                   child: MediaQuery(
                     data: mediaQuery.copyWith(textScaler: effectiveScaler),
-                    child: child ?? const SizedBox.shrink(),
+                    child: wrappedChild,
                   ),
                 );
               }
@@ -218,7 +227,7 @@ class FinoraApp extends StatelessWidget {
                           size: Size(phoneWidth, phoneHeight),
                           textScaler: effectiveScaler,
                         ),
-                        child: child ?? const SizedBox.shrink(),
+                        child: wrappedChild,
                       ),
                     ),
                   ),

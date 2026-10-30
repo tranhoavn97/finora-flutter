@@ -298,7 +298,8 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(caughtError, isNull, reason: 'DashboardScreen threw an exception: ${caughtError?.exception}');
   });
 

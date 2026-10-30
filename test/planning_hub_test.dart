@@ -125,12 +125,13 @@ void main() {
     );
   }
 
-  testWidgets('PlanningHubScreen renders Executive Card and 3 Pill Tabs', (tester) async {
+  testWidgets('PlanningHubScreen renders Executive Card and 3 Pill Tabs',
+      (tester) async {
     await tester.pumpWidget(buildPlanningHubHarness());
     await tester.pumpAndSettle();
 
-    // Verify Title
-    expect(find.text('Kế hoạch & Báo cáo'), findsOneWidget);
+    // Verify Title text removed and tabs promoted
+    expect(find.text('Kế hoạch & Báo cáo'), findsNothing);
     expect(find.textContaining('NGÂN SÁCH THÁNG'), findsOneWidget);
 
     // Verify 3 Pill Tabs
@@ -139,7 +140,9 @@ void main() {
     expect(find.text('Báo cáo'), findsOneWidget);
   });
 
-  testWidgets('PlanningHubScreen tab switching works smoothly and transforms master card', (tester) async {
+  testWidgets(
+      'PlanningHubScreen tab switching works smoothly and transforms master card',
+      (tester) async {
     await tester.pumpWidget(buildPlanningHubHarness());
     await tester.pumpAndSettle();
 
@@ -149,15 +152,17 @@ void main() {
     // Tap 'Mục tiêu' tab
     await tester.tap(find.text('Mục tiêu'));
     await tester.pumpAndSettle();
-    expect(find.text('TỔNG TÍCH LŨY MỤC TIÊU'), findsOneWidget);
+    expect(find.text('Ước mơ có một lộ trình.'), findsOneWidget);
 
     // Tap 'Báo cáo' tab
     await tester.tap(find.text('Báo cáo'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('DÒNG TIỀN THÁNG'), findsOneWidget);
+    expect(find.textContaining('DÒNG TIỀN THÁNG'), findsNothing);
   });
 
-  testWidgets('PlanningHubScreen layout check at 320px width with textScaler 1.5', (tester) async {
+  testWidgets(
+      'PlanningHubScreen layout check at 320px width with textScaler 1.5',
+      (tester) async {
     await tester.pumpWidget(buildPlanningHubHarness(
       width: 320,
       height: 700,

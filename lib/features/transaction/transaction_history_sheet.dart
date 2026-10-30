@@ -13,6 +13,7 @@ import '../../data/models/wallet.dart';
 import '../../state/more_provider.dart';
 import '../../state/transaction_provider.dart';
 import 'add_transaction_page.dart';
+import '../../core/widgets/finora_swipeable_transaction_card.dart';
 import 'transaction_detail_sheet.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../state/theme_studio_controller.dart';
@@ -169,7 +170,9 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
             color: isSelected
                 ? primary
                 : (studio?.getBorderColor(isDark) ??
-                    (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                    (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0))),
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -337,7 +340,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                 Expanded(
                   child: Row(
                     children: [
-                      if (widget.categoryIcon != null || widget.categoryName != null) ...[
+                      if (widget.categoryIcon != null ||
+                          widget.categoryName != null) ...[
                         Container(
                           width: 38,
                           height: 38,
@@ -345,7 +349,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                           decoration: BoxDecoration(
                             color: (BankIconRegistry.parseThemeColor(
                               widget.categoryColor,
-                              fallback: studio?.primaryColor ?? const Color(0xFF005FEA),
+                              fallback: studio?.primaryColor ??
+                                  const Color(0xFF005FEA),
                             )).withValues(alpha: isDark ? 0.22 : 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -358,7 +363,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                               size: 38,
                               color: BankIconRegistry.parseThemeColor(
                                 widget.categoryColor,
-                                fallback: studio?.primaryColor ?? const Color(0xFF005FEA),
+                                fallback: studio?.primaryColor ??
+                                    const Color(0xFF005FEA),
                               ),
                             ),
                           ),
@@ -388,7 +394,9 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.4,
                                 fontFamily: studio?.fontFamilyName,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -485,20 +493,23 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
       );
       cardGradient = LinearGradient(
         colors: [
-          Color.alphaBlend(Colors.black.withValues(alpha: isDark ? 0.40 : 0.20), baseColor),
+          Color.alphaBlend(
+              Colors.black.withValues(alpha: isDark ? 0.40 : 0.20), baseColor),
           baseColor,
-          Color.alphaBlend(Colors.white.withValues(alpha: isDark ? 0.15 : 0.25), baseColor),
+          Color.alphaBlend(
+              Colors.white.withValues(alpha: isDark ? 0.15 : 0.25), baseColor),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
     } else {
       cardGradient = LinearGradient(
-        colors: studio?.currentPaletteMeta.heroGradient ?? const [
-          Color(0xFF1E3A8A),
-          Color(0xFF2563EB),
-          Color(0xFF38BDF8),
-        ],
+        colors: studio?.currentPaletteMeta.heroGradient ??
+            const [
+              Color(0xFF1E3A8A),
+              Color(0xFF2563EB),
+              Color(0xFF38BDF8),
+            ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
@@ -538,7 +549,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(100),
@@ -563,7 +575,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
 
           // Row 2: Số tiền lớn nổi bật
           Text(
-            studio?.formatCurrency(heroAmount) ?? Formatters.formatCurrency(heroAmount),
+            studio?.formatCurrency(heroAmount) ??
+                Formatters.formatCurrency(heroAmount),
             style: TextStyle(
               fontSize: 26 * (studio?.fontScale ?? 1.0),
               fontWeight: FontWeight.w900,
@@ -756,8 +769,9 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
           child: Container(
             height: 42,
             decoration: BoxDecoration(
-              color: (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
-                  .withValues(alpha: isDark ? 0.85 : 0.95),
+              color:
+                  (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
+                      .withValues(alpha: isDark ? 0.85 : 0.95),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: (isDark ? Colors.white : Colors.black)
@@ -776,7 +790,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
               controller: _searchController,
               focusNode: _searchFocusNode,
               textCapitalization: TextCapitalization.sentences,
-              inputFormatters: [FirstLetterUpperCaseFormatter()],
+              inputFormatters: const [FirstLetterUpperCaseFormatter()],
               onChanged: (val) {
                 setState(() {
                   _searchQuery = val.trim().toLowerCase();
@@ -847,8 +861,9 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
-                  .withValues(alpha: studio?.glassOpacity ?? 0.85),
+              color:
+                  (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
+                      .withValues(alpha: studio?.glassOpacity ?? 0.85),
               borderRadius: BorderRadius.circular(cardRadius),
               border: Border.all(
                 color: isDark
@@ -875,65 +890,17 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
 
   /// Tab Thu Chi giữ nguyên chuẩn segmented pill
   Widget _buildTypeSegmentedFilter(bool isDark, ThemeStudioController? studio) {
-    final tabs = [
-      ('all', 'Tất cả'),
-      ('income', 'Thu'),
-      ('expense', 'Chi'),
-    ];
-
-    final primary = studio?.primaryColor ?? const Color(0xFF005FEA);
-
-    return Container(
+    const values = ['all', 'income', 'expense'];
+    return FinoraSegmentedTabs(
+      labels: const ['Tất cả', 'Thu nhập', 'Chi tiêu'],
+      selectedIndex: values.indexOf(_typeFilter),
+      colors: const [
+        Color(0xFF475569), // Tất cả
+        Color(0xFF059669), // Thu nhập: Emerald Green (đồng bộ với Danh mục)
+        Color(0xFFE11D48), // Chi tiêu: Rose Red (đồng bộ với Danh mục)
+      ],
       height: 38,
-      padding: const EdgeInsets.all(2.5),
-      decoration: BoxDecoration(
-        color: (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
-            .withValues(alpha: studio?.glassOpacity ?? 0.80),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Row(
-        children: tabs.map((t) {
-          final isSelected = _typeFilter == t.$1;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() => _typeFilter = t.$1);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                decoration: BoxDecoration(
-                  color: isSelected ? primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(100),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: primary.withValues(alpha: 0.30),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  t.$2,
-                  style: TextStyle(
-                    fontSize: 12 * (studio?.fontScale ?? 1.0),
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    fontFamily: studio?.fontFamilyName,
-                    color: isSelected
-                        ? Colors.white
-                        : (isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B)),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+      onChanged: (index) => setState(() => _typeFilter = values[index]),
     );
   }
 
@@ -1235,11 +1202,13 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                                 borderRadius: BorderRadius.circular(14),
                                 child: IntrinsicHeight(
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       Container(
                                         width: 4.5,
-                                        color: TransactionVisuals.isOutflow(tx.type)
+                                        color: TransactionVisuals.isOutflow(
+                                                tx.type)
                                             ? const Color(0xFFDC2626)
                                             : const Color(0xFF059669),
                                       ),
@@ -1267,9 +1236,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                           radius: cardRadius,
                         ) ??
                         BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF1E293B)
-                              : Colors.white,
+                          color:
+                              isDark ? const Color(0xFF1E293B) : Colors.white,
                           borderRadius: BorderRadius.circular(cardRadius),
                           border: Border.all(
                             color: isDark
@@ -1357,14 +1325,17 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
         matchingCategory.isEmpty ? null : matchingCategory.first;
 
     Category? liveMerchant;
-    if (tx.merchantId?.isNotEmpty == true || tx.merchantName?.isNotEmpty == true) {
+    if (tx.merchantId?.isNotEmpty == true ||
+        tx.merchantName?.isNotEmpty == true) {
       final mIdLower = tx.merchantId?.toLowerCase().trim();
       final mNameLower = tx.merchantName?.toLowerCase().trim();
       for (final c in categories) {
         final cIdLower = c.id.toLowerCase();
         final cNameLower = c.name.toLowerCase().trim();
-        if ((mIdLower != null && (cIdLower == mIdLower || cNameLower == mIdLower)) ||
-            (mNameLower != null && (cNameLower == mNameLower || cIdLower == mNameLower))) {
+        if ((mIdLower != null &&
+                (cIdLower == mIdLower || cNameLower == mIdLower)) ||
+            (mNameLower != null &&
+                (cNameLower == mNameLower || cIdLower == mNameLower))) {
           liveMerchant = c;
           break;
         }
@@ -1387,26 +1358,23 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                                 : tx.merchantId == 'brand-grab'
                                     ? 'Grab'
                                     : (tx.merchantId!.startsWith('brand-')
-                                        ? tx.merchantId!.replaceFirst('brand-', '')
+                                        ? tx.merchantId!
+                                            .replaceFirst('brand-', '')
                                         : tx.merchantId!))
             : null);
 
     final walletBrand = BankIconRegistry.resolve(
       tx.walletId ?? widget.wallet?.bankCode,
-      bankName: walletStr.isNotEmpty ? walletStr : (tx.walletName ?? tx.fromWalletName),
+      bankName: walletStr.isNotEmpty
+          ? walletStr
+          : (tx.walletName ?? tx.fromWalletName),
     );
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          showTransactionDetailSheet(
-            context,
-            userId: widget.userId,
-            transaction: tx,
-          );
-        },
-        child: Padding(
+    return FinoraSwipeableTransactionCard(
+      userId: widget.userId,
+      transaction: tx,
+      borderRadius: 14,
+      child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             children: [
@@ -1414,8 +1382,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
               TransactionIconWidget(
                 type: tx.type,
                 categoryIcon: liveCategory?.icon ?? tx.categoryIcon,
-                categoryName:
-                    liveCategory?.name ?? tx.categoryName ?? tx.note,
+                categoryName: liveCategory?.name ?? tx.categoryName ?? tx.note,
                 categoryColor: liveCategory?.color ?? tx.categoryColor,
                 merchantId: tx.merchantId,
                 merchantName: effectiveMerchant,
@@ -1554,7 +1521,6 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -1608,7 +1574,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
               icon: const Icon(Icons.clear_rounded, size: 16),
               label: const Text('Xóa tìm kiếm'),
               style: TextButton.styleFrom(
-                foregroundColor: studio?.primaryColor ?? const Color(0xFF005FEA),
+                foregroundColor:
+                    studio?.primaryColor ?? const Color(0xFF005FEA),
                 textStyle: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 12.5 * (studio?.fontScale ?? 1.0),
@@ -1622,7 +1589,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
               icon: const Icon(Icons.add_rounded, size: 16),
               label: const Text('Thêm giao dịch ngay'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: studio?.primaryColor ?? const Color(0xFF005FEA),
+                backgroundColor:
+                    studio?.primaryColor ?? const Color(0xFF005FEA),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -1652,7 +1620,16 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
     } else if (d == yesterday) {
       return 'Hôm qua, ${DateFormat('dd/MM').format(date)}';
     } else {
-      const weekdaysVi = ['', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+      const weekdaysVi = [
+        '',
+        'Thứ 2',
+        'Thứ 3',
+        'Thứ 4',
+        'Thứ 5',
+        'Thứ 6',
+        'Thứ 7',
+        'Chủ nhật'
+      ];
       final weekdayStr = weekdaysVi[date.weekday.clamp(1, 7)];
       return '$weekdayStr, ${DateFormat('dd/MM/yyyy').format(date)}';
     }

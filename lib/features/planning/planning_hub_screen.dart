@@ -1,3 +1,4 @@
+// ignore_for_file: unused_element, unused_element_parameter, duplicate_ignore
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/finora_privacy_mask.dart';
 import '../../core/theme/finora_tokens.dart';
@@ -41,21 +43,29 @@ class PlanningHubScreen extends StatefulWidget {
 
 class _PlanningHubScreenState extends State<PlanningHubScreen> {
   late int _selectedTab; // 0: Ngân sách, 1: Mục tiêu, 2: Báo cáo
+  late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
     _selectedTab = widget.initialTabIndex.clamp(0, 2);
+    _pageController = PageController(initialPage: _selectedTab);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       try {
-        context.read<BudgetProvider>().load(widget.userId, familyId: widget.familyId);
+        context
+            .read<BudgetProvider>()
+            .load(widget.userId, familyId: widget.familyId);
       } catch (_) {}
       try {
-        context.read<MoreProvider>().load(widget.userId, familyId: widget.familyId);
+        context
+            .read<MoreProvider>()
+            .load(widget.userId, familyId: widget.familyId);
       } catch (_) {}
       try {
-        context.read<DashboardProvider>().load(widget.userId, familyId: widget.familyId);
+        context
+            .read<DashboardProvider>()
+            .load(widget.userId, familyId: widget.familyId);
       } catch (_) {}
       try {
         context.read<TransactionProvider>().load(widget.userId);
@@ -66,15 +76,22 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
   @override
   void didUpdateWidget(covariant PlanningHubScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.userId != widget.userId || oldWidget.familyId != widget.familyId) {
+    if (oldWidget.userId != widget.userId ||
+        oldWidget.familyId != widget.familyId) {
       try {
-        context.read<BudgetProvider>().load(widget.userId, familyId: widget.familyId);
+        context
+            .read<BudgetProvider>()
+            .load(widget.userId, familyId: widget.familyId);
       } catch (_) {}
       try {
-        context.read<MoreProvider>().load(widget.userId, familyId: widget.familyId);
+        context
+            .read<MoreProvider>()
+            .load(widget.userId, familyId: widget.familyId);
       } catch (_) {}
       try {
-        context.read<DashboardProvider>().load(widget.userId, familyId: widget.familyId);
+        context
+            .read<DashboardProvider>()
+            .load(widget.userId, familyId: widget.familyId);
       } catch (_) {}
       try {
         context.read<TransactionProvider>().load(widget.userId);
@@ -82,10 +99,23 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _switchTab(int index) {
     if (_selectedTab != index) {
       HapticFeedback.selectionClick();
       setState(() => _selectedTab = index);
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
     }
   }
 
@@ -99,14 +129,16 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
       subtitle: 'Chọn loại kế hoạch tài chính muốn khởi tạo',
       icon: Icons.add_circle_outline_rounded,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(ctx).padding.bottom + 20),
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, MediaQuery.of(ctx).padding.bottom + 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildActionItem(
               context: ctx,
               title: 'Thêm định mức ngân sách',
-              subtitle: 'Thiết lập hạn mức chi tiêu cho nhóm (Ăn uống, Mua sắm...)',
+              subtitle:
+                  'Thiết lập hạn mức chi tiêu cho nhóm (Ăn uống, Mua sắm...)',
               icon: Icons.pie_chart_rounded,
               gradient: const [Color(0xFFF97316), Color(0xFFFBBF24)],
               isDark: isDark,
@@ -119,7 +151,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
             _buildActionItem(
               context: ctx,
               title: 'Thêm mục tiêu tiết kiệm',
-              subtitle: 'Tạo quỹ tích lũy mua nhà, mua xe, du lịch, dự phòng...',
+              subtitle:
+                  'Tạo quỹ tích lũy mua nhà, mua xe, du lịch, dự phòng...',
               icon: Icons.savings_rounded,
               gradient: const [Color(0xFF10B981), Color(0xFF34D399)],
               isDark: isDark,
@@ -223,94 +256,62 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
     final bp = context.watch<BudgetProvider>();
     final mp = context.watch<MoreProvider>();
 
-    final tp = context.watch<TransactionProvider?>();
-
     final budgets = bp.budgetsWithSpent;
     final goals = mp.goals;
 
-    // 1. Budget Stats
-    final totalBudgetLimit = budgets.fold<int>(0, (sum, e) => sum + e.budget.limitAmount);
-    final totalBudgetSpent = budgets.fold<int>(0, (sum, e) => sum + e.spentAmount);
-    final budgetProgress = totalBudgetLimit > 0
-        ? (totalBudgetSpent / totalBudgetLimit).clamp(0.0, 1.0)
-        : 0.0;
-
-    // 2. Goal Stats
-    final totalGoalTarget = goals.fold<int>(0, (sum, g) => sum + g.targetAmount);
-    final totalGoalSaved = goals.fold<int>(0, (sum, g) => sum + g.savedAmount);
-    final goalProgress = totalGoalTarget > 0
-        ? (totalGoalSaved / totalGoalTarget).clamp(0.0, 1.0)
-        : 0.0;
-
-    // 3. Report / Cashflow Stats (Current Month)
-    final now = DateTime.now();
-    final txs = tp?.transactions ?? [];
-    int monthIncome = 0;
-    int monthExpense = 0;
-    for (final t in txs) {
-      final raw = t.date;
-      final d = raw > 0
-          ? DateTime.fromMillisecondsSinceEpoch(
-              raw > 100000000000 ? raw : raw * 1000)
-          : now;
-      if (d.year == now.year && d.month == now.month) {
-        if (const {'income', 'borrowing', 'loan_repayment_received'}.contains(t.type)) {
-          monthIncome += t.amount;
-        } else if (const {'expense', 'saving', 'lending', 'debt_repayment', 'credit_card_payment'}.contains(t.type)) {
-          monthExpense += t.amount;
-        }
-      }
-    }
-    final netCashflow = monthIncome - monthExpense;
-
     final canPop = !widget.isRoot && Navigator.of(context).canPop();
-
+    final blurSigma = (studio?.appBarBlur ?? 22.0).clamp(0.0, 48.0);
+    final barOpacity = (studio?.appBarOpacity ?? 0.85).clamp(0.0, 1.0);
+    final topPad = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
-        top: true,
+        top: false,
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Fixed Top Header ("Kế hoạch & Báo cáo") with Apple Frosted Glass Blur
             ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
                 child: Container(
-                  color: (isDark ? const Color(0xFF0F172A) : Colors.white)
-                      .withValues(alpha: isDark ? 0.78 : 0.82),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                  padding: EdgeInsets.fromLTRB(16, topPad + 6, 16, 10),
+                  decoration: BoxDecoration(
+                    color: (isDark ? const Color(0xFF0B1120) : Colors.white)
+                        .withValues(alpha: barOpacity * (isDark ? 0.72 : 0.78)),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08 * barOpacity)
+                            : Colors.black.withValues(alpha: 0.05 * barOpacity),
+                        width: 0.8,
+                      ),
+                    ),
+                  ),
                   child: Row(
                     children: [
                       if (canPop) ...[
-                        InkWell(
-                          onTap: () => Navigator.of(context).pop(),
-                          borderRadius: BorderRadius.circular(100),
-                          child: Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 16,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 16,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
                           ),
                         ),
                         const SizedBox(width: 8),
                       ],
                       Expanded(
-                        child: Text(
-                          'Kế hoạch & Báo cáo',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
-                          ),
+                        child: _buildSegmentSelector(
+                          budgetsCount: budgets.length,
+                          goalsCount: goals.length,
+                          isDark: isDark,
+                          studio: studio,
                         ),
                       ),
                     ],
@@ -318,84 +319,27 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                 ),
               ),
             ),
-            Expanded(
-              child: NestedScrollView(
-                headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                  // Unified Collapsible Master Hero (shrinks to 36px) + PINNED 3-Pill Segment Selector
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _PlanningHubCollapsiblePinnedHeaderDelegate(
-                      maxHeight: 186.0,
-                      minHeight: 94.0,
-                      heroFullHeight: 128.0,
-                      isDark: isDark,
-                      fullHeroWidget: _buildDynamicPlanningMasterCard(
-                        selectedTab: _selectedTab,
-                        totalBudgetLimit: totalBudgetLimit,
-                        totalBudgetSpent: totalBudgetSpent,
-                        budgetProgress: budgetProgress,
-                        totalGoalTarget: totalGoalTarget,
-                        totalGoalSaved: totalGoalSaved,
-                        goalProgress: goalProgress,
-                        goalsCount: goals.length,
-                        monthIncome: monthIncome,
-                        monthExpense: monthExpense,
-                        netCashflow: netCashflow,
-                        isDark: isDark,
-                        studio: studio,
-                      ),
-                      compactHeroWidget: _buildCompactPlanningBar(
-                        selectedTab: _selectedTab,
-                        isDark: isDark,
-                        totalBudgetLimit: totalBudgetLimit,
-                        totalBudgetSpent: totalBudgetSpent,
-                        budgetProgress: budgetProgress,
-                        totalGoalTarget: totalGoalTarget,
-                        totalGoalSaved: totalGoalSaved,
-                        goalProgress: goalProgress,
-                        goalsCount: goals.length,
-                        monthIncome: monthIncome,
-                        monthExpense: monthExpense,
-                        netCashflow: netCashflow,
-                      ),
-                      tabSegmentBar: _buildSegmentSelector(
-                        budgetsCount: budgets.length,
-                        goalsCount: goals.length,
-                        isDark: isDark,
-                        studio: studio,
-                      ),
-                    ),
-                  ),
-                ],
-          body: IndexedStack(
-            index: _selectedTab,
-            children: [
-              // Tab 0: Ngân sách
-              BudgetScreen(
-                userId: widget.userId,
-                isTab: true,
-              ),
-
-              // Tab 1: Mục tiêu
-              GoalScreen(
-                userId: widget.userId,
-                isTab: true,
-              ),
-
-              // Tab 2: Báo cáo
-              ReportScreen(
-                userId: widget.userId,
-                isRoot: true,
-                isTab: true,
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const ClampingScrollPhysics(),
+                  onPageChanged: (idx) {
+                    if (_selectedTab != idx) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedTab = idx);
+                    }
+                  },
+                  children: [
+                    BudgetScreen(userId: widget.userId, isTab: true),
+                    GoalScreen(userId: widget.userId, isTab: true),
+                    ReportScreen(
+                        userId: widget.userId, isRoot: true, isTab: true),
+                  ],
+                ),
               ),
             ],
-          ),
-        ),
-      ),
-    ],
-  ),
-),
-);
+          )),
+    );
   }
 
   String _formatCompactStat(int amount) {
@@ -436,16 +380,20 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
     if (selectedTab == 0) {
       barAccent = const Color(0xFF0F6E56);
       label = 'NGÂN SÁCH:';
-      mainStat = '${_formatCompactStat(totalBudgetSpent)} / ${_formatCompactStat(totalBudgetLimit)}';
+      mainStat =
+          '${_formatCompactStat(totalBudgetSpent)} / ${_formatCompactStat(totalBudgetLimit)}';
       final pct = (budgetProgress * 100).toStringAsFixed(0);
       badgeText = '$pct% đã dùng';
       badgeColor = budgetProgress > 1.0
           ? const Color(0xFFEF4444)
-          : (budgetProgress > 0.8 ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
+          : (budgetProgress > 0.8
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFF10B981));
     } else if (selectedTab == 1) {
       barAccent = const Color(0xFFD97706);
       label = 'MỤC TIÊU:';
-      mainStat = '${_formatCompactStat(totalGoalSaved)} / ${_formatCompactStat(totalGoalTarget)}';
+      mainStat =
+          '${_formatCompactStat(totalGoalSaved)} / ${_formatCompactStat(totalGoalTarget)}';
       final pct = (goalProgress * 100).toStringAsFixed(0);
       badgeText = '$pct% · $goalsCount mục tiêu';
       badgeColor = const Color(0xFFD97706);
@@ -453,8 +401,10 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
       barAccent = const Color(0xFF2563EB);
       label = 'DÒNG TIỀN:';
       mainStat = '${netCashflow >= 0 ? '+' : ''}${formatVND(netCashflow)}';
-      badgeText = 'Thu +${_formatCompactStat(monthIncome)} · Chi -${_formatCompactStat(monthExpense)}';
-      badgeColor = netCashflow >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+      badgeText =
+          'Thu +${_formatCompactStat(monthIncome)} · Chi -${_formatCompactStat(monthExpense)}';
+      badgeColor =
+          netCashflow >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444);
     }
 
     return Container(
@@ -462,7 +412,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: isDark
-            ? Color.alphaBlend(barAccent.withValues(alpha: 0.14), const Color(0xFF1E293B))
+            ? Color.alphaBlend(
+                barAccent.withValues(alpha: 0.14), const Color(0xFF1E293B))
             : Color.alphaBlend(barAccent.withValues(alpha: 0.08), Colors.white),
         borderRadius: BorderRadius.circular(100),
         border: Border.all(
@@ -655,6 +606,13 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                 ),
               ),
             ),
+            const FinoraAmbientMascotWatermark(
+              pose: FinoraMascotPose.thinking,
+              size: 108,
+              opacity: 0.11,
+              right: -12,
+              bottom: -14,
+            ),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 280),
               switchInCurve: Curves.easeOutCubic,
@@ -729,7 +687,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
-    final remaining = (totalBudgetLimit - totalBudgetSpent).clamp(0, double.infinity).toInt();
+    final remaining =
+        (totalBudgetLimit - totalBudgetSpent).clamp(0, double.infinity).toInt();
     final isOver = totalBudgetSpent > totalBudgetLimit && totalBudgetLimit > 0;
     final percent = (budgetProgress * 100).clamp(0, 999).toInt();
     final now = DateTime.now();
@@ -764,7 +723,9 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                       letterSpacing: -0.5,
                       color: isOver
                           ? const Color(0xFFFCA5A5)
-                          : (percent > 85 ? const Color(0xFFFDE68A) : Colors.white),
+                          : (percent > 85
+                              ? const Color(0xFFFDE68A)
+                              : Colors.white),
                     ),
                   ),
                   Text(
@@ -806,13 +767,18 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 2.5),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7.5, vertical: 2.5),
                     decoration: BoxDecoration(
-                      color: (isOver ? const Color(0xFFEF4444) : const Color(0xFF10B981))
+                      color: (isOver
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF10B981))
                           .withValues(alpha: isDark ? 0.22 : 0.15),
                       borderRadius: BorderRadius.circular(100),
                       border: Border.all(
-                        color: (isOver ? const Color(0xFFEF4444) : const Color(0xFF10B981))
+                        color: (isOver
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFF10B981))
                             .withValues(alpha: 0.35),
                         width: 0.8,
                       ),
@@ -823,8 +789,12 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                         fontSize: 9.5,
                         fontWeight: FontWeight.w800,
                         color: isOver
-                            ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFF87171))
-                            : (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF34D399)),
+                            ? (isDark
+                                ? const Color(0xFFFCA5A5)
+                                : const Color(0xFFF87171))
+                            : (isDark
+                                ? const Color(0xFF6EE7B7)
+                                : const Color(0xFF34D399)),
                       ),
                     ),
                   ),
@@ -856,7 +826,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -0.5,
-                            color: isOver ? const Color(0xFFEF4444) : Colors.white,
+                            color:
+                                isOver ? const Color(0xFFEF4444) : Colors.white,
                           ),
                         ),
                       ),
@@ -871,7 +842,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(8),
@@ -908,7 +880,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(8),
@@ -959,7 +932,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
-    final remainingGoal = (totalGoalTarget - totalGoalSaved).clamp(0, double.infinity).toInt();
+    final remainingGoal =
+        (totalGoalTarget - totalGoalSaved).clamp(0, double.infinity).toInt();
     final percent = (goalProgress * 100).clamp(0, 100).toInt();
 
     return Column(
@@ -983,7 +957,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 2.5),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 7.5, vertical: 2.5),
               decoration: BoxDecoration(
                 color: const Color(0xFFF59E0B).withValues(alpha: 0.22),
                 borderRadius: BorderRadius.circular(100),
@@ -1148,7 +1123,11 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                   height: 7,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFFF59E0B), Color(0xFFFBBF24), Color(0xFF34D399)],
+                      colors: [
+                        Color(0xFFF59E0B),
+                        Color(0xFFFBBF24),
+                        Color(0xFF34D399)
+                      ],
                     ),
                   ),
                 ),
@@ -1179,7 +1158,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.flag_rounded, size: 9, color: Color(0xFFFDE68A)),
+                const Icon(Icons.flag_rounded,
+                    size: 9, color: Color(0xFFFDE68A)),
                 const SizedBox(width: 2),
                 Text(
                   '100%',
@@ -1221,11 +1201,15 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                     width: 7.5,
                     height: 7.5,
                     decoration: BoxDecoration(
-                      color: isPositive ? const Color(0xFF0284C7) : const Color(0xFFEF4444),
+                      color: isPositive
+                          ? const Color(0xFF0284C7)
+                          : const Color(0xFFEF4444),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: (isPositive ? const Color(0xFF0284C7) : const Color(0xFFEF4444))
+                          color: (isPositive
+                                  ? const Color(0xFF0284C7)
+                                  : const Color(0xFFEF4444))
                               .withValues(alpha: 0.50),
                           blurRadius: 6,
                           spreadRadius: 1,
@@ -1254,11 +1238,15 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
               decoration: BoxDecoration(
-                color: (isPositive ? const Color(0xFF0284C7) : const Color(0xFFEF4444))
+                color: (isPositive
+                        ? const Color(0xFF0284C7)
+                        : const Color(0xFFEF4444))
                     .withValues(alpha: isDark ? 0.20 : 0.10),
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(
-                  color: (isPositive ? const Color(0xFF0284C7) : const Color(0xFFEF4444))
+                  color: (isPositive
+                          ? const Color(0xFF0284C7)
+                          : const Color(0xFFEF4444))
                       .withValues(alpha: 0.30),
                   width: 0.8,
                 ),
@@ -1269,8 +1257,12 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                   color: isPositive
-                      ? (isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7))
-                      : (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626)),
+                      ? (isDark
+                          ? const Color(0xFF7DD3FC)
+                          : const Color(0xFF0284C7))
+                      : (isDark
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFFDC2626)),
                 ),
               ),
             ),
@@ -1536,7 +1528,8 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: activePillColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                    color:
+                        activePillColor.withValues(alpha: isDark ? 0.35 : 0.25),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1618,7 +1611,8 @@ class _PlanningBloomPainter extends CustomPainter {
         center: Offset(size.width * 0.92, size.height * 0.18),
         radius: size.height * 0.55,
       ));
-    canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.18), size.height * 0.55, paint2);
+    canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.18),
+        size.height * 0.55, paint2);
   }
 
   @override
@@ -1627,7 +1621,8 @@ class _PlanningBloomPainter extends CustomPainter {
   }
 }
 
-class _PlanningHubCollapsiblePinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
+class _PlanningHubCollapsiblePinnedHeaderDelegate
+    extends SliverPersistentHeaderDelegate {
   final double maxHeight;
   final double minHeight;
   final double heroFullHeight;
@@ -1653,19 +1648,24 @@ class _PlanningHubCollapsiblePinnedHeaderDelegate extends SliverPersistentHeader
   double get maxExtent => maxHeight;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     final double collapseRange = maxHeight - minHeight;
     final double progress = collapseRange > 0
         ? (shrinkOffset / collapseRange).clamp(0.0, 1.0)
         : 0.0;
-    final double currentHeight = (maxHeight - shrinkOffset).clamp(minHeight, maxHeight);
+    final double currentHeight =
+        (maxHeight - shrinkOffset).clamp(minHeight, maxHeight);
 
     // Dynamic height of master card as it shrinks from heroFullHeight down to 36.0
-    final double currentHeroHeight = (heroFullHeight - progress * (heroFullHeight - 36.0)).clamp(36.0, heroFullHeight);
+    final double currentHeroHeight =
+        (heroFullHeight - progress * (heroFullHeight - 36.0))
+            .clamp(36.0, heroFullHeight);
 
     // Cross-fade opacities
     final double fullHeroOpacity = (1.0 - progress * 2.2).clamp(0.0, 1.0);
-    final double compactHeroOpacity = ((progress - 0.35) * 1.54).clamp(0.0, 1.0);
+    final double compactHeroOpacity =
+        ((progress - 0.35) * 1.54).clamp(0.0, 1.0);
 
     return SizedBox(
       height: currentHeight,
@@ -1675,10 +1675,11 @@ class _PlanningHubCollapsiblePinnedHeaderDelegate extends SliverPersistentHeader
           child: Container(
             decoration: BoxDecoration(
               color: (isDark ? const Color(0xFF0F172A) : Colors.white)
-                  .withValues(alpha: isDark ? 0.78 : 0.80),
+                  .withValues(alpha: isDark ? 0.88 : 0.88),
               border: Border(
                 bottom: BorderSide(
-                  color: (isDark ? Colors.white : Colors.black).withValues(alpha: isDark ? 0.08 : 0.05),
+                  color: (isDark ? Colors.white : Colors.black)
+                      .withValues(alpha: isDark ? 0.08 : 0.05),
                   width: 0.8,
                 ),
               ),
@@ -1701,41 +1702,40 @@ class _PlanningHubCollapsiblePinnedHeaderDelegate extends SliverPersistentHeader
                   children: [
                     const SizedBox(height: 4),
 
-                    // 1. PINNED Collapsible Master Hero (shrinks from 152px down to 36px)
+                    // 1. PINNED 3-Pill Segment Selector (Directly beneath top header!)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: SizedBox(
-                        height: currentHeroHeight,
-                        child: Stack(
-                          children: [
-                            if (fullHeroOpacity > 0.0)
-                              Positioned.fill(
-                                child: Opacity(
-                                  opacity: fullHeroOpacity,
-                                  child: fullHeroWidget,
-                                ),
-                              ),
-                            if (compactHeroOpacity > 0.0)
-                              Positioned.fill(
-                                child: Opacity(
-                                  opacity: compactHeroOpacity,
-                                  child: Center(child: compactHeroWidget),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    // 2. PINNED 3-Pill Segment Selector
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0),
                       child: tabSegmentBar,
                     ),
 
-                    const SizedBox(height: 6),
+                    if (heroFullHeight > 0.0) ...[
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                        child: SizedBox(
+                          height: currentHeroHeight,
+                          child: Stack(
+                            children: [
+                              if (fullHeroOpacity > 0.0)
+                                Positioned.fill(
+                                  child: Opacity(
+                                    opacity: fullHeroOpacity,
+                                    child: fullHeroWidget,
+                                  ),
+                                ),
+                              if (compactHeroOpacity > 0.0)
+                                Positioned.fill(
+                                  child: Opacity(
+                                    opacity: compactHeroOpacity,
+                                    child: Center(child: compactHeroWidget),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                   ],
                 ),
               ),
@@ -1747,7 +1747,8 @@ class _PlanningHubCollapsiblePinnedHeaderDelegate extends SliverPersistentHeader
   }
 
   @override
-  bool shouldRebuild(covariant _PlanningHubCollapsiblePinnedHeaderDelegate oldDelegate) {
+  bool shouldRebuild(
+      covariant _PlanningHubCollapsiblePinnedHeaderDelegate oldDelegate) {
     return oldDelegate.maxHeight != maxHeight ||
         oldDelegate.minHeight != minHeight ||
         oldDelegate.heroFullHeight != heroFullHeight ||
@@ -1821,4 +1822,3 @@ class _BudgetSpeedometerPainter extends CustomPainter {
   bool shouldRepaint(covariant _BudgetSpeedometerPainter oldDelegate) =>
       oldDelegate.progress != progress || oldDelegate.isOver != isOver;
 }
-

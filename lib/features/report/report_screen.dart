@@ -1,3 +1,6 @@
+import '../../core/widgets/finora/financial_components.dart'
+    show TransactionRow;
+import '../transaction/transaction_detail_sheet.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -55,7 +58,7 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  ReportQuickPeriod _quickPeriod = ReportQuickPeriod.thisYear;
+  ReportQuickPeriod _quickPeriod = ReportQuickPeriod.thisMonth;
   OwnerFilter _ownerFilter = OwnerFilter.all;
   DateTimeRange? _customRange;
   bool _showIncomeCategories = false; // false: Chi tiêu, true: Thu nhập
@@ -82,9 +85,11 @@ class _ReportScreenState extends State<ReportScreen> {
   bool _isLendingOrLoanRepayment(TransactionModel t) =>
       const {'lending', 'loan_repayment_received'}.contains(t.type);
 
-  bool _isBorrowingOrDebtRepayment(TransactionModel t) =>
-      const {'borrowing', 'debt_repayment', 'credit_card_payment'}
-          .contains(t.type);
+  bool _isBorrowingOrDebtRepayment(TransactionModel t) => const {
+        'borrowing',
+        'debt_repayment',
+        'credit_card_payment'
+      }.contains(t.type);
 
   DateTime _parseTxDate(int raw) {
     if (raw < 10000000000) {
@@ -230,15 +235,13 @@ class _ReportScreenState extends State<ReportScreen> {
     final double savingsRate = income > 0
         ? (((income - expense) / income) * 100).clamp(-999.0, 100.0)
         : 0.0;
-    final int avgDailyExpense =
-        (expense / _activePeriodDaysCount()).round();
+    final int avgDailyExpense = (expense / _activePeriodDaysCount()).round();
 
     // 2. Category structure for Donut chart & detailed list (toggleable between Chi tiêu & Thu nhập)
     final targetTxs = _showIncomeCategories
         ? txs.where(_isIncome).toList()
         : txs.where(_isExpense).toList();
-    final targetCategoryTotal =
-        targetTxs.fold<int>(0, (s, t) => s + t.amount);
+    final targetCategoryTotal = targetTxs.fold<int>(0, (s, t) => s + t.amount);
 
     final categoryAmountMap = <String, int>{};
     final categoryCountMap = <String, int>{};
@@ -281,8 +284,7 @@ class _ReportScreenState extends State<ReportScreen> {
     for (final t in txs) {
       final isHusband =
           OwnerFilter.husband.matchTransaction(t, walletMap: walletMap);
-      final isWife =
-          OwnerFilter.wife.matchTransaction(t, walletMap: walletMap);
+      final isWife = OwnerFilter.wife.matchTransaction(t, walletMap: walletMap);
       if (_isIncome(t)) {
         if (isHusband) {
           husbandIncome += t.amount;
@@ -338,24 +340,14 @@ class _ReportScreenState extends State<ReportScreen> {
 
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Single-Line Compact Filter Bar (Pinned at top)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: _buildFilterBar(dark, studio),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           // Card 1 — Chi Tiết Dòng Tiền Ròng (Cashflow Waterfall & Breakdown Card)
           FinoraStaggeredItem(
             index: 0,
@@ -373,6 +365,10 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
           ),
           const SizedBox(height: 12),
+
+          // Bộ lọc thời gian & thành viên (Tất cả / Chồng / Vợ) được đẩy xuống dưới widget tổng quan
+          _buildFilterBar(dark, studio),
+          const SizedBox(height: 14),
 
           // Card 2 — Biểu Đồ Xu Hướng Dòng Tiền 6 Tháng (6-Month Cashflow Bar Chart)
           FinoraStaggeredItem(
@@ -392,6 +388,7 @@ class _ReportScreenState extends State<ReportScreen> {
             child: _buildCategoryStructureCard(
               dark: dark,
               categories: sortedCategoryStats,
+              transactions: targetTxs,
               totalAmount: targetCategoryTotal,
               colors: categoryColors,
               text: text,
@@ -418,13 +415,10 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         ],
       ),
-    ),
-  ),
-],
-);
-}
+    );
+  }
 
-  /// Single-Line Compact Filter Bar (`height: 36`) of solid/tinted stadium pills
+  /// Bộ lọc ngày & thành viên đặt dưới widget tổng quan (`height: 40`)
   Widget _buildFilterBar(bool dark, ThemeStudioController? studio) {
     final periodItems = <(ReportQuickPeriod, String)>[
       (ReportQuickPeriod.thisMonth, 'Tháng này'),
@@ -435,101 +429,357 @@ class _ReportScreenState extends State<ReportScreen> {
       (ReportQuickPeriod.allTime, 'Tất cả'),
     ];
 
-    final customLabel =
-        (_quickPeriod == ReportQuickPeriod.customRange && _customRange != null)
-            ? '📅 ${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}'
-            : '📅 Tuỳ chỉnh...';
+    String currentLabel = 'Tháng này';
+    for (final (period, label) in periodItems) {
+      if (_quickPeriod == period) currentLabel = label;
+    }
+    if (_quickPeriod == ReportQuickPeriod.customRange && _customRange != null) {
+      currentLabel =
+          '${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}';
+    }
 
-    return SizedBox(
-      height: 36,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        child: Row(
-          children: [
-            // 1. Member Filter Pill (👥 Tất cả / Chồng / Vợ)
-            _buildMemberButton(dark, studio),
-            const SizedBox(width: 6),
-
-            // 2. Period Pills
-            for (final (period, label) in periodItems) ...[
-              _buildPeriodPill(
-                label: label,
-                isSelected: _quickPeriod == period,
-                dark: dark,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _quickPeriod = period);
-                },
-              ),
-              const SizedBox(width: 6),
-            ],
-
-            // 3. Custom Range Pill (📅 Tuỳ chỉnh...)
-            _buildPeriodPill(
-              label: customLabel,
-              isSelected: _quickPeriod == ReportQuickPeriod.customRange,
-              dark: dark,
-              onTap: _pickCustomRange,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeriodPill({
-    required String label,
-    required bool isSelected,
-    required bool dark,
-    required VoidCallback onTap,
-  }) {
-    const activeColor = Color(0xFF2563EB);
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 13),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected
-              ? activeColor
-              : (dark
-                  ? const Color(0xFF142033).withValues(alpha: 0.90)
-                  : Colors.white),
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(
-            color: isSelected
-                ? activeColor
-                : (dark
-                    ? Colors.white.withValues(alpha: 0.10)
-                    : const Color(0xFFE2E8F0)),
-            width: 1.0,
-          ),
-          boxShadow: isSelected
-              ? [
+    return Row(
+      children: [
+        // 1. Period Selector Dropdown Pill (Equal height 40px, premium style)
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(100),
+            onTap: () => _showPeriodSheet(dark, periodItems),
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: dark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: const Color(0xFF0F6E56)
+                      .withValues(alpha: dark ? 0.35 : 0.22),
+                  width: 1.0,
+                ),
+                boxShadow: [
                   BoxShadow(
-                    color: activeColor.withValues(alpha: dark ? 0.35 : 0.22),
+                    color: Colors.black.withValues(alpha: dark ? 0.16 : 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
-                ]
-              : null,
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F6E56)
+                          .withValues(alpha: dark ? 0.22 : 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.calendar_month_rounded,
+                      size: 14,
+                      color: Color(0xFF0F6E56),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      currentLabel,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: dark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        child: Text(
-          label,
-          maxLines: 1,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected
-                ? Colors.white
-                : (dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+        const SizedBox(width: 8),
+
+        // 2. Member Filter Pill (👥 Tất cả / Chồng / Vợ - Equal height 40px & equal width)
+        Expanded(
+          child: _buildMemberButton(dark, studio),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showPeriodSheet(
+    bool dark,
+    List<(ReportQuickPeriod, String)> periodItems,
+  ) async {
+    HapticFeedback.selectionClick();
+    final itemsWithMeta = <({
+      ReportQuickPeriod period,
+      String title,
+      String subtitle,
+      IconData icon,
+      Color iconColor,
+      Color iconBgLight,
+      Color iconBgDark,
+    })>[
+      (
+        period: ReportQuickPeriod.thisMonth,
+        title: 'Tháng này',
+        subtitle: 'Từ ngày 1 đến hết tháng hiện tại',
+        icon: Icons.calendar_today_rounded,
+        iconColor: const Color(0xFF00875A),
+        iconBgLight: const Color(0xFFE6F7F0),
+        iconBgDark: const Color(0xFF13382C),
+      ),
+      (
+        period: ReportQuickPeriod.lastMonth,
+        title: 'Tháng trước',
+        subtitle: 'Số liệu tháng liền kề trước đó',
+        icon: Icons.history_rounded,
+        iconColor: const Color(0xFF0284C7),
+        iconBgLight: const Color(0xFFE0F2FE),
+        iconBgDark: const Color(0xFF0C2D48),
+      ),
+      (
+        period: ReportQuickPeriod.thisQuarter,
+        title: 'Quý này',
+        subtitle: 'Thống kê trọn 3 tháng của quý hiện tại',
+        icon: Icons.pie_chart_rounded,
+        iconColor: const Color(0xFFD97706),
+        iconBgLight: const Color(0xFFFEF3C7),
+        iconBgDark: const Color(0xFF382305),
+      ),
+      (
+        period: ReportQuickPeriod.sixMonths,
+        title: '6 tháng gần nhất',
+        subtitle: 'Nửa năm để nhìn rõ xu hướng dòng tiền dài hạn',
+        icon: Icons.auto_awesome_rounded,
+        iconColor: const Color(0xFFE11D48),
+        iconBgLight: const Color(0xFFFFECEF),
+        iconBgDark: const Color(0xFF3B1019),
+      ),
+      (
+        period: ReportQuickPeriod.thisYear,
+        title: 'Năm nay',
+        subtitle: 'Toàn bộ 12 tháng năm ',
+        icon: Icons.calendar_month_rounded,
+        iconColor: const Color(0xFF0F6E56),
+        iconBgLight: const Color(0xFFE6F4EA),
+        iconBgDark: const Color(0xFF083329),
+      ),
+      (
+        period: ReportQuickPeriod.allTime,
+        title: 'Toàn bộ thời gian',
+        subtitle: 'Lịch sử từ ngày đầu tiên sử dụng app',
+        icon: Icons.all_inclusive_rounded,
+        iconColor: const Color(0xFF64748B),
+        iconBgLight: const Color(0xFFF1F5F9),
+        iconBgDark: const Color(0xFF1E293B),
+      ),
+      (
+        period: ReportQuickPeriod.customRange,
+        title: 'Tùy chọn khoảng ngày...',
+        subtitle: 'Chọn ngày bắt đầu và kết thúc linh hoạt',
+        icon: Icons.tune_rounded,
+        iconColor: const Color(0xFF4F46E5),
+        iconBgLight: const Color(0xFFEEF2FF),
+        iconBgDark: const Color(0xFF1E1B4B),
+      ),
+    ];
+
+    final selected = await showModalBottomSheet<ReportQuickPeriod>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.78,
+          ),
+          margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          decoration: BoxDecoration(
+            color: dark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: (dark ? Colors.white : Colors.black)
+                  .withValues(alpha: dark ? 0.12 : 0.08),
+              width: 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: dark ? 0.40 : 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: dark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: dark
+                            ? const Color(0xFF0F6E56).withValues(alpha: 0.35)
+                            : const Color(0xFFE6F4EA),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.calendar_today_rounded,
+                        color: Color(0xFF0F6E56),
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Kỳ phân tích báo cáo',
+                            style: TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                              color: dark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Chọn khoảng thời gian để thống kê dữ liệu',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: dark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  children: [
+                    for (final item in itemsWithMeta) ...[
+                      Builder(builder: (ctx) {
+                        final isSelected = _quickPeriod == item.period;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.pop(sheetContext, item.period);
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? (dark
+                                        ? const Color(0xFF064E3B)
+                                            .withValues(alpha: 0.35)
+                                        : const Color(0xFFF0FDF4))
+                                    : (dark
+                                        ? Colors.white.withValues(alpha: 0.04)
+                                        : const Color(0xFFF8FAFC)),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF0F6E56)
+                                      : (dark
+                                          ? const Color(0xFF334155)
+                                          : const Color(0xFFE2E8F0)),
+                                  width: isSelected ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    item.icon,
+                                    size: 20,
+                                    color: isSelected
+                                        ? const Color(0xFF0F6E56)
+                                        : (dark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B)),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      item.title,
+                                      style: TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: isSelected
+                                            ? const Color(0xFF0F6E56)
+                                            : (dark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A)),
+                                      ),
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Color(0xFF0F6E56),
+                                      size: 22,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+    if (!mounted || selected == null) return;
+    if (selected == ReportQuickPeriod.customRange) {
+      _pickCustomRange();
+    } else {
+      setState(() => _quickPeriod = selected);
+    }
   }
 
   Widget _buildMemberButton(bool dark, ThemeStudioController? studio) {
@@ -539,6 +789,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
     return FinoraUnifiedMemberPill(
       currentMember: memberStr,
+      height: 40,
       onSelected: (val) {
         setState(() {
           if (val == 'husband') {
@@ -631,7 +882,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Dòng tiền ròng (Thu - Chi)',
+                      'Dòng tiền',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -661,25 +912,53 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: dark ? 0.20 : 0.12),
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(
-                    color: badgeColor.withValues(alpha: 0.35),
-                    width: 0.8,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: dark ? 0.20 : 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: badgeColor.withValues(alpha: 0.35),
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: Image.asset(
+                        isPositive
+                            ? 'assets/mascot/expression-04-excited.png'
+                            : 'assets/mascot/sticker-01-encourage.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
-                ),
-                child: Text(
-                  isPositive ? '+Thặng dư' : '-Thâm hụt',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: badgeColor,
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: dark ? 0.20 : 0.12),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: badgeColor.withValues(alpha: 0.35),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      isPositive ? '+Thặng dư' : '-Thâm hụt',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: badgeColor,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -933,16 +1212,32 @@ class _ReportScreenState extends State<ReportScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(
-                  'Biến động Thu - Chi 6 tháng gần nhất',
-                  style: TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: text,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Biến động',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: text,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Biến động Thu - Chi 6 tháng gần nhất',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: sub,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -990,11 +1285,34 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 168,
+            height: 172,
             child: BarChart(
               BarChartData(
                 maxY: maxVal * 1.15,
-                barTouchData: BarTouchData(enabled: true),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => dark ? const Color(0xFF1E293B) : Colors.white,
+                    tooltipRoundedRadius: 8,
+                    tooltipPadding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final isIncome = rodIndex == 0;
+                      final type = isIncome ? 'Thu' : 'Chi';
+                      final val = rod.toY.toInt();
+                      return BarTooltipItem(
+                        '$type: ${formatVND(val)}',
+                        TextStyle(
+                          color: isIncome
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFE11D48),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 titlesData: FlTitlesData(
                   show: true,
                   topTitles: const AxisTitles(
@@ -1019,7 +1337,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               monthlyStats[idx]['label'] as String,
                               style: TextStyle(
                                 fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 color: sub,
                               ),
                             ),
@@ -1036,19 +1354,39 @@ class _ReportScreenState extends State<ReportScreen> {
                   for (int i = 0; i < monthlyStats.length; i++)
                     BarChartGroupData(
                       x: i,
-                      barsSpace: 4,
+                      barsSpace: 5,
                       barRods: [
                         BarChartRodData(
                           toY: (monthlyStats[i]['income'] as int).toDouble(),
-                          color: const Color(0xFF10B981),
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
+                          gradient: const LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Color(0xFF00866A), Color(0xFF34D399)],
+                          ),
+                          width: 10,
+                          borderRadius: BorderRadius.circular(6),
+                          backDrawRodData: BackgroundBarChartRodData(
+                            show: true,
+                            toY: maxVal * 1.05,
+                            color: (dark ? Colors.white : Colors.black)
+                                .withValues(alpha: 0.04),
+                          ),
                         ),
                         BarChartRodData(
                           toY: (monthlyStats[i]['expense'] as int).toDouble(),
-                          color: const Color(0xFFE11D48),
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
+                          gradient: const LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Color(0xFFBE123C), Color(0xFFFB7185)],
+                          ),
+                          width: 10,
+                          borderRadius: BorderRadius.circular(6),
+                          backDrawRodData: BackgroundBarChartRodData(
+                            show: true,
+                            toY: maxVal * 1.05,
+                            color: (dark ? Colors.white : Colors.black)
+                                .withValues(alpha: 0.04),
+                          ),
                         ),
                       ],
                     ),
@@ -1107,6 +1445,7 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget _buildCategoryStructureCard({
     required bool dark,
     required List<_CategoryStatItem> categories,
+    required List<TransactionModel> transactions,
     required int totalAmount,
     required List<Color> colors,
     required Color text,
@@ -1124,16 +1463,32 @@ class _ReportScreenState extends State<ReportScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(
-                  'Cơ cấu danh mục chi tiêu',
-                  style: TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: text,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _showIncomeCategories ? 'Cơ cấu thu nhập' : 'Cơ cấu chi tiêu',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: text,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Cơ cấu danh mục chi tiêu',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: sub,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -1282,95 +1637,150 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Full list of categories below: Circular color badge + Full category name + transaction count (X GD) + percentage pill + right-pinned VND amount
+            // Full list of categories below with visual percentage progress bars & cards
             for (int i = 0; i < categories.length; i++) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
+              Builder(builder: (ctx) {
+                final cat = categories[i];
+                final catColor = colors[i % colors.length];
+                final pct = totalAmount > 0
+                    ? (cat.amount / totalAmount).clamp(0.0, 1.0)
+                    : 0.0;
+                final pctStr = (pct * 100).toStringAsFixed(1);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () =>
+                        _showCategoryTransactions(cat.name, transactions),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: colors[i % colors.length],
-                        shape: BoxShape.circle,
+                        color: (dark ? Colors.white : Colors.black)
+                            .withValues(alpha: dark ? 0.04 : 0.025),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: (dark ? Colors.white : Colors.black)
+                              .withValues(alpha: dark ? 0.06 : 0.04),
+                          width: 0.8,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Flexible(
-                            child: Text(
-                              categories[i].name,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: text,
+                          Row(
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: catColor,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  cat.name,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: text,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: catColor.withValues(
+                                      alpha: dark ? 0.18 : 0.10),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '$pctStr%',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: catColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              FinoraPrivacyMask(
+                                child: Text(
+                                  formatVND(cat.amount),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: text,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 5),
-                          Text(
-                            '(${categories[i].count} GD)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: sub,
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(100),
+                            child: LinearProgressIndicator(
+                              value: pct,
+                              minHeight: 4,
+                              backgroundColor: (dark ? Colors.white : Colors.black)
+                                  .withValues(alpha: 0.06),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(catColor),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colors[i % colors.length]
-                            .withValues(alpha: dark ? 0.20 : 0.12),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        '${totalAmount > 0 ? (categories[i].amount * 100 / totalAmount).round() : 0}%',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          color: colors[i % colors.length],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 112),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: FinoraPrivacyMask(
-                          child: Text(
-                            formatVND(categories[i].amount),
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: text,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              }),
             ],
           ],
         ],
       ),
     );
+  }
+
+  void _showCategoryTransactions(
+      String name, List<TransactionModel> transactions) {
+    final items = transactions
+        .where((tx) =>
+            (tx.categoryName?.trim().isNotEmpty == true
+                ? tx.categoryName!.trim()
+                : 'Khác') ==
+            name)
+        .toList();
+    showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+            top: false,
+            child: SizedBox(
+              height: MediaQuery.sizeOf(sheetContext).height * 0.75,
+              child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    const Text(
+                        'Các giao dịch thuộc kỳ và thành viên đang chọn.',
+                        style: TextStyle(fontSize: 12)),
+                    const SizedBox(height: 16),
+                    for (final tx in items)
+                      TransactionRow(
+                          transaction: tx,
+                          onTap: () => showTransactionDetailSheet(sheetContext,
+                              userId: widget.userId, transaction: tx)),
+                  ]),
+            )));
   }
 
   /// Card 4 — Phân Tích Dòng Tiền Vợ & Chồng

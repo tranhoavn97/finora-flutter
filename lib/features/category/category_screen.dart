@@ -1,3 +1,4 @@
+import '../../core/widgets/finora_notice.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -30,7 +31,50 @@ Color? _parseHexColor(String? hex) {
   return Color(value);
 }
 
-const List<Category> defaultMerchants = [];
+const List<Category> defaultMerchants = [
+  Category(
+    id: 'green_sm',
+    name: 'Green SM',
+    icon: 'car',
+    color: '#059669',
+    categoryGroup: 'merchant',
+  ),
+  Category(
+    id: 'be',
+    name: 'Be',
+    icon: 'bike',
+    color: '#EAB308',
+    categoryGroup: 'merchant',
+  ),
+  Category(
+    id: 'shopee',
+    name: 'Shopee',
+    icon: 'assets/banks/shopee.jpg',
+    color: '#EE4D2D',
+    categoryGroup: 'merchant',
+  ),
+  Category(
+    id: 'winmart',
+    name: 'WinMart',
+    icon: 'assets/banks/winmart.png',
+    color: '#E11D48',
+    categoryGroup: 'merchant',
+  ),
+  Category(
+    id: 'grab',
+    name: 'Grab',
+    icon: 'car',
+    color: '#059669',
+    categoryGroup: 'merchant',
+  ),
+  Category(
+    id: 'tiktok_shop',
+    name: 'TikTok Shop',
+    icon: 'video',
+    color: '#000000',
+    categoryGroup: 'merchant',
+  ),
+];
 
 bool _matchesGroup(Category cat, String group) {
   if (group == 'all') return true;
@@ -73,7 +117,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       context.read<TransactionProvider>().load(widget.userId);
       _eventsSub = provider.events.listen((msg) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
+        FinoraNotice.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text(msg)));
       });
@@ -162,9 +206,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ? 'Danh mục thu nhập'
         : (cat.categoryGroup == 'investment'
             ? 'Danh mục đầu tư'
-            : (isMerchant
-                ? 'Nơi mua sắm'
-                : 'Danh mục chi tiêu'));
+            : (isMerchant ? 'Nơi mua sắm' : 'Danh mục chi tiêu'));
 
     showFinoraGlassModalBottomSheet(
       context: context,
@@ -309,20 +351,23 @@ class _CategoryScreenState extends State<CategoryScreen> {
         '${_currentMonth.year}-${_currentMonth.month.toString().padLeft(2, '0')}';
 
     // Aggregate by categoryId (with fallback to name) for targetMonthKey
-    final allCategories = List<Category>.from(provider.categories);
-    for (final dm in defaultMerchants) {
-      final idKey = dm.id.toLowerCase();
-      final nameKey = dm.name.trim().toLowerCase();
-      if (_deletedMerchantKeys.contains(idKey) ||
-          _deletedMerchantKeys.contains(nameKey)) {
-        continue;
-      }
-      if (!allCategories.any((c) =>
-          c.id.toLowerCase() == idKey ||
-          c.name.trim().toLowerCase() == nameKey)) {
-        allCategories.add(dm);
+    final nonMerchants = <Category>[];
+    final seenCatKeys = <String>{};
+    for (final c in [...provider.categories, ...txProvider.categories]) {
+      if (c.categoryGroup == 'merchant' || c.isArchived) continue;
+      final key = c.id.isNotEmpty ? c.id.toLowerCase() : c.name.trim().toLowerCase();
+      if (seenCatKeys.add(key)) {
+        nonMerchants.add(c);
       }
     }
+    final resolvedMerchants = Category.resolveMerchants(
+      [...provider.categories, ...txProvider.categories],
+      deletedMerchantKeys: _deletedMerchantKeys,
+    );
+    final allCategories = <Category>[
+      ...nonMerchants,
+      ...resolvedMerchants,
+    ];
 
     final categoryTotals = <String, int>{};
     final categoryCounts = <String, int>{};
@@ -520,37 +565,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
       physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
-          // Month picker
+          // Month picker pill (height: 32)
           FinoraDateFilterPill(
-            label: 'T${_currentMonth.month}/${_currentMonth.year}',
+            label: 'Tháng ${_currentMonth.month}/${_currentMonth.year}',
             onTap: _pickMonthYear,
             height: 32,
           ),
           const SizedBox(width: 6),
 
-          // Status filter toggle (Tất cả / Đã dùng)
-          Container(
-            height: 36,
-            padding: const EdgeInsets.all(2.5),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(
-                color:
-                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildStatusPill('all', 'Tất cả', isDark),
-                _buildStatusPill('used', 'Đã dùng', isDark),
-              ],
+          SizedBox(
+            width: 144,
+            child: FinoraSegmentedTabs(
+              labels: const ['Tất cả', 'Đã dùng'],
+              selectedIndex: _statusFilter == 'used' ? 1 : 0,
+              height: 34,
+              onChanged: (index) {
+                setState(() => _statusFilter = index == 0 ? 'all' : 'used');
+                _saveViewSettings();
+              },
             ),
           ),
           const SizedBox(width: 6),
 
-          // Search button
+          // Search button (height: 32, width: 32)
           InkWell(
             onTap: () {
               setState(() {
@@ -560,8 +597,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
             },
             borderRadius: BorderRadius.circular(100),
             child: Container(
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: _isSearching || _searchController.text.isNotEmpty
                     ? const Color(0xFF005FEA).withValues(alpha: 0.15)
@@ -576,12 +613,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
               ),
               child: const Icon(Icons.search_rounded,
-                  size: 17, color: Color(0xFF005FEA)),
+                  size: 16, color: Color(0xFF005FEA)),
             ),
           ),
           const SizedBox(width: 6),
 
-          // Grid/List toggle button
+          // Grid/List toggle button (height: 32, width: 32)
           InkWell(
             onTap: () {
               setState(() => _isListView = !_isListView);
@@ -589,8 +626,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
             },
             borderRadius: BorderRadius.circular(100),
             child: Container(
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 shape: BoxShape.circle,
@@ -602,7 +639,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               ),
               child: Icon(
                 _isListView ? Icons.grid_view_rounded : Icons.view_list_rounded,
-                size: 17,
+                size: 16,
                 color: secondaryTextColor,
               ),
             ),
@@ -613,49 +650,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
             onPressed: _openAdd,
             tooltip: _group == 'merchant' ? 'Thêm nơi mua' : 'Thêm danh mục',
             size: 34,
+            color: _group == 'expense' ? const Color(0xFFE11D48) : const Color(0xFF00866A),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatusPill(String key, String label, bool isDark) {
-    final isSelected = _statusFilter == key;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        setState(() => _statusFilter = key);
-        _saveViewSettings();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark ? const Color(0xFF2C2C34) : Colors.white)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected
-                ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-          ),
-        ),
       ),
     );
   }
@@ -1242,7 +1239,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
+        FinoraNotice.of(context)
             .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {
@@ -1262,7 +1259,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           SnackBar(content: Text('Không mở được thư viện ảnh: $error')),
         );
       }
@@ -1272,7 +1269,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
     final length = await picked.length();
     if (length > 2 * 1024 * 1024) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           const SnackBar(content: Text('Ảnh icon phải nhỏ hơn 2 MB.')),
         );
       }
@@ -1313,12 +1310,13 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
         }
       } catch (_) {}
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã chọn ảnh làm icon danh mục thành công.')),
+      FinoraNotice.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Đã chọn ảnh làm icon danh mục thành công.')),
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           SnackBar(content: Text('Không thể tải ảnh icon: $error')),
         );
       }
@@ -1394,7 +1392,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           SnackBar(content: Text('Không thể lấy ảnh đã tải lên: $error')),
         );
       }
@@ -1455,29 +1453,12 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: previewTint.withValues(alpha: 0.15),
-                              border: Border.all(
-                                color: previewTint.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: previewTint.withValues(alpha: 0.2),
-                                  blurRadius: 10,
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: CategoryIconWidget(
-                                  icon: previewEmoji,
-                                  size: 52,
-                                  color: previewTint),
-                            ),
+                          CategoryIconBadge(
+                            icon: previewEmoji,
+                            categoryName: _nameController.text.trim(),
+                            colorHex: _color,
+                            size: 52,
+                            isDark: isDark,
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -1602,11 +1583,27 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                           children: [
                             for (final b in const [
                               (id: 'shopee', name: 'Shopee', color: '#EE4D2D'),
-                              (id: 'winmart', name: 'WinMart', color: '#ED1C24'),
-                              (id: 'tiktok', name: 'TikTok Shop', color: '#000000'),
+                              (
+                                id: 'winmart',
+                                name: 'WinMart',
+                                color: '#ED1C24'
+                              ),
+                              (
+                                id: 'tiktok',
+                                name: 'TikTok Shop',
+                                color: '#000000'
+                              ),
                               (id: 'lazada', name: 'Lazada', color: '#0F146D'),
-                              (id: 'brand-tiki', name: 'Tiki', color: '#1A94FF'),
-                              (id: 'brand-grab', name: 'Grab', color: '#00B14F'),
+                              (
+                                id: 'brand-tiki',
+                                name: 'Tiki',
+                                color: '#1A94FF'
+                              ),
+                              (
+                                id: 'brand-grab',
+                                name: 'Grab',
+                                color: '#00B14F'
+                              ),
                             ])
                               Padding(
                                 padding: const EdgeInsets.only(right: 8),

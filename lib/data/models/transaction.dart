@@ -37,6 +37,8 @@ class TransactionModel {
   final String? investmentSubtype;
   final String? investmentAction;
   final List<String> tags;
+  final String? bankTransactionCode;
+  final String? rawBankNotification;
   final String? creatorTag;
   final String? createdBy;
   final String? creatorName;
@@ -80,6 +82,8 @@ class TransactionModel {
     this.investmentSubtype,
     this.investmentAction,
     this.tags = const [],
+    this.bankTransactionCode,
+    this.rawBankNotification,
     this.creatorTag,
     this.createdBy,
     this.creatorName,
@@ -103,6 +107,19 @@ class TransactionModel {
     } else {
       tags = const [];
     }
+
+    String? parsedBankCode = toStringOrNull(d['bankTransactionCode']);
+    String? parsedRawNotif = toStringOrNull(d['rawBankNotification']);
+    for (final tag in tags) {
+      if ((parsedBankCode == null || parsedBankCode.isEmpty) &&
+          tag.startsWith('bank_code:')) {
+        parsedBankCode = tag.substring('bank_code:'.length).trim();
+      } else if ((parsedRawNotif == null || parsedRawNotif.isEmpty) &&
+          tag.startsWith('bank_notif:')) {
+        parsedRawNotif = tag.substring('bank_notif:'.length).trim();
+      }
+    }
+
     final type = toStringValue(d['type']);
     final rawDate = toLongValue(d['date']);
     final date =
@@ -144,6 +161,8 @@ class TransactionModel {
       investmentSubtype: toStringOrNull(d['investmentSubtype']),
       investmentAction: toStringOrNull(d['investmentAction']),
       tags: tags,
+      bankTransactionCode: parsedBankCode,
+      rawBankNotification: parsedRawNotif,
       creatorTag: toStringOrNull(d['creatorTag']),
       createdBy: toStringOrNull(d['createdBy']),
       creatorName: toStringOrNull(d['creatorName']),
@@ -152,47 +171,64 @@ class TransactionModel {
     );
   }
 
-  /// Field map written to Firestore (createdAt/updatedAt are added by the repository).
-  Map<String, dynamic> toMap() => {
-        'userId': userId,
-        'amount': amount,
-        'type': type,
-        'date': date,
-        'note': note,
-        'categoryId': categoryId,
-        'categoryName': categoryName,
-        'categoryIcon': categoryIcon,
-        'categoryColor': categoryColor,
-        'categoryGroup': categoryGroup,
-        'merchantId': merchantId,
-        'merchantName': merchantName,
-        'walletId': walletId,
-        'walletName': walletName,
-        'owner': owner,
-        'ownerName': ownerName,
-        'fromWalletId': fromWalletId,
-        'fromWalletName': fromWalletName,
-        'toWalletId': toWalletId,
-        'toWalletName': toWalletName,
-        'fromOwner': fromOwner,
-        'toOwner': toOwner,
-        'creditCardId': creditCardId,
-        'creditCardName': creditCardName,
-        'paidByOwner': paidByOwner,
-        'cardOwner': cardOwner,
-        'loanId': loanId,
-        'direction': direction,
-        'goalId': goalId,
-        'goalName': goalName,
-        'assetId': assetId,
-        'assetName': assetName,
-        'investmentSubtype': investmentSubtype,
-        'investmentAction': investmentAction,
-        'tags': tags,
-        'creatorTag': creatorTag,
-        'createdBy': createdBy,
-        'creatorName': creatorName,
-      };
+  /// Field map written to Firestore / Supabase (createdAt/updatedAt are added by the repository).
+  Map<String, dynamic> toMap() {
+    final mergedTags = List<String>.from(
+      tags.where(
+        (t) => !t.startsWith('bank_code:') && !t.startsWith('bank_notif:'),
+      ),
+    );
+    if (bankTransactionCode != null &&
+        bankTransactionCode!.trim().isNotEmpty) {
+      mergedTags.add('bank_code:${bankTransactionCode!.trim()}');
+    }
+    if (rawBankNotification != null &&
+        rawBankNotification!.trim().isNotEmpty) {
+      mergedTags.add('bank_notif:${rawBankNotification!.trim()}');
+    }
+    return {
+      'userId': userId,
+      'amount': amount,
+      'type': type,
+      'date': date,
+      'note': note,
+      'categoryId': categoryId,
+      'categoryName': categoryName,
+      'categoryIcon': categoryIcon,
+      'categoryColor': categoryColor,
+      'categoryGroup': categoryGroup,
+      'merchantId': merchantId,
+      'merchantName': merchantName,
+      'walletId': walletId,
+      'walletName': walletName,
+      'owner': owner,
+      'ownerName': ownerName,
+      'fromWalletId': fromWalletId,
+      'fromWalletName': fromWalletName,
+      'toWalletId': toWalletId,
+      'toWalletName': toWalletName,
+      'fromOwner': fromOwner,
+      'toOwner': toOwner,
+      'creditCardId': creditCardId,
+      'creditCardName': creditCardName,
+      'paidByOwner': paidByOwner,
+      'cardOwner': cardOwner,
+      'loanId': loanId,
+      'direction': direction,
+      'goalId': goalId,
+      'goalName': goalName,
+      'assetId': assetId,
+      'assetName': assetName,
+      'investmentSubtype': investmentSubtype,
+      'investmentAction': investmentAction,
+      'tags': mergedTags,
+      'bankTransactionCode': bankTransactionCode,
+      'rawBankNotification': rawBankNotification,
+      'creatorTag': creatorTag,
+      'createdBy': createdBy,
+      'creatorName': creatorName,
+    };
+  }
 
   TransactionModel copyWith({
     String? id,
@@ -231,6 +267,8 @@ class TransactionModel {
     String? investmentSubtype,
     String? investmentAction,
     List<String>? tags,
+    String? bankTransactionCode,
+    String? rawBankNotification,
     String? creatorTag,
     String? createdBy,
     String? creatorName,
@@ -274,6 +312,8 @@ class TransactionModel {
       investmentSubtype: investmentSubtype ?? this.investmentSubtype,
       investmentAction: investmentAction ?? this.investmentAction,
       tags: tags ?? this.tags,
+      bankTransactionCode: bankTransactionCode ?? this.bankTransactionCode,
+      rawBankNotification: rawBankNotification ?? this.rawBankNotification,
       creatorTag: creatorTag ?? this.creatorTag,
       createdBy: createdBy ?? this.createdBy,
       creatorName: creatorName ?? this.creatorName,

@@ -1,3 +1,4 @@
+import '../../core/widgets/finora_notice.dart';
 import '../../core/widgets/finora_summary_card.dart';
 import 'web_wallet_card.dart';
 import 'wallet_controls.dart';
@@ -85,7 +86,7 @@ class _WalletScreenState extends State<WalletScreen> {
     });
     _eventsSub = provider.events.listen((msg) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      FinoraNotice.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(msg)));
     });
@@ -326,7 +327,9 @@ class _WalletScreenState extends State<WalletScreen> {
           ? null
           : GlassTopBar(
               title: 'Ví & Tài khoản',
-              actions: [AiContextButton(userId: widget.userId, screen: 'Ví tiền')],
+              actions: [
+                AiContextButton(userId: widget.userId, screen: 'Ví tiền')
+              ],
               showBottomDivider: false,
               onBack: (!widget.isRoot && Navigator.of(context).canPop())
                   ? () => Navigator.of(context).pop()
@@ -711,159 +714,12 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildAccountTabs(
       List<Wallet> wallets, ThemeStudioController? studio, bool isDark) {
-    final filtered = wallets.where((w) {
-      if (_ownerFilter == 'husband') {
-        return resolveWalletMember(w) == TransactionMember.husband;
-      }
-      if (_ownerFilter == 'wife') {
-        return resolveWalletMember(w) == TransactionMember.wife;
-      }
-      return true;
-    }).toList();
-
-    final options = [
-      ('all', 'Tất cả', filtered.length),
-      ('credit', 'Thẻ tín dụng', filtered.where((w) => w.isCreditCard).length),
-      (
-        'cash',
-        'Ví tiền',
-        filtered
-            .where((w) =>
-                !w.isCreditCard && (w.type == 'cash' || w.type == 'ewallet'))
-            .length
-      ),
-      (
-        'bank',
-        'Ngân hàng',
-        filtered
-            .where((w) =>
-                !w.isCreditCard && w.type != 'cash' && w.type != 'ewallet')
-            .length
-      ),
-    ];
-
-    const tabColors = [
-      Color(0xFF007AFF), // Tất cả - Apple Blue
-      Color(0xFF5856D6), // Thẻ tín dụng - Apple Indigo
-      Color(0xFF34C759), // Ví tiền - Apple Emerald
-      Color(0xFF008E91), // Ngân hàng - Apple Cyan
-    ];
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: 38, maxHeight: 38),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: isDark ? 0.70 : 0.90),
-        borderRadius: BorderRadius.circular(100),
-        border: Border.all(
-          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
-          width: 0.8,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(100),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: options.asMap().entries.map((entry) {
-              final index = entry.key;
-              final option = entry.value;
-              final isSelected = _accountTab == option.$1;
-              final activeColor = tabColors[index % tabColors.length];
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 3),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    studio?.performHaptic();
-                    setState(() => _accountTab = option.$1);
-                  },
-                  child: AnimatedContainer(
-                    constraints:
-                        const BoxConstraints(minHeight: 32, maxHeight: 32),
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 11, vertical: 5.5),
-                    decoration: BoxDecoration(
-                      color: isSelected ? activeColor : Colors.transparent,
-                      borderRadius: BorderRadius.circular(100),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: activeColor.withValues(alpha: 0.32),
-                                blurRadius: 6,
-                                offset: const Offset(0, 1.5),
-                              ),
-                            ]
-                          : const [],
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            option.$2,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : (isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B)),
-                              fontSize: 12,
-                              fontWeight: isSelected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Colors.white.withValues(alpha: 0.26)
-                                  : (isDark
-                                      ? Colors.white.withValues(alpha: 0.08)
-                                      : Colors.black.withValues(alpha: 0.06)),
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                            child: Text(
-                              '${option.$3}',
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : (isDark
-                                        ? const Color(0xFF94A3B8)
-                                        : const Color(0xFF64748B)),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+    const values = ['all', 'credit', 'cash', 'bank'];
+    return FinoraSegmentedTabs(
+      labels: const ['Tất cả', 'Thẻ tín dụng', 'Ví tiền', 'Ngân hàng'],
+      selectedIndex: values.indexOf(_accountTab),
+      height: 38,
+      onChanged: (index) => setState(() => _accountTab = values[index]),
     );
   }
 
@@ -894,7 +750,8 @@ class _WalletScreenState extends State<WalletScreen> {
               userId: widget.userId,
               familyId: widget.familyId,
               isDark: isDark,
-              isMasked: !_showBalances || (studio?.isPrivacyShieldActive ?? false),
+              isMasked:
+                  !_showBalances || (studio?.isPrivacyShieldActive ?? false),
               onHistory: (w) => _showHistory(w),
               onEdit: (w) => _openAddWallet(wallet: w),
               onDelete: (w) => _deleteWallet(w),

@@ -1,4 +1,8 @@
+import '../../core/widgets/finora_notice.dart';
+import 'fresh_goal_detail.dart';
+import '../../core/widgets/finora/financial_components.dart' show MoneyText;
 import '../../core/widgets/finora_mascot.dart';
+import '../../core/theme/finora_tokens.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -45,7 +49,7 @@ class _GoalScreenState extends State<GoalScreen> {
       provider.load(widget.userId);
       _eventsSub = provider.events.listen((msg) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
+        FinoraNotice.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text(msg)));
       });
@@ -119,230 +123,311 @@ class _GoalScreenState extends State<GoalScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-          child: _buildFilterPillsRow(isDark: isDark),
-        ),
         Expanded(
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
             slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 120),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              // Goals Section Title
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _goalFilter == 'completed'
-                        ? 'Đã hoàn thành'
-                        : (_goalFilter == 'near'
-                            ? 'Sắp đạt mục tiêu'
-                            : 'Danh sách mục tiêu'),
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: FinoraTokens.emeraldCardDecoration(
+                      isDark: isDark,
+                      radius: 24,
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        '${displayGoals.length} mục tiêu',
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: _openAdd,
-                        borderRadius: BorderRadius.circular(100),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0F6E56), Color(0xFF10B981)],
-                            ),
-                            borderRadius: BorderRadius.circular(100),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF10B981)
-                                    .withValues(alpha: 0.30),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.add_rounded,
-                                  size: 14, color: Colors.white),
-                              SizedBox(width: 3),
-                              Text(
-                                'Thêm',
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.16),
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: const Text(
+                                  'TÍCH LŨY CHO ĐIỀU QUAN TRỌNG',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                    color: Color(0xFFE6F7F0),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Ước mơ có một lộ trình.',
                                 style: TextStyle(
+                                  fontFamily: 'BeVietnamPro',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
                                   color: Colors.white,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${activeGoals.length} mục tiêu đang thực hiện · ${completedGoals.length} đã hoàn thành',
+                                style: TextStyle(
+                                  fontFamily: 'BeVietnamPro',
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.85),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Goal Cards List
-              if (displayGoals.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 28, horizontal: 20),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-                        .withValues(
-                            alpha: context
-                                .watch<ThemeStudioController>()
-                                .glassOpacity),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const FinoraMascotImage(
-                        pose: FinoraMascotPose.celebrate,
-                        size: 76,
-                        withGlow: true,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Chưa có mục tiêu nào trong mục này',
-                        style: TextStyle(
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF0F172A),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Đặt mục tiêu tiết kiệm mua nhà, xe, du lịch cùng Finora ngay!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isDark
-                              ? Colors.white60
-                              : const Color(0xFF64748B),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      GestureDetector(
-                        onTap: _openAdd,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 9),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 78,
+                          height: 78,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0F6E56), Color(0xFF10B981)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(100),
+                            shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.30),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 14,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
-                          child: const Text(
-                            '+ Tạo mục tiêu mới',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          child: Image.asset(
+                            'assets/mascot/animation-keypose-03-goal.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                ...displayGoals.asMap().entries.map((entry) {
-                  return FinoraStaggeredItem(
-                    index: entry.key,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildGoalCard(
-                        goal: entry.value,
-                        index: entry.key,
-                        isDark: isDark,
-                      ),
+                      ],
                     ),
-                  );
-                }),
-            ]),
+                  ),
+                ),
+              ),
+              // Thanh lọc trạng thái nằm dưới widget tổng quan
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: _buildFilterPillsRow(isDark: isDark),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 120),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Goals Section Title
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _goalFilter == 'completed'
+                              ? 'Đã hoàn thành'
+                              : (_goalFilter == 'near'
+                                  ? 'Sắp đạt mục tiêu'
+                                  : 'Danh sách mục tiêu'),
+                          style: TextStyle(
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              '${displayGoals.length} mục tiêu',
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: _openAdd,
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 5),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF0F6E56),
+                                      Color(0xFF10B981)
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(100),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.30),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.add_rounded,
+                                        size: 14, color: Colors.white),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'Thêm',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Goal Cards List
+                    if (displayGoals.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 28, horizontal: 20),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color:
+                              (isDark ? const Color(0xFF1E293B) : Colors.white)
+                                  .withValues(
+                                      alpha: context
+                                          .watch<ThemeStudioController>()
+                                          .glassOpacity),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const FinoraMascotImage(
+                              pose: FinoraMascotPose.celebrate,
+                              size: 76,
+                              withGlow: true,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Chưa có mục tiêu nào trong mục này',
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Đặt mục tiêu tiết kiệm mua nhà, xe, du lịch cùng Finora ngay!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.white60
+                                    : const Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            GestureDetector(
+                              onTap: _openAdd,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 9),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF0F6E56),
+                                      Color(0xFF10B981)
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(100),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.30),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Text(
+                                  '+ Tạo mục tiêu mới',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ...displayGoals.asMap().entries.map((entry) {
+                        return FinoraStaggeredItem(
+                          index: entry.key,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildGoalCard(
+                              goal: entry.value,
+                              index: entry.key,
+                              isDark: isDark,
+                            ),
+                          ),
+                        );
+                      }),
+                  ]),
+                ),
+              ),
+            ],
           ),
         ),
       ],
-    ),
-  ),
-],
-);
-}
+    );
+  }
 
   Widget _buildFilterPillsRow({required bool isDark}) {
     const filters = ['all', 'active', 'near', 'completed'];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final availableWidth = constraints.maxWidth;
-        final targetWidth = availableWidth > 420 ? availableWidth : 420.0;
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: SizedBox(
-            width: targetWidth,
-            child: BouncyPillTabs(
-              height: 38,
-              labels: const [
-                'Tất cả',
-                'Đang thực hiện',
-                'Sắp đạt',
-                'Hoàn thành',
-              ],
-              selectedIndex: filters.indexOf(_goalFilter),
-              colors: const [
-                Color(0xFF005FEA), // Royal Blue for All
-                Color(0xFF0284C7), // Sky Blue for Active
-                Color(0xFFD97706), // Amber for Near
-                Color(0xFF059669), // Emerald for Completed
-              ],
-              onChanged: (i) => setState(() => _goalFilter = filters[i]),
-            ),
-          ),
-        );
-      },
+    final idx = filters.indexOf(_goalFilter);
+    return BouncyPillTabs(
+      height: 40,
+      fontSize: 12.5,
+      labels: const [
+        'Tất cả',
+        'Thực hiện',
+        'Sắp đạt',
+        'Đã xong',
+      ],
+      selectedIndex: idx < 0 ? 0 : idx,
+      colors: const [
+        Color(0xFF005FEA), // Royal Blue for All
+        Color(0xFF0284C7), // Sky Blue for Active
+        Color(0xFFD97706), // Amber for Near
+        Color(0xFF059669), // Emerald for Completed
+      ],
+      onChanged: (i) => setState(() => _goalFilter = filters[i]),
     );
   }
 
@@ -360,6 +445,95 @@ class _GoalScreenState extends State<GoalScreen> {
     final remainingAmount =
         (goal.targetAmount - goal.savedAmount).clamp(0, 999999999999).toInt();
 
+    if (context.read<ThemeStudioController?>()?.freshAppearance == true) {
+      final scheme = Theme.of(context).colorScheme;
+      final tone = isDark ? const Color(0xFF243B56) : const Color(0xFFE8F2FF);
+      return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Material(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(26),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(26),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => FreshGoalDetail(
+                        userId: widget.userId,
+                        initial: goal,
+                        onDeposit: _openDeposit,
+                        onEdit: _openEdit))),
+                child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(children: [
+                            Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                    color: tone,
+                                    borderRadius: BorderRadius.circular(16)),
+                                child: Icon(
+                                    isCompleted
+                                        ? Icons.check_rounded
+                                        : Icons.flag_outlined,
+                                    color: scheme.primary)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                                child: Text(goal.name,
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -0.4))),
+                            PopupMenuButton<String>(
+                                tooltip: 'Tùy chọn mục tiêu',
+                                onSelected: (value) {
+                                  if (value == 'edit') _openEdit(goal);
+                                  if (value == 'delete') _deleteGoal(goal);
+                                },
+                                itemBuilder: (_) => const [
+                                      PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text('Chỉnh sửa')),
+                                      PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Xóa mục tiêu')),
+                                    ]),
+                          ]),
+                          const SizedBox(height: 18),
+                          FinoraPrivacyMask(
+                              child: MoneyText(goal.savedAmount, size: 24)),
+                          const SizedBox(height: 4),
+                          FinoraPrivacyMask(
+                              child: MoneyText(goal.targetAmount,
+                                  size: 14, prefix: 'Mục tiêu: ')),
+                          const SizedBox(height: 16),
+                          ClipRRect(
+                              borderRadius: BorderRadius.circular(30),
+                              child: LinearProgressIndicator(
+                                  value: progress,
+                                  minHeight: 7,
+                                  color: scheme.primary,
+                                  backgroundColor: tone)),
+                          const SizedBox(height: 12),
+                          Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 12,
+                              runSpacing: 8,
+                              children: [
+                                Text(
+                                    '$percent% · ${isCompleted ? 'Đã hoàn thành' : 'Đang thực hiện'}',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: scheme.onSurfaceVariant)),
+                                FilledButton.tonal(
+                                    onPressed: () => _openDeposit(goal),
+                                    child: const Text('Góp tiền')),
+                              ]),
+                        ])),
+              )));
+    }
     // Days remaining
     final days = goal.targetDate == null
         ? null
@@ -509,7 +683,9 @@ class _GoalScreenState extends State<GoalScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (isCompleted ? const Color(0xFF10B981) : accentColor)
+                            color: (isCompleted
+                                    ? const Color(0xFF10B981)
+                                    : accentColor)
                                 .withValues(alpha: 0.20),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
@@ -519,7 +695,8 @@ class _GoalScreenState extends State<GoalScreen> {
                       child: Icon(
                         iconData,
                         size: 22,
-                        color: isCompleted ? const Color(0xFF10B981) : accentColor,
+                        color:
+                            isCompleted ? const Color(0xFF10B981) : accentColor,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -530,7 +707,9 @@ class _GoalScreenState extends State<GoalScreen> {
                           Text(
                             goal.name,
                             style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                               fontSize: 15.5,
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.3,
@@ -540,13 +719,18 @@ class _GoalScreenState extends State<GoalScreen> {
                           ),
                           const SizedBox(height: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2.5),
                             decoration: BoxDecoration(
-                              color: (isCompleted ? const Color(0xFF10B981) : accentColor)
+                              color: (isCompleted
+                                      ? const Color(0xFF10B981)
+                                      : accentColor)
                                   .withValues(alpha: isDark ? 0.20 : 0.10),
                               borderRadius: BorderRadius.circular(100),
                               border: Border.all(
-                                color: (isCompleted ? const Color(0xFF10B981) : accentColor)
+                                color: (isCompleted
+                                        ? const Color(0xFF10B981)
+                                        : accentColor)
                                     .withValues(alpha: 0.30),
                                 width: 0.8,
                               ),
@@ -558,13 +742,43 @@ class _GoalScreenState extends State<GoalScreen> {
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
-                                color: isCompleted ? const Color(0xFF10B981) : accentColor,
+                                color: isCompleted
+                                    ? const Color(0xFF10B981)
+                                    : accentColor,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    // Mascot progress reaction sticker
+                    Tooltip(
+                      message: isCompleted
+                          ? 'Đã hoàn thành xuất sắc!'
+                          : (percent >= 80 ? 'Sắp chạm đích rồi!' : 'Đang tích lũy kiên trì!'),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: (isDark ? Colors.white : Colors.black)
+                              .withValues(alpha: isDark ? 0.05 : 0.03),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(100),
+                          child: Image.asset(
+                            isCompleted
+                                ? 'assets/mascot/sticker-04-check.png'
+                                : (percent >= 80
+                                    ? 'assets/mascot/expression-04-excited.png'
+                                    : 'assets/mascot/sticker-06-goal.png'),
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     // Nút 3 chấm Apple Style (32x32 circle)
                     PopupMenuButton<String>(
                       padding: EdgeInsets.zero,
@@ -608,7 +822,8 @@ class _GoalScreenState extends State<GoalScreen> {
                           value: 'edit',
                           child: Row(
                             children: [
-                              Icon(Icons.edit_outlined, size: 16, color: Color(0xFF0070F3)),
+                              Icon(Icons.edit_outlined,
+                                  size: 16, color: Color(0xFF0070F3)),
                               SizedBox(width: 8),
                               Text('Chỉnh sửa'),
                             ],
@@ -746,14 +961,19 @@ class _GoalScreenState extends State<GoalScreen> {
                             gradient: LinearGradient(
                               colors: isCompleted
                                   ? const [Color(0xFF34D399), Color(0xFF10B981)]
-                                  : [accentColor.withValues(alpha: 0.85), accentColor],
+                                  : [
+                                      accentColor.withValues(alpha: 0.85),
+                                      accentColor
+                                    ],
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
                             ),
                             borderRadius: BorderRadius.circular(100),
                             boxShadow: [
                               BoxShadow(
-                                color: (isCompleted ? const Color(0xFF10B981) : accentColor)
+                                color: (isCompleted
+                                        ? const Color(0xFF10B981)
+                                        : accentColor)
                                     .withValues(alpha: 0.35),
                                 blurRadius: 6,
                                 offset: const Offset(0, 1),
@@ -795,9 +1015,11 @@ class _GoalScreenState extends State<GoalScreen> {
                         onTap: () => _openDeposit(goal),
                         borderRadius: BorderRadius.circular(100),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: isDark ? 0.18 : 0.10),
+                            color: accentColor.withValues(
+                                alpha: isDark ? 0.18 : 0.10),
                             borderRadius: BorderRadius.circular(100),
                             border: Border.all(
                               color: accentColor.withValues(alpha: 0.28),
@@ -807,7 +1029,8 @@ class _GoalScreenState extends State<GoalScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.add_circle_outline_rounded, size: 13, color: accentColor),
+                              Icon(Icons.add_circle_outline_rounded,
+                                  size: 13, color: accentColor),
                               const SizedBox(width: 4),
                               Text(
                                 'Góp tiền',
@@ -872,7 +1095,7 @@ class _DepositDialogState extends State<_DepositDialog> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
+        FinoraNotice.of(context)
             .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {
@@ -1050,7 +1273,7 @@ class _AddGoalPageState extends State<AddGoalPage> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
+        FinoraNotice.of(context)
             .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {

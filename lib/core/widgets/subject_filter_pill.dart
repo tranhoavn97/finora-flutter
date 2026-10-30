@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
 import '../../data/models/finance_models.dart';
 import '../../domain/finance/transaction_member.dart';
+import 'finora_member_filter.dart';
 
 enum OwnerFilter {
   all('all', 'Tất cả'),
@@ -86,7 +86,7 @@ enum OwnerFilter {
   }
 }
 
-/// Pill chọn thành viên phong cách Apple iOS
+/// Nút lọc thành viên chỉ hiển thị Avatar / Icon tròn của người đó (không hiện chữ trên nút)
 class MemberDropdownPill extends StatelessWidget {
   final OwnerFilter selected;
   final ValueChanged<OwnerFilter> onSelected;
@@ -101,119 +101,27 @@ class MemberDropdownPill extends StatelessWidget {
     this.onColoredSurface = false,
   });
 
-  Color _getColor(OwnerFilter filter) {
-    switch (filter) {
-      case OwnerFilter.husband:
-        return const Color(0xFF173B70); // Navy
-      case OwnerFilter.wife:
-        return const Color(0xFFDB2777); // Pink
-      case OwnerFilter.joint:
-      case OwnerFilter.all:
-        return const Color(0xFF6366F1); // Indigo
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final effectiveColor =
-        onColoredSurface ? Colors.white : _getColor(selected);
+    final currentMember = switch (selected) {
+      OwnerFilter.husband => 'husband',
+      OwnerFilter.wife => 'wife',
+      _ => null,
+    };
 
-    return Theme(
-      data: Theme.of(context).copyWith(
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-      ),
-      child: PopupMenuButton<OwnerFilter>(
-        initialValue: selected,
-        tooltip: 'Chọn thành viên',
-        onSelected: (val) {
-          HapticFeedback.selectionClick();
-          onSelected(val);
-        },
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-            width: 1,
-          ),
-        ),
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        elevation: 10,
-        position: PopupMenuPosition.under,
-        offset: const Offset(0, 6),
-        constraints: const BoxConstraints(minWidth: 160),
-        itemBuilder: (ctx) => [
-          _buildMenuItem(OwnerFilter.all, isDark),
-          _buildMenuItem(OwnerFilter.husband, isDark),
-          _buildMenuItem(OwnerFilter.wife, isDark),
-        ],
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 34),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6.5),
-            decoration: BoxDecoration(
-              color: onColoredSurface
-                  ? (isDark ? const Color(0xFF1E293B) : Colors.white)
-                  : (isDark ? const Color(0xFF161F30) : const Color(0xFFF1F5F9)),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: effectiveColor.withValues(alpha: isDark ? 0.35 : 0.22),
-                width: 1.0,
-              ),
-            ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6.5,
-                    height: 6.5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: effectiveColor,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    selected.label,
-                    style: TextStyle(
-                      color: onColoredSurface
-                          ? Colors.white
-                          : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: onColoredSurface
-                        ? Colors.white70
-                        : (isDark ? Colors.white54 : const Color(0xFF64748B)),
-                    size: 16,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-  }
-
-  PopupMenuItem<OwnerFilter> _buildMenuItem(OwnerFilter filter, bool dark) {
-    return CheckedPopupMenuItem<OwnerFilter>(
-      value: filter,
-      checked: filter == selected,
-      child: Text(
-        filter.label,
-        style: TextStyle(
-          color: dark ? Colors.white : const Color(0xFF0F172A),
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
-      ),
+    return FinoraUnifiedMemberPill(
+      currentMember: currentMember,
+      isDark: isDark,
+      height: 36,
+      onSelected: (val) {
+        if (val == 'husband') {
+          onSelected(OwnerFilter.husband);
+        } else if (val == 'wife') {
+          onSelected(OwnerFilter.wife);
+        } else {
+          onSelected(OwnerFilter.all);
+        }
+      },
     );
   }
 }

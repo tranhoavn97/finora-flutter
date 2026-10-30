@@ -6,8 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../demo_data.dart';
-
 class SupabaseBridge {
   static const String supabaseUrl = 'https://negbjqiyborkqqocdcgi.supabase.co';
   static const String supabaseAnonKey =
@@ -104,9 +102,6 @@ class SupabaseBridge {
     required String collection,
     bool includeDeleted = false,
   }) async {
-    if (userId == 'demo') {
-      return demoRows(collection);
-    }
     if (userId.trim().isEmpty) throw StateError('Thiếu tài khoản đăng nhập.');
 
     final token = await _getAuthToken(userId);
@@ -162,9 +157,6 @@ class SupabaseBridge {
     required String collection,
     Duration interval = const Duration(minutes: 5),
   }) {
-    if (userId == 'demo') {
-      return Stream.value(demoRows(collection));
-    }
     return Stream.multi((listener) {
       _observeLifecycle();
       final key = _cacheKey(userId, collection);
@@ -200,7 +192,7 @@ class SupabaseBridge {
   }) async {
     final nowIso = DateTime.now().toUtc().toIso8601String();
     if (userId == 'demo' || userId.trim().isEmpty) {
-      throw StateError('Chế độ xem thử không thể lưu dữ liệu.');
+      throw StateError('Vui lòng đăng nhập để lưu dữ liệu.');
     }
     final token = await _getAuthToken(userId);
     Map<String, dynamic> existingData = {};

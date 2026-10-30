@@ -210,7 +210,6 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
     final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF005FEA);
     final btnGradient = studio?.resolvedButtonGradient ?? [brandPrimary, brandPrimary];
     final btnPrimary = studio?.resolvedButtonPrimary ?? brandPrimary;
-    final btnRadius = studio?.getButtonRadius() ?? 999.0;
 
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final secondaryTextColor =
@@ -735,7 +734,7 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(btnRadius),
+                        borderRadius: BorderRadius.circular(100),
                         boxShadow: [
                           BoxShadow(
                             color: btnPrimary.withValues(alpha: 0.35),
@@ -764,9 +763,7 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(btnRadius),
-                          ),
+                          shape: const StadiumBorder(),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,

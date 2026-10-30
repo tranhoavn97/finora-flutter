@@ -4,38 +4,13 @@ import 'package:flutter/services.dart';
 import '../../widgets/finora_icon_action.dart';
 import 'finora_v8_tokens.dart';
 
-Color _webTabColor(String label, int index) {
-  final text = label.toLowerCase();
-  if (text.contains('thu nhập') || text.contains('tiền mặt') || text == 'con') {
-    return const Color(0xFF34C759);
-  }
-  if (text.contains('chi tiêu')) return const Color(0xFFFF3B30);
-  if (text.contains('đầu tư') || text.contains('tín dụng')) {
-    return const Color(0xFF5856D6);
-  }
-  if (text.contains('vay') || text.contains('tài sản')) {
-    return const Color(0xFFFF9500);
-  }
-  if (text == 'vợ') return const Color(0xFFFF2D55);
-  if (text.contains('chuyển') || text.contains('nơi mua')) {
-    return const Color(0xFF32ADE6);
-  }
-  return const [
-    Color(0xFF007AFF),
-    Color(0xFF34C759),
-    Color(0xFFFF3B30),
-    Color(0xFF32ADE6),
-    Color(0xFF5856D6),
-    Color(0xFFFF9500)
-  ][index % 6];
-}
-
 class FinoraSegmentedTabs extends StatelessWidget {
   final List<String> labels;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
   final List<Color>? colors;
   final List<IconData>? icons;
+  final bool showIcons;
   final bool compact;
   final double? height;
   final double? fontSize;
@@ -47,6 +22,7 @@ class FinoraSegmentedTabs extends StatelessWidget {
     required this.onChanged,
     this.colors,
     this.icons,
+    this.showIcons = false,
     this.compact = false,
     this.height,
     this.fontSize,
@@ -56,21 +32,15 @@ class FinoraSegmentedTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final safeIndex = selectedIndex.clamp(0, labels.length - 1);
-    final active = colors != null && colors!.length > safeIndex
+    final active = (colors != null && safeIndex < colors!.length)
         ? colors![safeIndex]
-        : _webTabColor(labels[safeIndex], safeIndex);
+        : (dark ? const Color(0xFF64748B) : const Color(0xFF475569));
     final x = -1.0 + (2 * safeIndex / (labels.length - 1));
-    final controlHeight = height ??
-        (compact
-            ? FinoraV8Metrics.segmentedCompact
-            : FinoraV8Metrics.segmented);
-    final double effectiveFontSize =
-        fontSize ?? (labels.length >= 5 ? 11.5 : 13.0);
+    final controlHeight = (height ?? 40).clamp(34.0, 48.0);
+    final double effectiveFontSize = fontSize ?? 11.5;
 
     return SizedBox(
-      height: controlHeight < FinoraV8Metrics.minTouchTarget
-          ? FinoraV8Metrics.minTouchTarget
-          : controlHeight,
+      height: controlHeight,
       child: Center(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -80,8 +50,9 @@ class FinoraSegmentedTabs extends StatelessWidget {
               onHorizontalDragUpdate: (details) {
                 if (totalWidth <= 0) return;
                 final tabWidth = totalWidth / labels.length;
-                final targetIndex =
-                    (details.localPosition.dx / tabWidth).floor().clamp(0, labels.length - 1);
+                final targetIndex = (details.localPosition.dx / tabWidth)
+                    .floor()
+                    .clamp(0, labels.length - 1);
                 if (targetIndex != safeIndex) {
                   HapticFeedback.selectionClick();
                   onChanged(targetIndex);
@@ -91,7 +62,8 @@ class FinoraSegmentedTabs extends StatelessWidget {
                 height: controlHeight,
                 padding: const EdgeInsets.all(FinoraV8Space.x1),
                 decoration: BoxDecoration(
-                  color: dark ? FinoraV8Colors.darkTrack : FinoraV8Colors.lightTrack,
+                  color:
+                      dark ? const Color(0xFF202D39) : const Color(0xFFEDF3F1),
                   borderRadius: BorderRadius.circular(FinoraV8Radius.pill),
                   border: Border.all(
                     color: dark
@@ -104,22 +76,27 @@ class FinoraSegmentedTabs extends StatelessWidget {
                   children: [
                     AnimatedAlign(
                       duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutBack,
+                      curve: Curves.easeOutCubic,
                       alignment: Alignment(x, 0),
                       child: FractionallySizedBox(
                         widthFactor: 1 / labels.length,
                         heightFactor: 1,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: active,
-                            borderRadius: BorderRadius.circular(FinoraV8Radius.pill),
-                            boxShadow: [
-                              BoxShadow(
-                                color: active.withValues(alpha: dark ? 0.30 : 0.18),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: active,
+                              borderRadius:
+                                  BorderRadius.circular(FinoraV8Radius.pill),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: active.withValues(
+                                      alpha: dark ? 0.38 : 0.22),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -127,9 +104,6 @@ class FinoraSegmentedTabs extends StatelessWidget {
                     Row(
                       children: List.generate(labels.length, (index) {
                         final selected = index == safeIndex;
-                        final icon = icons != null && icons!.length > index
-                            ? icons![index]
-                            : null;
                         final fgColor = selected
                             ? Colors.white
                             : (dark
@@ -146,47 +120,51 @@ class FinoraSegmentedTabs extends StatelessWidget {
                                 if (!selected) HapticFeedback.selectionClick();
                                 onChanged(index);
                               },
-                        child: Center(
-                          child: AnimatedDefaultTextStyle(
-                            duration: FinoraV8Motion.fast,
-                            curve: FinoraV8Motion.fastCurve,
-                            style: (labels.length >= 5
-                                    ? FinoraV8Type.caption
-                                    : FinoraV8Type.label)
-                                .copyWith(
-                              fontSize: effectiveFontSize,
-                              letterSpacing: -0.2,
-                              color: fgColor,
-                              fontWeight:
-                                  selected ? FontWeight.w800 : FontWeight.w600,
-                            ),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 1.5),
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (icon != null) ...[
-                                      Icon(
-                                        icon,
-                                        size: 13.5,
-                                        color: fgColor,
+                              child: Center(
+                                child: AnimatedDefaultTextStyle(
+                                  duration: FinoraV8Motion.fast,
+                                  curve: FinoraV8Motion.fastCurve,
+                                  style: (labels.length >= 5
+                                          ? FinoraV8Type.caption
+                                          : FinoraV8Type.label)
+                                      .copyWith(
+                                    fontSize: effectiveFontSize,
+                                    letterSpacing: -0.2,
+                                    color: fgColor,
+                                    fontWeight: selected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          if (showIcons &&
+                                              icons != null &&
+                                              index < icons!.length) ...[
+                                            Icon(
+                                              icons![index],
+                                              size: (labels.length >= 5 ? 12 : 14).toDouble(),
+                                              color: fgColor,
+                                            ),
+                                            const SizedBox(width: 4),
+                                          ],
+                                          Text(labels[index], maxLines: 1),
+                                        ],
                                       ),
-                                      const SizedBox(width: 3),
-                                    ],
-                                    Text(labels[index], maxLines: 1),
-                                  ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                  );
+                        );
                       }),
                     ),
                   ],
@@ -228,7 +206,7 @@ class FinoraScrollableSegmentedTabs extends StatelessWidget {
       height: height,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: dark ? FinoraV8Colors.darkTrack : FinoraV8Colors.lightTrack,
+        color: dark ? const Color(0xFF202D39) : const Color(0xFFEDF3F1),
         borderRadius: BorderRadius.circular(FinoraV8Radius.pill),
         border: Border.all(
           color: dark
@@ -244,17 +222,11 @@ class FinoraScrollableSegmentedTabs extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: List.generate(labels.length, (index) {
             final selected = index == safeIndex;
-            final activeColor = colors != null && colors!.length > index
-                ? colors![index]
-                : (dark ? const Color(0xFF10B981) : const Color(0xFF0F6E56));
-            final itemIcon = icons != null && icons!.length > index
-                ? icons![index]
-                : null;
+            final activeColor =
+                dark ? const Color(0xFF64748B) : const Color(0xFF475569);
             final fgColor = selected
                 ? Colors.white
-                : (dark
-                    ? FinoraV8Colors.darkMuted
-                    : FinoraV8Colors.lightMuted);
+                : (dark ? FinoraV8Colors.darkMuted : FinoraV8Colors.lightMuted);
 
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -270,12 +242,11 @@ class FinoraScrollableSegmentedTabs extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: selected ? activeColor : Colors.transparent,
-                      borderRadius:
-                          BorderRadius.circular(FinoraV8Radius.pill),
+                      borderRadius: BorderRadius.circular(FinoraV8Radius.pill),
                       boxShadow: selected
                           ? [
                               BoxShadow(
@@ -291,24 +262,12 @@ class FinoraScrollableSegmentedTabs extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (itemIcon is IconData) ...[
-                            Icon(itemIcon, size: 15, color: fgColor),
-                            const SizedBox(width: 5),
-                          ] else if (itemIcon is String &&
-                              itemIcon.isNotEmpty) ...[
-                            Text(itemIcon, style: const TextStyle(fontSize: 14)),
-                            const SizedBox(width: 5),
-                          ] else if (itemIcon is Widget) ...[
-                            itemIcon,
-                            const SizedBox(width: 5),
-                          ],
                           Text(
                             labels[index],
                             style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: selected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
+                              fontSize: 11.5,
+                              fontWeight:
+                                  selected ? FontWeight.w800 : FontWeight.w600,
                               color: fgColor,
                             ),
                           ),

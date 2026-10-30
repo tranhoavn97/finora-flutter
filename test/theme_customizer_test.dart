@@ -403,48 +403,45 @@ void main() {
       final studio = ThemeStudioController();
       await studio.load();
 
-      // Check defaults
-      expect(studio.systemWideLiquidGlass, isTrue);
-      expect(studio.isSystemWideLiquidGlass, isTrue);
-      expect(studio.liquidGlassSpecularHighlight, isTrue);
-      expect(studio.liquidGlassCausticRefraction, isTrue);
-
-      // Mutate optical parameters
-      await studio.setSystemWideLiquidGlass(false);
-      await studio.setLiquidGlassSpecularHighlight(false);
-      await studio.setLiquidGlassCausticRefraction(false);
-
+      // Check defaults (v27 defaults to false for optimal performance)
       expect(studio.systemWideLiquidGlass, isFalse);
       expect(studio.isSystemWideLiquidGlass, isFalse);
-      expect(studio.liquidGlassSpecularHighlight, isFalse);
-      expect(studio.liquidGlassCausticRefraction, isFalse);
+
+      // Mutate optical parameters
+      await studio.setSystemWideLiquidGlass(true);
+      await studio.setLiquidGlassSpecularHighlight(true);
+      await studio.setLiquidGlassCausticRefraction(true);
+
+      expect(studio.systemWideLiquidGlass, isTrue);
+      expect(studio.liquidGlassSpecularHighlight, isTrue);
+      expect(studio.liquidGlassCausticRefraction, isTrue);
 
       // Verify persistence by loading into a new instance
       final freshStudio = ThemeStudioController();
       await freshStudio.load();
-      expect(freshStudio.systemWideLiquidGlass, isFalse);
-      expect(freshStudio.liquidGlassSpecularHighlight, isFalse);
-      expect(freshStudio.liquidGlassCausticRefraction, isFalse);
+      expect(freshStudio.systemWideLiquidGlass, isTrue);
+      expect(freshStudio.liquidGlassSpecularHighlight, isTrue);
+      expect(freshStudio.liquidGlassCausticRefraction, isTrue);
 
       // Verify export & import preserves liquid glass settings
       final exported = freshStudio.exportThemeCode();
       expect(exported.startsWith('FINORA-'), isTrue);
       final decodedJson = utf8.decode(base64Url.decode(exported.substring(7)));
-      expect(decodedJson.contains('"swlg":0'), isTrue);
-      expect(decodedJson.contains('"lgsh":0'), isTrue);
-      expect(decodedJson.contains('"lgcr":0'), isTrue);
+      expect(decodedJson.contains('"swlg":1'), isTrue);
+      expect(decodedJson.contains('"lgsh":1'), isTrue);
+      expect(decodedJson.contains('"lgcr":1'), isTrue);
 
       final importedStudio = ThemeStudioController();
       await importedStudio.load();
-      await importedStudio.setSystemWideLiquidGlass(true);
-      await importedStudio.setLiquidGlassSpecularHighlight(true);
-      await importedStudio.setLiquidGlassCausticRefraction(true);
+      await importedStudio.setSystemWideLiquidGlass(false);
+      await importedStudio.setLiquidGlassSpecularHighlight(false);
+      await importedStudio.setLiquidGlassCausticRefraction(false);
 
       final importOk = await importedStudio.importThemeCode(exported);
       expect(importOk, isTrue);
-      expect(importedStudio.systemWideLiquidGlass, isFalse);
-      expect(importedStudio.liquidGlassSpecularHighlight, isFalse);
-      expect(importedStudio.liquidGlassCausticRefraction, isFalse);
+      expect(importedStudio.systemWideLiquidGlass, isTrue);
+      expect(importedStudio.liquidGlassSpecularHighlight, isTrue);
+      expect(importedStudio.liquidGlassCausticRefraction, isTrue);
 
       // Reset glass settings
       await importedStudio.resetGlassSettings();

@@ -34,15 +34,28 @@ class LiquidGlassSurface extends StatelessWidget {
         (dark
             ? const Color(0xFF161F30)
             : Colors.white);
+
+    final Widget surface = DecoratedBox(
+      decoration: BoxDecoration(
+        color: gradient == null ? base : null,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: child,
+    );
+
+    if (blur <= 0.1 || !enabled) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: surface,
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: gradient == null ? base : null,
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(radius),
-        ),
-        child: child,
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: surface,
       ),
     );
   }

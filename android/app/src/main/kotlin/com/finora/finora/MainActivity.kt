@@ -3,17 +3,30 @@ package com.finora.finora
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Display
 import android.view.WindowManager
+import androidx.core.app.NotificationManagerCompat
 
 class MainActivity : FlutterActivity() {
+    private var bankInboxChannel: MethodChannel? = null
     private val CHANNEL = "com.finora.display/refresh_rate"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestSmoothDisplay()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("from_bank_sync", false)) {
+            bankInboxChannel?.invokeMethod("openBankInbox", null)
+        }
     }
 
     override fun onPostResume() {
@@ -23,6 +36,23 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.finora/bank_apps").setMethodCallHandler { call, result ->
+            if (call.method != "openBank") {
+                result.notImplemented()
+            } else {
+                val pkg = call.argument<String>("package")
+                if (pkg !in setOf("com.mbmobile", "vn.com.techcombank.bb.app")) {
+                    result.error("UNSUPPORTED_BANK", "Unsupported banking package", null)
+                } else {
+                    try {
+                        val intent = packageManager.getLaunchIntentForPackage(pkg!!)
+                        if (intent == null) result.success(false)
+                        else { startActivity(intent); result.success(true) }
+                    } catch (_: Exception) { result.success(false) }
+                }
+            }
+        }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "enable120Hz" -> {
@@ -36,6 +66,92 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        val bankSyncChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.finora/bank_sync")
+        bankInboxChannel = bankSyncChannel
+        bankSyncChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "consumeBankInboxRequest" -> {
+                    val requested = intent?.getBooleanExtra("from_bank_sync", false) == true
+                    intent?.removeExtra("from_bank_sync")
+                    result.success(requested)
+                }
+                "isPermissionGranted" -> {
+                    try {
+                        val enabledPackages = NotificationManagerCompat.getEnabledListenerPackages(this)
+                        result.success(enabledPackages.contains(packageName))
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "requestPermission" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "openAppInfo" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", packageName, null)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "getPendingNotifications" -> {
+                    try {
+                        val list = FinoraBankNotificationListenerService.getPendingNotifications(this)
+                        result.success(list)
+                    } catch (e: Exception) {
+                        result.success(emptyList<String>())
+                    }
+                }
+                "acknowledgeNotifications" -> {
+                    val ids = call.argument<List<String>>("ids") ?: emptyList()
+                    FinoraBankNotificationListenerService.acknowledge(this, ids)
+                    result.success(true)
+                }
+                "getSyncStatus" -> {
+                    val prefs = getSharedPreferences(FinoraBankNotificationListenerService.PREFS_NAME, MODE_PRIVATE)
+                    result.success(mapOf(
+                        "connected" to FinoraBankNotificationListenerService.connected,
+                        "lastReceivedAt" to prefs.getLong("lastReceivedAt", 0)
+                    ))
+                }
+                "reconnect" -> {
+                    FinoraBankNotificationListenerService.requestReconnect(this)
+                    result.success(true)
+                }
+                "requestPostNotifications" -> {
+                    if (Build.VERSION.SDK_INT >= 33 &&
+                        checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 701)
+                    }
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        FinoraBankNotificationListenerService.onNotificationReceivedListener = { json ->
+            runOnUiThread {
+                bankSyncChannel.invokeMethod("onBankNotification", json.toString())
+            }
+        }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        bankInboxChannel = null
+        FinoraBankNotificationListenerService.onNotificationReceivedListener = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onResume() {

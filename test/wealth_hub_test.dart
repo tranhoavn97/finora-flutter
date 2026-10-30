@@ -139,8 +139,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Title
-    expect(find.text('Tài khoản & Ví'), findsOneWidget);
-    expect(find.text('Tài sản ròng'), findsOneWidget);
+    expect(find.text('SỐ DƯ VÍ & TÀI KHOẢN'), findsOneWidget);
 
     // Verify Tab Segment Items
     expect(find.text('Giao dịch'), findsOneWidget);

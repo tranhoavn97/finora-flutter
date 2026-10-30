@@ -1,3 +1,4 @@
+import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -12,9 +13,11 @@ import '../../data/models/wallet.dart';
 import '../../data/services/wallet_repository.dart';
 import '../../state/transaction_provider.dart';
 import '../../state/wallet_provider.dart';
+import '../planning/planning_hub_screen.dart';
+import '../wallet/wealth_hub_screen.dart';
 import 'add_transaction_page.dart';
 
-/// Modal Chi Tiết Giao Dịch phong cách Sổ kế toán tối giản (2026 Ledger Receipt)
+/// Modal Chi Tiết Giao Dịch phong cách Hero Gradient Card & Inset Pod (Chuẩn Image 2)
 Future<void> showTransactionDetailSheet(
   BuildContext context, {
   required String userId,
@@ -28,11 +31,11 @@ Future<void> showTransactionDetailSheet(
     barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (sheetContext) => Container(
       decoration: BoxDecoration(
-        color: FinoraTokens.surface(isDark),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         border: Border(
           top: BorderSide(
-            color: FinoraTokens.line(isDark),
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             width: 1.0,
           ),
         ),
@@ -49,16 +52,86 @@ Future<void> showTransactionDetailSheet(
 
   if (!context.mounted || action == null) return;
 
+  if (action == 'open_source') {
+    if (transaction.goalId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlanningHubScreen(
+            userId: userId,
+            initialTabIndex: 1,
+          ),
+        ),
+      );
+    } else if (transaction.loanId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => WealthHubScreen(
+            userId: userId,
+            initialTabIndex: 3,
+          ),
+        ),
+      );
+    } else if (transaction.assetId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => WealthHubScreen(
+            userId: userId,
+            initialTabIndex: 2,
+          ),
+        ),
+      );
+    }
+    return;
+  }
+
   if (action == 'edit') {
     if (transaction.loanId != null ||
         transaction.goalId != null ||
         transaction.assetId != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+      final sourceName = transaction.goalId != null
+          ? 'Mục tiêu tài chính'
+          : (transaction.loanId != null ? 'Khoản nợ' : 'Tài sản');
+      FinoraNotice.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            'Giao dịch liên kết cần chỉnh sửa từ mục tương ứng (Mục tiêu, Khoản nợ, Tài sản).',
+            'Giao dịch liên kết với $sourceName. Hãy cập nhật từ màn hình nguồn.',
           ),
-          backgroundColor: Color(0xFFF59E0B),
+          backgroundColor: const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Mở nguồn',
+            textColor: Colors.white,
+            onPressed: () {
+              if (transaction.goalId != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PlanningHubScreen(
+                      userId: userId,
+                      initialTabIndex: 1,
+                    ),
+                  ),
+                );
+              } else if (transaction.loanId != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => WealthHubScreen(
+                      userId: userId,
+                      initialTabIndex: 3,
+                    ),
+                  ),
+                );
+              } else if (transaction.assetId != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => WealthHubScreen(
+                      userId: userId,
+                      initialTabIndex: 2,
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
         ),
       );
       return;
@@ -66,7 +139,8 @@ Future<void> showTransactionDetailSheet(
     await Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => AddTransactionPage(userId: userId, existing: transaction),
+        builder: (_) =>
+            AddTransactionPage(userId: userId, existing: transaction),
       ),
     );
   } else if (action == 'delete') {
@@ -79,7 +153,7 @@ Future<void> showTransactionDetailSheet(
     if (confirm && context.mounted) {
       await context.read<TransactionProvider>().delete(userId, transaction.id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FinoraNotice.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đã xóa giao dịch thành công.'),
             behavior: SnackBarBehavior.floating,
@@ -194,7 +268,8 @@ class _TransactionDetailModalContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final txProvider = Provider.of<TransactionProvider?>(context, listen: false);
+    final txProvider =
+        Provider.of<TransactionProvider?>(context, listen: false);
     final walletProvider = Provider.of<WalletProvider?>(context, listen: false);
     final allWallets = <Wallet>[
       ...?txProvider?.wallets,
@@ -235,26 +310,28 @@ class _TransactionDetailModalContent extends StatelessWidget {
         {'income', 'borrowing', 'loan_repayment_received'}.contains(normType);
     final isTransfer = normType == 'transfer';
 
-    // Ledger Theme Semantics based on Transaction Type
-    final Color amountColor;
+    // Semantic colors & copy matching Image 2
+    final List<Color> heroGradientColors;
+    final Color heroShadowColor;
     final String sign;
     final String statusBadgeText;
 
     if (isTransfer) {
-      amountColor = FinoraTokens.ink(isDark);
-      statusBadgeText = 'Chuyển khoản nội bộ';
+      heroGradientColors = const [Color(0xFF005FEA), Color(0xFF0284C7)];
+      heroShadowColor = const Color(0xFF005FEA).withValues(alpha: 0.35);
+      statusBadgeText = 'CHUYỂN KHOẢN NỘI BỘ';
       sign = '';
     } else if (isInflow) {
-      amountColor = isDark ? FinoraTokens.posGreenDark : FinoraTokens.posGreen;
-      statusBadgeText = normType == 'borrowing'
-          ? 'Khoản đi vay'
-          : 'Đã hoàn tất · Thu nhập';
+      heroGradientColors = const [Color(0xFF10B981), Color(0xFF059669)];
+      heroShadowColor = const Color(0xFF059669).withValues(alpha: 0.35);
+      statusBadgeText =
+          normType == 'borrowing' ? 'KHOẢN ĐI VAY' : 'TIỀN VÀO (THU NHẬP)';
       sign = '+';
     } else {
-      amountColor = isDark ? FinoraTokens.negRedDark : FinoraTokens.negRed;
-      statusBadgeText = normType == 'loan'
-          ? 'Khoản cho vay'
-          : 'Đã hoàn tất · Chi tiêu';
+      heroGradientColors = const [Color(0xFFFF3B46), Color(0xFFF5253E)];
+      heroShadowColor = const Color(0xFFF5253E).withValues(alpha: 0.35);
+      statusBadgeText =
+          normType == 'loan' ? 'KHOẢN CHO VAY' : 'TIỀN RA (CHI TIÊU)';
       sign = '−';
     }
 
@@ -266,14 +343,15 @@ class _TransactionDetailModalContent extends StatelessWidget {
     final weekdayName = _getWeekdayVietnamese(date.weekday);
 
     final hasCustomNote = tx.note != null && tx.note!.trim().isNotEmpty;
-    final displayTitle = hasCustomNote ? tx.note!.trim() : (tx.categoryName ?? 'Giao dịch');
+    final displayTitle =
+        hasCustomNote ? tx.note!.trim() : (tx.categoryName ?? 'Giao dịch');
     final isWife = _resolveIsWife(tx, matchingWallet);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         0,
-        8,
+        10,
         0,
         MediaQuery.of(context).viewInsets.bottom + 16,
       ),
@@ -284,184 +362,289 @@ class _TransactionDetailModalContent extends StatelessWidget {
           // 1. TOP SHEET DRAG HANDLE
           Center(
             child: Container(
-              width: 36,
+              width: 44,
               height: 4.5,
               decoration: BoxDecoration(
-                color: isDark ? FinoraTokens.paperLine2Dark : FinoraTokens.paperLine2Light,
-                borderRadius: BorderRadius.circular(99),
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(100),
               ),
             ),
           ),
           const SizedBox(height: 10),
 
-          // Header Row with Title and Close Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                const SizedBox(width: 32),
-                Expanded(
-                  child: Text(
-                    'Chi tiết giao dịch',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'BeVietnamPro',
-                      color: FinoraTokens.ink(isDark),
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => Navigator.pop(context),
-                  borderRadius: BorderRadius.circular(100),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: FinoraTokens.surface2(isDark),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: FinoraTokens.line(isDark),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 16,
-                      color: FinoraTokens.ink(isDark),
-                    ),
-                  ),
+          // 2. HERO GRADIENT CARD (Image 2 Parity)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: heroGradientColors,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: heroShadowColor,
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 14),
-
-          // 2. HERO RECEIPT BLOCK (Editorial Minimalist)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Category Tile 52x52
+                // Circular frame enclosing the full category icon.
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 70,
+                  height: 70,
                   decoration: BoxDecoration(
-                    color: FinoraTokens.surface2(isDark),
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white.withValues(alpha: 0.22),
+                    shape: BoxShape.circle,
                     border: Border.all(
-                      color: FinoraTokens.line(isDark),
-                      width: 1.0,
+                      color: Colors.white.withValues(alpha: 0.45),
+                      width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: heroShadowColor.withValues(alpha: 0.40),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Center(
-                    child: CategoryIconBadge(
-                      icon: tx.categoryIcon,
-                      categoryName: tx.categoryName,
-                      size: 28,
-                      isDark: isDark,
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: CategoryIconBadge(
+                          icon: tx.categoryIcon,
+                          categoryName: tx.categoryName,
+                          size: 52,
+                          isDark: false,
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                // Big Hero Amount with Tabular Figures
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    '$sign${formatVND(tx.amount)}',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'BeVietnamPro',
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      color: amountColor,
-                      letterSpacing: -0.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // Note or Category Title
-                Text(
-                  displayTitle,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'BeVietnamPro',
-                    color: FinoraTokens.ink(isDark),
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-
-                // Status Badge
+                // Translucent Status Capsule Pill
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                   decoration: BoxDecoration(
-                    color: FinoraTokens.surface2(isDark),
+                    color: Colors.white.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(
-                      color: FinoraTokens.line(isDark),
-                      width: 0.8,
+                      color: Colors.white.withValues(alpha: 0.40),
+                      width: 1.0,
                     ),
                   ),
-                  child: Text(
-                    statusBadgeText,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'BeVietnamPro',
-                      color: FinoraTokens.inkSecondary(isDark),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isTransfer
+                            ? Icons.swap_horiz_rounded
+                            : (isInflow
+                                ? Icons.arrow_downward_rounded
+                                : Icons.check_circle_rounded),
+                        size: 13,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        statusBadgeText,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'BeVietnamPro',
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Large Amount with Underlined Currency Symbol
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$sign${formatVND(tx.amount)}',
+                          style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: 'BeVietnamPro',
+                            color: Colors.white,
+                            letterSpacing: -0.6,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const TextSpan(text: ' '),
+                        const TextSpan(
+                          text: 'đ',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: 'BeVietnamPro',
+                            color: Colors.white,
+                            decoration: TextDecoration.underline,
+                            decorationThickness: 2.2,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+                const SizedBox(height: 10),
+
+                // Timestamp with Clock Icon
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$formattedTime · $weekdayName, $formattedDate',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'BeVietnamPro',
+                        color: Colors.white.withValues(alpha: 0.90),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // 3. DETAILED LEDGER RECEIPT POD
+          // 3. INSET DETAILS CARD (Image 2 Parity)
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: FinoraTokens.surface2(isDark),
-              borderRadius: BorderRadius.circular(18),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: FinoraTokens.line(isDark),
-                width: 1.0,
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                width: 1.2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Row 1: Category
-                _buildReceiptRow(
+                // Row 1: Nội dung
+                _buildInsetRow(
                   isDark: isDark,
+                  iconBoxColor: const Color(0xFFE0F2FE),
+                  iconColor: const Color(0xFF0284C7),
+                  icon: Icons.notes_rounded,
+                  label: 'Nội dung',
+                  valueWidget: Text(
+                    displayTitle,
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'BeVietnamPro',
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+                _buildHairlineDivider(isDark),
+
+                // Row 2: Danh mục
+                _buildInsetRow(
+                  isDark: isDark,
+                  iconBoxColor: const Color(0xFFF3E8FF),
+                  iconColor: const Color(0xFF9333EA),
+                  icon: Icons.category_rounded,
                   label: 'Danh mục',
                   valueWidget: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CategoryIconBadge(
-                        icon: tx.categoryIcon,
-                        categoryName: tx.categoryName,
-                        size: 20,
-                        isDark: isDark,
+                      // Rounded square container tinted with transaction semantic color enclosing a full circular category icon
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: heroGradientColors.first
+                              .withValues(alpha: isDark ? 0.25 : 0.12),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: heroGradientColors.first
+                                .withValues(alpha: isDark ? 0.40 : 0.25),
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            clipBehavior: Clip.antiAlias,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
+                            child: Center(
+                              child: CategoryIconBadge(
+                                icon: tx.categoryIcon,
+                                categoryName: tx.categoryName,
+                                size: 20,
+                                isDark: false,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           tx.categoryName ?? 'Chưa phân loại',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
                             fontFamily: 'BeVietnamPro',
-                            color: FinoraTokens.ink(isDark),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -472,17 +655,20 @@ class _TransactionDetailModalContent extends StatelessWidget {
 
                 _buildHairlineDivider(isDark),
 
-                // Row 2: Source Wallet
-                _buildReceiptRow(
+                // Row 3: Tài khoản / Ví
+                _buildInsetRow(
                   isDark: isDark,
-                  label: isTransfer ? 'Từ ví nguồn' : 'Nguồn tiền',
+                  iconBoxColor: const Color(0xFFD1FAE5),
+                  iconColor: const Color(0xFF059669),
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: isTransfer ? 'Từ ví nguồn' : 'Tài khoản / Ví',
                   valueWidget: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       BankIcon(
                         bankCode: sourceBankCode,
                         bankName: sourceBankName,
-                        size: 20,
+                        size: 24,
                       ),
                       const SizedBox(width: 8),
                       Flexible(
@@ -492,10 +678,11 @@ class _TransactionDetailModalContent extends StatelessWidget {
                               tx.fromWalletName ??
                               'Tiền mặt',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
                             fontFamily: 'BeVietnamPro',
-                            color: FinoraTokens.ink(isDark),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -504,14 +691,17 @@ class _TransactionDetailModalContent extends StatelessWidget {
                   ),
                 ),
 
-                // Row 2.1: Destination Wallet (if Transfer)
+                // Row 3.1: Đến ví nhận (nếu Chuyển khoản)
                 if (isTransfer &&
                     (tx.toWalletName != null ||
                         tx.creditCardName != null ||
                         destWallet != null)) ...[
                   _buildHairlineDivider(isDark),
-                  _buildReceiptRow(
+                  _buildInsetRow(
                     isDark: isDark,
+                    iconBoxColor: const Color(0xFFE0F2FE),
+                    iconColor: const Color(0xFF0284C7),
+                    icon: Icons.arrow_forward_rounded,
                     label: 'Đến ví nhận',
                     valueWidget: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -519,7 +709,7 @@ class _TransactionDetailModalContent extends StatelessWidget {
                         BankIcon(
                           bankCode: destBankCode,
                           bankName: destBankName,
-                          size: 20,
+                          size: 24,
                         ),
                         const SizedBox(width: 8),
                         Flexible(
@@ -529,10 +719,12 @@ class _TransactionDetailModalContent extends StatelessWidget {
                                 tx.creditCardName ??
                                 'Ví đích',
                             style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
                               fontFamily: 'BeVietnamPro',
-                              color: FinoraTokens.ink(isDark),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -544,32 +736,85 @@ class _TransactionDetailModalContent extends StatelessWidget {
 
                 _buildHairlineDivider(isDark),
 
-                // Row 3: Timestamp
-                _buildReceiptRow(
+                // Row 4: Người ghi chép
+                _buildInsetRow(
                   isDark: isDark,
-                  label: 'Thời gian',
-                  value: '$formattedTime · $weekdayName $formattedDate',
-                  isTabular: true,
+                  iconBoxColor: const Color(0xFFFCE7F3),
+                  iconColor: const Color(0xFFDB2777),
+                  icon: Icons.person_rounded,
+                  label: 'Người ghi chép',
+                  valueWidget: isWife
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFDF2F8),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: const Color(0xFFFBCFE8),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '♀',
+                                style: TextStyle(
+                                  color: Color(0xFFDB2777),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Vợ',
+                                style: TextStyle(
+                                  color: Color(0xFFDB2777),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'BeVietnamPro',
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: const Color(0xFFBFDBFE),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '♂',
+                                style: TextStyle(
+                                  color: Color(0xFF2563EB),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Chồng',
+                                style: TextStyle(
+                                  color: Color(0xFF2563EB),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'BeVietnamPro',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
-
-                _buildHairlineDivider(isDark),
-
-                // Row 4: Member
-                _buildReceiptRow(
-                  isDark: isDark,
-                  label: 'Người chi',
-                  value: isWife ? 'Thảo Linh (Vợ)' : 'Hòa Trần (Chồng)',
-                ),
-
-                // Row 5: Custom Note (if present)
-                if (hasCustomNote && tx.categoryName != null) ...[
-                  _buildHairlineDivider(isDark),
-                  _buildReceiptRow(
-                    isDark: isDark,
-                    label: 'Ghi chú',
-                    value: tx.note!,
-                  ),
-                ],
               ],
             ),
           ),
@@ -581,11 +826,15 @@ class _TransactionDetailModalContent extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: (isDark ? FinoraTokens.warnAmberDark : FinoraTokens.warnAmber)
+                color: (isDark
+                        ? FinoraTokens.warnAmberDark
+                        : FinoraTokens.warnAmber)
                     .withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: (isDark ? FinoraTokens.warnAmberDark : FinoraTokens.warnAmber)
+                  color: (isDark
+                          ? FinoraTokens.warnAmberDark
+                          : FinoraTokens.warnAmber)
                       .withValues(alpha: 0.30),
                   width: 1.0,
                 ),
@@ -594,8 +843,10 @@ class _TransactionDetailModalContent extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.link_rounded,
-                    color: isDark ? FinoraTokens.warnAmberDark : FinoraTokens.warnAmber,
-                    size: 18,
+                    color: isDark
+                        ? FinoraTokens.warnAmberDark
+                        : FinoraTokens.warnAmber,
+                    size: 20,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -607,9 +858,53 @@ class _TransactionDetailModalContent extends StatelessWidget {
                               : 'Giao dịch liên kết dòng tiền Tài sản tích lũy.'),
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? FinoraTokens.warnAmberDark : FinoraTokens.warnAmber,
-                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? FinoraTokens.warnAmberDark
+                            : FinoraTokens.warnAmber,
+                        fontWeight: FontWeight.w600,
                         height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      Navigator.pop(context, 'open_source');
+                    },
+                    borderRadius: BorderRadius.circular(100),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: (isDark
+                                ? FinoraTokens.warnAmberDark
+                                : FinoraTokens.warnAmber)
+                            .withValues(alpha: 0.20),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Mở nguồn',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? FinoraTokens.warnAmberDark
+                                  : FinoraTokens.warnAmber,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 13,
+                            color: isDark
+                                ? FinoraTokens.warnAmberDark
+                                : FinoraTokens.warnAmber,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -620,12 +915,61 @@ class _TransactionDetailModalContent extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // 4. ACTION BUTTONS ROW (Edit Primary + Delete Danger Outline)
+          // 4. ACTION BUTTONS ROW (Image 2 Parity: Pink Xóa + Emerald Chỉnh sửa)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                // Edit Button (Flexible 1)
+                // Delete Button (Solid Red with White Text)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      Navigator.pop(context, 'delete');
+                    },
+                    borderRadius: BorderRadius.circular(100),
+                    child: Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE11D48),
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFE11D48).withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.delete_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Xóa',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'BeVietnamPro',
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                // Edit Button (Crystal Emerald Gradient)
                 Expanded(
                   child: Material(
                     color: Colors.transparent,
@@ -634,69 +978,43 @@ class _TransactionDetailModalContent extends StatelessWidget {
                         HapticFeedback.lightImpact();
                         Navigator.pop(context, 'edit');
                       },
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(100),
                       child: Container(
-                        height: 44,
+                        height: 48,
                         decoration: BoxDecoration(
-                          color: FinoraTokens.ink(isDark),
-                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF003D35), Color(0xFF00866A), Color(0xFF10B981)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(100),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00866A).withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.edit_rounded,
                               size: 16,
-                              color: isDark ? FinoraTokens.paperBgDark : Colors.white,
+                              color: Colors.white,
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Text(
                               'Chỉnh sửa',
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
                                 fontFamily: 'BeVietnamPro',
-                                color: isDark ? FinoraTokens.paperBgDark : Colors.white,
+                                color: Colors.white,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                // Delete Button (Compact 44x44 danger button)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      Navigator.pop(context, 'delete');
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF261314)
-                            : const Color(0xFFFDF3F2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF5A2222)
-                              : const Color(0xFFF3C8C5),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.delete_outline_rounded,
-                          size: 18,
-                          color: isDark ? FinoraTokens.negRedDark : FinoraTokens.negRed,
                         ),
                       ),
                     ),
@@ -710,45 +1028,49 @@ class _TransactionDetailModalContent extends StatelessWidget {
     );
   }
 
-  Widget _buildReceiptRow({
+  Widget _buildInsetRow({
     required bool isDark,
+    required Color iconBoxColor,
+    required Color iconColor,
+    required IconData icon,
     required String label,
-    String? value,
-    Widget? valueWidget,
-    bool isTabular = false,
+    required Widget valueWidget,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconBoxColor,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                size: 17,
+                color: iconColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           Text(
             label,
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
               fontFamily: 'BeVietnamPro',
-              color: FinoraTokens.inkSecondary(isDark),
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Align(
               alignment: Alignment.centerRight,
-              child: valueWidget ??
-                  Text(
-                    value ?? '',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'BeVietnamPro',
-                      fontFeatures: isTabular ? const [FontFeature.tabularFigures()] : null,
-                      color: FinoraTokens.ink(isDark),
-                    ),
-                    textAlign: TextAlign.end,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              child: valueWidget,
             ),
           ),
         ],
@@ -758,9 +1080,9 @@ class _TransactionDetailModalContent extends StatelessWidget {
 
   Widget _buildHairlineDivider(bool isDark) {
     return Divider(
-      height: 18,
+      height: 20,
       thickness: 0.8,
-      color: FinoraTokens.line(isDark),
+      color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
     );
   }
 

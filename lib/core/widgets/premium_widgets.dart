@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -49,6 +50,9 @@ class AmbientFloatingBackground extends StatelessWidget {
   final Widget child;
   const AmbientFloatingBackground({super.key, required this.child});
 
+  bool _usesCalmBackdrop(ThemeStudioController? studio) =>
+      studio == null || studio.palette == AppColorPalette.emeraldWealth;
+
   @override
   Widget build(BuildContext context) {
     // If an ancestor already provides ambient floating background, avoid stacking duplicate backgrounds & orbs
@@ -62,6 +66,12 @@ class AmbientFloatingBackground extends StatelessWidget {
       studio = Provider.of<ThemeStudioController?>(context);
     } catch (_) {
       studio = null;
+    }
+    final useCalmEmerald = _usesCalmBackdrop(studio);
+    if (studio?.freshAppearance == true) {
+      return _AmbientScope(
+        child: ColoredBox(color: FinoraTokens.bg(isDark), child: child),
+      );
     }
     final meta = studio?.currentAmbientBlurMeta;
     final vibrancy = studio?.gradientVibrancy ?? 1.15;
@@ -99,33 +109,36 @@ class AmbientFloatingBackground extends StatelessWidget {
 
     final isDefaultAurora = meta?.preset == AmbientBlurPreset.rainbowAurora;
     final paletteDarkBg =
-        studio?.currentPaletteMeta.darkBg ?? const Color(0xFF0E0F10);
+        studio?.currentPaletteMeta.darkBg ?? const Color(0xFF0B0D11);
     final paletteLightBg =
-        studio?.currentPaletteMeta.lightBg ?? const Color(0xFFF6F5F2);
+        studio?.currentPaletteMeta.lightBg ?? const Color(0xFFF8FAFC);
 
     final List<Color> ambientBgColors;
-    if (meta?.preset == AmbientBlurPreset.amoledPitch && isDark) {
+    if (useCalmEmerald) {
+      ambientBgColors = isDark
+          ? const [
+              Color(0xFF081410),
+              Color(0xFF0B1A15),
+              Color(0xFF060F0C),
+            ]
+          : const [
+              Color(0xFFF0FDF4),
+              Color(0xFFFAFCFA),
+              Color(0xFFECFDF5),
+            ];
+    } else if (meta?.preset == AmbientBlurPreset.amoledPitch && isDark) {
       ambientBgColors = const [
         Color(0xFF000000),
         Color(0xFF000000),
         Color(0xFF000000)
       ];
-    } else if (isDefaultAurora || meta == null || !(studio?.systemWideLiquidGlass ?? false)) {
-      // Clean Warm Paper & Ink minimal surface
-      ambientBgColors = isDark
-          ? const [
-              Color(0xFF0E0F10),
-              Color(0xFF0E0F10),
-              Color(0xFF0E0F10),
-            ]
-          : const [
-              Color(0xFFF6F5F2),
-              Color(0xFFF6F5F2),
-              Color(0xFFF6F5F2),
-            ];
     } else {
       // Tint custom preset with active palette primary so palette choice still transforms the screen
-      final rawColors = isDark ? meta.bgColorsDark : meta.bgColorsLight;
+      final rawColors = isDark
+          ? (meta?.bgColorsDark ??
+              [paletteDarkBg, paletteDarkBg, paletteDarkBg])
+          : (meta?.bgColorsLight ??
+              [paletteLightBg, paletteLightBg, paletteLightBg]);
       ambientBgColors = rawColors
           .map((c) => Color.alphaBlend(
               primaryColor.withValues(alpha: isDark ? 0.08 : 0.03), c))
@@ -152,29 +165,34 @@ class AmbientFloatingBackground extends StatelessWidget {
       final intensity = (studio?.customBgIntensity ?? 0.18).clamp(0.05, 0.45);
       final c1 = studio?.customBgColor1 ?? const Color(0xFF10B981);
       final c2 = studio?.customBgColor2 ?? const Color(0xFF0284C7);
-      final c3 = studio?.customBgColor3 ?? const Color(0xFF8B5CF6);
+      final c3 = studio?.customBgColor3 ?? const Color(0xFF059669);
       if (isDark) {
         effectiveBgColors = [
-          Color.alphaBlend(c1.withValues(alpha: intensity * 0.40), paletteDarkBg),
-          Color.alphaBlend(c2.withValues(alpha: intensity * 0.30), paletteDarkBg),
-          Color.alphaBlend(c3.withValues(alpha: intensity * 0.36), paletteDarkBg),
+          Color.alphaBlend(
+              c1.withValues(alpha: intensity * 0.40), paletteDarkBg),
+          Color.alphaBlend(
+              c2.withValues(alpha: intensity * 0.30), paletteDarkBg),
+          Color.alphaBlend(
+              c3.withValues(alpha: intensity * 0.36), paletteDarkBg),
         ];
       } else {
         effectiveBgColors = [
-          Color.alphaBlend(c1.withValues(alpha: intensity * 0.30), paletteLightBg),
-          Color.alphaBlend(c2.withValues(alpha: intensity * 0.22), const Color(0xFFF8FAF9)),
-          Color.alphaBlend(c3.withValues(alpha: intensity * 0.26), paletteLightBg),
+          Color.alphaBlend(
+              c1.withValues(alpha: intensity * 0.30), paletteLightBg),
+          Color.alphaBlend(
+              c2.withValues(alpha: intensity * 0.22), const Color(0xFFF8FAF9)),
+          Color.alphaBlend(
+              c3.withValues(alpha: intensity * 0.26), paletteLightBg),
         ];
       }
     } else if (studio?.useCustomBgGradient == true &&
-        (studio?.getEffectiveCustomBgGradientColors(isDark).length ?? 0) >=
-            2) {
+        (studio?.getEffectiveCustomBgGradientColors(isDark).length ?? 0) >= 2) {
       effectiveBgColors = studio!.getEffectiveCustomBgGradientColors(isDark);
     } else {
       effectiveBgColors = bgColors;
     }
 
-    final orbOpacity = (isDark ? 0.32 : 0.24) *
+    final orbOpacity = (isDark ? 0.22 : 0.12) *
         vibrancy *
         (studio?.backgroundTintOpacity ?? 0.85) *
         (studio?.prefersQuietBackground == true ? 0.22 : 1.0);
@@ -199,7 +217,7 @@ class AmbientFloatingBackground extends StatelessWidget {
       rawOrb5 = seasonalPair != null
           ? seasonalPair.$1
           : Color.lerp(primaryColor, const Color(0xFFF59E0B), 0.5)!;
-      rawOrb6 = Color.lerp(secondaryColor, const Color(0xFF6366F1), 0.6)!;
+      rawOrb6 = Color.lerp(secondaryColor, const Color(0xFF00866A), 0.6)!;
     } else {
       // Harmonize preset orbs with current palette primary
       rawOrb1 = Color.lerp(meta.orb1, primaryColor, 0.45)!;
@@ -211,7 +229,7 @@ class AmbientFloatingBackground extends StatelessWidget {
       rawOrb5 = seasonalPair != null
           ? seasonalPair.$1
           : Color.lerp(primaryColor, const Color(0xFFF59E0B), 0.5)!;
-      rawOrb6 = Color.lerp(secondaryColor, const Color(0xFF6366F1), 0.6)!;
+      rawOrb6 = Color.lerp(secondaryColor, const Color(0xFF00866A), 0.6)!;
     }
 
     final orb1Color =
@@ -334,16 +352,61 @@ class AmbientFloatingBackground extends StatelessWidget {
                     painter: CustomRgbMeshBlurPainter(
                       color1: studio?.customBgColor1 ?? const Color(0xFF10B981),
                       color2: studio?.customBgColor2 ?? const Color(0xFF0284C7),
-                      color3: studio?.customBgColor3 ?? const Color(0xFF8B5CF6),
-                      intensity: (studio?.customBgIntensity ?? 0.18).clamp(0.0, 0.45),
-                      blurSigma: (studio?.customBgBlur ?? 65.0).clamp(20.0, 100.0),
-                      blendStyle: studio?.meshBlendStyle ?? MeshBlendStyle.radialMesh,
+                      color3: studio?.customBgColor3 ?? const Color(0xFF059669),
+                      intensity:
+                          (studio?.customBgIntensity ?? 0.18).clamp(0.0, 0.45),
+                      blurSigma:
+                          (studio?.customBgBlur ?? 65.0).clamp(20.0, 100.0),
+                      blendStyle:
+                          studio?.meshBlendStyle ?? MeshBlendStyle.radialMesh,
                       isDark: isDark,
                     ),
                   ),
                 ),
               ),
             ),
+
+          // Subtle Pastel Corner Mesh Blobs (Soft white + emerald / sea blue + blur layer)
+          if (!isAmoled) ...[
+            Positioned(
+              top: -80,
+              right: -60,
+              child: _buildOrb(
+                size: 380,
+                color:
+                    (isDark ? const Color(0xFF10B981) : const Color(0xFF10B981))
+                        .withValues(alpha: isDark ? 0.16 : 0.12),
+              ),
+            ),
+            Positioned(
+              bottom: 120,
+              left: -80,
+              child: _buildOrb(
+                size: 360,
+                color:
+                    (isDark ? const Color(0xFF0284C7) : const Color(0xFF005FEA))
+                        .withValues(alpha: isDark ? 0.15 : 0.10),
+              ),
+            ),
+            Positioned(
+              top: 260,
+              left: -100,
+              child: _buildOrb(
+                size: 320,
+                color:
+                    (isDark ? const Color(0xFF059669) : const Color(0xFF06B6D4))
+                        .withValues(alpha: isDark ? 0.12 : 0.08),
+              ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ],
 
           // Floating Chromatic Orbs Layer (Common across styles unless AMOLED)
           if (!isAmoled &&
@@ -492,7 +555,22 @@ class AmbientFloatingBackground extends StatelessWidget {
 
   Widget _buildOrb(
       {required double size, required Color color, double? blurSigma}) {
-    return const SizedBox.shrink();
+    if (color.a == 0) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color,
+              color.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -522,7 +600,8 @@ class CustomRgbMeshBlurPainter extends CustomPainter {
 
     final shortest = size.shortestSide > 0 ? size.shortestSide : 390.0;
     final blurFactor = (blurSigma / 65.0).clamp(0.60, 1.60);
-    final effectiveAlpha = (intensity * (isDark ? 1.55 : 1.35)).clamp(0.12, 0.70);
+    final effectiveAlpha =
+        (intensity * (isDark ? 1.55 : 1.35)).clamp(0.12, 0.70);
 
     switch (blendStyle) {
       case MeshBlendStyle.auroraWave:
@@ -538,17 +617,18 @@ class CustomRgbMeshBlurPainter extends CustomPainter {
         break;
 
       case MeshBlendStyle.prismaticFusion:
-        _paintPrismaticFusion(canvas, size, shortest, blurFactor, effectiveAlpha);
+        _paintPrismaticFusion(
+            canvas, size, shortest, blurFactor, effectiveAlpha);
         break;
 
       case MeshBlendStyle.radialMesh:
-      default:
         _paintRadialMesh(canvas, size, shortest, blurFactor, effectiveAlpha);
         break;
     }
   }
 
-  void _paintRadialMesh(Canvas canvas, Size size, double shortest, double blurFactor, double effectiveAlpha) {
+  void _paintRadialMesh(Canvas canvas, Size size, double shortest,
+      double blurFactor, double effectiveAlpha) {
     // Blob 1: Top-Left (Primary RGB Orb)
     final center1 = Offset(size.width * 0.12, size.height * 0.10);
     final radius1 = shortest * 1.10 * blurFactor;
@@ -606,9 +686,11 @@ class CustomRgbMeshBlurPainter extends CustomPainter {
     canvas.drawCircle(center4, radius4, paint4);
   }
 
-  void _paintAuroraWave(Canvas canvas, Size size, double shortest, double blurFactor, double effectiveAlpha) {
+  void _paintAuroraWave(Canvas canvas, Size size, double shortest,
+      double blurFactor, double effectiveAlpha) {
     // Upper Aurora Wave (Sweeping ribbon from left to right)
-    final rect1 = Rect.fromLTWH(-size.width * 0.2, -size.height * 0.1, size.width * 1.4, size.height * 0.55);
+    final rect1 = Rect.fromLTWH(-size.width * 0.2, -size.height * 0.1,
+        size.width * 1.4, size.height * 0.55);
     final paint1 = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
@@ -623,7 +705,8 @@ class CustomRgbMeshBlurPainter extends CustomPainter {
     canvas.drawRect(rect1, paint1);
 
     // Mid Aurora Wave (Diagonal chromatic ripple)
-    final rect2 = Rect.fromLTWH(0, size.height * 0.30, size.width * 1.2, size.height * 0.50);
+    final rect2 = Rect.fromLTWH(
+        0, size.height * 0.30, size.width * 1.2, size.height * 0.50);
     final paint2 = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topRight,
@@ -653,7 +736,8 @@ class CustomRgbMeshBlurPainter extends CustomPainter {
     canvas.drawCircle(center3, radius3, paint3);
   }
 
-  void _paintLinearFlow(Canvas canvas, Size size, double shortest, double blurFactor, double effectiveAlpha) {
+  void _paintLinearFlow(Canvas canvas, Size size, double shortest,
+      double blurFactor, double effectiveAlpha) {
     // Primary Diagonal Flow
     final rect1 = Rect.fromLTWH(0, 0, size.width, size.height);
     final paint1 = Paint()
@@ -684,7 +768,8 @@ class CustomRgbMeshBlurPainter extends CustomPainter {
     canvas.drawRect(rect1, paint2);
   }
 
-  void _paintCenterAura(Canvas canvas, Size size, double shortest, double blurFactor, double effectiveAlpha) {
+  void _paintCenterAura(Canvas canvas, Size size, double shortest,
+      double blurFactor, double effectiveAlpha) {
     final center = Offset(size.width * 0.50, size.height * 0.40);
     final radius = shortest * 1.35 * blurFactor;
 
@@ -715,7 +800,8 @@ class CustomRgbMeshBlurPainter extends CustomPainter {
     canvas.drawCircle(subCenter, subRadius, paint2);
   }
 
-  void _paintPrismaticFusion(Canvas canvas, Size size, double shortest, double blurFactor, double effectiveAlpha) {
+  void _paintPrismaticFusion(Canvas canvas, Size size, double shortest,
+      double blurFactor, double effectiveAlpha) {
     // Vertex 1: Top-Left (Color 1)
     final c1 = Offset(size.width * 0.15, size.height * 0.15);
     final r1 = shortest * 1.05 * blurFactor;
@@ -850,7 +936,8 @@ class FloatingGlassCard extends StatelessWidget {
     }
 
     final isLiquidGlass = studio?.isSystemWideLiquidGlass ?? false;
-    final shouldBlur = effectiveBlur > 0.1 && isLiquidGlass;
+    final shouldBlur = effectiveBlur > 0.5 &&
+        ((studio?.glassOpacity ?? 1.0) < 0.98 || isLiquidGlass);
 
     if (shouldBlur) {
       final primaryColor = studio?.resolvedPrimary ?? const Color(0xFF005FEA);
@@ -877,24 +964,32 @@ class FloatingGlassCard extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(effectiveRadius),
-          child: Stack(
-            fit: StackFit.passthrough,
-            children: [
-              // Layer 1: Base Container / Gradient Fill
-              Container(
-                decoration: BoxDecoration(
-                  color: dec?.gradient != null
-                      ? null
-                      : (dec?.color ??
-                          (isDark
-                              ? const Color(0xFF142238)
-                                  .withValues(alpha: 0.88)
-                              : Colors.white.withValues(alpha: 0.94))),
-                  gradient: dec?.gradient,
-                  borderRadius: BorderRadius.circular(effectiveRadius),
-                  border: isLiquidGlass ? null : dec?.border,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: effectiveBlur.clamp(0.0, 32.0),
+              sigmaY: effectiveBlur.clamp(0.0, 32.0),
+            ),
+            child: Stack(
+              fit: StackFit.passthrough,
+              children: [
+                // Layer 1: Base Container / Gradient Fill
+                Container(
+                  decoration: BoxDecoration(
+                    color: dec?.gradient != null
+                        ? null
+                        : (dec?.color ??
+                            (isDark
+                                ? const Color(0xFF142238).withValues(
+                                    alpha: (studio?.glassOpacity ?? 0.88)
+                                        .clamp(0.15, 0.98))
+                                : Colors.white.withValues(
+                                    alpha: (studio?.glassOpacity ?? 0.94)
+                                        .clamp(0.15, 0.98)))),
+                    gradient: dec?.gradient,
+                    borderRadius: BorderRadius.circular(effectiveRadius),
+                    border: isLiquidGlass ? null : dec?.border,
+                  ),
                 ),
-              ),
 
               // Layer 2: Simulated Caustic Refraction Sheen & Subtle Rim
               if (isLiquidGlass && enableCaustics)
@@ -920,8 +1015,8 @@ class FloatingGlassCard extends StatelessWidget {
                     child: CustomPaint(
                       painter: LiquidSpecularBorderPainter(
                         borderRadius: effectiveRadius,
-                        borderWidth: (studio?.widgetBorderWidth ?? 1.25)
-                            .clamp(0.8, 1.8),
+                        borderWidth:
+                            (studio?.widgetBorderWidth ?? 1.25).clamp(0.8, 1.8),
                         borderGradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -946,6 +1041,7 @@ class FloatingGlassCard extends StatelessWidget {
                   ),
                 ),
             ],
+            ),
           ),
         ),
       );
@@ -1020,10 +1116,7 @@ class GradientButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     required this.child,
-    this.colors = const [
-      Color(0xFF0F6E56),
-      Color(0xFF10B981)
-    ],
+    this.colors = const [Color(0xFF0F6E56), Color(0xFF10B981)],
     this.height = 54.0,
     this.expand = true,
     this.radius = 100.0,
@@ -1183,8 +1276,8 @@ class _FinoraButtonState extends State<FinoraButton> {
             boxShadow: !widget.isSecondary && enabled
                 ? [
                     BoxShadow(
-                      color: primaryBrand.withValues(
-                          alpha: isDark ? 0.30 : 0.20),
+                      color:
+                          primaryBrand.withValues(alpha: isDark ? 0.30 : 0.20),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -1299,9 +1392,8 @@ class FinoraActionPill extends StatelessWidget {
         border: primary
             ? null
             : Border.all(
-                color: isDark
-                    ? const Color(0xFF334155)
-                    : const Color(0xFFD5E0DC),
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFD5E0DC),
                 width: 1.0,
               ),
         boxShadow: primary
@@ -1381,20 +1473,16 @@ class FinoraSectionActionPill extends StatelessWidget {
       );
     }
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor =
-        isDark ? const Color(0xFF1E293B) : const Color(0xFFEAF0ED);
+    final bgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFEAF0ED);
     final fgColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final chevronColor =
-        isDark ? Colors.white70 : const Color(0xFF475569);
+    final chevronColor = isDark ? Colors.white70 : const Color(0xFF475569);
 
     return DecoratedBox(
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(100),
         border: Border.all(
-          color: isDark
-              ? const Color(0xFF334155)
-              : const Color(0xFFD5E0DC),
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFD5E0DC),
           width: 1.0,
         ),
       ),

@@ -133,11 +133,13 @@ class TransactionProvider extends ChangeNotifier {
           walletMap: {for (final w in _rawWallets) w.id: w});
 
   void load(String userId, {String? familyId, bool force = false}) {
+    final effectiveFamilyId =
+        familyId ?? (_userId == userId ? _familyId : null);
     if (!force &&
         _userId == userId &&
-        _familyId == familyId &&
+        _familyId == effectiveFamilyId &&
         _subs.isNotEmpty) return;
-    if (_userId != userId || _familyId != familyId) {
+    if (_userId != userId || _familyId != effectiveFamilyId) {
       _all = [];
       _rawWallets = [];
       wallets = [];
@@ -148,7 +150,7 @@ class TransactionProvider extends ChangeNotifier {
       selectedMemberTag = null;
     }
     _userId = userId;
-    _familyId = familyId;
+    _familyId = effectiveFamilyId;
     _restoreFilters(userId);
     _cancel();
     final generation = ++_generation;
@@ -179,13 +181,15 @@ class TransactionProvider extends ChangeNotifier {
       }));
     }
 
-    watch('transactions', _txRepo.watchTransactions(userId, familyId: familyId),
+    watch(
+        'transactions',
+        _txRepo.watchTransactions(userId, familyId: effectiveFamilyId),
         (v) => _all = v);
-    watch('wallets', _walletRepo.watchWallets(userId, familyId: familyId),
+    watch('wallets', _walletRepo.watchWallets(userId, familyId: effectiveFamilyId),
         (v) => _rawWallets = v);
     watch(
         'categories',
-        _categoryRepo.watchCategories(userId, familyId: familyId),
+        _categoryRepo.watchCategories(userId, familyId: effectiveFamilyId),
         (v) => categories = v);
   }
 

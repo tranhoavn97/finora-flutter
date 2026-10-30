@@ -16,7 +16,9 @@ void main() {
   });
 
   group('Dock & Segmented Tabs Redesign Tests', () {
-    testWidgets('FinoraSegmentedTabs supports icons and slides active indicator', (tester) async {
+    testWidgets(
+        'FinoraSegmentedTabs uses text capsules and slides active indicator',
+        (tester) async {
       int selectedIdx = 0;
       await tester.pumpWidget(
         MaterialApp(
@@ -24,7 +26,13 @@ void main() {
             body: StatefulBuilder(
               builder: (context, setState) {
                 return FinoraSegmentedTabs(
-                  labels: const ['Chi tiêu', 'Thu nhập', 'Chuyển khoản', 'Trả thẻ', 'Đầu tư'],
+                  labels: const [
+                    'Chi tiêu',
+                    'Thu nhập',
+                    'Chuyển khoản',
+                    'Trả thẻ',
+                    'Đầu tư'
+                  ],
                   icons: const [
                     Icons.arrow_upward_rounded,
                     Icons.arrow_downward_rounded,
@@ -54,7 +62,7 @@ void main() {
       expect(find.text('Chuyển khoản'), findsOneWidget);
       expect(find.text('Trả thẻ'), findsOneWidget);
       expect(find.text('Đầu tư'), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward_rounded), findsNothing);
 
       // Tap 'Thu nhập'
       await tester.tap(find.text('Thu nhập'));
@@ -62,7 +70,9 @@ void main() {
       expect(selectedIdx, 1);
     });
 
-    testWidgets('FinoraScrollableSegmentedTabs renders 7 asset options in scrollable track', (tester) async {
+    testWidgets(
+        'FinoraScrollableSegmentedTabs renders 7 asset options in scrollable track',
+        (tester) async {
       int selectedIdx = 0;
       await tester.pumpWidget(
         MaterialApp(
@@ -70,7 +80,15 @@ void main() {
             body: StatefulBuilder(
               builder: (context, setState) {
                 return FinoraScrollableSegmentedTabs(
-                  labels: const ['Vàng', 'BĐS', 'Cổ phiếu', 'Crypto', 'Sổ tiết kiệm', 'Hụi/Phường', 'Khác'],
+                  labels: const [
+                    'Vàng',
+                    'BĐS',
+                    'Cổ phiếu',
+                    'Crypto',
+                    'Sổ tiết kiệm',
+                    'Hụi/Phường',
+                    'Khác'
+                  ],
                   icons: const ['🪙', '🏡', '📈', '⚡', '🏦', '🤝', '💎'],
                   selectedIndex: selectedIdx,
                   colors: const [
@@ -93,7 +111,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Vàng'), findsOneWidget);
       expect(find.text('BĐS'), findsOneWidget);
-      expect(find.text('🪙'), findsOneWidget);
+      expect(find.text('🪙'), findsNothing);
 
       // Tap 'BĐS'
       await tester.tap(find.text('BĐS'));
@@ -101,7 +119,9 @@ void main() {
       expect(selectedIdx, 1);
     });
 
-    testWidgets('FinoraNavigation renders Image 4 dock with active capsule and floating CTA', (tester) async {
+    testWidgets(
+        'FinoraNavigation renders Image 4 dock with active capsule and floating CTA',
+        (tester) async {
       int activeIndex = 0;
       bool addPressed = false;
 
@@ -158,7 +178,9 @@ void main() {
       expect(find.text('Trang chủ'), findsNothing);
     });
 
-    testWidgets('SettingsScreen renders merged Display Mode & RGB Gradient Blur controls', (tester) async {
+    testWidgets(
+        'SettingsScreen presents simple preferences with advanced customization',
+        (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -182,22 +204,18 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Header & Sections
-      expect(find.text('Chế độ hiển thị & Giao diện'), findsOneWidget);
-      expect(find.text('CHẾ ĐỘ HIỂN THỊ'), findsOneWidget);
-      expect(find.text('NỀN PHA MÀU GRADIENT BLUR'), findsOneWidget);
-      expect(find.text('Bật nền pha màu Gradient Blur'), findsOneWidget);
-      expect(find.text('12 BẢNG MÀU MẪU ĐỘC ĐÁO'), findsOneWidget);
-
-      // Theme modes cards
+      expect(find.text('Giao diện'), findsOneWidget);
+      expect(find.text('Sáng trong & Xanh tươi'), findsOneWidget);
+      expect(find.text('Giảm chuyển động'), findsOneWidget);
+      expect(find.text('NỀN PHA MÀU GRADIENT BLUR'), findsNothing);
       expect(find.text('Theo thiết bị'), findsOneWidget);
       expect(find.text('Sáng'), findsOneWidget);
       expect(find.text('Tối'), findsOneWidget);
-      expect(find.text('Đen AMOLED'), findsOneWidget);
-
-      // Presets
-      expect(find.text('Ngọc Lục Bảo'), findsOneWidget);
-      expect(find.text('Đại Dương Xanh'), findsOneWidget);
+      await tester.ensureVisible(find.text('Tùy chỉnh nâng cao'));
+      await tester.tap(find.text('Tùy chỉnh nâng cao'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dùng giao diện cá nhân hóa'), findsOneWidget);
+      expect(find.text('Chế độ hiển thị & Giao diện'), findsOneWidget);
     });
   });
 }

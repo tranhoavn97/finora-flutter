@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -38,7 +39,7 @@ class BouncyPillTabs extends StatelessWidget {
     required this.onChanged,
     this.colors,
     this.icons,
-    this.height = 52,
+    this.height = 38,
     this.fontSize,
   }) : assert(labels.length > 1);
 
@@ -172,7 +173,7 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions = const [],
     this.height = FinoraV8Metrics.pageHeader,
     this.blur = 18.0,
-    this.showBottomDivider = true,
+    this.showBottomDivider = false,
     this.backgroundColor,
     this.isTransparent = false,
   });
@@ -194,42 +195,26 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
     final primary = studio?.primaryColor ?? const Color(0xFF005FEA);
     final hMargin = studio?.pageHorizontalMargin ?? 14.0;
 
-    final topBarStyle = studio?.topBarStyle ?? AppTopBarStyle.seamlessBlend;
+    final topBarStyle = studio?.topBarStyle ?? AppTopBarStyle.frostedGlass;
     final isMinimal = topBarStyle == AppTopBarStyle.pureMinimal;
     final isSeamless = topBarStyle == AppTopBarStyle.seamlessBlend;
 
     final bool transparentBar = isMinimal ||
-        isSeamless ||
         isTransparent ||
         backgroundColor == Colors.transparent ||
         customAlpha <= 0.01;
 
-    final effectiveBlur = (transparentBar && !isSeamless)
+    final effectiveBlur = transparentBar
         ? 0.0
-        : (isSeamless
-            ? (studio?.appBarBlur ?? 16.0).clamp(0.0, 30.0)
-            : (topBarStyle == AppTopBarStyle.frostedGlass
-                ? (studio?.appBarBlur ?? 28.0).clamp(0.0, 30.0)
-                : (studio?.appBarBlur ?? blur).clamp(0.0, 30.0)));
+        : (studio?.appBarBlur ?? (isSeamless ? 18.0 : 22.0)).clamp(0.0, 30.0);
 
     final Color topBarFill;
-    if (transparentBar || isSeamless) {
+    if (transparentBar) {
       topBarFill = Colors.transparent;
     } else if (backgroundColor != null) {
       topBarFill = backgroundColor!;
     } else {
-      final adaptiveTop = studio?.getScreenTopBackgroundColor(dark) ??
-          (studio?.getStyleSurfaceBase(dark) ??
-              (dark ? const Color(0xFF0F172A) : Colors.white));
-      // Seamlessly harmonize with actual top background and primary tint
-      final tintedBase = Color.alphaBlend(
-        primary.withValues(alpha: dark ? 0.12 : 0.06),
-        adaptiveTop,
-      );
-      final fillAlpha = topBarStyle == AppTopBarStyle.frostedGlass
-          ? (customAlpha * 0.70).clamp(0.08, 0.90)
-          : customAlpha;
-      topBarFill = tintedBase.withValues(alpha: fillAlpha);
+      topBarFill = Colors.transparent;
     }
 
     final effectiveRadius = isFloating
@@ -377,30 +362,27 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
       );
     }
 
-    if (!isLiquidGlass) {
-      return Container(
+    final Widget pinnedBar = Container(
+      decoration: BoxDecoration(
         color: topBarFill,
-        child: SafeArea(
-          bottom: false,
-          child: SizedBox(height: height, child: barContent),
-        ),
-      );
-    }
-
-    // Blur the backdrop before applying its tint, keeping the title sharp.
-    return LiquidGlassSurface(
-      radius: 0,
-      blur: effectiveBlur,
-      fillColor: topBarFill,
-      tintColor: primary,
-      enabled: !transparentBar || isSeamless,
-      specular: isLiquidGlass && hasBorder && showBottomDivider,
-      refraction: isLiquidGlass &&
-          !transparentBar &&
-          (studio?.liquidGlassCausticRefraction ?? true),
+        border: effectiveBorder,
+        boxShadow: effectiveShadows,
+      ),
       child: SafeArea(
         bottom: false,
         child: SizedBox(height: height, child: barContent),
+      ),
+    );
+
+    if (transparentBar || effectiveBlur <= 0.1) {
+      return pinnedBar;
+    }
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter:
+            ui.ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
+        child: pinnedBar,
       ),
     );
   }
@@ -1187,63 +1169,212 @@ Future<bool> showConfirmDeleteDialog({
   required BuildContext context,
   required String title,
   required String content,
+  String confirmText = 'Xóa',
+  String cancelText = 'Hủy',
 }) async {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final primaryTextColor =
-      isDark ? const Color(0xFFF2F2F7) : const Color(0xFF0F172A);
+      isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
   final secondaryTextColor =
-      isDark ? const Color(0xFFAEAEB2) : const Color(0xFF475569);
+      isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  const dangerColor = Color(0xFFE11D48);
 
   final result = await showDialog<bool>(
     context: context,
-    builder: (_) => GlassDialog(
-      radius: 18,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: TextStyle(
-                  color: primaryTextColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Text(content,
-              style: TextStyle(color: secondaryTextColor, fontSize: 14)),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                style: TextButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text('Hủy',
-                    style: TextStyle(
-                        color: secondaryTextColor,
-                        fontWeight: FontWeight.w600)),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFEF4444),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                ),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Xóa',
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ],
+    barrierColor: Colors.black.withValues(alpha: 0.56),
+    builder: (dialogCtx) => Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 376),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF131B2E) : Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: dangerColor.withValues(alpha: isDark ? 0.34 : 0.22),
+            width: 1.2,
           ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.52 : 0.14),
+              blurRadius: 32,
+              offset: const Offset(0, 16),
+            ),
+            BoxShadow(
+              color: dangerColor.withValues(alpha: isDark ? 0.16 : 0.08),
+              blurRadius: 24,
+              spreadRadius: -4,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    dangerColor.withValues(alpha: isDark ? 0.28 : 0.18),
+                    dangerColor.withValues(alpha: isDark ? 0.08 : 0.04),
+                  ],
+                ),
+                border: Border.all(
+                  color: dangerColor.withValues(alpha: isDark ? 0.45 : 0.30),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: dangerColor.withValues(alpha: 0.24),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: dangerColor,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: primaryTextColor,
+                fontSize: 18.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.35,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              content,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: secondaryTextColor,
+                fontSize: 13.5,
+                height: 1.48,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: dangerColor.withValues(alpha: isDark ? 0.12 : 0.07),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: dangerColor.withValues(alpha: 0.22),
+                  width: 0.9,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.sync_rounded,
+                    size: 13,
+                    color: dangerColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Số dư ví & báo cáo sẽ tự động đối soát lại ngay',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? const Color(0xFFFDA4AF)
+                            : const Color(0xFFBE123C),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 46,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9),
+                        side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1),
+                          width: 1.1,
+                        ),
+                        shape: const StadiumBorder(),
+                        padding: EdgeInsets.zero,
+                      ),
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        Navigator.of(dialogCtx).pop(false);
+                      },
+                      child: Text(
+                        cancelText,
+                        style: TextStyle(
+                          color: primaryTextColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 46,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: dangerColor,
+                        foregroundColor: Colors.white,
+                        elevation: 4,
+                        shadowColor: dangerColor.withValues(alpha: 0.45),
+                        shape: const StadiumBorder(),
+                        padding: EdgeInsets.zero,
+                      ),
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        Navigator.of(dialogCtx).pop(true);
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.delete_rounded,
+                              size: 17, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            confirmText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -1830,59 +1961,58 @@ class FinoraCollapsibleHeroHeaderDelegate
             child: Stack(
               fit: StackFit.expand,
               children: [
-                      // Pha 1: Thẻ lớn (Hero Card) biến mất hoàn toàn trước progress = 0.36
-                      if (progress < 0.36)
-                        Positioned.fill(
-                          child: Opacity(
-                            opacity: ((0.36 - progress) / 0.36).clamp(0.0, 1.0),
-                            child: Transform.translate(
-                              offset: Offset(0, -progress * 26.0),
-                              child: Transform.scale(
-                                scale: (1.0 - progress * 0.12).clamp(0.92, 1.0),
-                                alignment: Alignment.topCenter,
-                                child: IgnorePointer(
-                                  ignoring: progress > 0.28,
-                                  child: expandedCard,
-                                ),
-                              ),
+                // Pha 1: Thẻ lớn (Hero Card) biến mất hoàn toàn trước progress = 0.36
+                if (progress < 0.36)
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: ((0.36 - progress) / 0.36).clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: Offset(0, -progress * 26.0),
+                        child: Transform.scale(
+                          scale: (1.0 - progress * 0.12).clamp(0.92, 1.0),
+                          alignment: Alignment.topCenter,
+                          child: IgnorePointer(
+                            ignoring: progress > 0.28,
+                            child: expandedCard,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Pha 2: Viên nang Dynamic Island xuất hiện mượt mà từ progress = 0.38 đến 0.72 với Curves.easeOutCubic
+                if (collapsedBar != null && progress > 0.38)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Builder(builder: (_) {
+                      final double rawT =
+                          ((progress - 0.38) / 0.34).clamp(0.0, 1.0);
+                      final double easeT = Curves.easeOutCubic.transform(rawT);
+                      return Opacity(
+                        opacity: easeT,
+                        child: Transform.translate(
+                          offset: Offset(0, (1.0 - easeT) * 14.0),
+                          child: Transform.scale(
+                            scale: 0.92 + 0.08 * easeT,
+                            alignment: Alignment.bottomCenter,
+                            child: IgnorePointer(
+                              ignoring: progress < 0.48,
+                              child: collapsedBar!,
                             ),
                           ),
                         ),
-
-                      // Pha 2: Viên nang Dynamic Island xuất hiện mượt mà từ progress = 0.38 đến 0.72 với Curves.easeOutCubic
-                      if (collapsedBar != null && progress > 0.38)
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Builder(builder: (_) {
-                            final double rawT =
-                                ((progress - 0.38) / 0.34).clamp(0.0, 1.0);
-                            final double easeT =
-                                Curves.easeOutCubic.transform(rawT);
-                            return Opacity(
-                              opacity: easeT,
-                              child: Transform.translate(
-                                offset: Offset(0, (1.0 - easeT) * 14.0),
-                                child: Transform.scale(
-                                  scale: 0.92 + 0.08 * easeT,
-                                  alignment: Alignment.bottomCenter,
-                                  child: IgnorePointer(
-                                    ignoring: progress < 0.48,
-                                    child: collapsedBar!,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                    ],
+                      );
+                    }),
                   ),
-                ),
-                if (toolbar != null) ...[
-                  const SizedBox(height: 6),
-                  toolbar!,
-                ],
               ],
             ),
+          ),
+          if (toolbar != null) ...[
+            const SizedBox(height: 6),
+            toolbar!,
+          ],
+        ],
+      ),
     );
 
     return ClipRect(

@@ -1,3 +1,5 @@
+import '../../core/widgets/finora_notice.dart';
+import '../../core/widgets/fresh_design.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -111,7 +113,7 @@ class _AddWalletPageState extends State<AddWalletPage> {
     if (_isSaving) return;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FinoraNotice.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập tên ví hoặc ngân hàng')),
       );
       return;
@@ -185,7 +187,7 @@ class _AddWalletPageState extends State<AddWalletPage> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
+        FinoraNotice.of(context)
             .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {
@@ -198,7 +200,7 @@ class _AddWalletPageState extends State<AddWalletPage> {
     final isCredit = _type == 'credit_card';
     final isEditing = widget.wallet != null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final pageBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final pageBg = isDark ? const Color(0xFF0F172A) : FreshColors.background;
 
     return Scaffold(
       backgroundColor: pageBg,
@@ -214,6 +216,10 @@ class _AddWalletPageState extends State<AddWalletPage> {
                 ),
                 padding: const EdgeInsets.fromLTRB(16, 68, 16, 110),
                 children: [
+                  const FreshPageIntro(
+                      eyebrow: 'TÀI KHOẢN',
+                      title: 'Thêm nơi giữ tiền.',
+                      subtitle: 'Số dư ban đầu là số dư bạn đang có.'),
                   // 1. Live Interactive Card Preview
                   _buildInteractiveCardPreview(isDark, isCredit),
                   const SizedBox(height: 20),
@@ -251,9 +257,8 @@ class _AddWalletPageState extends State<AddWalletPage> {
                         Color(0xFF0284C7),
                         Color(0xFFD97706),
                       ],
-                      selectedIndex: _type == 'cash'
-                          ? 0
-                          : (_type == 'bank' ? 1 : 2),
+                      selectedIndex:
+                          _type == 'cash' ? 0 : (_type == 'bank' ? 1 : 2),
                       height: 44,
                       fontSize: 12.5,
                       onChanged: (idx) {
@@ -265,8 +270,8 @@ class _AddWalletPageState extends State<AddWalletPage> {
                           if (_type == 'cash') {
                             _bankCodeCtrl.clear();
                             if (_nameCtrl.text.isEmpty ||
-                                BankIconRegistry.brands.any((b) =>
-                                    b.name == _nameCtrl.text.trim())) {
+                                BankIconRegistry.brands.any(
+                                    (b) => b.name == _nameCtrl.text.trim())) {
                               _nameCtrl.text = 'Tiền mặt';
                             }
                           }
@@ -286,17 +291,23 @@ class _AddWalletPageState extends State<AddWalletPage> {
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         children: [
-                          _buildCashPresetChip('Tiền mặt', Icons.account_balance_wallet_rounded, isDark),
-                          _buildCashPresetChip('Ống heo tiết kiệm', Icons.savings_rounded, isDark),
-                          _buildCashPresetChip('Két sắt gia đình', Icons.lock_outline_rounded, isDark),
-                          _buildCashPresetChip('Ví tiền lẻ', Icons.paid_rounded, isDark),
-                          _buildCashPresetChip('Quỹ dự phòng', Icons.shield_rounded, isDark),
+                          _buildCashPresetChip('Tiền mặt',
+                              Icons.account_balance_wallet_rounded, isDark),
+                          _buildCashPresetChip('Ống heo tiết kiệm',
+                              Icons.savings_rounded, isDark),
+                          _buildCashPresetChip('Két sắt gia đình',
+                              Icons.lock_outline_rounded, isDark),
+                          _buildCashPresetChip(
+                              'Ví tiền lẻ', Icons.paid_rounded, isDark),
+                          _buildCashPresetChip(
+                              'Quỹ dự phòng', Icons.shield_rounded, isDark),
                         ],
                       ),
                     ),
                     const SizedBox(height: 18),
                   ] else ...[
-                    _buildSectionHeader('CHỌN NHANH NGÂN HÀNG & VÍ ĐIỆN TỬ', isDark),
+                    _buildSectionHeader(
+                        'CHỌN NHANH NGÂN HÀNG & VÍ ĐIỆN TỬ', isDark),
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 64,
@@ -310,10 +321,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
                           final brand = BankIconRegistry.brands
                               .where((b) => b.code != 'cash')
                               .toList()[i];
-                          final isSelected = _bankCodeCtrl.text
-                                  .trim()
-                                  .toLowerCase() ==
-                              brand.code.toLowerCase();
+                          final isSelected =
+                              _bankCodeCtrl.text.trim().toLowerCase() ==
+                                  brand.code.toLowerCase();
 
                           return GestureDetector(
                             onTap: () {
@@ -337,7 +347,8 @@ class _AddWalletPageState extends State<AddWalletPage> {
                               ),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? brand.color.withValues(alpha: isDark ? 0.25 : 0.15)
+                                    ? brand.color
+                                        .withValues(alpha: isDark ? 0.25 : 0.15)
                                     : (isDark
                                         ? const Color(0xFF1E293B)
                                         : Colors.white),
@@ -364,7 +375,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
                                           ? FontWeight.w800
                                           : FontWeight.w600,
                                       color: isSelected
-                                          ? (isDark ? Colors.white : brand.color)
+                                          ? (isDark
+                                              ? Colors.white
+                                              : brand.color)
                                           : (isDark
                                               ? const Color(0xFFCBD5E1)
                                               : const Color(0xFF475569)),
@@ -396,14 +409,17 @@ class _AddWalletPageState extends State<AddWalletPage> {
                   // 6. Account Number / Card Last 4 Digits
                   if (_type == 'bank' || isCredit) ...[
                     _buildSectionHeader(
-                      isCredit ? '4 SỐ CUỐI THẺ TÍN DỤNG' : 'SỐ TÀI KHOẢN NGÂN HÀNG',
+                      isCredit
+                          ? '4 SỐ CUỐI THẺ TÍN DỤNG'
+                          : 'SỐ TÀI KHOẢN NGÂN HÀNG',
                       isDark,
                     ),
                     const SizedBox(height: 8),
                     _buildStyledInput(
                       controller: _accountCtrl,
                       hint: isCredit ? 'Ví dụ: 8899' : 'Nhập số tài khoản...',
-                      icon: isCredit ? Icons.pin_rounded : Icons.numbers_rounded,
+                      icon:
+                          isCredit ? Icons.pin_rounded : Icons.numbers_rounded,
                       keyboardType: TextInputType.number,
                       isDark: isDark,
                     ),
@@ -529,7 +545,8 @@ class _AddWalletPageState extends State<AddWalletPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: opt.$2.withValues(alpha: isSelected ? 0.60 : 0.20),
+                                  color: opt.$2.withValues(
+                                      alpha: isSelected ? 0.60 : 0.20),
                                   blurRadius: isSelected ? 10 : 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -605,7 +622,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
           border: Border.all(
             color: isSelected
                 ? const Color(0xFF10B981)
-                : (isDark ? Colors.white.withValues(alpha: 0.10) : const Color(0xFFE2E8F0)),
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : const Color(0xFFE2E8F0)),
             width: isSelected ? 1.5 : 0.8,
           ),
         ),
@@ -615,7 +634,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
             Icon(
               icon,
               size: 16,
-              color: isSelected ? const Color(0xFF10B981) : (isDark ? Colors.white60 : Colors.black54),
+              color: isSelected
+                  ? const Color(0xFF10B981)
+                  : (isDark ? Colors.white60 : Colors.black54),
             ),
             const SizedBox(width: 6),
             Text(
@@ -625,7 +646,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 color: isSelected
                     ? (isDark ? Colors.white : const Color(0xFF0F6E56))
-                    : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                    : (isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF475569)),
               ),
             ),
           ],
@@ -709,7 +732,8 @@ class _AddWalletPageState extends State<AddWalletPage> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
             ),
         ],
@@ -719,17 +743,23 @@ class _AddWalletPageState extends State<AddWalletPage> {
 
   Widget _buildInteractiveCardPreview(bool isDark, bool isCredit) {
     final bankCode = _bankCodeCtrl.text.trim();
-    final brand = BankIconRegistry.resolve(bankCode, bankName: _nameCtrl.text.trim());
+    final brand =
+        BankIconRegistry.resolve(bankCode, bankName: _nameCtrl.text.trim());
     final isCash = _type == 'cash';
-    final cardColors = (isCredit && CreditCardPalette.skins.containsKey(_themeColor))
-        ? CreditCardPalette.skins[_themeColor]!
-        : (isCash
-            ? [const Color(0xFF065F46), const Color(0xFF0F766E), const Color(0xFF10B981)]
-            : [
-                Color.lerp(const Color(0xFF080C14), brand.color, 0.55)!,
-                Color.lerp(const Color(0xFF141A28), brand.color, 0.85)!,
-                Color.lerp(const Color(0xFF04060A), brand.color, 0.40)!,
-              ]);
+    final cardColors =
+        (isCredit && CreditCardPalette.skins.containsKey(_themeColor))
+            ? CreditCardPalette.skins[_themeColor]!
+            : (isCash
+                ? [
+                    const Color(0xFF065F46),
+                    const Color(0xFF0F766E),
+                    const Color(0xFF10B981)
+                  ]
+                : [
+                    Color.lerp(const Color(0xFF080C14), brand.color, 0.55)!,
+                    Color.lerp(const Color(0xFF141A28), brand.color, 0.85)!,
+                    Color.lerp(const Color(0xFF04060A), brand.color, 0.40)!,
+                  ]);
 
     final rawBalance = isCredit
         ? (_parseAmount(_limitCtrl.text) - _parseAmount(_debtCtrl.text))
@@ -741,7 +771,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
 
     final displayName = _nameCtrl.text.isNotEmpty
         ? _nameCtrl.text
-        : (isCash ? 'Ví Tiền Mặt' : (brand.name.isNotEmpty ? brand.name : 'Ngân hàng'));
+        : (isCash
+            ? 'Ví Tiền Mặt'
+            : (brand.name.isNotEmpty ? brand.name : 'Ngân hàng'));
 
     return Container(
       height: 184,
@@ -776,57 +808,67 @@ class _AddWalletPageState extends State<AddWalletPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      if (!isCash && brand.assetPath != null)
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              brand.assetPath!,
-                              width: 22,
-                              height: 22,
-                              fit: BoxFit.cover,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        if (!isCash && brand.assetPath != null)
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                brand.assetPath!,
+                                width: 22,
+                                height: 22,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isCash
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFF0284C7),
+                            ),
+                            child: Icon(
+                              isCash
+                                  ? Icons.payments_rounded
+                                  : Icons.credit_card_rounded,
+                              color: Colors.white,
+                              size: 13,
                             ),
                           ),
-                        )
-                      else
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isCash ? const Color(0xFF10B981) : const Color(0xFF0284C7),
-                          ),
-                          child: Icon(
-                            isCash ? Icons.payments_rounded : Icons.credit_card_rounded,
-                            color: Colors.white,
-                            size: 13,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            isCash ? 'TIỀN MẶT' : brand.name.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      const SizedBox(width: 8),
-                      Text(
-                        isCash ? 'TIỀN MẶT' : brand.name.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        isCredit
-                            ? 'CREDIT CARD'
-                            : (isCash ? 'CASH' : 'DEBIT CARD'),
+                        isCredit ? 'CREDIT' : (isCash ? 'CASH' : 'DEBIT'),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -874,17 +916,23 @@ class _AddWalletPageState extends State<AddWalletPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    displayAccount,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  Flexible(
+                    child: Text(
+                      displayAccount,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 6),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: 20,
@@ -898,7 +946,8 @@ class _AddWalletPageState extends State<AddWalletPage> {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2.5),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(100),
@@ -925,7 +974,7 @@ class _AddWalletPageState extends State<AddWalletPage> {
   }
 
   Widget _buildFloatingHeader(bool isDark, bool isEditing) {
-    final pageBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final pageBg = isDark ? const Color(0xFF0F172A) : FreshColors.background;
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
@@ -952,7 +1001,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  isEditing ? 'Chỉnh sửa ví / tài khoản' : 'Thêm ví / tài khoản',
+                  isEditing
+                      ? 'Chỉnh sửa ví / tài khoản'
+                      : 'Thêm ví / tài khoản',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -969,7 +1020,7 @@ class _AddWalletPageState extends State<AddWalletPage> {
   }
 
   Widget _buildFloatingSaveButton(bool isDark, bool isEditing) {
-    final pageBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final pageBg = isDark ? const Color(0xFF0F172A) : FreshColors.background;
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),

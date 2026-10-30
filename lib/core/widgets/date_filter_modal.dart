@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import '../utils/date_filter.dart';
-import '../../state/theme_studio_controller.dart';
 import 'finora_date_picker_sheet.dart';
 
 class DateFilterModalResult {
@@ -24,8 +22,9 @@ Future<DateFilterModalResult?> showDateFilterModal(
   required DateFilterOption currentOption,
   DateTime? currentCustomDate,
   DateTimeRange? currentCustomRange,
-  bool showAllTime = true,
+  bool showAllTime = false,
 }) {
+  HapticFeedback.mediumImpact();
   return showModalBottomSheet<DateFilterModalResult>(
     context: context,
     backgroundColor: Colors.transparent,
@@ -50,25 +49,13 @@ class DateFilterModalSheet extends StatelessWidget {
     required this.currentOption,
     this.currentCustomDate,
     this.currentCustomRange,
-    this.showAllTime = true,
+    this.showAllTime = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final studio = context.watch<ThemeStudioController?>();
-    final primary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
     final now = DateTime.now();
-
-    final quickPills = <(DateFilterOption, String)>[
-      (DateFilterOption.today, 'Hôm nay'),
-      (DateFilterOption.yesterday, 'Hôm qua'),
-      (DateFilterOption.thisWeek, 'Tuần này'),
-      (DateFilterOption.thisMonth, 'Tháng này'),
-      (DateFilterOption.lastMonth, 'Tháng trước'),
-      (DateFilterOption.thisYear, 'Năm nay'),
-      if (showAllTime) (DateFilterOption.allTime, 'Tất cả'),
-    ];
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -82,326 +69,302 @@ class DateFilterModalSheet extends StatelessWidget {
               width: 1.0,
             ),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.12),
+              blurRadius: 28,
+              offset: const Offset(0, -6),
+            ),
+          ],
         ),
         padding: EdgeInsets.fromLTRB(
           20,
-          14,
+          12,
           20,
-          MediaQuery.paddingOf(context).bottom + 24,
+          MediaQuery.paddingOf(context).bottom + 20,
         ),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. Center drag handle
+            Center(
+              child: Container(
+                width: 44,
+                height: 4.5,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.22)
+                      : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(100),
                 ),
               ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Chọn mốc thời gian',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
+            ),
+            const SizedBox(height: 14),
+
+            // 2. Header: Title + Close Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Chọn mốc thời gian',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
                     child: Container(
-                      padding: const EdgeInsets.all(5),
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
-                        color: (isDark ? Colors.white : Colors.black)
-                            .withValues(alpha: 0.06),
+                        color: isDark ? const Color(0xFF263342) : const Color(0xFFEDF3FA),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.close_rounded,
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         size: 18,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
 
-              // Single-line quick stadium pills
-              SizedBox(
-                height: 36,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: quickPills.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (ctx, i) {
-                    final (opt, label) = quickPills[i];
-                    final selected = currentOption == opt &&
-                        currentCustomDate == null &&
-                        currentCustomRange == null;
-                    return GestureDetector(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        Navigator.pop(
-                          context,
-                          DateFilterModalResult(option: opt),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? primary
-                              : (isDark
-                                  ? Colors.white.withValues(alpha: 0.06)
-                                  : const Color(0xFFF1F5F9)),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
-                            color: selected
-                                ? primary
-                                : (isDark
-                                    ? Colors.white.withValues(alpha: 0.10)
-                                    : const Color(0xFFE2E8F0)),
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight:
-                                selected ? FontWeight.w800 : FontWeight.w600,
-                            color: selected
-                                ? Colors.white
-                                : (isDark
-                                    ? const Color(0xFFCBD5E1)
-                                    : const Color(0xFF334155)),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+            // 3. Option 1: Hôm nay
+            _buildOptionCard(
+              context: context,
+              title: 'Hôm nay',
+              subtitle: 'Số liệu thu chi trong ngày',
+              icon: Icons.calendar_today_rounded,
+              iconColor: const Color(0xFF2563EB),
+              iconBgColor: isDark
+                  ? const Color(0xFF1E3A8A).withValues(alpha: 0.40)
+                  : const Color(0xFFDBEAFE),
+              isSelected: currentOption == DateFilterOption.today &&
+                  currentCustomDate == null &&
+                  currentCustomRange == null,
+              isDark: isDark,
+              onTap: () => Navigator.pop(
+                context,
+                const DateFilterModalResult(option: DateFilterOption.today),
               ),
-              const SizedBox(height: 14),
+            ),
 
-              _buildOptionTile(
+            // Option 2: Hôm qua
+            _buildOptionCard(
+              context: context,
+              title: 'Hôm qua',
+              subtitle: 'Giao dịch ngày hôm qua',
+              icon: Icons.access_time_filled_rounded,
+              iconColor: const Color(0xFF0284C7),
+              iconBgColor: isDark
+                  ? const Color(0xFF0369A1).withValues(alpha: 0.40)
+                  : const Color(0xFFE0F2FE),
+              isSelected: currentOption == DateFilterOption.yesterday &&
+                  currentCustomDate == null &&
+                  currentCustomRange == null,
+              isDark: isDark,
+              onTap: () => Navigator.pop(
                 context,
-                title: 'Hôm nay',
-                subtitle: 'Số liệu thu chi trong ngày',
-                icon: Icons.today_rounded,
-                color: const Color(0xFF0D9488),
-                isSelected: currentOption == DateFilterOption.today &&
-                    currentCustomDate == null,
-                isDark: isDark,
-                onTap: () => Navigator.pop(
-                  context,
-                  const DateFilterModalResult(option: DateFilterOption.today),
-                ),
+                const DateFilterModalResult(option: DateFilterOption.yesterday),
               ),
-              _buildOptionTile(
+            ),
+
+            // Option 3: Tuần này
+            _buildOptionCard(
+              context: context,
+              title: 'Tuần này',
+              subtitle: 'Tính từ đầu tuần đến nay',
+              icon: Icons.date_range_rounded,
+              iconColor: const Color(0xFF0EA5E9),
+              iconBgColor: isDark
+                  ? const Color(0xFF0369A1).withValues(alpha: 0.40)
+                  : const Color(0xFFE0F2FE),
+              isSelected: currentOption == DateFilterOption.thisWeek &&
+                  currentCustomDate == null &&
+                  currentCustomRange == null,
+              isDark: isDark,
+              onTap: () => Navigator.pop(
                 context,
-                title: 'Tuần này',
-                subtitle: 'Tính từ đầu tuần đến nay',
-                icon: Icons.date_range_rounded,
-                color: const Color(0xFF0284C7),
-                isSelected: currentOption == DateFilterOption.thisWeek &&
-                    currentCustomDate == null,
-                isDark: isDark,
-                onTap: () => Navigator.pop(
-                  context,
-                  const DateFilterModalResult(
-                    option: DateFilterOption.thisWeek,
-                  ),
-                ),
+                const DateFilterModalResult(option: DateFilterOption.thisWeek),
               ),
-              _buildOptionTile(
+            ),
+
+            // Option 4: Tháng này
+            _buildOptionCard(
+              context: context,
+              title: 'Tháng này',
+              subtitle: 'Tháng hiện tại (${now.month}/${now.year})',
+              icon: Icons.calendar_month_rounded,
+              iconColor: const Color(0xFF10B981),
+              iconBgColor: isDark
+                  ? const Color(0xFF065F46).withValues(alpha: 0.40)
+                  : const Color(0xFFD1FAE5),
+              isSelected: currentOption == DateFilterOption.thisMonth &&
+                  currentCustomDate == null &&
+                  currentCustomRange == null,
+              isDark: isDark,
+              onTap: () => Navigator.pop(
                 context,
-                title: 'Tháng này',
-                subtitle: 'Tháng hiện tại (${now.month}/${now.year})',
-                icon: Icons.calendar_month_rounded,
-                color: const Color(0xFF10B981),
-                isSelected: currentOption == DateFilterOption.thisMonth &&
-                    currentCustomDate == null,
-                isDark: isDark,
-                onTap: () => Navigator.pop(
-                  context,
-                  const DateFilterModalResult(
-                    option: DateFilterOption.thisMonth,
-                  ),
-                ),
+                const DateFilterModalResult(option: DateFilterOption.thisMonth),
               ),
-              _buildOptionTile(
+            ),
+
+            // Option 5: Năm nay
+            _buildOptionCard(
+              context: context,
+              title: 'Năm nay',
+              subtitle: 'Tổng hợp cả năm ${now.year}',
+              icon: Icons.calendar_today_rounded,
+              iconColor: const Color(0xFFF59E0B),
+              iconBgColor: isDark
+                  ? const Color(0xFF78350F).withValues(alpha: 0.40)
+                  : const Color(0xFFFEF3C7),
+              isSelected: currentOption == DateFilterOption.thisYear &&
+                  currentCustomDate == null &&
+                  currentCustomRange == null,
+              isDark: isDark,
+              onTap: () => Navigator.pop(
                 context,
-                title: 'Tháng trước',
-                subtitle: 'Số liệu tháng vừa qua',
-                icon: Icons.history_rounded,
-                color: const Color(0xFF6366F1),
-                isSelected: currentOption == DateFilterOption.lastMonth &&
-                    currentCustomDate == null,
-                isDark: isDark,
-                onTap: () => Navigator.pop(
-                  context,
-                  const DateFilterModalResult(
-                    option: DateFilterOption.lastMonth,
-                  ),
-                ),
+                const DateFilterModalResult(option: DateFilterOption.thisYear),
               ),
-              _buildOptionTile(
-                context,
-                title: 'Năm nay',
-                subtitle: 'Tổng hợp cả năm ${now.year}',
-                icon: Icons.calendar_today_rounded,
-                color: const Color(0xFFF59E0B),
-                isSelected: currentOption == DateFilterOption.thisYear &&
-                    currentCustomDate == null,
-                isDark: isDark,
-                onTap: () => Navigator.pop(
+            ),
+
+            // Option 6: Chọn ngày cụ thể...
+            _buildOptionCard(
+              context: context,
+              title: 'Chọn ngày cụ thể...',
+              subtitle: currentCustomDate != null
+                  ? 'Đang chọn: ${DateFormat('dd/MM/yyyy').format(currentCustomDate!)}'
+                  : 'Xem số liệu của một ngày bất kỳ',
+              icon: Icons.edit_calendar_rounded,
+              iconColor: const Color(0xFF005FEA),
+              iconBgColor: isDark
+                  ? const Color(0xFF1E3A8A).withValues(alpha: 0.40)
+                  : const Color(0xFFDBEAFE),
+              isSelected: currentOption == DateFilterOption.customDate ||
+                  currentCustomDate != null,
+              isDark: isDark,
+              onTap: () async {
+                final picked = await FinoraDatePickerSheet.showSingleDate(
                   context,
-                  const DateFilterModalResult(
-                    option: DateFilterOption.thisYear,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSolidStadiumButton(
-                      label: currentCustomDate != null
-                          ? 'Ngày: ${DateFormat('dd/MM').format(currentCustomDate!)}'
-                          : 'Chọn 1 ngày...',
-                      icon: Icons.event_rounded,
-                      color: const Color(0xFF0D9488),
-                      isSelected: currentOption == DateFilterOption.customDate,
-                      isDark: isDark,
-                      onTap: () async {
-                        final picked =
-                            await FinoraDatePickerSheet.showSingleDate(
-                          context,
-                          initialDate: currentCustomDate ?? now,
-                        );
-                        if (picked != null && context.mounted) {
-                          Navigator.pop(
-                            context,
-                            DateFilterModalResult(
-                              option: DateFilterOption.customDate,
-                              customDate: picked,
-                            ),
-                          );
-                        }
-                      },
+                  initialDate: currentCustomDate ?? now,
+                );
+                if (picked != null && context.mounted) {
+                  Navigator.pop(
+                    context,
+                    DateFilterModalResult(
+                      option: DateFilterOption.customDate,
+                      customDate: picked,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildSolidStadiumButton(
-                      label: currentCustomRange != null
-                          ? '${DateFormat('dd/MM').format(currentCustomRange!.start)}-${DateFormat('dd/MM').format(currentCustomRange!.end)}'
-                          : 'Khoảng ngày...',
-                      icon: Icons.date_range_rounded,
-                      color: const Color(0xFF2563EB),
-                      isSelected: currentOption == DateFilterOption.customRange,
-                      isDark: isDark,
-                      onTap: () async {
-                        final range = await FinoraDatePickerSheet.showDateRange(
-                          context,
-                          initialStartDate: currentCustomRange?.start,
-                          initialEndDate: currentCustomRange?.end,
-                        );
-                        if (range != null && context.mounted) {
-                          Navigator.pop(
-                            context,
-                            DateFilterModalResult(
-                              option: DateFilterOption.customRange,
-                              customRange: range,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ],
+                  );
+                }
+              },
+            ),
+
+            if (showAllTime) ...[
+              _buildOptionCard(
+                context: context,
+                title: 'Tất cả thời gian',
+                subtitle: 'Xem toàn bộ giao dịch từ trước đến nay',
+                icon: Icons.all_inclusive_rounded,
+                iconColor: const Color(0xFF64748B),
+                iconBgColor: isDark
+                    ? const Color(0xFF334155).withValues(alpha: 0.40)
+                    : const Color(0xFFF1F5F9),
+                isSelected: currentOption == DateFilterOption.allTime &&
+                    currentCustomDate == null,
+                isDark: isDark,
+                onTap: () => Navigator.pop(
+                  context,
+                  const DateFilterModalResult(option: DateFilterOption.allTime),
+                ),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildOptionTile(
-    BuildContext context, {
+  Widget _buildOptionCard({
+    required BuildContext context,
     required String title,
     required String subtitle,
     required IconData icon,
-    required Color color,
+    required Color iconColor,
+    required Color iconBgColor,
     required bool isSelected,
     required bool isDark,
     required VoidCallback onTap,
   }) {
+    const activeBorderColor = Color(0xFF2563EB);
+    final activeBgColor = isDark
+        ? const Color(0xFF1E3A8A).withValues(alpha: 0.22)
+        : const Color(0xFFF0F6FF);
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? color.withValues(alpha: isDark ? 0.20 : 0.10)
+              ? activeBgColor
               : (isDark
-                  ? Colors.white.withValues(alpha: 0.05)
+                  ? Colors.white.withValues(alpha: 0.04)
                   : const Color(0xFFF8FAFC)),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? color
+                ? activeBorderColor
                 : (isDark
                     ? Colors.white.withValues(alpha: 0.08)
                     : const Color(0xFFE2E8F0)),
-            width: isSelected ? 1.4 : 1.0,
+            width: isSelected ? 1.5 : 1.0,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: isDark ? 0.20 : 0.12),
-                shape: BoxShape.circle,
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 18),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w800,
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
@@ -421,57 +384,12 @@ class DateFilterModalSheet extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle_rounded, color: color, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSolidStadiumButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required bool isSelected,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Container(
-        height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(100),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: isSelected ? 0.35 : 0.20),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 15),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF2563EB),
+                size: 22,
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

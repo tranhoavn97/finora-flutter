@@ -18,7 +18,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="theme-color" content="#0A84FF">
+  <meta name="theme-color" content="#00866A">
   <script>
     if (window.location.hostname === '127.0.0.1') {
       window.location.hostname = 'localhost';
@@ -29,37 +29,43 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="FINORA">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/Icon-dragon-192.png?v=20261028b">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon-dragon.png?v=20261028b"/>
 
   <title>FINORA</title>
   <link rel="manifest" href="manifest.json">
 </head>
-<body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+<body style="margin:0;background:#F9FBFA">
+  <div id="finora-startup" role="status" aria-live="polite">
+    <img src="icons/Icon-dragon-192.png?v=20261028b" width="64" height="64" alt="" />
+    <strong>finora</strong>
+    <span id="startup-message">Đang mở không gian tài chính của bạn…</span>
+    <progress aria-label="Đang khởi động"></progress>
+    <button id="startup-retry" hidden onclick="location.reload()">Tải lại</button>
+  </div>
+  <style>
+    #finora-startup{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;font-family:system-ui,sans-serif;color:#182536;background:#F9FBFA}
+    #finora-startup img{border-radius:16px}#finora-startup strong{font-size:28px;letter-spacing:-1px}
+    #finora-startup span{font-size:13px;padding:0 24px;text-align:center;color:#58697B}
+    #finora-startup progress{width:120px;height:4px;accent-color:#00866A}
+    #finora-startup button{border:0;border-radius:999px;padding:12px 24px;background:#00866A;color:white;font-size:14px}
+  </style>
   <script>
-    if ('serviceWorker' in navigator) {
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('finora-startup')?.remove();
+    });
+    setTimeout(function () {
+      var message = document.getElementById('startup-message');
+      if(message) message.textContent = 'Ứng dụng đang khởi động. Bạn có thể tải lại nếu cần.';
+      var retry = document.getElementById('startup-retry');
+      if(retry) retry.hidden = false;
+    }, 20000);
+    if ('serviceWorker' in navigator && location.hostname === 'localhost') {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (let registration of registrations) {
-          registration.unregister();
-        }
+        for (var registration of registrations) registration.unregister();
       });
-    }
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (let name of names) caches.delete(name);
-      });
-    if (window.location.hostname === '127.0.0.1') {
-      window.location.hostname = 'localhost';
     }
   </script>
   <script src="flutter_bootstrap.js" async></script>

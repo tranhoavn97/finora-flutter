@@ -608,6 +608,7 @@ final Map<String, IconData> categoryLucideIcons = {
   'music': LucideIcons.music,
   'ticket': LucideIcons.ticket,
   'clapperboard': LucideIcons.clapperboard,
+  'video': LucideIcons.video,
   'tv': LucideIcons.tv,
   'heart': LucideIcons.heart,
   'activity': LucideIcons.activity,

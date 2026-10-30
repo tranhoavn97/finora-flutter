@@ -2,6 +2,7 @@ import 'coerce.dart';
 
 enum FamilyRole {
   owner,
+  admin,
   member,
   limited;
 
@@ -9,7 +10,12 @@ enum FamilyRole {
     switch (role?.toLowerCase()) {
       case 'owner':
         return FamilyRole.owner;
+      case 'admin':
+      case 'co_owner':
+      case 'spouse':
+        return FamilyRole.admin;
       case 'limited':
+      case 'viewer':
         return FamilyRole.limited;
       case 'member':
       default:
@@ -21,6 +27,8 @@ enum FamilyRole {
     switch (this) {
       case FamilyRole.owner:
         return 'owner';
+      case FamilyRole.admin:
+        return 'admin';
       case FamilyRole.limited:
         return 'limited';
       case FamilyRole.member:
@@ -31,11 +39,26 @@ enum FamilyRole {
   String get displayName {
     switch (this) {
       case FamilyRole.owner:
-        return 'Chủ nhóm';
+        return 'Chủ hộ';
+      case FamilyRole.admin:
+        return 'Đồng quản lý';
       case FamilyRole.limited:
         return 'Giới hạn';
       case FamilyRole.member:
         return 'Thành viên';
+    }
+  }
+
+  String get permissionSummary {
+    switch (this) {
+      case FamilyRole.owner:
+        return 'Toàn quyền quản trị, phân quyền, mời & đồng bộ sổ chung';
+      case FamilyRole.admin:
+        return 'Xem, thêm/sửa giao dịch, quản lý ví & đồng bộ dữ liệu Vợ/Chồng';
+      case FamilyRole.member:
+        return 'Xem báo cáo chung, ghi thu chi & đồng bộ giao dịch mới';
+      case FamilyRole.limited:
+        return 'Chỉ xem báo cáo được chia sẻ & ghi nháp giao dịch';
     }
   }
 }
@@ -212,9 +235,15 @@ class DataScope {
   });
 
   bool get isOwner => role == FamilyRole.owner;
-  bool get canWriteFinancials => role == FamilyRole.owner || role == FamilyRole.member;
-  bool get canManageMembers => isOwner;
-  bool get canDelete => role == FamilyRole.owner || role == FamilyRole.member;
+  bool get isAdmin => role == FamilyRole.owner || role == FamilyRole.admin;
+  bool get canWriteFinancials =>
+      role == FamilyRole.owner ||
+      role == FamilyRole.admin ||
+      role == FamilyRole.member;
+  bool get canManageMembers =>
+      role == FamilyRole.owner || role == FamilyRole.admin;
+  bool get canDelete =>
+      role == FamilyRole.owner || role == FamilyRole.admin;
 
   /// Effective scope ID: uses familyId if present, otherwise userId.
   String get scopeId => (familyId != null && familyId!.isNotEmpty) ? familyId! : uid;

@@ -147,7 +147,6 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
     final List<Color> heroGradient = studio?.currentPaletteMeta.heroGradient ?? AppColors.heroPurpleGradient.colors;
     final List<Color> btnGradient = studio?.resolvedButtonGradient ?? heroGradient;
     final btnPrimary = studio?.resolvedButtonPrimary ?? primary;
-    final btnRadius = studio?.getButtonRadius() ?? 16.0;
     final sub = _getDateSubtitle(_selectedDate);
 
     // Calculate days in month
@@ -451,7 +450,7 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(btnRadius),
+                        borderRadius: BorderRadius.circular(100),
                         boxShadow: [
                           BoxShadow(
                             color: btnPrimary.withValues(alpha: 0.30),

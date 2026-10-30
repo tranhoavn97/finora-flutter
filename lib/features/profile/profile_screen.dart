@@ -1,3 +1,5 @@
+import '../family/family_screen.dart';
+import '../../core/widgets/fresh_design.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,15 +8,13 @@ import 'package:provider/provider.dart';
 
 import '../../core/design_system/app_colors.dart';
 import '../../core/theme/finora_tokens.dart';
-import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/glass_widgets.dart';
-import '../../core/widgets/finora_motion.dart';
-import '../../state/transaction_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../ai/ai_advisor_screen.dart';
 import '../audit/activity_logs_screen.dart';
 import '../category/category_screen.dart';
 import '../notification/notification_screen.dart';
+import '../settings/bank_sync_settings_sheet.dart';
 import '../settings/settings_screen.dart';
 import '../trash/trash_screen.dart';
 
@@ -100,61 +100,26 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
-    final txProvider = Provider.of<TransactionProvider?>(context, listen: true);
 
     final cardBg = studio?.getCardFillColor(isDark) ??
         (isDark
             ? const Color(0xFF1E293B).withValues(alpha: 0.80)
             : Colors.white.withValues(alpha: 0.90));
-    final primaryTextColor =
-        isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
     final secondaryTextColor =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
 
     final displayName = userName.isNotEmpty ? userName : 'Hòa Trần';
     final displayEmail =
         userEmail.isNotEmpty ? userEmail : 'tranhoavn97@gmail.com';
-    final walletCount = txProvider?.wallets.length ?? 0;
-
     final primaryAccent = studio?.primaryColor ?? const Color(0xFF2563EB);
-    final cardRadius = studio?.cardCornerRadius ?? 24.0;
-    final cardBorder = studio?.getCardBorder(isDark) ??
-        Border.all(
-          color: (isDark ? Colors.white : Colors.black)
-              .withValues(alpha: isDark ? 0.10 : 0.06),
-          width: 1.2,
-        );
-    final cardShadows = studio?.getGlowShadows(isDark) ??
-        [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ];
-    final sectionGap = studio?.getCardSpacing() ?? 20.0;
 
     return GlassScaffold(
       extendBodyBehindAppBar: true,
       appBar: GlassTopBar(
         title: 'Cá nhân & Cài đặt',
-        isTransparent: true,
-        backgroundColor: Colors.transparent,
-        showBottomDivider: false,
-        blur: 0,
-        titleWidget: Text(
-          'Cá nhân & Cài đặt',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.5,
-            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
-          ),
-        ),
         onBack: !isRoot && Navigator.of(context).canPop()
             ? () => Navigator.of(context).pop()
             : null,
-        actions: const [],
       ),
       body: ListView(
         padding: EdgeInsets.fromLTRB(
@@ -165,16 +130,32 @@ class ProfileScreen extends StatelessWidget {
         ),
         physics: const BouncingScrollPhysics(),
         children: [
-          // 1. USER CARD (Clean Notebook Style)
+
+          // 1. USER CARD (Apple Minimalist Aesthetic)
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: FinoraTokens.calmCardDecoration(isDark: isDark),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: (isDark ? Colors.white : Colors.black)
+                    .withValues(alpha: isDark ? 0.10 : 0.06),
+                width: 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.04),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 _Avatar(
                   userName: displayName,
                   userPhotoUrl: userPhotoUrl,
-                  accentColor: FinoraTokens.ink(isDark),
+                  accentColor: primaryAccent,
                   studio: studio,
                 ),
                 const SizedBox(width: 14),
@@ -200,11 +181,13 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
                               color: FinoraTokens.surface2(isDark),
                               borderRadius: BorderRadius.circular(100),
-                              border: Border.all(color: FinoraTokens.line(isDark)),
+                              border:
+                                  Border.all(color: FinoraTokens.line(isDark)),
                             ),
                             child: Text(
                               'Gia đình',
@@ -238,61 +221,94 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // 2. SPOTLIGHT: TRỢ LÝ TÀI CHÍNH AI (Clean Minimal)
+          // 2. SPOTLIGHT: TRỢ LÝ TÀI CHÍNH FINORA & SỨC KHỎE TÀI CHÍNH (Emerald Fintech)
           InkWell(
             onTap: () => _push(context, AiAdvisorScreen(userId: userId)),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             child: Container(
               padding: const EdgeInsets.all(16),
-              decoration: FinoraTokens.calmCardDecoration(isDark: isDark),
+              decoration: FinoraTokens.emeraldCardDecoration(
+                isDark: isDark,
+                radius: 20,
+              ),
               child: Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color: FinoraTokens.surface2(isDark),
+                      color: Colors.white.withValues(alpha: 0.18),
                       shape: BoxShape.circle,
                     ),
-                    child: Center(
+                    child: const Center(
                       child: Icon(
                         LucideIcons.sparkles,
-                        size: 20,
-                        color: FinoraTokens.text(isDark),
+                        size: 19,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Trợ lý tài chính FINORA',
                           style: TextStyle(
                             fontFamily: 'BeVietnamPro',
                             fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: FinoraTokens.text(isDark),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Tư vấn chi tiêu & lập kế hoạch tài chính',
+                          'Sức khỏe tài chính 92% · Tư vấn chi tiêu thông minh',
                           style: TextStyle(
                             fontFamily: 'BeVietnamPro',
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w400,
-                            color: FinoraTokens.textMuted(isDark),
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.85),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: FinoraTokens.textMuted(isDark),
-                    size: 20,
+                  const SizedBox(width: 10),
+                  // Radial Gauge 92%
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: CircularProgressIndicator(
+                            value: 0.92,
+                            strokeWidth: 4.5,
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.18),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Color(0xFF34D399),
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          '92%',
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -301,16 +317,30 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 20),
 
           // 3. SECTION: QUẢN LÝ
-          _buildSectionHeader('QUẢN LÝ', FinoraTokens.textMuted(isDark)),
+          _buildSectionHeader('QUẢN LÝ',
+              isDark ? const Color(0xFF94A3B8) : const Color(0xFF334155)),
           const SizedBox(height: 8),
           Container(
             decoration: FinoraTokens.calmCardDecoration(isDark: isDark),
             child: Column(
               children: [
                 _buildMenuItem(
+                  icon: LucideIcons.users,
+                  iconBg: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
+                  iconColor: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                  title: 'Quản lý gia đình',
+                  subtitle: 'Thành viên, lời mời và quyền truy cập',
+                  isDark: isDark,
+                  primaryTextColor: FinoraTokens.text(isDark),
+                  secondaryTextColor: FinoraTokens.textMuted(isDark),
+                  studio: studio,
+                  onTap: () => _push(context, const FamilyScreen()),
+                ),
+                _buildDivider(isDark),
+                _buildMenuItem(
                   icon: LucideIcons.layout_grid,
-                  iconBg: FinoraTokens.surface2(isDark),
-                  iconColor: FinoraTokens.text(isDark),
+                  iconBg: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
+                  iconColor: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                   title: 'Danh mục thu chi',
                   subtitle: 'Tùy chỉnh nhóm chi, biểu tượng & màu sắc',
                   isDark: isDark,
@@ -322,23 +352,24 @@ class ProfileScreen extends StatelessWidget {
                 _buildDivider(isDark),
                 _buildMenuItem(
                   icon: LucideIcons.bell,
-                  iconBg: FinoraTokens.surface2(isDark),
-                  iconColor: FinoraTokens.text(isDark),
-                  title: 'Thông báo & Nhắc nhở',
-                  subtitle: 'Lịch nhắc giao dịch & định mức chi tiêu',
+                  iconBg: isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+                  iconColor: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+                  title: 'Thông báo',
+                  subtitle: 'Hoạt động và cập nhật của bạn',
                   isDark: isDark,
                   primaryTextColor: FinoraTokens.text(isDark),
                   secondaryTextColor: FinoraTokens.textMuted(isDark),
                   studio: studio,
-                  onTap: () => _push(context, NotificationScreen(userId: userId)),
+                  onTap: () =>
+                      _push(context, NotificationScreen(userId: userId)),
                 ),
                 _buildDivider(isDark),
                 _buildMenuItem(
                   icon: LucideIcons.palette,
-                  iconBg: FinoraTokens.surface2(isDark),
-                  iconColor: FinoraTokens.text(isDark),
+                  iconBg: isDark ? const Color(0xFF164E63) : const Color(0xFFECFEFF),
+                  iconColor: isDark ? const Color(0xFF22D3EE) : const Color(0xFF0891B2),
                   title: 'Chế độ hiển thị & Giao diện',
-                  subtitle: 'Chế độ sáng/tối & phong cách sổ tay',
+                  subtitle: 'Tùy chỉnh chế độ sáng, tối & bảng màu',
                   isDark: isDark,
                   primaryTextColor: FinoraTokens.text(isDark),
                   secondaryTextColor: FinoraTokens.textMuted(isDark),
@@ -351,29 +382,44 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 20),
 
           // 4. SECTION: DỮ LIỆU & BẢO MẬT
-          _buildSectionHeader('DỮ LIỆU & BẢO MẬT', FinoraTokens.textMuted(isDark)),
+          _buildSectionHeader('DỮ LIỆU & BẢO MẬT',
+              isDark ? const Color(0xFF94A3B8) : const Color(0xFF334155)),
           const SizedBox(height: 8),
           Container(
             decoration: FinoraTokens.calmCardDecoration(isDark: isDark),
             child: Column(
               children: [
                 _buildMenuItem(
-                  icon: LucideIcons.clock,
-                  iconBg: FinoraTokens.surface2(isDark),
-                  iconColor: FinoraTokens.text(isDark),
-                  title: 'Nhật ký kiểm toán hoạt động',
+                  icon: Icons.history_rounded,
+                  iconBg: isDark ? const Color(0xFF134E4A) : const Color(0xFFF0FDFA),
+                  iconColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
+                  title: 'Lịch sử thay đổi',
                   subtitle: 'Lịch sử thay đổi & đối soát thao tác',
                   isDark: isDark,
                   primaryTextColor: FinoraTokens.text(isDark),
                   secondaryTextColor: FinoraTokens.textMuted(isDark),
                   studio: studio,
-                  onTap: () => _push(context, ActivityLogsScreen(userId: userId)),
+                  onTap: () =>
+                      _push(context, ActivityLogsScreen(userId: userId)),
                 ),
                 _buildDivider(isDark),
                 _buildMenuItem(
-                  icon: LucideIcons.trash,
-                  iconBg: FinoraTokens.surface2(isDark),
-                  iconColor: FinoraTokens.text(isDark),
+                  icon: LucideIcons.bell_ring,
+                  iconBg: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
+                  iconColor: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                  title: 'Đọc biến động ngân hàng (BETA)',
+                  subtitle: 'Tự động nhận diện số dư 30+ ngân hàng (Cách A)',
+                  isDark: isDark,
+                  primaryTextColor: FinoraTokens.text(isDark),
+                  secondaryTextColor: FinoraTokens.textMuted(isDark),
+                  studio: studio,
+                  onTap: () => BankSyncSettingsSheet.show(context, userId: userId),
+                ),
+                _buildDivider(isDark),
+                _buildMenuItem(
+                  icon: Icons.delete_outline_rounded,
+                  iconBg: isDark ? const Color(0xFF4C0519) : const Color(0xFFFFF1F2),
+                  iconColor: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
                   title: 'Thùng rác phục hồi 30 ngày',
                   subtitle: 'Khôi phục giao dịch đã xóa',
                   isDark: isDark,
@@ -394,7 +440,7 @@ class ProfileScreen extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: FinoraTokens.surface(isDark),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(100),
                 border: Border.all(
                   color: FinoraTokens.neg(isDark).withValues(alpha: 0.35),
                   width: 1.0,
@@ -404,7 +450,8 @@ class ProfileScreen extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.log_out, color: FinoraTokens.neg(isDark), size: 17),
+                  Icon(LucideIcons.log_out,
+                      color: FinoraTokens.neg(isDark), size: 17),
                   const SizedBox(width: 8),
                   Text(
                     'Đăng xuất tài khoản',
@@ -613,89 +660,33 @@ class _Avatar extends StatelessWidget {
   }
 
   Widget _initials(List<BoxShadow> shadows, Color borderColor) {
+    final initial = userName.trim().isNotEmpty
+        ? userName.trim()[0].toUpperCase()
+        : 'F';
     return Container(
       width: 56,
       height: 56,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0F6E56), Color(0xFF003D35)],
+        ),
         border: Border.all(color: borderColor, width: 2.2),
         boxShadow: shadows,
       ),
-      child: ClipOval(
-        child: Image.asset(
-          FinoraMascotPose.appIcon.assetPath,
-          width: 56,
-          height: 56,
-          fit: BoxFit.cover,
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'BeVietnamPro',
         ),
       ),
     );
-  }
-}
-
-/// Profile Membership Bloom Painter
-/// Vẽ dải hào quang cực quang mềm mại phía sau thẻ thành viên Finora
-class _ProfileMembershipBloomPainter extends CustomPainter {
-  final Color accentColor;
-  final bool isDark;
-
-  const _ProfileMembershipBloomPainter({
-    required this.accentColor,
-    this.isDark = false,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.85, size.height * 0.45);
-
-    // 1. Primary Glow (Indigo-Blue)
-    final paint1 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          accentColor.withValues(alpha: isDark ? 0.38 : 0.40),
-          accentColor.withValues(alpha: isDark ? 0.16 : 0.20),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.45, 1.0],
-      ).createShader(Rect.fromCircle(
-        center: center.translate(-15, -10),
-        radius: size.height * 0.85,
-      ));
-    canvas.drawCircle(center.translate(-15, -10), size.height * 0.85, paint1);
-
-    // 2. Luminous Tint Flare (Cyan/Sky)
-    final paint2 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF38BDF8).withValues(alpha: isDark ? 0.25 : 0.35),
-          const Color(0xFF38BDF8).withValues(alpha: isDark ? 0.10 : 0.15),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.50, 1.0],
-      ).createShader(Rect.fromCircle(
-        center: center.translate(14, 16),
-        radius: size.height * 0.70,
-      ));
-    canvas.drawCircle(center.translate(14, 16), size.height * 0.70, paint2);
-
-    // 3. Ambient Soft Halo (Purple)
-    final paint3 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFA855F7).withValues(alpha: isDark ? 0.18 : 0.28),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.85],
-      ).createShader(Rect.fromCircle(
-        center: center.translate(-30, 22),
-        radius: size.height * 0.60,
-      ));
-    canvas.drawCircle(center.translate(-30, 22), size.height * 0.60, paint3);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ProfileMembershipBloomPainter oldDelegate) {
-    return oldDelegate.accentColor != accentColor || oldDelegate.isDark != isDark;
   }
 }
 
@@ -816,8 +807,7 @@ class _CustomRgbBackgroundModalContentState
     final studio = Provider.of<ThemeStudioController>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final subColor =
-        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final subColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     final cardSurface =
         isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
     final borderColor =
@@ -960,10 +950,10 @@ class _CustomRgbBackgroundModalContentState
           physics: const BouncingScrollPhysics(),
           child: Row(
             children: _presets.map((preset) {
-              final isSelected =
-                  studio.customBgColor1.toARGB32() == preset.c1.toARGB32() &&
-                      studio.customBgColor2.toARGB32() == preset.c2.toARGB32() &&
-                      studio.customBgColor3.toARGB32() == preset.c3.toARGB32();
+              final isSelected = studio.customBgColor1.toARGB32() ==
+                      preset.c1.toARGB32() &&
+                  studio.customBgColor2.toARGB32() == preset.c2.toARGB32() &&
+                  studio.customBgColor3.toARGB32() == preset.c3.toARGB32();
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: GestureDetector(
@@ -989,9 +979,8 @@ class _CustomRgbBackgroundModalContentState
                           : cardSurface,
                       borderRadius: BorderRadius.circular(100),
                       border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF10B981)
-                            : borderColor,
+                        color:
+                            isSelected ? const Color(0xFF10B981) : borderColor,
                         width: isSelected ? 1.5 : 1.0,
                       ),
                     ),
@@ -1125,8 +1114,7 @@ class _CustomRgbBackgroundModalContentState
                 spacing: 8,
                 runSpacing: 8,
                 children: _quickSwatches.map((swatch) {
-                  final selected =
-                      activeColor.toARGB32() == swatch.toARGB32();
+                  final selected = activeColor.toARGB32() == swatch.toARGB32();
                   return GestureDetector(
                     onTap: () {
                       HapticFeedback.selectionClick();
@@ -1397,9 +1385,12 @@ class _ModalMeshPreviewPainter extends CustomPainter {
       canvas.drawCircle(center, radius, paint);
     }
 
-    drawOrb(Offset(size.width * 0.15, size.height * 0.20), size.width * 0.55, c1);
-    drawOrb(Offset(size.width * 0.85, size.height * 0.35), size.width * 0.55, c2);
-    drawOrb(Offset(size.width * 0.45, size.height * 0.90), size.width * 0.60, c3);
+    drawOrb(
+        Offset(size.width * 0.15, size.height * 0.20), size.width * 0.55, c1);
+    drawOrb(
+        Offset(size.width * 0.85, size.height * 0.35), size.width * 0.55, c2);
+    drawOrb(
+        Offset(size.width * 0.45, size.height * 0.90), size.width * 0.60, c3);
   }
 
   @override

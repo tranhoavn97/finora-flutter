@@ -25,12 +25,27 @@ class Category {
 
   factory Category.fromMap(String id, Map<String, dynamic>? data) {
     final d = data ?? const {};
-    final icon = toStringValue(d['icon']);
-    final group = toStringValue(d['categoryGroup']);
-    final type = toStringValue(d['type']);
-    final resolvedGroup = group.isNotEmpty
-        ? group
-        : (type == 'merchant' ? 'merchant' : 'expense');
+    var icon = toStringValue(d['icon']).trim();
+    if (icon.isEmpty) icon = toStringValue(d['logo']).trim();
+    if (icon.isEmpty) icon = toStringValue(d['imageUrl']).trim();
+    if (icon.isEmpty) icon = toStringValue(d['iconUrl']).trim();
+    if (icon.isEmpty) icon = toStringValue(d['avatar']).trim();
+    if (icon.isEmpty) icon = toStringValue(d['emoji']).trim();
+    final group = toStringValue(d['categoryGroup']).trim().toLowerCase();
+    final type = toStringValue(d['type']).trim().toLowerCase();
+    final String resolvedGroup;
+    if (group == 'income' || type == 'income') {
+      resolvedGroup = 'income';
+    } else if (group == 'merchant' || type == 'merchant') {
+      resolvedGroup = 'merchant';
+    } else if (group == 'investment' ||
+        type == 'investment' ||
+        group == 'saving' ||
+        type == 'saving') {
+      resolvedGroup = 'investment';
+    } else {
+      resolvedGroup = 'expense';
+    }
     return Category(
       id: id,
       userId: toStringValue(d['userId']),
@@ -42,6 +57,101 @@ class Category {
       createdAt: toLongValue(d['createdAt']),
       updatedAt: toLongValue(d['updatedAt']),
     );
+  }
+
+  static const List<Category> defaultMerchants = [
+    Category(
+      id: 'green_sm',
+      name: 'Green SM',
+      icon: 'car',
+      color: '#059669',
+      categoryGroup: 'merchant',
+    ),
+    Category(
+      id: 'be',
+      name: 'Be',
+      icon: 'bike',
+      color: '#EAB308',
+      categoryGroup: 'merchant',
+    ),
+    Category(
+      id: 'shopee',
+      name: 'Shopee',
+      icon: 'assets/banks/shopee.jpg',
+      color: '#EE4D2D',
+      categoryGroup: 'merchant',
+    ),
+    Category(
+      id: 'winmart',
+      name: 'WinMart',
+      icon: 'assets/banks/winmart.png',
+      color: '#E11D48',
+      categoryGroup: 'merchant',
+    ),
+    Category(
+      id: 'grab',
+      name: 'Grab',
+      icon: 'car',
+      color: '#059669',
+      categoryGroup: 'merchant',
+    ),
+    Category(
+      id: 'tiktok_shop',
+      name: 'TikTok Shop',
+      icon: 'video',
+      color: '#000000',
+      categoryGroup: 'merchant',
+    ),
+  ];
+
+  /// Single source of truth for resolving active merchants across CategoryScreen & AddTransactionPage.
+  static List<Category> resolveMerchants(
+    Iterable<Category> customCategories, {
+    Set<String> deletedMerchantKeys = const {},
+  }) {
+    final result = <Category>[];
+    final seenIds = <String>{};
+    final seenNames = <String>{};
+
+    for (final c in customCategories) {
+      if (c.categoryGroup != 'merchant' || c.isArchived) continue;
+      final idKey = c.id.trim().toLowerCase();
+      final nameKey = c.name.trim().toLowerCase();
+      if (deletedMerchantKeys.contains(idKey) ||
+          deletedMerchantKeys.contains(nameKey)) {
+        continue;
+      }
+      if ((idKey.isNotEmpty && seenIds.contains(idKey)) ||
+          (nameKey.isNotEmpty && seenNames.contains(nameKey))) {
+        continue;
+      }
+      if (idKey.isNotEmpty) seenIds.add(idKey);
+      if (nameKey.isNotEmpty) {
+        seenNames.add(nameKey);
+        if (nameKey == 'xanh sm' || nameKey == 'green sm') {
+          seenIds.add('green_sm');
+          seenNames.add('green sm');
+          seenNames.add('xanh sm');
+        }
+      }
+      result.add(c);
+    }
+
+    for (final dm in defaultMerchants) {
+      final idKey = dm.id.trim().toLowerCase();
+      final nameKey = dm.name.trim().toLowerCase();
+      if (deletedMerchantKeys.contains(idKey) ||
+          deletedMerchantKeys.contains(nameKey)) {
+        continue;
+      }
+      if (seenIds.contains(idKey) || seenNames.contains(nameKey)) {
+        continue;
+      }
+      seenIds.add(idKey);
+      seenNames.add(nameKey);
+      result.add(dm);
+    }
+    return result;
   }
 
   static const List<Category> defaults = [

@@ -9,36 +9,85 @@ import '../../state/theme_studio_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String userId;
-  const SettingsScreen({super.key, required this.userId});
+  final bool advanced;
+  const SettingsScreen(
+      {super.key, required this.userId, this.advanced = false});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  int _selectedZoneIndex = 0; // 0: Vùng 1 (Trên), 1: Vùng 2 (Phải), 2: Vùng 3 (Dưới)
+  int _selectedZoneIndex =
+      0; // 0: Vùng 1 (Trên), 1: Vùng 2 (Phải), 2: Vùng 3 (Dưới)
 
   static const _modes = [
-    ('system', 'Theo thiết bị', Icons.brightness_auto_rounded, 'Tự động đổi theo máy'),
-    ('light', 'Sáng', Icons.light_mode_rounded, 'Nền sáng thanh lịch'),
-    ('dark', 'Tối', Icons.dark_mode_rounded, 'Dịu mắt, tiết kiệm pin'),
-    ('amoled', 'Đen AMOLED', Icons.nightlight_round, 'Đen sâu tuyệt đối'),
+    (
+      'system',
+      'Theo thiết bị',
+      Icons.phone_android_rounded,
+      'Tự động theo máy'
+    ),
+    ('light', 'Sáng', Icons.light_mode_rounded, 'Trắng pha ngọc/biển'),
+    ('dark', 'Tối', Icons.dark_mode_rounded, 'Titanium OLED'),
   ];
 
   static const List<_RgbPresetItem> _presets = [
     _RgbPresetItem(
-      name: 'Ngọc Lục Bảo',
-      c1: Color(0xFF10B981),
-      c2: Color(0xFF0284C7),
-      c3: Color(0xFF8B5CF6),
+      name: 'Thạch Anh Hồng (Rose Quartz)',
+      c1: Color(0xFFF472B6),
+      c2: Color(0xFFC084FC),
+      c3: Color(0xFF38BDF8),
+      intensity: 0.22,
+    ),
+    _RgbPresetItem(
+      name: 'Thạch Anh Tím (Amethyst)',
+      c1: Color(0xFFA855F7),
+      c2: Color(0xFF6366F1),
+      c3: Color(0xFFEC4899),
+      intensity: 0.22,
+    ),
+    _RgbPresetItem(
+      name: 'Thạch Anh Ngọc Lục (Jade Quartz)',
+      c1: Color(0xFF34D399),
+      c2: Color(0xFF2DD4BF),
+      c3: Color(0xFF38BDF8),
+      intensity: 0.22,
+    ),
+    _RgbPresetItem(
+      name: 'Thạch Anh Hoàng Kim (Citrine)',
+      c1: Color(0xFFFBBF24),
+      c2: Color(0xFFF472B6),
+      c3: Color(0xFF60A5FA),
+      intensity: 0.20,
+    ),
+    _RgbPresetItem(
+      name: 'Thạch Anh Khói (Smoky Quartz)',
+      c1: Color(0xFF94A3B8),
+      c2: Color(0xFFC084FC),
+      c3: Color(0xFF2DD4BF),
       intensity: 0.18,
     ),
     _RgbPresetItem(
-      name: 'Đại Dương Xanh',
-      c1: Color(0xFF0EA5E9),
-      c2: Color(0xFF2563EB),
-      c3: Color(0xFF06B6D4),
+      name: 'Trắng pha Xanh Ngọc',
+      c1: Color(0xFF10B981),
+      c2: Color(0xFF00C2FA),
+      c3: Color(0xFF059669),
+      intensity: 0.20,
+    ),
+    _RgbPresetItem(
+      name: 'Trắng pha Xanh Biển',
+      c1: Color(0xFF005FEA),
+      c2: Color(0xFF0284C7),
+      c3: Color(0xFF38BDF8),
       intensity: 0.18,
+    ),
+    _RgbPresetItem(
+      name: 'Tối Giản Bạch Kim',
+      c1: Color(0xFF64748B),
+      c2: Color(0xFF94A3B8),
+      c3: Color(0xFFCBD5E1),
+      intensity: 0.14,
     ),
     _RgbPresetItem(
       name: 'Hoàng Hôn Ruby',
@@ -181,7 +230,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return GlassScaffold(
       appBar: GlassTopBar(
-        title: 'Chế độ hiển thị & Giao diện',
+        title: 'Giao diện',
         onBack: () => Navigator.of(context).pop(),
       ),
       body: SafeArea(
@@ -195,71 +244,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           children: [
             // ==========================================
-            // PHÂN HỆ 1: CHẾ ĐỘ HIỂN THỊ (THEME MODE)
+            // PHÂN HỆ 1: CHẾ ĐỘ HIỂN THỊ & CỠ CHỮ (THEME & TYPOGRAPHY)
             // ==========================================
             _buildSectionHeader(
-              title: 'CHẾ ĐỘ HIỂN THỊ',
-              subtitle: 'Lựa chọn giao diện sáng, tối hoặc đen AMOLED',
+              title: 'Chế độ hiển thị & Giao diện',
+              subtitle: 'Sáng trong & Xanh tươi',
               icon: Icons.palette_rounded,
               color: const Color(0xFF0EA5E9),
               primaryTextColor: primaryTextColor,
               secondaryTextColor: secondaryTextColor,
             ),
             const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.55,
+            Row(
               children: _modes.map((item) {
                 final isSelected = theme.mode == item.$1;
-                return Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(18),
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      theme.setMode(item.$1);
-                    },
-                    borderRadius: BorderRadius.circular(18),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? (isDark
-                                ? const Color(0xFF1E2D27)
-                                : const Color(0xFFE6F4EA))
-                            : cardBg,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFF10B981)
-                              : borderColor,
-                          width: isSelected ? 1.6 : 1.0,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: const Color(0xFF10B981)
-                                      .withValues(alpha: 0.20),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          theme.setMode(item.$1);
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12, horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (isDark
+                                    ? const Color(0xFF1E2D27)
+                                    : const Color(0xFFE6F4EA))
+                                : cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF10B981)
+                                  : borderColor,
+                              width: isSelected ? 1.6 : 1.0,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.20),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(6),
+                                padding: const EdgeInsets.all(7),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? const Color(0xFF10B981)
@@ -278,53 +321,157 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           : const Color(0xFF475569)),
                                 ),
                               ),
-                              if (isSelected)
-                                const Icon(
-                                  Icons.check_circle_rounded,
-                                  size: 18,
-                                  color: Color(0xFF10B981),
-                                ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                              const SizedBox(height: 8),
                               Text(
                                 item.$2,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: primaryTextColor,
-                                ),
-                              ),
-                              Text(
-                                item.$4,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  color: secondaryTextColor,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: isSelected
+                                      ? const Color(0xFF10B981)
+                                      : primaryTextColor,
                                 ),
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 );
               }).toList(),
             ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Cỡ chữ hiển thị',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                      Text(
+                        '${(studio.fontScale * 100).round()}%',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: const Color(0xFF10B981),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      thumbColor: Colors.white,
+                      trackHeight: 5,
+                    ),
+                    child: Slider(
+                      value: studio.fontScale.clamp(0.9, 1.25),
+                      min: 0.9,
+                      max: 1.25,
+                      divisions: 7,
+                      label: '${(studio.fontScale * 100).round()}%',
+                      onChanged: studio.setFontScale,
+                    ),
+                  ),
+                  const Divider(height: 12),
+                  Material(
+                    color: Colors.transparent,
+                    child: Column(
+                      children: [
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(
+                            'Hiệu ứng chuyển trang mượt',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Giảm chuyển động',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: secondaryTextColor,
+                            ),
+                          ),
+                          value: studio.motionDynamics !=
+                              AppMotionDynamics.reducedMotion,
+                          onChanged: (value) => studio.setMotionDynamics(value
+                              ? AppMotionDynamics.smoothGentle
+                              : AppMotionDynamics.reducedMotion),
+                        ),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(
+                            'Dùng giao diện cá nhân hóa',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Tùy chỉnh nâng cao',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: secondaryTextColor,
+                            ),
+                          ),
+                          value: studio.useCustomRgbMeshBg,
+                          onChanged: studio.setUseCustomRgbMeshBg,
+                        ),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(
+                            'Phản hồi rung xúc giác (Haptic)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          value: studio.hapticEnabled,
+                          onChanged: studio.setHapticEnabled,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             // ==========================================
-            // PHÂN HỆ 2: TUỲ BIẾN NỀN PHA MÀU RGB GRADIENT BLUR
+            // PHÂN HỆ 2: TUỲ BIẾN NỀN PHA MÀU ĐÁ THẠCH ANH (QUARTZ MESH)
             // ==========================================
             _buildSectionHeader(
-              title: 'NỀN PHA MÀU GRADIENT BLUR',
-              subtitle: 'Pha màu 3 vùng Mesh Gradient chuẩn Apple iOS 18',
-              icon: Icons.blur_on_rounded,
+              title: 'NỀN PHA MÀU ĐÁ THẠCH ANH & GRADIENT BLUR',
+              subtitle: 'Bảng màu pha tinh thể Thạch Anh & Mesh Gradient 3 vùng',
+              icon: Icons.auto_awesome_rounded,
               color: const Color(0xFF10B981),
               primaryTextColor: primaryTextColor,
               secondaryTextColor: secondaryTextColor,
@@ -337,7 +484,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: borderColor, width: 1.2),
-                color: isDark ? const Color(0xFF090D16) : const Color(0xFFF6F8FA),
+                color:
+                    isDark ? const Color(0xFF090D16) : const Color(0xFFF6F8FA),
               ),
               clipBehavior: Clip.antiAlias,
               child: Stack(
@@ -359,7 +507,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   // Glass content overlay
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -407,11 +556,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  _buildColorBadge('Vùng 1', studio.customBgColor1),
+                                  _buildColorBadge(
+                                      'Vùng 1', studio.customBgColor1),
                                   const SizedBox(width: 6),
-                                  _buildColorBadge('Vùng 2', studio.customBgColor2),
+                                  _buildColorBadge(
+                                      'Vùng 2', studio.customBgColor2),
                                   const SizedBox(width: 6),
-                                  _buildColorBadge('Vùng 3', studio.customBgColor3),
+                                  _buildColorBadge(
+                                      'Vùng 3', studio.customBgColor3),
                                 ],
                               ),
                             ],
@@ -501,10 +653,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               physics: const BouncingScrollPhysics(),
               child: Row(
                 children: _presets.map((preset) {
-                  final isSelected =
-                      studio.customBgColor1.toARGB32() == preset.c1.toARGB32() &&
-                          studio.customBgColor2.toARGB32() == preset.c2.toARGB32() &&
-                          studio.customBgColor3.toARGB32() == preset.c3.toARGB32();
+                  final isSelected = studio.customBgColor1.toARGB32() ==
+                          preset.c1.toARGB32() &&
+                      studio.customBgColor2.toARGB32() ==
+                          preset.c2.toARGB32() &&
+                      studio.customBgColor3.toARGB32() == preset.c3.toARGB32();
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: InkWell(
@@ -611,11 +764,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      (MeshBlendStyle.radialMesh, 'Đa điểm', Icons.blur_on_rounded),
-                      (MeshBlendStyle.auroraWave, 'Cực quang', Icons.waves_rounded),
-                      (MeshBlendStyle.linearFlow, 'Dòng chảy', Icons.trending_flat_rounded),
-                      (MeshBlendStyle.centerAura, 'Hào quang', Icons.flare_rounded),
-                      (MeshBlendStyle.prismaticFusion, 'Lăng kính', Icons.diamond_rounded),
+                      (
+                        MeshBlendStyle.radialMesh,
+                        'Đa điểm',
+                        Icons.blur_on_rounded
+                      ),
+                      (
+                        MeshBlendStyle.auroraWave,
+                        'Cực quang',
+                        Icons.waves_rounded
+                      ),
+                      (
+                        MeshBlendStyle.linearFlow,
+                        'Dòng chảy',
+                        Icons.trending_flat_rounded
+                      ),
+                      (
+                        MeshBlendStyle.centerAura,
+                        'Hào quang',
+                        Icons.flare_rounded
+                      ),
+                      (
+                        MeshBlendStyle.prismaticFusion,
+                        'Lăng kính',
+                        Icons.diamond_rounded
+                      ),
                     ].map((item) {
                       final style = item.$1;
                       final title = item.$2;
@@ -733,15 +906,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // 3-Zone Segmented Control
-                  Row(
-                    children: [
-                      _buildZoneTab(0, 'Vùng 1 (Trên)', studio.customBgColor1),
-                      const SizedBox(width: 8),
-                      _buildZoneTab(1, 'Vùng 2 (Phải)', studio.customBgColor2),
-                      const SizedBox(width: 8),
-                      _buildZoneTab(2, 'Vùng 3 (Dưới)', studio.customBgColor3),
-                    ],
+                  FinoraSegmentedTabs(
+                    labels: const ['Vùng trên', 'Vùng phải', 'Vùng dưới'],
+                    selectedIndex: _selectedZoneIndex,
+                    height: 38,
+                    onChanged: (index) =>
+                        setState(() => _selectedZoneIndex = index),
                   ),
 
                   const SizedBox(height: 16),
@@ -761,7 +931,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: _swatches.map((color) {
-                      final isSelected = activeColor.toARGB32() == color.toARGB32();
+                      final isSelected =
+                          activeColor.toARGB32() == color.toARGB32();
                       return InkWell(
                         onTap: () {
                           HapticFeedback.selectionClick();
@@ -775,7 +946,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             color: color,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isSelected ? Colors.white : Colors.transparent,
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.transparent,
                               width: 2.2,
                             ),
                             boxShadow: [
@@ -882,7 +1055,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       activeTrackColor: const Color(0xFF10B981),
-                      inactiveTrackColor: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                       thumbColor: Colors.white,
                       trackHeight: 5,
                     ),
@@ -893,9 +1067,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: (val) => studio.setCustomBgIntensity(val),
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -921,7 +1093,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       activeTrackColor: const Color(0xFF0284C7),
-                      inactiveTrackColor: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                       thumbColor: Colors.white,
                       trackHeight: 5,
                     ),
@@ -939,13 +1112,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 22),
 
             // ==========================================
-            // PHÂN HỆ 3: ĐỘ TRONG SUỐT VÀ MỜ CHO THẺ & WIDGET
+            // PHÂN HỆ 3: ĐỘ TRONG SUỐT VÀ MỜ CHO HEADER, DOCK & THẺ
             // ==========================================
             _buildSectionHeader(
-              title: 'ĐỘ TRONG SUỐT & HIỆU ỨNG KÍNH MỜ',
-              subtitle: 'Tùy chỉnh độ trong suốt (opacity) và độ mờ (blur) cho toàn bộ thẻ, widget và thanh dock',
-              icon: Icons.blur_on_rounded,
-              color: const Color(0xFF10B981),
+              title: 'ĐỘ MỜ & TUỲ BIẾN HEADER, DOCK & THẺ',
+              subtitle:
+                  'Tuỳ chỉnh độ mờ (opacity), độ blur và màu sắc cho thanh đầu trang, thanh dock và các thẻ',
+              icon: Icons.tune_rounded,
+              color: const Color(0xFF6366F1),
               primaryTextColor: primaryTextColor,
               secondaryTextColor: secondaryTextColor,
             ),
@@ -961,16 +1135,267 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Slider Độ trong suốt Glass Opacity
+                  // --- 1. HEADER (THANH ĐẦU TRANG) ---
+                  Row(
+                    children: [
+                      const Icon(Icons.view_headline_rounded,
+                          size: 16, color: Color(0xFF005FEA)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'THANH ĐẦU TRANG (HEADER)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'ĐỘ TRONG SUỐT THẺ (OPACITY)',
+                        'Độ mờ Header (Opacity)',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: secondaryTextColor),
+                      ),
+                      Text(
+                        '${(studio.appBarOpacity * 100).round()}%',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: primaryTextColor),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: const Color(0xFF005FEA),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      thumbColor: Colors.white,
+                      trackHeight: 5,
+                    ),
+                    child: Slider(
+                      value: studio.appBarOpacity.clamp(0.20, 1.0),
+                      min: 0.20,
+                      max: 1.0,
+                      onChanged: (val) => studio.setAppBarOpacity(val),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Độ blur Header',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: secondaryTextColor),
+                      ),
+                      Text(
+                        '${studio.appBarBlur.round()}px',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: primaryTextColor),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: const Color(0xFF005FEA),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      thumbColor: Colors.white,
+                      trackHeight: 5,
+                    ),
+                    child: Slider(
+                      value: studio.appBarBlur.clamp(0.0, 30.0),
+                      min: 0.0,
+                      max: 30.0,
+                      onChanged: (val) => studio.setAppBarBlur(val),
+                    ),
+                  ),
+
+                  const Divider(height: 24),
+
+                  // --- 2. DOCK NAVIGATION (THANH ĐIỀU HƯỚNG) ---
+                  Row(
+                    children: [
+                      const Icon(Icons.navigation_rounded,
+                          size: 16, color: Color(0xFF10B981)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'THANH DOCK ĐIỀU HƯỚNG',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Màu nút chọn thanh Dock',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: secondaryTextColor),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildDockColorPill(
+                          null, 'Mặc định', const Color(0xFF005FEA), studio),
+                      const SizedBox(width: 6),
+                      _buildDockColorPill(const Color(0xFF10B981), 'Ngọc',
+                          const Color(0xFF10B981), studio),
+                      const SizedBox(width: 6),
+                      _buildDockColorPill(const Color(0xFF0284C7), 'Biển',
+                          const Color(0xFF0284C7), studio),
+                      const SizedBox(width: 6),
+                      _buildDockColorPill(const Color(0xFF8B5CF6), 'Tím',
+                          const Color(0xFF8B5CF6), studio),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Màu nút dấu (+) ở thanh Dock',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: secondaryTextColor),
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildDockPlusColorPill(
+                            null, 'Ngọc (Chuẩn)', const Color(0xFF10B981), studio),
+                        const SizedBox(width: 6),
+                        _buildDockPlusColorPill(const Color(0xFF0284C7), 'Xanh Biển',
+                            const Color(0xFF0284C7), studio),
+                        const SizedBox(width: 6),
+                        _buildDockPlusColorPill(const Color(0xFFE11D48), 'San Hô',
+                            const Color(0xFFE11D48), studio),
+                        const SizedBox(width: 6),
+                        _buildDockPlusColorPill(const Color(0xFFF59E0B), 'Vàng Kim',
+                            const Color(0xFFF59E0B), studio),
+                        const SizedBox(width: 6),
+                        _buildDockPlusColorPill(const Color(0xFF8B5CF6), 'Tím Royal',
+                            const Color(0xFF8B5CF6), studio),
+                        const SizedBox(width: 6),
+                        _buildDockPlusColorPill(const Color(0xFFEC4899), 'Hồng Neon',
+                            const Color(0xFFEC4899), studio),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Độ mờ Dock (Opacity)',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: secondaryTextColor),
+                      ),
+                      Text(
+                        '${(studio.dockOpacity * 100).round()}%',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: primaryTextColor),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: const Color(0xFF10B981),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      thumbColor: Colors.white,
+                      trackHeight: 5,
+                    ),
+                    child: Slider(
+                      value: studio.dockOpacity.clamp(0.20, 1.0),
+                      min: 0.20,
+                      max: 1.0,
+                      onChanged: (val) => studio.setDockOpacity(val),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Độ blur Dock',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: secondaryTextColor),
+                      ),
+                      Text(
+                        '${studio.dockBlur.round()}px',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: primaryTextColor),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: const Color(0xFF10B981),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      thumbColor: Colors.white,
+                      trackHeight: 5,
+                    ),
+                    child: Slider(
+                      value: studio.dockBlur.clamp(0.0, 30.0),
+                      min: 0.0,
+                      max: 30.0,
+                      onChanged: (val) => studio.setDockBlur(val),
+                    ),
+                  ),
+
+                  const Divider(height: 24),
+
+                  // --- 3. THẺ & WIDGET (CARD BACKGROUND) ---
+                  Row(
+                    children: [
+                      const Icon(Icons.dashboard_rounded,
+                          size: 16, color: Color(0xFFF59E0B)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'NỀN CÁC THẺ & WIDGET',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Độ mờ nền thẻ (Opacity)',
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.7,
+                          fontWeight: FontWeight.w700,
                           color: secondaryTextColor,
                         ),
                       ),
@@ -986,8 +1411,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: const Color(0xFF10B981),
-                      inactiveTrackColor: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      activeTrackColor: const Color(0xFFF59E0B),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                       thumbColor: Colors.white,
                       trackHeight: 5,
                     ),
@@ -999,18 +1425,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
-
-                  // 2. Slider Độ mờ Glass Blur
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'ĐỘ MỜ KÍNH (BLUR SIGMA)',
+                        'Độ mờ kính thẻ (Blur Sigma)',
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.7,
+                          fontWeight: FontWeight.w700,
                           color: secondaryTextColor,
                         ),
                       ),
@@ -1026,8 +1448,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: const Color(0xFF10B981),
-                      inactiveTrackColor: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      activeTrackColor: const Color(0xFFF59E0B),
+                      inactiveTrackColor:
+                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                       thumbColor: Colors.white,
                       trackHeight: 5,
                     ),
@@ -1073,16 +1496,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
                   color: primaryTextColor,
                 ),
               ),
+              const SizedBox(height: 1),
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
                   color: secondaryTextColor,
                 ),
               ),
@@ -1093,52 +1518,123 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildZoneTab(int index, String label, Color color) {
-    final isSelected = _selectedZoneIndex == index;
+  Widget _buildDockColorPill(Color? color, String label, Color previewColor,
+      ThemeStudioController studio) {
+    final isSelected = (color == null && studio.dockActiveColor == null) ||
+        (color != null &&
+            studio.dockActiveColor?.toARGB32() == color.toARGB32());
     return Expanded(
-      child: InkWell(
+      child: GestureDetector(
         onTap: () {
           HapticFeedback.selectionClick();
-          setState(() => _selectedZoneIndex = index);
+          studio.setDockActiveColor(color);
         },
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        child: Container(
+          height: 32,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSelected ? color.withValues(alpha: 0.16) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            color: isSelected
+                ? previewColor.withValues(alpha: 0.18)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(100),
             border: Border.all(
-              color: isSelected ? color : Colors.grey.withValues(alpha: 0.25),
+              color: isSelected
+                  ? previewColor
+                  : (Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 12,
-                height: 12,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(
-                  color: color,
+                  color: previewColor,
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected ? color : Colors.grey,
-                  ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected
+                      ? previewColor
+                      : (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : const Color(0xFF475569)),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDockPlusColorPill(Color? color, String label, Color previewColor,
+      ThemeStudioController studio) {
+    final isSelected = (color == null && studio.dockPlusColor == null) ||
+        (color != null &&
+            studio.dockPlusColor?.toARGB32() == color.toARGB32());
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        studio.setDockPlusColor(color);
+      },
+      child: Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? previewColor.withValues(alpha: 0.18)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: isSelected
+                ? previewColor
+                : (Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE2E8F0)),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: previewColor,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                size: 10,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected
+                    ? previewColor
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white70
+                        : const Color(0xFF475569)),
+              ),
+            ),
+          ],
         ),
       ),
     );

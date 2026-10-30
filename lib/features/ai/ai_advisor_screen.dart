@@ -1,23 +1,27 @@
+import 'dart:ui';
+
+import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design_system/app_colors.dart';
+import '../../core/utils/formatters.dart';
+import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/glass_widgets.dart';
-import '../../domain/finance/finance_summary.dart';
-import '../../data/services/ai_service.dart';
+import '../../data/services/local_assistant_service.dart';
+import 'assistant_response_body.dart';
 import '../../data/services/finora_nlp_engine.dart';
 import '../../data/models/category.dart';
 import '../../data/models/finance_models.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
-import '../../state/dashboard_provider.dart';
 import '../../state/transaction_provider.dart';
+import '../../state/budget_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../../core/theme/finora_tokens.dart';
 
-/// Cố vấn tài chính AI thông minh Finora AI
-/// Thiết kế chuẩn Liquid Glass, Ambient Floating Background, Bento Grid & Capsule Chat Experience
+/// Free on-device assistant for ledger reports and confirmed income/expense drafts.
 class AiAdvisorScreen extends StatefulWidget {
   final String userId;
   final String? familyId;
@@ -36,17 +40,21 @@ class AiAdvisorScreen extends StatefulWidget {
 class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
-  final List<({String text, bool user})> _messages = [];
+  final List<({String text, bool user, String source})> _messages = [];
   List<SmartTransactionParsed> _pendingTransactions = [];
+  String _conversationPrompt = '';
   bool _busy = false;
   bool _savingDrafts = false;
+  final Map<SmartTransactionParsed, String> _draftIds = {};
+  final Map<SmartTransactionParsed, String> _draftWalletIds = {};
+  final Map<SmartTransactionParsed, String> _draftCategoryIds = {};
 
   final List<String> _quickSuggestions = const [
     '🍽️ Ăn uống tháng này đã chi bao nhiêu?',
-    '💰 Mẹo tiết kiệm thêm 2 triệu tháng này',
+    '💰 Gợi ý tiết kiệm từ chi tiêu thực tế',
     '💳 Kiểm tra hạn mức thẻ tín dụng',
-    '⚡ Ghi nhanh: Đổ xăng 80k Momo',
-    '📈 Dự báo dòng tiền 30 ngày tới',
+    'Hướng dẫn ghi giao dịch bằng trò chuyện',
+    '📈 So sánh chi tiêu với tháng trước',
     '📊 Cơ cấu thu chi tháng này thế nào?',
   ];
 
@@ -56,11 +64,11 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context
-            .read<DashboardProvider>()
-            .load(widget.userId, familyId: widget.familyId);
-        context
             .read<TransactionProvider>()
             .load(widget.userId, familyId: widget.familyId);
+        context
+            .read<BudgetProvider?>()
+            ?.load(widget.userId, familyId: widget.familyId);
       }
     });
   }
@@ -74,130 +82,64 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
 
   Future<void> _sendPrompt(String prompt) async {
     final cleanPrompt = prompt.trim();
-    if (cleanPrompt.isEmpty || _busy) return;
+    if (cleanPrompt.isEmpty || _busy || _savingDrafts) return;
+    if (_pendingTransactions.isNotEmpty) {
+      FinoraNotice.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Hãy lưu hoặc hủy bản nháp hiện tại trước khi gửi yêu cầu mới.')));
+      return;
+    }
 
     HapticFeedback.lightImpact();
     setState(() {
-      _messages.add((text: cleanPrompt, user: true));
+      _messages.add((text: cleanPrompt, user: true, source: 'user'));
       _busy = true;
       _input.clear();
     });
 
     _scrollToBottom();
 
-    Map<String, dynamic>? financeContext;
-
     try {
-      final d = context.read<DashboardProvider>();
       final txProvider = context.read<TransactionProvider>();
-      final now = DateTime.now();
-      final summary = FinanceSummary.from(
-        d.data.allTransactions.where(FinanceScope.month(now).contains),
-      );
-
-      final history = _messages
-          .skip(_messages.length > 6 ? _messages.length - 6 : 0)
-          .map((m) => {
-                'role': m.user ? 'user' : 'model',
-                'parts': [
-                  {'text': m.text}
-                ],
-              })
-          .toList();
-
-      final parsed = FinoraNlpEngine.extractTransactions(
-        message: cleanPrompt,
-        categories: txProvider.categories,
-        wallets: txProvider.wallets,
-      )
-          .where((draft) => draft.type == 'income' || draft.type == 'expense')
-          .toList();
-      if (parsed.isNotEmpty && !FinoraNlpEngine.isFinancialQuery(cleanPrompt)) {
-        if (mounted) {
-          setState(() {
-            _pendingTransactions = parsed;
-            _messages.add((
-              text:
-                  'Mình đã hiểu ${parsed.length} giao dịch. Hãy kiểm tra bản nháp bên dưới trước khi lưu.',
-              user: false,
-            ));
-          });
-        }
-        return;
-      }
-
-      final recent = txProvider.transactions
-          .take(40)
-          .map((tx) => {
-                'date': tx.date,
-                'amount': tx.amount,
-                'type': tx.type,
-                'title': tx.note ?? tx.categoryName ?? 'Giao dịch',
-                'category': tx.categoryName,
-                'wallet': tx.walletName,
-                'owner': tx.owner,
-              })
-          .toList();
-      financeContext = <String, dynamic>{
-        'period': '${now.year}-${now.month}',
-        'currency': 'VND',
-        'income': summary.income,
-        'expense': summary.expense,
-        'balance': txProvider.wallets
-            .where((wallet) => !wallet.isCreditCard)
-            .fold<int>(0, (sum, wallet) => sum + wallet.balance),
-        'wallets': txProvider.wallets
-            .map((wallet) => {
-                  'name': wallet.name,
-                  'type': wallet.type,
-                  'owner': wallet.owner,
-                  'balance': wallet.balance,
-                  'currentDebt': wallet.currentDebt,
-                })
-            .toList(),
-        'categoryTotals': _categoryTotals(txProvider.transactions, now),
-        'recentTransactions': recent,
-      };
-
-      var answer = await AiService.getFinancialAdvice(
+      final budgetProvider = context.read<BudgetProvider?>();
+      final answer = LocalAssistantService.reply(
         prompt: cleanPrompt,
-        chatHistory: history,
-        throwOnError: false,
-        userFinanceContext: financeContext,
+        transactions: txProvider.transactions,
+        wallets: txProvider.wallets,
+        categories: txProvider.categories,
+        dataReady: !txProvider.isRefreshing && txProvider.error == null,
+        now: DateTime.now(),
+        previousPrompt: _conversationPrompt,
+        budgets:
+            budgetProvider?.budgetsWithSpent.map((b) => b.budget).toList() ??
+                const [],
+        budgetsReady: budgetProvider != null &&
+            !budgetProvider.isRefreshing &&
+            budgetProvider.error == null,
       );
-      if (answer.startsWith('Finora AI chưa được cấu hình') ||
-          answer.startsWith('Không thể kết nối Finora AI') ||
-          answer.startsWith('Máy chủ Finora AI đang bận')) {
-        answer = FinoraNlpEngine.generateFinancialAdvice(
-              query: cleanPrompt,
-              financeContext: financeContext,
-              categories: txProvider.categories,
-              wallets: txProvider.wallets,
-            ).replyText ??
-            'Mình chưa đủ dữ liệu để đưa ra phân tích phù hợp.';
-      }
-
       if (mounted) {
         setState(() {
-          _messages.add((text: answer, user: false));
+          _messages.add((text: answer.text, user: false, source: 'local'));
+          _conversationPrompt = answer.contextPrompt ?? cleanPrompt;
+          _pendingTransactions = answer.transactions;
+          _draftIds.clear();
+          _draftWalletIds.clear();
+          _draftCategoryIds.clear();
+          for (var i = 0; i < answer.transactions.length; i++) {
+            _draftIds[answer.transactions[i]] =
+                'ai_${DateTime.now().microsecondsSinceEpoch}_$i';
+          }
         });
       }
-    } catch (_) {
-      if (mounted) {
-        final fallback = FinoraNlpEngine.generateFinancialAdvice(
-              query: cleanPrompt,
-              financeContext: financeContext,
-              categories: context.read<TransactionProvider>().categories,
-              wallets: context.read<TransactionProvider>().wallets,
-            ).replyText ??
-            'Finora AI luôn sẵn sàng đồng hành cùng bạn quản lý chi tiêu hiệu quả.';
+    } catch (error) {
+      if (mounted)
         setState(() {
           _messages.add((
-            text: fallback,
+            text: 'Chưa thể xử lý yêu cầu. Hãy thử lại.',
             user: false,
+            source: 'status'
           ));
         });
-      }
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -206,44 +148,60 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     }
   }
 
-  Map<String, int> _categoryTotals(
-      List<TransactionModel> transactions, DateTime now) {
-    final totals = <String, int>{};
-    for (final tx in transactions) {
-      final date = DateTime.fromMillisecondsSinceEpoch(
-        tx.date < 100000000000 ? tx.date * 1000 : tx.date,
-      );
-      if (date.year != now.year || date.month != now.month) continue;
-      if (tx.type != 'expense') continue;
-      final name = tx.categoryName ?? 'Khác';
-      totals[name] = (totals[name] ?? 0) + tx.amount;
-    }
-    return totals;
-  }
-
   Category? _resolveCategory(
       SmartTransactionParsed draft, List<Category> categories) {
     final compatible = categories.where((category) {
       final expected = draft.type == 'income' ? 'income' : 'expense';
-      return category.categoryGroup == expected;
+      return !category.isArchived && category.categoryGroup == expected;
     });
-    final wanted = FinoraNlpEngine.normalize(draft.categoryName ?? '');
-    for (final category in compatible) {
-      if (FinoraNlpEngine.normalize(category.name) == wanted) return category;
-    }
-    return compatible.isEmpty ? null : compatible.first;
+    final selectedId = _draftCategoryIds[draft];
+    final matches = compatible
+        .where((c) => selectedId != null
+            ? c.id == selectedId
+            : draft.categoryName != null &&
+                FinoraNlpEngine.normalize(c.name) ==
+                    FinoraNlpEngine.normalize(draft.categoryName!))
+        .toList();
+    return matches.length == 1 ? matches.single : null;
   }
 
   Wallet? _resolveWallet(SmartTransactionParsed draft, List<Wallet> wallets) {
-    final wanted = FinoraNlpEngine.normalize(draft.walletName ?? '');
-    for (final wallet in wallets) {
-      if (FinoraNlpEngine.normalize(wallet.name) == wanted) return wallet;
-    }
-    final ownerMatches = wallets.where((wallet) =>
-        draft.owner == null || wallet.owner.toLowerCase() == draft.owner);
-    return ownerMatches.isNotEmpty
-        ? ownerMatches.first
-        : (wallets.isEmpty ? null : wallets.first);
+    final selectedId = _draftWalletIds[draft];
+    final matches = wallets
+        .where((w) => selectedId != null
+            ? w.id == selectedId
+            : draft.walletName != null &&
+                FinoraNlpEngine.normalize(w.name) ==
+                    FinoraNlpEngine.normalize(draft.walletName!))
+        .toList();
+    return matches.length == 1 ? matches.single : null;
+  }
+
+  void _updateDraft(SmartTransactionParsed draft,
+      {String? walletName,
+      String? categoryName,
+      String? walletId,
+      String? categoryId}) {
+    final replacement = SmartTransactionParsed(
+        type: draft.type,
+        amount: draft.amount,
+        note: draft.note,
+        date: draft.date,
+        walletName: walletName ?? draft.walletName,
+        categoryName: categoryName ?? draft.categoryName);
+    setState(() {
+      final index = _pendingTransactions.indexOf(draft);
+      if (index < 0) return;
+      _pendingTransactions[index] = replacement;
+      _draftIds[replacement] = _draftIds.remove(draft) ??
+          'ai_${DateTime.now().microsecondsSinceEpoch}';
+      final oldWallet = _draftWalletIds.remove(draft);
+      final oldCategory = _draftCategoryIds.remove(draft);
+      if (walletId ?? oldWallet case final String id)
+        _draftWalletIds[replacement] = id;
+      if (categoryId ?? oldCategory case final String id)
+        _draftCategoryIds[replacement] = id;
+    });
   }
 
   Future<void> _savePendingTransactions() async {
@@ -251,7 +209,8 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     final provider = context.read<TransactionProvider>();
     setState(() => _savingDrafts = true);
     try {
-      for (final draft in _pendingTransactions) {
+      for (final draft
+          in List<SmartTransactionParsed>.of(_pendingTransactions)) {
         final category = _resolveCategory(draft, provider.categories);
         final wallet = _resolveWallet(draft, provider.wallets);
         if (category == null || wallet == null) {
@@ -267,6 +226,8 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
         await provider.createTransaction(
           widget.userId,
           TransactionModel(
+            id: _draftIds[draft] ??=
+                'ai_${DateTime.now().microsecondsSinceEpoch}',
             userId: widget.userId,
             amount: draft.amount,
             type: draft.type == 'income' ? 'income' : 'expense',
@@ -282,23 +243,26 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
             owner: owner,
             ownerName: ownerName,
             creatorTag: ownerTag,
-            tags: [ownerTag, 'Finora AI'],
+            tags: [ownerTag, 'Trợ lí FINORA'],
           ),
         );
+        _pendingTransactions.remove(draft);
+        _draftIds.remove(draft);
+        _draftWalletIds.remove(draft);
+        _draftCategoryIds.remove(draft);
       }
       if (!mounted) return;
-      final count = _pendingTransactions.length;
       setState(() {
         _pendingTransactions = [];
         _messages.add((
-          text:
-              'Đã lưu $count giao dịch và cập nhật số dư, báo cáo, ngân sách.',
+          text: 'Đã lưu các giao dịch đã xác nhận vào sổ.',
           user: false,
+          source: 'status',
         ));
       });
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        FinoraNotice.of(context).showSnackBar(const SnackBar(
           content:
               Text('Chưa thể lưu. Hãy kiểm tra ví và danh mục rồi thử lại.'),
         ));
@@ -332,63 +296,187 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     final secondaryTextColor =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
 
-    return GlassScaffold(
-      extendBodyBehindAppBar: true,
-      appBar: GlassTopBar(
-        title: 'Trợ lý Finora AI',
-        titleWidget: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Trợ lý',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: FinoraTokens.ink(isDark),
-              ),
+    final headerBlur = (studio?.appBarBlur ?? 18.0).clamp(0.0, 32.0);
+    final headerAlpha =
+        (studio?.appBarOpacity ?? (isDark ? 0.84 : 0.88)).clamp(0.15, 1.0);
+    final borderColor =
+        isDark ? Colors.white.withValues(alpha: 0.10) : const Color(0xFFE2E8F0);
+    final canPop = Navigator.of(context).canPop();
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBg : const Color(0xFFF8FAFC),
+      body: Stack(
+        children: [
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: AmbientFloatingBackground(child: SizedBox.expand()),
             ),
-            Text(
-              'Dựa trên dữ liệu của bạn',
-              style: TextStyle(
-                fontSize: 11,
-                color: FinoraTokens.inkSecondary(isDark),
-              ),
-            ),
-          ],
-        ),
-        showBottomDivider: true,
-        onBack: () => Navigator.of(context).maybePop(),
-        actions: _messages.isEmpty
-            ? const []
-            : [
-                IconButton(
-                  tooltip: 'Làm mới cuộc trò chuyện',
-                  icon: Icon(Icons.refresh_rounded,
-                      color: FinoraTokens.ink(isDark)),
-                  onPressed: () => setState(() {
-                    _messages.clear();
-                    _pendingTransactions = [];
-                  }),
-                ),
-              ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 780),
-          child: Column(
+          ),
+          Column(
             children: [
-              // CHAT & BENTO CONTENT
-              Expanded(
-                child: ListView(
-                  controller: _scroll,
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    GlassScaffold.topInset(context, 10),
-                    16,
-                    16,
+              // Sticky Blur Header aligned with all main screens
+              ClipRect(
+                child: BackdropFilter(
+                  filter:
+                      ImageFilter.blur(sigmaX: headerBlur, sigmaY: headerBlur),
+                  child: Container(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      MediaQuery.of(context).padding.top + 8,
+                      16,
+                      12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: (isDark ? const Color(0xFF0B131E) : Colors.white)
+                          .withValues(alpha: headerAlpha),
+                      border: Border(
+                        bottom: BorderSide(color: borderColor, width: 0.8),
+                      ),
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 780),
+                        child: Row(
+                          children: [
+                            if (canPop) ...[
+                              InkWell(
+                                onTap: () => Navigator.of(context).maybePop(),
+                                borderRadius: BorderRadius.circular(999),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.08)
+                                        : const Color(0xFFF1F5F9),
+                                    border: Border.all(color: borderColor),
+                                  ),
+                                  child: Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    size: 16,
+                                    color: primaryTextColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ] else ...[
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF10B981),
+                                      Color(0xFF059669),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Trợ lý AI FINORA',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: primaryTextColor,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Miễn phí • Xử lý trên máy',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: secondaryTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (_messages.isNotEmpty)
+                              InkWell(
+                                onTap: _busy || _savingDrafts
+                                    ? null
+                                    : () => setState(() {
+                                          _messages.clear();
+                                          _conversationPrompt = '';
+                                          _pendingTransactions = [];
+                                        }),
+                                borderRadius: BorderRadius.circular(999),
+                                child: Tooltip(
+                                  message: 'Làm mới cuộc trò chuyện',
+                                  child: Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : const Color(0xFFF1F5F9),
+                                      border: Border.all(color: borderColor),
+                                    ),
+                                    child: Icon(
+                                      Icons.refresh_rounded,
+                                      size: 18,
+                                      color: primaryTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  children: [
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 780),
+                    child: Column(
+                      children: [
+                        // CHAT & BENTO CONTENT
+                        Expanded(
+                          child: ListView(
+                            controller: _scroll,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(
+                              16,
+                              12,
+                              16,
+                              16,
+                            ),
+                            children: [
                     if (_messages.isEmpty) ...[
                       const SizedBox(height: 10),
 
@@ -431,6 +519,22 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                         primaryTextColor: primaryTextColor,
                         secondaryTextColor: secondaryTextColor,
                       ),
+                    if (_messages.isNotEmpty &&
+                        _pendingTransactions.isEmpty &&
+                        !_busy)
+                      Padding(
+                          padding: const EdgeInsets.only(top: 4, bottom: 8),
+                          child: Wrap(spacing: 8, runSpacing: 6, children: [
+                            for (final suggestion in [
+                              'Liệt kê từng khoản',
+                              'So sánh với tháng trước',
+                              'Gợi ý cắt giảm'
+                            ])
+                              ActionChip(
+                                  label: Text(suggestion,
+                                      style: const TextStyle(fontSize: 11)),
+                                  onPressed: () => _sendPrompt(suggestion)),
+                          ])),
                     if (_busy)
                       _buildTypingIndicator(
                         isDark,
@@ -448,9 +552,14 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                 secondaryTextColor: secondaryTextColor,
                 primaryAccent: primaryAccent,
               ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -464,81 +573,118 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     required Color secondaryTextColor,
     required Color primaryAccent,
   }) {
-    return Column(
-      children: [
-        Center(
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: FinoraTokens.ink(isDark)
-                  .withValues(alpha: isDark ? 0.12 : 0.06),
-              border: Border.all(
-                color: FinoraTokens.line(isDark),
-                width: 1,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+      decoration: BoxDecoration(
+        color: FinoraTokens.surface(isDark),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: FinoraTokens.line(isDark),
+        ),
+      ),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          FinoraAmbientMascotWatermark(
+            pose: FinoraMascotPose.thinking,
+            size: 132,
+            opacity: isDark ? 0.10 : 0.08,
+            right: -18,
+            bottom: -18,
+          ),
+          Column(
+            children: [
+              Center(
+                child: Container(
+                  width: 82,
+                  height: 82,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: (isDark
+                            ? const Color(0xFF0F6E56)
+                            : const Color(0xFFE8F5F0))
+                        .withValues(alpha: isDark ? 0.35 : 0.65),
+                    border: Border.all(
+                      color: const Color(0xFF10B981)
+                          .withValues(alpha: isDark ? 0.40 : 0.30),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF10B981)
+                            .withValues(alpha: isDark ? 0.25 : 0.15),
+                        blurRadius: 18,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/mascot/animation-keypose-01-idle.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        'assets/mascot/expression-01-happy.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.auto_awesome_rounded,
-                size: 28,
-                color: FinoraTokens.ink(isDark),
+              const SizedBox(height: 12),
+              Text(
+                'Trợ lí FINORA',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: FinoraTokens.ink(isDark),
+                ),
               ),
-            ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'Trả lời ngắn gọn, đúng trọng tâm số liệu thực tế & soạn giao dịch tức thì.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: FinoraTokens.inkSecondary(isDark),
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildTelemetryBadge(
+                    icon: Icons.bolt_rounded,
+                    label: 'Ngắn gọn · Đúng trọng tâm',
+                    color: FinoraTokens.ink(isDark),
+                    isDark: isDark,
+                  ),
+                  _buildTelemetryBadge(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Số liệu thực tế',
+                    color: FinoraTokens.pos(isDark),
+                    isDark: isDark,
+                  ),
+                  _buildTelemetryBadge(
+                    icon: Icons.shield_outlined,
+                    label: 'Bảo mật gia đình',
+                    color: FinoraTokens.inkSecondary(isDark),
+                    isDark: isDark,
+                  ),
+                ],
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Trợ lý Finora AI',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            color: FinoraTokens.ink(isDark),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            'Cố vấn tài chính thông minh của gia đình bạn. Sẵn sàng bóc tách cơ cấu chi tiêu, đề xuất tiết kiệm và phân tích dòng tiền.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: FinoraTokens.inkSecondary(isDark),
-              height: 1.45,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildTelemetryBadge(
-              icon: Icons.bolt_rounded,
-              label: 'Gemini Brain',
-              color: FinoraTokens.ink(isDark),
-              isDark: isDark,
-            ),
-            const SizedBox(width: 8),
-            _buildTelemetryBadge(
-              icon: Icons.account_balance_wallet_rounded,
-              label: 'Dữ liệu thực tế',
-              color: FinoraTokens.pos(isDark),
-              isDark: isDark,
-            ),
-            const SizedBox(width: 8),
-            _buildTelemetryBadge(
-              icon: Icons.shield_outlined,
-              label: 'Bảo mật gia đình',
-              color: FinoraTokens.inkSecondary(isDark),
-              isDark: isDark,
-            ),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -593,7 +739,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                 icon: Icons.pie_chart_rounded,
                 gradient: const [Color(0xFF2563EB), Color(0xFF38BDF8)],
                 title: 'Phân tích chi tiêu',
-                subtitle: 'Bóc tách cơ cấu chi & so sánh với tháng trước',
+                subtitle: 'Tổng thu chi và chi theo danh mục tháng này',
                 tag: 'Báo cáo ➔',
                 isDark: isDark,
                 primaryTextColor: primaryTextColor,
@@ -608,7 +754,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                 icon: Icons.lightbulb_rounded,
                 gradient: const [Color(0xFFEA580C), Color(0xFFFBBF24)],
                 title: 'Gợi ý tiết kiệm',
-                subtitle: 'Mẹo cắt giảm chi phí & phát hiện khoản bất thường',
+                subtitle: 'Rà soát danh mục chi nhiều nhất trong sổ',
                 tag: 'Tối ưu ➔',
                 isDark: isDark,
                 primaryTextColor: primaryTextColor,
@@ -626,14 +772,13 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
               child: _buildBentoCard(
                 icon: Icons.trending_up_rounded,
                 gradient: const [Color(0xFF059669), Color(0xFF34D399)],
-                title: 'Dự báo tài chính',
-                subtitle: 'Mô phỏng dòng tiền & điểm an toàn 30 ngày tới',
-                tag: 'Dự báo ➔',
+                title: 'So sánh chi tiêu',
+                subtitle: 'Đối chiếu chi tháng này với tháng trước',
+                tag: 'So sánh ➔',
                 isDark: isDark,
                 primaryTextColor: primaryTextColor,
                 secondaryTextColor: secondaryTextColor,
-                onTap: () => _sendPrompt(
-                    'Dự báo xu hướng tài chính và số dư 30 ngày tới cho tôi'),
+                onTap: () => _sendPrompt('So sánh chi tiêu với tháng trước'),
               ),
             ),
             const SizedBox(width: 12),
@@ -641,14 +786,14 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
               child: _buildBentoCard(
                 icon: Icons.shield_rounded,
                 gradient: const [Color(0xFFE11D48), Color(0xFFFB7185)],
-                title: 'An toàn ngân sách',
-                subtitle: 'Quét cảnh báo hạn mức thẻ tín dụng & vượt chi',
-                tag: 'Quét rủi ro ➔',
+                title: 'Nợ thẻ tín dụng',
+                subtitle: 'Dư nợ, hạn mức và ngày thanh toán đã cài',
+                tag: 'Xem thẻ ➔',
                 isDark: isDark,
                 primaryTextColor: primaryTextColor,
                 secondaryTextColor: secondaryTextColor,
                 onTap: () => _sendPrompt(
-                    'Kiểm tra ngân sách và hạn mức thẻ tín dụng có khoản nào vượt ngưỡng không?'),
+                    'Số dư và nợ thẻ và hạn mức thẻ tín dụng có khoản nào vượt ngưỡng không?'),
               ),
             ),
           ],
@@ -706,14 +851,17 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                   ),
                   child: Icon(icon, color: FinoraTokens.ink(isDark), size: 17),
                 ),
-                Text(
+                const SizedBox(width: 6),
+                Flexible(
+                    child: Text(
                   tag,
+                  textAlign: TextAlign.end,
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: FinoraTokens.inkSecondary(isDark),
                   ),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 12),
@@ -815,7 +963,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
   // CHAT BUBBLES
   // ==========================================
   Widget _buildChatBubble(
-    ({String text, bool user}) message,
+    ({String text, bool user, String source}) message,
     bool isDark,
     Color primaryTextColor,
     Color primaryAccent,
@@ -847,31 +995,39 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16, right: 32),
+        margin: const EdgeInsets.only(bottom: 16, right: 0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 32,
-              height: 32,
-              margin: const EdgeInsets.only(top: 2, right: 10),
+              width: 28,
+              height: 28,
+              margin: const EdgeInsets.only(top: 2, right: 8),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: FinoraTokens.surface(isDark),
+                shape: BoxShape.circle,
+                color: isDark
+                    ? const Color(0xFF0F6E56).withValues(alpha: 0.30)
+                    : const Color(0xFFE8F5F0),
                 border: Border.all(
-                  color: FinoraTokens.line(isDark),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.35),
                   width: 1,
                 ),
               ),
-              child: Icon(
-                Icons.auto_awesome_rounded,
-                color: FinoraTokens.ink(isDark),
-                size: 16,
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/mascot/expression-03-focused.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.auto_awesome_rounded,
+                    color: FinoraTokens.ink(isDark),
+                    size: 16,
+                  ),
+                ),
               ),
             ),
             Expanded(
               child: Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: FinoraTokens.surface(isDark),
                   borderRadius: BorderRadius.circular(16),
@@ -886,7 +1042,9 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                     Row(
                       children: [
                         Text(
-                          'Finora',
+                          message.source == 'local'
+                              ? 'FINORA · Trên máy'
+                              : 'Finora · Thông báo',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -898,31 +1056,23 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                           onTap: () {
                             Clipboard.setData(
                                 ClipboardData(text: message.text));
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            FinoraNotice.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Đã sao chép phản hồi'),
                                 duration: Duration(seconds: 1),
                               ),
                             );
                           },
-                          child: Icon(
-                            Icons.copy_rounded,
-                            size: 14,
-                            color: FinoraTokens.inkSecondary(isDark),
-                          ),
+                          child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Icon(Icons.copy_rounded,
+                                  size: 18,
+                                  color: FinoraTokens.inkSecondary(isDark))),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      message.text,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: FinoraTokens.ink(isDark),
-                        height: 1.5,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
+                    AssistantResponseBody(text: message.text),
                   ],
                 ),
               ),
@@ -1035,69 +1185,117 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
             final category = _resolveCategory(draft, provider.categories);
             final wallet = _resolveWallet(draft, provider.wallets);
             final positive = draft.type == 'income';
-            final statusColor = positive
-                ? FinoraTokens.pos(isDark)
-                : FinoraTokens.neg(isDark);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: statusColor.withValues(alpha: 0.12),
+            final statusColor =
+                positive ? FinoraTokens.pos(isDark) : FinoraTokens.neg(isDark);
+            return Column(children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: statusColor.withValues(alpha: 0.12),
+                      ),
+                      child: Icon(
+                        positive
+                            ? Icons.south_west_rounded
+                            : Icons.north_east_rounded,
+                        size: 15,
+                        color: statusColor,
+                      ),
                     ),
-                    child: Icon(
-                      positive
-                          ? Icons.south_west_rounded
-                          : Icons.north_east_rounded,
-                      size: 15,
-                      color: statusColor,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          draft.note,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: FinoraTokens.ink(isDark),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            draft.note,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: FinoraTokens.ink(isDark),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${category?.name ?? "Chưa có danh mục"} • ${wallet?.name ?? "Chưa có ví"}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: FinoraTokens.inkSecondary(isDark),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Ngày ${DateTime.fromMillisecondsSinceEpoch(draft.date).day}/${DateTime.fromMillisecondsSinceEpoch(draft.date).month}/${DateTime.fromMillisecondsSinceEpoch(draft.date).year}',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: FinoraTokens.inkSecondary(isDark)),
                           ),
-                        ),
-                      ],
+                          Text(
+                            '${category?.name ?? "Chưa có danh mục"} • ${wallet?.name ?? "Chưa có ví"}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: FinoraTokens.inkSecondary(isDark),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${positive ? "+" : "-"}${_formatAmount(draft.amount)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                    const SizedBox(width: 8),
+                    Text(
+                      '${positive ? "+" : "-"}${_formatAmount(draft.amount)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            );
+              DropdownButtonFormField<String>(
+                initialValue: wallet?.id,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Chọn ví'),
+                items: provider.wallets
+                    .map((w) =>
+                        DropdownMenuItem(value: w.id, child: Text(w.name)))
+                    .toList(),
+                onChanged: _savingDrafts
+                    ? null
+                    : (id) {
+                        final w = provider.wallets
+                            .where((w) => w.id == id)
+                            .firstOrNull;
+                        if (w != null)
+                          _updateDraft(draft,
+                              walletName: w.name, walletId: w.id);
+                      },
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: category?.id,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Chọn danh mục'),
+                items: provider.categories
+                    .where(
+                        (c) => !c.isArchived && c.categoryGroup == draft.type)
+                    .map((c) =>
+                        DropdownMenuItem(value: c.id, child: Text(c.name)))
+                    .toList(),
+                onChanged: _savingDrafts
+                    ? null
+                    : (id) {
+                        final c = provider.categories
+                            .where((c) => c.id == id)
+                            .firstOrNull;
+                        if (c != null)
+                          _updateDraft(draft,
+                              categoryName: c.name, categoryId: c.id);
+                      },
+              ),
+              const SizedBox(height: 16),
+            ]);
           }),
           const SizedBox(height: 8),
           Row(
@@ -1209,13 +1407,16 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                   Expanded(
                     child: TextField(
                       controller: _input,
+                      textCapitalization: TextCapitalization.sentences,
+                      inputFormatters: const [FinoraCapitalizeFirstFormatter()],
+                      textInputAction: TextInputAction.send,
                       style: TextStyle(
                         fontSize: 14,
                         color: FinoraTokens.ink(isDark),
                         fontWeight: FontWeight.w500,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Hỏi Finora bất kỳ điều gì...',
+                        hintText: 'Nhập thu chi hoặc hỏi số dư…',
                         hintStyle: TextStyle(
                           fontSize: 13,
                           color: FinoraTokens.inkSecondary(isDark),

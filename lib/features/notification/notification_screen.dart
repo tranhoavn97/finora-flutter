@@ -1,284 +1,565 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/finora_tokens.dart';
-import '../../core/widgets/glass_widgets.dart';
-import '../../core/widgets/finora/financial_components.dart';
+import '../../core/services/bank_sync_service.dart';
+import '../../core/widgets/premium_widgets.dart';
 import '../../data/models/finance_models.dart';
+import '../../state/family_provider.dart';
 import '../../state/more_provider.dart';
+import '../../state/theme_studio_controller.dart';
+import 'bank_inbox_view.dart';
 
 class NotificationScreen extends StatefulWidget {
   final String userId;
-  const NotificationScreen({super.key, required this.userId});
+  final int initialTab;
+  const NotificationScreen({
+    super.key,
+    required this.userId,
+    this.initialTab = 0,
+  });
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
+  final _bank = BankSyncService();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<MoreProvider>().load(widget.userId);
+      if (!mounted) return;
+      _bank.initialize();
+      context.read<MoreProvider?>()?.load(
+            widget.userId,
+            familyId: context.read<FamilyProvider?>()?.familyId,
+          );
     });
+  }
+
+  Future<void> _markAllAsRead(
+    MoreProvider more,
+    List<AppNotification> items,
+  ) async {
+    for (final n in items) {
+      if (!n.isRead && n.id.isNotEmpty) {
+        await more.markNotificationAsRead(widget.userId, n.id);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final more = context.watch<MoreProvider?>();
+    final studio = context.watch<ThemeStudioController?>();
+    final items = more?.notifications ?? const <AppNotification>[];
+    final unread = items.where((n) => !n.isRead).length;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final provider = context.watch<MoreProvider>();
-    final notifications = provider.notifications;
+    final blurSigma = studio?.appBarBlur ?? 18.0;
+    final appBarAlpha = (studio?.appBarOpacity ?? 0.88).clamp(0.25, 1.0);
 
-    return Scaffold(
-      backgroundColor: FinoraTokens.bg(isDark),
-      appBar: AppBar(
-        backgroundColor: FinoraTokens.surface(isDark),
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Thông báo',
-          style: TextStyle(
-            color: FinoraTokens.ink(isDark),
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'BeVietnamPro',
+    return DefaultTabController(
+      length: 2,
+      initialIndex: widget.initialTab.clamp(0, 1),
+      child: AmbientFloatingBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: AnimatedBuilder(
+            animation: _bank,
+            builder: (context, _) {
+              final pending = _bank.pending.length + _bank.unrecognizedCount;
+              return Column(
+                children: [
+                  // Sticky Blur Header + Segmented Pill Tabs
+                  ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(
+                        sigmaX: blurSigma,
+                        sigmaY: blurSigma,
+                      ),
+                      child: Container(
+                        padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).padding.top + 8,
+                          left: 16,
+                          right: 16,
+                          bottom: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (isDark
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white)
+                              .withValues(alpha: appBarAlpha),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : const Color(0xFFE2E8F0),
+                              width: 0.8,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    Navigator.of(context).maybePop();
+                                  },
+                                  customBorder: const CircleBorder(),
+                                  child: Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFF1F5F9),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.white
+                                                .withValues(alpha: 0.10)
+                                            : const Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.arrow_back_ios_new_rounded,
+                                      size: 16,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Thông báo',
+                                        style: TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.3,
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        pending + unread > 0
+                                            ? '${pending + unread} mục cần bạn kiểm tra'
+                                            : 'Tất cả thông báo đã được cập nhật',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (unread > 0 && more != null)
+                                  InkWell(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      _markAllAsRead(more, items);
+                                    },
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: Container(
+                                      height: 34,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF059669)
+                                            .withValues(
+                                                alpha: isDark ? 0.22 : 0.10),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                        border: Border.all(
+                                          color: const Color(0xFF059669)
+                                              .withValues(alpha: 0.35),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.done_all_rounded,
+                                            size: 15,
+                                            color: isDark
+                                                ? const Color(0xFF34D399)
+                                                : const Color(0xFF059669),
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Đọc hết',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark
+                                                  ? const Color(0xFF34D399)
+                                                  : const Color(0xFF059669),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Luxury Segmented Pill TabBar
+                            Container(
+                              height: 42,
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: TabBar(
+                                dividerColor: Colors.transparent,
+                                indicatorSize: TabBarIndicatorSize.tab,
+                                splashBorderRadius: BorderRadius.circular(999),
+                                indicator: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF059669),
+                                      Color(0xFF047857),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF059669)
+                                          .withValues(alpha: 0.30),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                labelColor: Colors.white,
+                                unselectedLabelColor: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF475569),
+                                labelStyle: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                unselectedLabelStyle: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                tabs: [
+                                  Tab(text: 'Giao dịch chờ ($pending)'),
+                                  Tab(text: 'Hoạt động ($unread)'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Body Content
+                  Expanded(
+                    child: TabBarView(
+                      physics: const BouncingScrollPhysics(),
+                      children: [
+                        BankInboxView(userId: widget.userId),
+                        _ActivityTab(userId: widget.userId),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: FinoraTokens.ink(isDark), size: 18),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: FinoraTokens.line(isDark), height: 1),
-        ),
       ),
-      body: provider.isRefreshing
-          ? Center(child: CircularProgressIndicator(color: FinoraTokens.ink(isDark)))
-          : provider.error != null
-              ? FinoraDataMessage(
-                  title: 'Chưa tải được thông báo',
-                  message: provider.error!,
-                  onRetry: () => provider.load(widget.userId, force: true))
-              : notifications.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.notifications_none_rounded, size: 48, color: FinoraTokens.inkTertiary(isDark)),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Bạn không có thông báo nào',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'BeVietnamPro',
-                              color: FinoraTokens.ink(isDark),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Các thông báo mới sẽ xuất hiện ở đây.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: FinoraTokens.inkSecondary(isDark),
-                              fontFamily: 'BeVietnamPro',
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      itemCount: notifications.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) {
-                        final n = notifications[i];
-                        return _NotificationRow(
-                          notif: n,
-                          onRead: () => context
-                              .read<MoreProvider>()
-                              .markNotificationAsRead(widget.userId, n.id),
-                          onDelete: () async {
-                            final confirm = await showConfirmDeleteDialog(
-                              context: context,
-                              title: 'Xóa thông báo?',
-                              content:
-                                  'Bạn có chắc chắn muốn xóa thông báo này không?',
-                            );
-                            if (confirm && context.mounted) {
-                              context
-                                  .read<MoreProvider>()
-                                  .deleteNotification(widget.userId, n.id);
-                            }
-                          },
-                        );
-                      },
-                    ),
     );
   }
 }
 
-class _NotificationRow extends StatelessWidget {
-  final AppNotification notif;
-  final VoidCallback onRead;
-  final VoidCallback onDelete;
-  const _NotificationRow({
-    required this.notif,
-    required this.onRead,
-    required this.onDelete,
-  });
+class _ActivityTab extends StatelessWidget {
+  final String userId;
+  const _ActivityTab({required this.userId});
 
-  Color _typeColor(bool isDark) {
-    switch (notif.type) {
-      case 'warning':
-        return isDark ? FinoraTokens.warnAmberDark : FinoraTokens.warnAmber;
-      case 'danger':
-        return isDark ? FinoraTokens.negRedDark : FinoraTokens.negRed;
-      case 'success':
-        return isDark ? FinoraTokens.posGreenDark : FinoraTokens.posGreen;
-      default:
-        return FinoraTokens.inkSecondary(isDark);
+  ({IconData icon, Color color}) _styleForType(String type) {
+    final lower = type.toLowerCase();
+    if (lower.contains('budget') || lower.contains('warning')) {
+      return (icon: Icons.warning_amber_rounded, color: const Color(0xFFD97706));
     }
+    if (lower.contains('income') || lower.contains('receive')) {
+      return (icon: Icons.south_west_rounded, color: const Color(0xFF059669));
+    }
+    if (lower.contains('expense') || lower.contains('spend')) {
+      return (icon: Icons.north_east_rounded, color: const Color(0xFFE11D48));
+    }
+    if (lower.contains('family') || lower.contains('member')) {
+      return (icon: Icons.people_alt_rounded, color: const Color(0xFF7C3AED));
+    }
+    if (lower.contains('goal') || lower.contains('saving')) {
+      return (icon: Icons.savings_rounded, color: const Color(0xFF0284C7));
+    }
+    return (
+      icon: Icons.notifications_active_rounded,
+      color: const Color(0xFF059669),
+    );
   }
 
-  IconData get _icon {
-    switch (notif.type) {
-      case 'warning':
-      case 'danger':
-        return Icons.warning_amber_rounded;
-      case 'success':
-        return Icons.check_circle_outline_rounded;
-      default:
-        return Icons.info_outline_rounded;
+  String _formatDate(int createdAtMs) {
+    if (createdAtMs <= 0) return '';
+    final dt = DateTime.fromMillisecondsSinceEpoch(
+      createdAtMs < 100000000000 ? createdAtMs * 1000 : createdAtMs,
+    ).toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Vừa xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24 && dt.day == now.day) {
+      return 'Hôm nay • ${DateFormat('HH:mm').format(dt)}';
     }
+    return DateFormat('HH:mm • dd/MM/yyyy').format(dt);
   }
 
-  String _formatDate(int ms) {
-    final d = DateTime.fromMillisecondsSinceEpoch(ms);
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF059669)
+                    .withValues(alpha: isDark ? 0.18 : 0.10),
+              ),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                size: 32,
+                color: Color(0xFF059669),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Chưa có thông báo',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Cảnh báo ngân sách, nhắc lịch và hoạt động gia đình sẽ hiện ở đây.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final more = context.watch<MoreProvider?>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final unread = !notif.isRead;
-    final typeColor = _typeColor(isDark);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: FinoraTokens.surface(isDark),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: unread
-              ? FinoraTokens.ink(isDark).withValues(alpha: 0.25)
-              : FinoraTokens.line(isDark),
-          width: 1.0,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: FinoraTokens.surface2(isDark),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: FinoraTokens.line(isDark)),
-            ),
-            child: Icon(_icon, color: typeColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    if (unread) ...[
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: typeColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    Flexible(
-                      child: Text(
-                        notif.title ?? 'Thông báo hệ thống',
-                        style: TextStyle(
-                          fontFamily: 'BeVietnamPro',
-                          fontSize: 14,
-                          fontWeight: unread ? FontWeight.w600 : FontWeight.w500,
-                          color: FinoraTokens.ink(isDark),
-                        ),
+    if (more == null) {
+      return _buildEmptyState(isDark);
+    }
+    if (more.isRefreshing && more.notifications.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (more.notifications.isEmpty) {
+      return _buildEmptyState(isDark);
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      physics: const BouncingScrollPhysics(),
+      itemCount: more.notifications.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = more.notifications[index];
+        final meta = _styleForType(item.type ?? 'info');
+        final isUnread = !item.isRead;
+        final title = (item.title?.trim().isNotEmpty == true)
+            ? item.title!.trim()
+            : 'Thông báo';
+        final message = item.message?.trim() ?? '';
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              if (isUnread && item.id.isNotEmpty) {
+                more.markNotificationAsRead(userId, item.id);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? (isUnread
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFF0F172A).withValues(alpha: 0.75))
+                    : (isUnread ? Colors.white : const Color(0xFFF8FAFC)),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isUnread
+                      ? meta.color.withValues(alpha: isDark ? 0.45 : 0.30)
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.07)
+                          : const Color(0xFFE2E8F0)),
+                  width: isUnread ? 1.2 : 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black
+                        .withValues(alpha: isDark ? 0.20 : 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: meta.color.withValues(alpha: isDark ? 0.20 : 0.12),
+                      border: Border.all(
+                        color:
+                            meta.color.withValues(alpha: isDark ? 0.35 : 0.22),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  notif.message ?? '',
-                  style: TextStyle(
-                    fontFamily: 'BeVietnamPro',
-                    fontSize: 12.5,
-                    color: FinoraTokens.inkSecondary(isDark),
-                    height: 1.35,
+                    child: Icon(
+                      meta.icon,
+                      size: 20,
+                      color: meta.color,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatDate(notif.createdAt),
-                  style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    fontSize: 11,
-                    color: FinoraTokens.inkTertiary(isDark),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: isUnread
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
+                                ),
+                              ),
+                            ),
+                            if (isUnread)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(left: 8),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: meta.color,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: meta.color.withValues(alpha: 0.45),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (message.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            message,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.38,
+                              color: isDark
+                                  ? const Color(0xFFCBD5E1)
+                                  : const Color(0xFF475569),
+                            ),
+                          ),
+                        ],
+                        if (item.createdAt > 0) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.schedule_rounded,
+                                size: 12,
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDate(item.createdAt),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 6),
-          Column(
-            children: [
-              if (unread)
-                IconButton(
-                  onPressed: onRead,
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(4),
-                  icon: Icon(
-                    Icons.check_rounded,
-                    color: isDark ? FinoraTokens.posGreenDark : FinoraTokens.posGreen,
-                    size: 18,
-                  ),
-                  tooltip: 'Đánh dấu đã đọc',
-                ),
-              IconButton(
-                onPressed: onDelete,
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(4),
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  color: isDark ? FinoraTokens.negRedDark : FinoraTokens.negRed,
-                  size: 18,
-                ),
-                tooltip: 'Xóa',
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

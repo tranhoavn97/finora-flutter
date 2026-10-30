@@ -475,8 +475,9 @@ class _FinoraStaggeredItemState extends State<FinoraStaggeredItem>
 }
 
 /// 4. FINORA FLUID TAB SWITCHER
-/// Smoothly transitions between pages using subtle horizontal slide + gentle opacity fade.
-class FinoraFluidTabSwitcher extends StatelessWidget {
+/// Smoothly transitions between pages using subtle horizontal slide + gentle opacity fade
+/// while preserving widget state across tabs via IndexedStack.
+class FinoraFluidTabSwitcher extends StatefulWidget {
   final int currentIndex;
   final List<Widget> children;
 
@@ -487,10 +488,78 @@ class FinoraFluidTabSwitcher extends StatelessWidget {
   });
 
   @override
+  State<FinoraFluidTabSwitcher> createState() => _FinoraFluidTabSwitcherState();
+}
+
+class _FinoraFluidTabSwitcherState extends State<FinoraFluidTabSwitcher>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+  late Animation<Offset> _slide;
+  int _prevIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _prevIndex = widget.currentIndex;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+      value: 1.0,
+    );
+    _fade = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0.025, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+  }
+
+  @override
+  void didUpdateWidget(covariant FinoraFluidTabSwitcher oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIndex != widget.currentIndex) {
+      final dir = widget.currentIndex > _prevIndex ? 1.0 : -1.0;
+      _prevIndex = widget.currentIndex;
+      _slide = Tween<Offset>(
+        begin: Offset(0.022 * dir, 0.0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ));
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return IndexedStack(
-      index: currentIndex,
-      children: children,
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      return IndexedStack(
+        index: widget.currentIndex,
+        children: widget.children,
+      );
+    }
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.86, end: 1.0).animate(_fade),
+      child: SlideTransition(
+        position: _slide,
+        child: IndexedStack(
+          index: widget.currentIndex,
+          children: widget.children,
+        ),
+      ),
     );
   }
 }

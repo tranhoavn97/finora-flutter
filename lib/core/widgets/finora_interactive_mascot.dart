@@ -26,7 +26,7 @@ class FinoraInteractive3DMascot extends StatefulWidget {
     super.key,
     this.pose = FinoraMascotPose.hero,
     this.size = 110.0,
-    this.enableFloatingAnimation = true,
+    this.enableFloatingAnimation = false,
     this.enableTouch3DRotation = true,
     this.customSpeechText,
     this.onTap,
@@ -150,7 +150,8 @@ class _FinoraInteractive3DMascotState extends State<FinoraInteractive3DMascot>
   }
 
   String _resolveDefaultSpeech() {
-    if (widget.customSpeechText != null && widget.customSpeechText!.isNotEmpty) {
+    if (widget.customSpeechText != null &&
+        widget.customSpeechText!.isNotEmpty) {
       return widget.customSpeechText!;
     }
     if (widget.budgetSpentRatio != null && widget.budgetSpentRatio! > 0.90) {
@@ -249,7 +250,8 @@ class _FinoraInteractive3DMascotState extends State<FinoraInteractive3DMascot>
 
                 // Ma trận xoay 3D Perspective
                 final transformMatrix = Matrix4.identity()
-                  ..setEntry(3, 2, 0.002) // Độ sâu phối cảnh (Perspective focal depth)
+                  ..setEntry(
+                      3, 2, 0.002) // Độ sâu phối cảnh (Perspective focal depth)
                   ..multiply(Matrix4.translationValues(0.0, -floatOffset, 0.0))
                   ..multiply(Matrix4.diagonal3Values(tapScale, tapScale, 1.0))
                   ..rotateX(_rotX)
@@ -273,7 +275,8 @@ class _FinoraInteractive3DMascotState extends State<FinoraInteractive3DMascot>
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(
-                                  alpha: (0.28 - floatOffset * 0.015).clamp(0.08, 0.35),
+                                  alpha: (0.28 - floatOffset * 0.015)
+                                      .clamp(0.08, 0.35),
                                 ),
                                 blurRadius: 16 + floatOffset,
                                 spreadRadius: 2,
@@ -284,7 +287,8 @@ class _FinoraInteractive3DMascotState extends State<FinoraInteractive3DMascot>
                               ),
                               BoxShadow(
                                 color: const Color(0xFF10B981).withValues(
-                                  alpha: (0.16 - floatOffset * 0.01).clamp(0.04, 0.22),
+                                  alpha: (0.16 - floatOffset * 0.01)
+                                      .clamp(0.04, 0.22),
                                 ),
                                 blurRadius: 24,
                                 spreadRadius: 1,

@@ -101,12 +101,17 @@ void main() {
   }) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<BudgetProvider>.value(value: _TestBudgetProvider()),
+        ChangeNotifierProvider<BudgetProvider>.value(
+            value: _TestBudgetProvider()),
         ChangeNotifierProvider<MoreProvider>.value(value: _TestMoreProvider()),
-        ChangeNotifierProvider<TransactionProvider>.value(value: _TestTransactionProvider()),
-        ChangeNotifierProvider<WalletProvider>.value(value: _TestWalletProvider()),
-        ChangeNotifierProvider<ThemeStudioController>.value(value: ThemeStudioController()),
-        ChangeNotifierProvider<WidgetStyleController>.value(value: WidgetStyleController()),
+        ChangeNotifierProvider<TransactionProvider>.value(
+            value: _TestTransactionProvider()),
+        ChangeNotifierProvider<WalletProvider>.value(
+            value: _TestWalletProvider()),
+        ChangeNotifierProvider<ThemeStudioController>.value(
+            value: ThemeStudioController()),
+        ChangeNotifierProvider<WidgetStyleController>.value(
+            value: WidgetStyleController()),
         ChangeNotifierProvider<FamilyProvider>.value(value: FamilyProvider()),
       ],
       child: MaterialApp(
@@ -128,19 +133,24 @@ void main() {
     );
   }
 
-  testWidgets('PlanningHubScreen conforms to Apple HIG design and typography', (tester) async {
+  testWidgets('PlanningHubScreen conforms to Apple HIG design and typography',
+      (tester) async {
     await tester.pumpWidget(buildPlanningHarness());
     await tester.pumpAndSettle();
 
-    // 1. App Bar: Clean Apple title, NO subtitle, NO PRO badge
-    expect(find.text('Kế hoạch & Báo cáo'), findsOneWidget);
-    expect(find.text('Ngân sách · Mục tiêu · Phân tích dòng tiền'), findsNothing);
+    // 1. App Bar: Clean segmented tabs promoted to header, NO title text, NO subtitle, NO PRO badge
+    expect(find.text('Ngân sách'), findsWidgets);
+    expect(find.text('Mục tiêu'), findsWidgets);
+    expect(find.text('Báo cáo'), findsWidgets);
+    expect(find.text('Kế hoạch & Báo cáo'), findsNothing);
+    expect(
+        find.text('Ngân sách · Mục tiêu · Phân tích dòng tiền'), findsNothing);
     expect(find.text('PRO'), findsNothing);
 
     // 2. Master Card (Tab 0 - Budget)
     expect(find.textContaining('NGÂN SÁCH THÁNG'), findsOneWidget);
-    expect(find.text('ĐÃ CHI'), findsOneWidget);
-    expect(find.text('HẠN MỨC'), findsOneWidget);
+    expect(find.text('Hạn mức còn lại'), findsOneWidget);
+    expect(find.text('Chủ động từng khoản chi.'), findsOneWidget);
 
     // 3. Category budget card (Tab 0)
     expect(find.text('Ăn uống'), findsOneWidget);
@@ -150,9 +160,9 @@ void main() {
     await tester.tap(find.text('Mục tiêu'));
     await tester.pumpAndSettle();
 
-    expect(find.text('TỔNG TÍCH LŨY MỤC TIÊU'), findsOneWidget);
-    expect(find.text('MỤC TIÊU'), findsWidgets);
-    expect(find.text('CẦN TÍCH LŨY'), findsOneWidget);
+    expect(find.text('Ước mơ có một lộ trình.'), findsOneWidget);
+    expect(find.text('TÍCH LŨY CHO ĐIỀU QUAN TRỌNG'), findsOneWidget);
+    expect(find.textContaining('mục tiêu đang thực hiện'), findsOneWidget);
     expect(find.text('Quỹ khẩn cấp 6 tháng'), findsOneWidget);
     expect(find.text('Góp tiền'), findsOneWidget);
 
@@ -160,27 +170,27 @@ void main() {
     await tester.tap(find.text('Báo cáo'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('DÒNG TIỀN THÁNG'), findsOneWidget);
-    expect(find.text('TỔNG THU'), findsOneWidget);
-    expect(find.text('TỔNG CHI'), findsOneWidget);
+    expect(find.textContaining('DÒNG TIỀN THÁNG'), findsNothing);
+    expect(find.text('Hiểu nhịp tiền của bạn.'), findsNothing);
+    expect(find.text('Tháng này'), findsOneWidget);
+    await tester.tap(find.text('Tháng này'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Năm nay'));
+    await tester.pumpAndSettle();
+    expect(find.text('Năm nay'), findsOneWidget);
+    expect(find.textContaining('DÒNG TIỀN THÁNG'), findsNothing);
     expect(find.text('Cơ cấu danh mục chi tiêu'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('Tỷ trọng chi tiêu Vợ & Chồng'),
-      250,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.ensureVisible(find.text('Tỷ trọng chi tiêu Vợ & Chồng'));
     expect(find.text('Tỷ trọng chi tiêu Vợ & Chồng'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Biến động Thu - Chi 6 tháng gần nhất'),
-      250,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester
+        .ensureVisible(find.text('Biến động Thu - Chi 6 tháng gần nhất'));
     expect(find.text('Biến động Thu - Chi 6 tháng gần nhất'), findsOneWidget);
   });
 
-  testWidgets('Apple Redesign layout robustness at 320px width and textScaler 1.5', (tester) async {
+  testWidgets(
+      'Apple Redesign layout robustness at 320px width and textScaler 1.5',
+      (tester) async {
     await tester.pumpWidget(buildPlanningHarness(
       width: 320,
       height: 700,

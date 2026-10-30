@@ -37,8 +37,16 @@ ThemeData buildAppleTheme(
             ? effectiveSeed
             : Color.lerp(effectiveSeed, Colors.white, 0.35)!)
         : effectiveSeed,
-    onPrimary: dark ? const Color(0xFF071224) : Colors.white,
+    onPrimary: Colors.white,
     secondary: secondaryColor ?? AppColors.secondary,
+    primaryContainer: Color.alphaBlend(
+        effectiveSeed.withValues(alpha: dark ? 0.25 : 0.10), surface),
+    onPrimaryContainer:
+        dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+    secondaryContainer: Color.alphaBlend(
+        effectiveSeed.withValues(alpha: dark ? 0.22 : 0.10), surface),
+    onSecondaryContainer:
+        dark ? AppColors.darkTextPrimary : AppColors.primaryDark,
     surface: surface,
     onSurface: dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
     onSurfaceVariant:
@@ -54,7 +62,7 @@ ThemeData buildAppleTheme(
       : RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(buttonRadius));
 
-  final effectiveCardRadius = cardRadius ?? 22.0;
+  final effectiveCardRadius = cardRadius ?? 24.0;
   final effectiveCardBorderSide = cardBorder?.top ??
       BorderSide(
         color: dark
@@ -62,17 +70,28 @@ ThemeData buildAppleTheme(
             : const Color(0xFFE2E8F0),
         width: 1.0,
       );
-  final effectiveButtonPadding = buttonPadding ??
-      const EdgeInsets.symmetric(horizontal: 20, vertical: 14);
+  final effectiveButtonPadding =
+      buttonPadding ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 14);
+
+  final effectiveFont =
+      fontFamily ?? AppTypography.activeFontFamily ?? 'BeVietnamPro';
+  final effectiveFallback = fontFamilyFallback ??
+      AppTypography.activeFontFamilyFallback ??
+      const ['BeVietnamPro', 'PlusJakartaSans', 'Inter', 'sans-serif'];
 
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    fontFamily: fontFamily,
-    fontFamilyFallback: fontFamilyFallback,
+    fontFamily: effectiveFont,
+    fontFamilyFallback: effectiveFallback,
     colorScheme: scheme,
     scaffoldBackgroundColor: bg,
     cardColor: cardFillColor ?? scheme.surface,
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: scheme.primary,
+      linearTrackColor: scheme.primary.withValues(alpha: 0.10),
+      circularTrackColor: scheme.primary.withValues(alpha: 0.10),
+    ),
     cardTheme: CardThemeData(
       color: cardFillColor ?? scheme.surface,
       elevation: 0,
@@ -82,10 +101,15 @@ ThemeData buildAppleTheme(
       ),
     ),
     textTheme: TextTheme(
+      displayLarge: AppTypography.display,
+      displayMedium: AppTypography.largeTitle,
+      displaySmall: AppTypography.title1,
       headlineLarge: AppTypography.largeTitle,
+      headlineMedium: AppTypography.title1,
       headlineSmall: AppTypography.title2,
       titleLarge: AppTypography.title3,
       titleMedium: AppTypography.headline,
+      titleSmall: AppTypography.callout,
       bodyLarge: AppTypography.body,
       bodyMedium: AppTypography.body,
       bodySmall: AppTypography.footnote,
@@ -95,10 +119,11 @@ ThemeData buildAppleTheme(
     ).apply(
       bodyColor: scheme.onSurface,
       displayColor: scheme.onSurface,
-      fontFamily: fontFamily,
-      fontFamilyFallback: fontFamilyFallback,
+      fontFamily: effectiveFont,
+      fontFamilyFallback: effectiveFallback,
     ),
     appBarTheme: AppBarTheme(
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
@@ -116,13 +141,17 @@ ThemeData buildAppleTheme(
         style: FilledButton.styleFrom(
             minimumSize: Size(48, buttonHeight),
             shape: buttonShape,
-            textStyle: FinoraV8Type.label,
+            textStyle: AppTypography.buttonLabel,
             padding: effectiveButtonPadding)),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         minimumSize: Size(48, buttonHeight),
         shape: buttonShape,
         padding: effectiveButtonPadding,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        textStyle: AppTypography.buttonLabel,
+        elevation: 0,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -130,11 +159,13 @@ ThemeData buildAppleTheme(
         minimumSize: Size(48, buttonHeight * 0.94),
         shape: buttonShape,
         padding: effectiveButtonPadding,
+        textStyle: AppTypography.buttonLabel,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         shape: buttonShape,
+        textStyle: AppTypography.callout,
       ),
     ),
     chipTheme: ChipThemeData(
@@ -146,8 +177,15 @@ ThemeData buildAppleTheme(
     inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surface,
+        hintStyle: AppTypography.body.copyWith(
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
+          fontWeight: FontWeight.w400,
+        ),
+        labelStyle: AppTypography.subhead.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 17),
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(
                 (effectiveCardRadius * 0.75).clamp(10.0, 24.0))),
@@ -162,6 +200,9 @@ ThemeData buildAppleTheme(
     dialogTheme: DialogThemeData(
         backgroundColor: modalFillColor ?? scheme.surface,
         elevation: 0,
+        titleTextStyle: AppTypography.title3.copyWith(color: scheme.onSurface),
+        contentTextStyle:
+            AppTypography.body.copyWith(color: scheme.onSurfaceVariant),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(
                 (effectiveCardRadius * 1.1).clamp(16.0, 32.0)))),
@@ -179,16 +220,23 @@ ThemeData buildAppleTheme(
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return TextStyle(
+          fontFamily: effectiveFont,
+          fontFamilyFallback: effectiveFallback,
           fontSize: 11.5,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          color: selected ? scheme.primary : (dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          letterSpacing: -0.1,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+          color: selected
+              ? scheme.primary
+              : (dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
         );
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return IconThemeData(
           size: 22,
-          color: selected ? scheme.primary : (dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          color: selected
+              ? scheme.primary
+              : (dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
         );
       }),
     ),
@@ -202,9 +250,12 @@ ThemeData buildAppleTheme(
             : (brightness == Brightness.dark
                 ? const Color(0xFF1E293B)
                 : const Color(0xFF0F172A)),
-        contentTextStyle: const TextStyle(
+        contentTextStyle: TextStyle(
+          fontFamily: effectiveFont,
+          fontFamilyFallback: effectiveFallback,
           color: Colors.white,
           fontSize: 13.5,
+          letterSpacing: -0.1,
           fontWeight: FontWeight.w600,
         )),
     dividerTheme:

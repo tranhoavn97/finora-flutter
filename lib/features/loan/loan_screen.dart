@@ -1,3 +1,4 @@
+import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -102,7 +103,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
 
     if (name.isEmpty || amount <= 0) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
+      FinoraNotice.of(context).showSnackBar(
         SnackBar(
           content: Text(
             name.isEmpty

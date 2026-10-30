@@ -1,70 +1,98 @@
+import 'fresh_design.dart';
 import 'package:flutter/material.dart';
 
-/// Các tư thế biểu cảm của linh thú mèo Finora 3D
+/// Các tư thế & biểu cảm của linh thú Rồng ngọc Finora 3D
 enum FinoraMascotPose {
-  /// Chú mèo Finora ngồi cạnh ví xanh lục bảo và đồng xu vàng (Hero)
-  hero('assets/mascot/mascot_hero.png'),
+  /// Rồng ngọc dang cánh bay cùng đồng xu vàng (Hero / Flying)
+  hero('assets/mascot/animation-keypose-01-flying.png'),
 
   /// Vui vẻ - ôm đồng xu vàng cười tít mắt
-  happy('assets/mascot/mascot_happy.png'),
+  happy('assets/mascot/expression-01-happy.png'),
 
-  /// Tự tin - nháy mắt giơ ngón cái
-  confident('assets/mascot/mascot_confident.png'),
+  /// Tự tin - mỉm cười đĩnh đạc cầm đồng xu vàng nhỏ
+  confident('assets/mascot/expression-02-confident.png'),
 
   /// Tập trung - cầm máy tính bảng phân tích chi tiêu
-  focused('assets/mascot/mascot_focused.png'),
+  focused('assets/mascot/expression-03-focused.png'),
+  thinking('assets/mascot/expression-03-focused.png'),
+  card('assets/mascot/expression-02-confident.png'),
 
-  /// Ăn mừng - nhảy lên giơ đồng xu vàng
-  celebrate('assets/mascot/mascot_celebrate.png'),
+  /// Ăn mừng / Phấn khích - giơ hai tay cùng pháo hoa confetti
+  celebrate('assets/mascot/expression-04-excited.png'),
+  excited('assets/mascot/expression-04-excited.png'),
 
-  /// Thư giãn - ngồi nhắm mắt bình yên
-  relaxed('assets/mascot/mascot_relaxed.png'),
+  /// Yêu thương - ôm trái tim đỏ gắn kết gia đình
+  loving('assets/mascot/expression-05-loving.png'),
 
-  /// Icon ứng dụng mèo Finora nền ngọc lục bảo
-  appIcon('assets/mascot/finora_cat_app_icon.png'),
+  /// Thư giãn - xoa bụng bình yên, thảnh thơi không âu lo
+  relaxed('assets/mascot/expression-06-relaxed.png'),
 
-  /// Biểu tượng chiếc lá kép Finora (Xanh mint & Tím hoàng gia)
-  leafLogo('assets/mascot/finora_leaf_logo.png');
+  /// Đang bay lượn trên bầu trời (Keypose 01)
+  flying('assets/mascot/animation-keypose-01-flying.png'),
+
+  /// Ôm heo đất tiết kiệm (Keypose 02)
+  saving('assets/mascot/animation-keypose-02-saving.png'),
+
+  /// Đứng vững cạnh đồng xu tài lộc (Keypose 03)
+  goal('assets/mascot/animation-keypose-03-goal.png'),
+
+  /// Toàn cảnh gia đình 3 chú rồng ngọc sum họp (Keypose 04)
+  family('assets/mascot/animation-keypose-04-family.png'),
+
+  /// Minh họa Onboarding 01: Chào mừng
+  welcome('assets/mascot/onboarding-01-welcome.png'),
+
+  /// Minh họa Onboarding 02: Ngân sách & Tiết kiệm
+  budget('assets/mascot/onboarding-02-budget.png'),
+
+  /// Minh họa Onboarding 03: Gia đình cùng quản lý
+  onboardingFamily('assets/mascot/onboarding-03-family.png'),
+
+  /// Icon ứng dụng rồng Finora 3D nền ngọc lục bảo
+  appIcon('assets/mascot/app-icon.png'),
+
+  /// Biểu tượng thương hiệu Finora
+  leafLogo('assets/mascot/app-icon.png');
 
   final String assetPath;
   const FinoraMascotPose(this.assetPath);
 }
 
-/// Bộ sticker cảm xúc của linh thú mèo Finora
+/// Bộ sticker cảm xúc của linh thú Rồng ngọc Finora
 enum FinoraMascotSticker {
-  coLen('assets/mascot/sticker_colen.png', 'Cố lên!'),
-  tietKiem('assets/mascot/sticker_tietkiem.png', 'Tiết kiệm nhé!'),
-  tuyetVoi('assets/mascot/sticker_tuyetvoi.png', 'Tuyệt vời!'),
-  kiemTra('assets/mascot/sticker_kiemtra.png', 'Đang kiểm tra chi tiêu...'),
-  caNha('assets/mascot/sticker_canha.png', 'Cả nhà cùng quản lý!'),
-  mucTieu('assets/mascot/sticker_muctieu.png', 'Mục tiêu gần rồi!');
+  coLen('assets/mascot/sticker-01-encourage.png', 'Cố lên!'),
+  tietKiem('assets/mascot/sticker-02-save.png', 'Tiết kiệm nhé!'),
+  tuyetVoi('assets/mascot/sticker-03-great.png', 'Tuyệt vời!'),
+  kiemTra('assets/mascot/sticker-04-check.png', 'Đang kiểm tra chi tiêu...'),
+  caNha('assets/mascot/sticker-05-family.png', 'Cả nhà cùng quản lý!'),
+  mucTieu('assets/mascot/sticker-06-goal.png', 'Mục tiêu gần rồi!'),
+  giaoDichThanhCong('assets/mascot/sticker-07-transaction-success.png', 'Đã thêm giao dịch!');
 
   final String assetPath;
   final String label;
   const FinoraMascotSticker(this.assetPath, this.label);
 }
 
-/// Bảng màu thương hiệu chuẩn theo Brand Sheet của Finora (Emerald Mint & Royal Violet)
+/// Bảng màu thương hiệu chuẩn theo Brand Sheet của Finora (Pine, Emerald, Mint & Gold - tuyệt đối không tím)
 class FinoraBrandPalette {
   FinoraBrandPalette._();
 
-  /// Xanh ngọc mint tươi sáng (Circle 1)
+  /// Xanh ngọc mint tươi sáng
   static const Color mintLight = Color(0xFF34D399);
+  static const Color mintSoft = Color(0xFFBDEDD6);
 
-  /// Xanh lục bảo rừng sâu chủ đạo (Circle 2 - Primary Brand Color)
+  /// Xanh lục bảo rừng sâu chủ đạo (Primary Brand Color)
   static const Color forestEmerald = Color(0xFF0F6E56);
   static const Color deepEmerald = Color(0xFF0B4F3E);
+  static const Color pinePrimary = Color(0xFF003D35);
   static const Color darkWordmark = Color(0xFF083A2C);
 
-  /// Tím thạch anh hoàng gia điểm xuyết (Circle 3 - Secondary Brand Color)
-  static const Color royalViolet = Color(0xFF6D28D9);
-  static const Color vibrantViolet = Color(0xFF7C3AED);
+  /// Vàng kim tài lộc (Gold Accent)
+  static const Color goldAccent = Color(0xFFF59E0B);
+  static const Color goldLight = Color(0xFFFDE68A);
 
-  /// Tím oải hương pastel dịu (Circle 4)
-  static const Color softLavender = Color(0xFFC4B5FD);
-
-  /// Nền kem trắng ngọc ấm áp (Circle 5)
-  static const Color warmCream = Color(0xFFF6F9F7);
+  /// Nền kem trắng ngọc ấm áp
+  static const Color warmCream = Color(0xFFF9FBFA);
 
   /// Dải màu chuyển sắc thương hiệu Finora (Emerald -> Mint)
   static const List<Color> primaryGradient = [
@@ -72,21 +100,21 @@ class FinoraBrandPalette {
     Color(0xFF10B981),
   ];
 
-  /// Dải màu chuyển sắc thẻ tổng quan tài chính chuẩn mẫu "Trong app"
+  /// Dải màu chuyển sắc thẻ tổng quan tài chính chuẩn mẫu
   static const List<Color> heroEmeraldGradient = [
     Color(0xFF0D5C48),
     Color(0xFF147A60),
     Color(0xFF094234),
   ];
 
-  /// Dải màu chuyển sắc kép Emerald - Violet đặc trưng của chỏm tóc & đuôi linh thú
+  /// Dải màu chuyển sắc linh vật Rồng ngọc (Emerald -> Mint)
   static const List<Color> mascotSignatureGradient = [
-    Color(0xFF10B981),
-    Color(0xFF7C3AED),
+    Color(0xFF00866A),
+    Color(0xFF34D399),
   ];
 }
 
-/// Widget hiển thị linh thú mèo Finora 3D với hiệu ứng bóng đổ mềm tự nhiên
+/// Widget hiển thị linh thú Rồng ngọc Finora 3D với hiệu ứng bóng đổ mềm tự nhiên
 class FinoraMascotImage extends StatelessWidget {
   final FinoraMascotPose pose;
   final double size;
@@ -111,12 +139,12 @@ class FinoraMascotImage extends StatelessWidget {
       width: size,
       height: size,
       fit: fit,
-      filterQuality: FilterQuality.high,
-      isAntiAlias: true,
-      errorBuilder: (_, __, ___) => Icon(
-        Icons.pets_rounded,
-        size: size * 0.6,
-        color: FinoraBrandPalette.forestEmerald,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (_, __, ___) => FioMascot(
+        size: size,
+        celebrate: pose == FinoraMascotPose.celebrate ||
+            pose == FinoraMascotPose.happy ||
+            pose == FinoraMascotPose.excited,
       ),
     );
 
@@ -140,7 +168,7 @@ class FinoraMascotImage extends StatelessWidget {
   }
 }
 
-/// Widget hiển thị Sticker cảm xúc của mèo Finora
+/// Widget hiển thị Sticker cảm xúc của Rồng ngọc Finora
 class FinoraStickerBadge extends StatelessWidget {
   final FinoraMascotSticker sticker;
   final double size;
@@ -280,6 +308,57 @@ class FinoraCompanionBanner extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hình linh thú Rồng ngọc Finora chìm (Ambient Watermark) dùng để trang trí tinh tế
+/// bên trong các Widget lớn (Hero Card Trang chủ, Tài sản, Kế hoạch, Gia đình, AI...).
+class FinoraAmbientMascotWatermark extends StatelessWidget {
+  final FinoraMascotPose pose;
+  final double size;
+  final double opacity;
+  final double rotation;
+  final Alignment alignment;
+  final Offset offset;
+  final double? right;
+  final double? bottom;
+
+  const FinoraAmbientMascotWatermark({
+    super.key,
+    this.pose = FinoraMascotPose.hero,
+    this.size = 132,
+    this.opacity = 0.14,
+    this.rotation = -0.08,
+    this.alignment = Alignment.bottomRight,
+    this.offset = const Offset(14, 12),
+    this.right,
+    this.bottom,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveOffset = (right != null || bottom != null)
+        ? Offset(-(right ?? -14), -(bottom ?? -12))
+        : offset;
+    return IgnorePointer(
+      child: Align(
+        alignment: alignment,
+        child: Transform.translate(
+          offset: effectiveOffset,
+          child: Transform.rotate(
+            angle: rotation,
+            child: Opacity(
+              opacity: opacity.clamp(0.03, 0.45),
+              child: FinoraMascotImage(
+                pose: pose,
+                size: size,
+                showGlow: false,
+              ),
+            ),
           ),
         ),
       ),

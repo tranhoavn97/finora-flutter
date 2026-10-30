@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +19,8 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/liquid_glass/liquid_glass_card.dart';
 import '../../core/widgets/subject_filter_pill.dart';
+import '../../core/widgets/finora_member_filter.dart';
+import '../../core/widgets/finora_notification_bell.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
 import '../../data/models/finance_models.dart';
@@ -33,9 +37,9 @@ import 'bento_luxury_deck_card.dart';
 import 'net_worth_modern_deck_card.dart';
 import 'zenvest_glass_deck_card.dart';
 import '../ai/ai_advisor_screen.dart';
-import '../notification/notification_screen.dart';
 import '../planning/planning_hub_screen.dart';
 import '../transaction/add_transaction_page.dart';
+import '../../core/widgets/finora_swipeable_transaction_card.dart';
 import '../transaction/transaction_detail_sheet.dart';
 import '../wallet/wealth_hub_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -594,67 +598,102 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final netFlow = d.periodNet;
     final txList = d.recentTransactions;
     final moduleGap = studio.pageVerticalGap;
-    final topSafePadding = MediaQuery.paddingOf(context).top + 16.0;
+    final topSafePadding = MediaQuery.paddingOf(context).top;
+    final blurSigma = studio.appBarBlur.clamp(0.0, 32.0);
+    final headerAlpha = studio.appBarOpacity.clamp(0.15, 1.0);
 
     return GlassScaffold(
       extendBodyBehindAppBar: false,
       body: SafeArea(
         top: false,
         bottom: false,
-        child: RefreshIndicator(
-          onRefresh: () async {
-            provider.load(widget.userId);
-            context.read<MoreProvider>().load(widget.userId);
-            context.read<BudgetProvider>().load(widget.userId);
-          },
-          child: SingleChildScrollView(
-            controller: _mainScrollController,
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            padding: EdgeInsets.fromLTRB(
-              16.0,
-              topSafePadding,
-              16.0,
-              136,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            // Pinned Sticky Header with Adjustable Blur & Opacity
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: blurSigma,
+                  sigmaY: blurSigma,
+                ),
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(
+                    16.0,
+                    topSafePadding + 10.0,
+                    16.0,
+                    10.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isDark
+                            ? const Color(0xFF0F172A)
+                            : Colors.white)
+                        .withValues(alpha: headerAlpha),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.07)
+                            : const Color(0xFFE2E8F0).withValues(alpha: 0.75),
+                        width: 0.8,
+                      ),
+                    ),
+                  ),
                   child: _buildHeader(isDark, studio, totalBalance),
                 ),
-                const SizedBox(height: 10),
-                _buildDashboardSubHeader(isDark, studio, provider),
-                SizedBox(height: moduleGap),
-                ...(() {
-                  final List<Widget> moduleWidgets = [];
-                  for (final modId in studio.dashboardOrder) {
-                    final w = _buildDashboardModule(
-                      modId,
-                      provider,
-                      d,
-                      totalBalance,
-                      income,
-                      expense,
-                      netFlow,
-                      txList,
-                      isDark,
-                      studio,
-                    );
-                    if (w != null) {
-                      if (moduleWidgets.isNotEmpty) {
-                        moduleWidgets.add(SizedBox(height: moduleGap));
-                      }
-                      moduleWidgets.add(w);
-                    }
-                  }
-                  return moduleWidgets;
-                })(),
-              ],
+              ),
             ),
-          ),
+
+            // Scrollable Dashboard Body
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  provider.load(widget.userId);
+                  context.read<MoreProvider>().load(widget.userId);
+                  context.read<BudgetProvider>().load(widget.userId);
+                },
+                child: SingleChildScrollView(
+                  controller: _mainScrollController,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(
+                    16.0,
+                    14.0,
+                    16.0,
+                    136,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...(() {
+                        final List<Widget> moduleWidgets = [];
+                        for (final modId in studio.dashboardOrder) {
+                          final w = _buildDashboardModule(
+                            modId,
+                            provider,
+                            d,
+                            totalBalance,
+                            income,
+                            expense,
+                            netFlow,
+                            txList,
+                            isDark,
+                            studio,
+                          );
+                          if (w != null) {
+                            if (moduleWidgets.isNotEmpty) {
+                              moduleWidgets.add(SizedBox(height: moduleGap));
+                            }
+                            moduleWidgets.add(w);
+                          }
+                        }
+                        return moduleWidgets;
+                      })(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -667,9 +706,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: isDark ? const Color(0xFF23322C) : const Color(0xFFE3EBE7),
-          width: 1.5,
+          color: isDark ? const Color(0xFF059669) : const Color(0xFF10B981),
+          width: 1.6,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF059669).withValues(alpha: 0.20),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: ClipOval(
         child: widget.userPhotoUrl != null
@@ -683,6 +729,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  String _getDiurnalGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'Xin chào buổi sáng,';
+    if (hour >= 12 && hour < 18) return 'Xin chào buổi chiều,';
+    return 'Xin chào buổi tối,';
+  }
+
   Widget _buildHeader(
       bool isDark, ThemeStudioController studio, num totalBalance) {
     final displayName = widget.userName.trim().isNotEmpty
@@ -691,26 +744,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Row(
       children: [
-        // Left: Avatar + User Name (with full room to breathe, never overlapped!)
+        // Left: Avatar + Line 1 (Xin chào buổi...) + Line 2 (Full User Name)
         _buildAvatarWithAura(studio, isDark),
-        const SizedBox(width: 10),
+        const SizedBox(width: 11),
         Expanded(
-          child: Text(
-            displayName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-              color: isDark ? Colors.white : const Color(0xFF0D1F1A),
-              fontFamily: studio.fontFamilyName,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _getDiurnalGreeting(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
+                  fontFamily: studio.fontFamilyName,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 17.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: isDark ? Colors.white : const Color(0xFF0D1F1A),
+                  fontFamily: studio.fontFamilyName,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 10),
 
-        // Right: Search Icon Button
+        // Right: Circular Search Button + Circular Notification Bell
         GestureDetector(
           onTap: () {
             if (widget.onViewAllTransactions != null) {
@@ -723,68 +796,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF121A17) : Colors.white,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               shape: BoxShape.circle,
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : const Color(0xFFE3EBE7),
-                width: 1.0,
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : const Color(0xFFE2E8F0),
+                width: 1.1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(
               Icons.search_rounded,
-              color: isDark ? Colors.white : const Color(0xFF0D1F1A),
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
               size: 18,
             ),
           ),
         ),
         const SizedBox(width: 8),
 
-        // Right: Notification Bell Button
-        GestureDetector(
-          onTap: () => _push(NotificationScreen(userId: widget.userId)),
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF121A17) : Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : const Color(0xFFE3EBE7),
-                width: 1.0,
-              ),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.notifications_none_rounded,
-                  color: isDark ? Colors.white : const Color(0xFF0D1F1A),
-                  size: 18,
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        FinoraNotificationBell(userId: widget.userId, size: 38),
       ],
     );
   }
 
+  /// Member Avatar-only circular button (40x40) + Solid Stadium Date Filter Pill
+  /// Placed directly below the 3 mini widgets (Thu nhập, Chi tiêu, Số dư).
+  /// Member button is 100% solid opaque (never transparent) and shows ONLY the circular avatar/icon.
   Widget _buildDashboardSubHeader(
     bool isDark,
     ThemeStudioController studio,
@@ -794,142 +838,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? DateFormat('dd/MM/yyyy').format(dProv.customDate!)
         : dProv.selectedDateFilter.label;
     final currentOwner = dProv.selectedOwner;
-    final (memberLabel, memberIcon, memberColor) = switch (currentOwner) {
-      OwnerFilter.husband => (
-          'Chồng',
-          Icons.man_rounded,
-          const Color(0xFF0284C7),
-        ),
-      OwnerFilter.wife => (
-          'Vợ',
-          Icons.woman_rounded,
-          const Color(0xFFDB2777),
-        ),
-      _ => (
-          'Tất cả',
-          Icons.group_rounded,
-          const Color(0xFF0F6E56),
-        ),
+    final currentMemberTag = switch (currentOwner) {
+      OwnerFilter.husband => 'husband',
+      OwnerFilter.wife => 'wife',
+      _ => null,
     };
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Left: 'Tổng quan dòng tiền' label + member filter pill
-        Expanded(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Tổng quan dòng tiền',
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                    color: isDark
-                        ? const Color(0xFFE2E8F0)
-                        : const Color(0xFF0D1F1A),
-                    fontFamily: studio.fontFamilyName,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _openOwnerFilterModal,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 4.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: memberColor.withValues(alpha: isDark ? 0.22 : 0.12),
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                        color: memberColor.withValues(alpha: 0.32),
-                        width: 0.9,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(memberIcon, size: 13, color: memberColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          memberLabel,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : memberColor,
-                            fontFamily: studio.fontFamilyName,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 13,
-                          color: isDark ? Colors.white70 : memberColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        // 1. Left: Circular Avatar-Only Member Filter Button (40x40, 100% solid opaque)
+        FinoraUnifiedMemberPill(
+          currentMember: currentMemberTag,
+          isDark: isDark,
+          height: 40,
+          onSelected: (val) {
+            if (val == 'husband') {
+              dProv.setOwnerFilter(OwnerFilter.husband);
+            } else if (val == 'wife') {
+              dProv.setOwnerFilter(OwnerFilter.wife);
+            } else {
+              dProv.setOwnerFilter(OwnerFilter.all);
+            }
+          },
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
 
-        // Right: Solid stadium-pill Date Filter button (📅 Hôm nay / Tháng này ▾)
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 142),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
+        // 2. Right Pill: Solid Stadium Date Filter (Hôm nay / Tháng này) — Height 40px
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
               onTap: _openDateFilter,
+              borderRadius: BorderRadius.circular(999),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
-                ),
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F6E56),
-                  borderRadius: BorderRadius.circular(100),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF059669), Color(0xFF047857)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0F6E56)
-                          .withValues(alpha: isDark ? 0.35 : 0.22),
+                      color: const Color(0xFF059669)
+                          .withValues(alpha: isDark ? 0.32 : 0.22),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.calendar_today_rounded,
-                      size: 13,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      filterLabel,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.20),
+                      ),
+                      child: const Icon(
+                        Icons.calendar_today_rounded,
+                        size: 13,
                         color: Colors.white,
-                        fontFamily: studio.fontFamilyName,
                       ),
                     ),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 7),
+                    Flexible(
+                      child: Text(
+                        filterLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          fontFamily: studio.fontFamilyName,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     const Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      size: 15,
+                      size: 16,
                       color: Colors.white,
                     ),
                   ],
@@ -994,6 +987,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       num netFlow,
       bool isDark,
       ThemeStudioController studio) {
+    final dualFilterBar = _buildDashboardSubHeader(isDark, studio, provider);
+
     if (studio.heroCardStyle == AppHeroCardStyle.zenvestGlassDeck) {
       return ZenvestGlassDeckCard(
         userId: widget.userId,
@@ -1019,48 +1014,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
           userId: widget.userId,
           familyId: widget.familyId,
         )),
+        filterBar: dualFilterBar,
       );
     }
 
     if (studio.heroCardStyle == AppHeroCardStyle.netWorthModernDeck) {
-      return NetWorthModernDeckCard(
-        userId: widget.userId,
-        userName: widget.userName,
-        userPhotoUrl: widget.userPhotoUrl,
-        provider: provider,
-        totalBalance: totalBalance,
-        income: income,
-        expense: expense,
-        netFlow: netFlow,
-        isDark: isDark,
-        studio: studio,
-        masked: _obscureBalance,
-        onToggleMask: () => setState(() => _obscureBalance = !_obscureBalance),
-        onViewWallets: widget.onViewWallets,
-        onViewAssets: _navigateToAssets,
-        onViewLoans: _navigateToLoans,
-        onViewPlanning: widget.onViewPlanning,
-        onViewTransactions: widget.onViewAllTransactions ?? _openTransactionHistory,
-        onDateFilterTap: _openDateFilter,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          NetWorthModernDeckCard(
+            userId: widget.userId,
+            userName: widget.userName,
+            userPhotoUrl: widget.userPhotoUrl,
+            provider: provider,
+            totalBalance: totalBalance,
+            income: income,
+            expense: expense,
+            netFlow: netFlow,
+            isDark: isDark,
+            studio: studio,
+            masked: _obscureBalance,
+            onToggleMask: () =>
+                setState(() => _obscureBalance = !_obscureBalance),
+            onViewWallets: widget.onViewWallets,
+            onViewAssets: _navigateToAssets,
+            onViewLoans: _navigateToLoans,
+            onViewPlanning: widget.onViewPlanning,
+            onViewTransactions:
+                widget.onViewAllTransactions ?? _openTransactionHistory,
+            onDateFilterTap: _openDateFilter,
+          ),
+          const SizedBox(height: 12),
+          dualFilterBar,
+        ],
       );
     }
 
     if (studio.heroCardStyle == AppHeroCardStyle.bentoLuxuryDeck) {
-      return BentoLuxuryDeckCard(
-        userId: widget.userId,
-        provider: provider,
-        totalBalance: totalBalance,
-        income: income,
-        expense: expense,
-        netFlow: netFlow,
-        isDark: isDark,
-        studio: studio,
-        masked: _obscureBalance,
-        userName: widget.userName,
-        onViewWallets: widget.onViewWallets,
-        onDateFilterTap: _openDateFilter,
-        onOwnerFilterTap: _openOwnerFilterModal,
-        onToggleMask: () => setState(() => _obscureBalance = !_obscureBalance),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BentoLuxuryDeckCard(
+            userId: widget.userId,
+            provider: provider,
+            totalBalance: totalBalance,
+            income: income,
+            expense: expense,
+            netFlow: netFlow,
+            isDark: isDark,
+            studio: studio,
+            masked: _obscureBalance,
+            userName: widget.userName,
+            onViewWallets: widget.onViewWallets,
+            onDateFilterTap: _openDateFilter,
+            onOwnerFilterTap: _openOwnerFilterModal,
+            onToggleMask: () =>
+                setState(() => _obscureBalance = !_obscureBalance),
+          ),
+          const SizedBox(height: 12),
+          dualFilterBar,
+        ],
       );
     }
 
@@ -2378,7 +2393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           }
                           if (ctx.mounted) Navigator.pop(sheetCtx);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            FinoraNotice.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
                                     'Đã ghi chép thành công ${drafts.length} giao dịch vào sổ!'),
@@ -2627,216 +2642,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final provider = context.read<DashboardProvider>();
     final current = provider.selectedOwner;
+    final currentTag = switch (current) {
+      OwnerFilter.husband => 'husband',
+      OwnerFilter.wife => 'wife',
+      _ => null,
+    };
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(28)),
-              border: Border(
-                top: BorderSide(
-                  color: isDark
-                      ? const Color(0xFF1E293B)
-                      : const Color(0xFFE2E8F0),
-                  width: 1.0,
-                ),
-              ),
-            ),
-              padding: EdgeInsets.fromLTRB(
-                  20, 16, 20, MediaQuery.paddingOf(ctx).bottom + 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Chọn chủ sở hữu',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.white10
-                                : Colors.black.withValues(alpha: 0.05),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.close_rounded,
-                              size: 18,
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF0F172A)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _buildOwnerFilterCardItem(
-                    ctx,
-                    filter: OwnerFilter.all,
-                    title: 'Tất cả thành viên',
-                    subtitle: 'Xem dữ liệu tổng hợp cả Vợ & Chồng',
-                    accentColor: const Color(0xFF005FEA),
-                    isSelected: current == OwnerFilter.all,
-                    isDark: isDark,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      provider.setOwnerFilter(OwnerFilter.all);
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _buildOwnerFilterCardItem(
-                    ctx,
-                    filter: OwnerFilter.husband,
-                    title: 'Chồng',
-                    subtitle: 'Chỉ xem ví và giao dịch của Chồng',
-                    accentColor: const Color(0xFF0284C7),
-                    isSelected: current == OwnerFilter.husband,
-                    isDark: isDark,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      provider.setOwnerFilter(OwnerFilter.husband);
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _buildOwnerFilterCardItem(
-                    ctx,
-                    filter: OwnerFilter.wife,
-                    title: 'Vợ',
-                    subtitle: 'Chỉ xem ví và giao dịch của Vợ',
-                    accentColor: const Color(0xFFDB2777),
-                    isSelected: current == OwnerFilter.wife,
-                    isDark: isDark,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      provider.setOwnerFilter(OwnerFilter.wife);
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-    );
-  }
-
-  Widget _buildOwnerFilterCardItem(
-    BuildContext ctx, {
-    required OwnerFilter filter,
-    required String title,
-    required String subtitle,
-    required Color accentColor,
-    required bool isSelected,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? accentColor.withValues(alpha: isDark ? 0.20 : 0.12)
-              : (isDark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : Colors.black.withValues(alpha: 0.035)),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isSelected
-                ? accentColor
-                : (isDark
-                    ? Colors.white.withValues(alpha: 0.10)
-                    : Colors.black.withValues(alpha: 0.07)),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: accentColor,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: accentColor.withValues(alpha: .30),
-                    blurRadius: 7,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ),
-          ],
-        ),
-      ),
+    showFinoraMemberFilterSheet(
+      context,
+      currentTag: currentTag,
+      isDark: isDark,
+      onSelected: (val) {
+        if (val == 'husband') {
+          provider.setOwnerFilter(OwnerFilter.husband);
+        } else if (val == 'wife') {
+          provider.setOwnerFilter(OwnerFilter.wife);
+        } else {
+          provider.setOwnerFilter(OwnerFilter.all);
+        }
+      },
     );
   }
 
@@ -5199,7 +5023,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       CardDensity.spacious => const EdgeInsets.only(bottom: 14),
     };
 
-    return _buildGlassCardContainer(
+    final cardWidget = _buildGlassCardContainer(
       studio: studio,
       isDark: isDark,
       radius: effectiveRadius,
@@ -5213,16 +5037,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           offset: const Offset(0, 1.5),
         ),
       ],
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => showTransactionDetailSheet(
-            context,
-            userId: widget.userId,
-            transaction: tx,
-          ),
-          borderRadius: BorderRadius.circular(effectiveRadius),
-          child: Padding(
+      child: Padding(
             padding: effectivePadding,
             child: Row(
               children: [
@@ -5321,8 +5136,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-        ),
-      ),
+    );
+
+    return FinoraSwipeableTransactionCard(
+      userId: widget.userId,
+      transaction: tx,
+      borderRadius: effectiveRadius,
+      child: cardWidget,
     );
   }
 

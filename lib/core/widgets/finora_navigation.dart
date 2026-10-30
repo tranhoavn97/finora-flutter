@@ -51,20 +51,8 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
   /// - Tab 1 (`Tài sản`): Ocean Sapphire `#0284C7` (Light) / `#38BDF8` (Dark)
   /// - Tab 2 (`Kế hoạch`): Royal Teal/Indigo `#0D9488` (Light) / `#2DD4BF` (Dark)
   /// - Tab 3 (`Cá nhân`): Royal Violet `#4F46E5` (Light) / `#818CF8` (Dark)
-  static Color tabAccentColor(int tabIndex, bool dark) {
-    switch (tabIndex) {
-      case 0:
-        return dark ? const Color(0xFF10B981) : const Color(0xFF0F6E56);
-      case 1:
-        return dark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7);
-      case 2:
-        return dark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488);
-      case 3:
-      default:
-        return dark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5);
-    }
-  }
-
+  static Color tabAccentColor(int tabIndex, bool dark) =>
+      dark ? const Color(0xFF10B981) : const Color(0xFF007859);
 
   double? _dragStartX;
   bool _isScrubbing = false;
@@ -158,8 +146,7 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
         tabSelectStyle == AppTabSelectStyle.bounceBadge;
     final isCyberSplit = dockStyle == AppDockNavStyle.cyberpunkSplitDock;
     final isNotchWave = dockStyle == AppDockNavStyle.notchWaveRise;
-    final isIslandBubbles =
-        dockStyle == AppDockNavStyle.segmentedIslandBubbles;
+    final isIslandBubbles = dockStyle == AppDockNavStyle.segmentedIslandBubbles;
     final isGlowTray = dockStyle == AppDockNavStyle.expandedGlowTray;
     final isStealthWire = dockStyle == AppDockNavStyle.stealthWireMinimal;
     final isCockpit = dockStyle == AppDockNavStyle.futuristicCyberCockpit;
@@ -512,8 +499,8 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
                       color: (dark ? const Color(0xFF101B34) : Colors.white)
                           .withValues(
                               alpha: (studio?.dockOpacity ?? 0.85) * 0.95),
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(29)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(29)),
                       border: Border(
                         top: BorderSide(
                           color: (studio?.resolvedDockActiveColor ??
@@ -606,23 +593,23 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
                         colors: dark
                             ? [
                                 const Color(0xFF142442).withValues(
-                                    alpha: ((studio?.dockOpacity ?? 0.38) *
-                                            0.70)
-                                        .clamp(0.18, 0.45)),
+                                    alpha:
+                                        ((studio?.dockOpacity ?? 0.38) * 0.70)
+                                            .clamp(0.18, 0.45)),
                                 const Color(0xFF07101E).withValues(
-                                    alpha: ((studio?.dockOpacity ?? 0.38) *
-                                            0.85)
-                                        .clamp(0.22, 0.50)),
+                                    alpha:
+                                        ((studio?.dockOpacity ?? 0.38) * 0.85)
+                                            .clamp(0.22, 0.50)),
                               ]
                             : [
                                 Colors.white.withValues(
-                                    alpha: ((studio?.dockOpacity ?? 0.38) *
-                                            0.75)
-                                        .clamp(0.18, 0.48)),
+                                    alpha:
+                                        ((studio?.dockOpacity ?? 0.38) * 0.75)
+                                            .clamp(0.18, 0.48)),
                                 const Color(0xFFE2F0FD).withValues(
-                                    alpha: ((studio?.dockOpacity ?? 0.38) *
-                                            0.50)
-                                        .clamp(0.12, 0.38)),
+                                    alpha:
+                                        ((studio?.dockOpacity ?? 0.38) * 0.50)
+                                            .clamp(0.12, 0.38)),
                               ],
                       )
                     : LinearGradient(
@@ -835,13 +822,14 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
     required bool isHyperOs,
     required bool isNotchWave,
   }) {
-    final primaryColor = isHyperOs
-        ? const Color(0xFF0070F3)
-        : (isColorOs
-            ? const Color(0xFF00C4B4)
-            : (studio?.resolvedDockActiveColor ??
-                studio?.resolvedPrimary ??
-                const Color(0xFF0F6E56)));
+    final primaryColor = studio?.dockPlusColor ??
+        (isHyperOs
+            ? const Color(0xFF0070F3)
+            : (isColorOs
+                ? const Color(0xFF00C4B4)
+                : (studio?.resolvedDockPlusColor ??
+                    studio?.resolvedPrimary ??
+                    const Color(0xFF0F6E56))));
 
     final btn = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -849,8 +837,23 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
         message: 'Thêm giao dịch',
         child: Container(
           decoration: BoxDecoration(
-            color: primaryColor,
             shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.lerp(primaryColor, Colors.white, 0.14)!,
+                primaryColor,
+                Color.lerp(primaryColor, Colors.black, 0.16)!,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withValues(alpha: 0.36),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Material(
             color: Colors.transparent,
@@ -898,8 +901,8 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
         borderRadius: BorderRadius.circular(100),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: EdgeInsets.symmetric(
-              horizontal: selected ? 14 : 11, vertical: 9),
+          padding:
+              EdgeInsets.symmetric(horizontal: selected ? 14 : 11, vertical: 9),
           decoration: BoxDecoration(
             color: selected
                 ? primary
@@ -975,9 +978,7 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = isHyperOs
         ? const Color(0xFF0070F3)
-        : (isColorOs
-            ? const Color(0xFF00C4B4)
-            : tabAccentColor(tab, dark));
+        : (isColorOs ? const Color(0xFF00C4B4) : tabAccentColor(tab, dark));
     final color = selected
         ? primaryColor
         : (studio?.resolvedDockInactiveColor(dark) ??
@@ -1196,10 +1197,7 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
       case AppDockIconStyle.modernLucide:
         switch (tabIndex) {
           case 0:
-            return (
-              unselected: LucideIcons.house,
-              selected: LucideIcons.house
-            );
+            return (unselected: LucideIcons.house, selected: LucideIcons.house);
           case 1:
             return (
               unselected: LucideIcons.wallet_cards,
@@ -1351,6 +1349,9 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
     final int activeIndex = (_dragTabIndex ?? widget.index).clamp(0, 3);
     final bool isDragging = _dragFraction != null;
     final Color activeAccent = tabAccentColor(activeIndex, dark);
+    final double dockBlur = (studio?.dockBlur ?? 18.0).clamp(0.0, 32.0);
+    final double dockAlpha =
+        (studio?.dockOpacity ?? (dark ? 0.82 : 0.78)).clamp(0.15, 1.0);
 
     return SafeArea(
       top: false,
@@ -1367,27 +1368,30 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(100),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    filter: ImageFilter.blur(sigmaX: dockBlur, sigmaY: dockBlur),
                     child: Container(
                       height: 58,
                       decoration: BoxDecoration(
-                        color: dark
-                            ? const Color(0xFF111927).withValues(alpha: 0.94)
-                            : const Color(0xFFF1F3F5).withValues(alpha: 0.96),
+                        color: (dark
+                                ? const Color(0xFF0F172A)
+                                : Colors.white)
+                            .withValues(alpha: dockAlpha),
                         borderRadius: BorderRadius.circular(100),
                         border: Border.all(
                           color: isDragging
                               ? activeAccent.withValues(
-                                  alpha: dark ? 0.50 : 0.35)
+                                  alpha: dark ? 0.55 : 0.40)
                               : (dark
-                                  ? Colors.white.withValues(alpha: 0.12)
-                                  : const Color(0xFFE2E8F0)),
-                          width: isDragging ? 1.2 : 1.0,
+                                  ? Colors.white.withValues(alpha: 0.14)
+                                  : const Color(0xFFCBD5E1)
+                                      .withValues(alpha: 0.85)),
+                          width: isDragging ? 1.25 : 1.0,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: (dark ? Colors.black : const Color(0xFF0F172A))
-                                .withValues(alpha: dark ? 0.40 : 0.08),
+                            color:
+                                (dark ? Colors.black : const Color(0xFF0F172A))
+                                    .withValues(alpha: dark ? 0.40 : 0.08),
                             blurRadius: 22,
                             offset: const Offset(0, 8),
                             spreadRadius: -2,
@@ -1449,10 +1453,11 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
 
               const SizedBox(width: 10),
 
-              // 2. Separate Floating Coral/Red CTA (+) Button with Press Bounce (Matching Image 4)
+              // 2. Separate Floating CTA (+) Button with Customizable Color & Press Bounce
               _FloatingCtaButton(
                 onTap: widget.onAddTap,
-                accentColor: activeAccent,
+                accentColor:
+                    studio?.dockPlusColor ?? const Color(0xFF10B981),
               ),
             ],
           ),
@@ -1472,8 +1477,9 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
     required bool dark,
     required ThemeStudioController? studio,
   }) {
-    final Color tabColor = tabAccentColor(tabIndex, dark);
-    final Color activeFg = dark ? Colors.white : const Color(0xFF0F172A);
+    final Color activeAccent =
+        studio?.dockActiveColor ?? tabAccentColor(tabIndex, dark);
+    final Color activeFg = dark ? Colors.white : Colors.white;
     final Color inactiveFg =
         dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
@@ -1491,34 +1497,41 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
             child: InkWell(
               onTap: () => _handleTabTap(tabIndex, studio),
               borderRadius: BorderRadius.circular(100),
-              splashColor: tabColor.withValues(alpha: 0.14),
+              splashFactory: NoSplash.splashFactory,
+              splashColor: Colors.transparent,
               highlightColor: Colors.transparent,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 240),
+                duration: Duration(milliseconds: isSelected ? 160 : 70),
                 curve: Curves.easeOutCubic,
                 height: double.infinity,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? (dark
-                          ? const Color(0xFF1E293B)
-                          : Colors.white)
-                      : Colors.transparent,
+                  gradient: isSelected
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color.lerp(activeAccent, Colors.white, 0.10)!,
+                            activeAccent,
+                            Color.lerp(activeAccent, Colors.black, 0.14)!,
+                          ],
+                        )
+                      : null,
+                  color: isSelected ? null : Colors.transparent,
                   borderRadius: BorderRadius.circular(100),
                   border: isSelected
                       ? Border.all(
-                          color: dark
-                              ? Colors.white.withValues(alpha: 0.12)
-                              : Colors.white,
+                          color: Colors.white.withValues(
+                              alpha: dark ? 0.32 : 0.45),
                           width: 1.0,
                         )
                       : null,
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: Colors.black.withValues(
-                                alpha: dark ? 0.35 : 0.08),
-                            blurRadius: 10,
+                            color: activeAccent.withValues(
+                                alpha: dark ? 0.42 : 0.30),
+                            blurRadius: 12,
                             offset: const Offset(0, 3),
                           ),
                         ]
@@ -1532,8 +1545,7 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -1593,6 +1605,10 @@ class _FloatingCtaButtonState extends State<_FloatingCtaButton> {
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = widget.accentColor;
+    final lightStop = Color.lerp(baseColor, Colors.white, 0.14)!;
+    final darkStop = Color.lerp(baseColor, Colors.black, 0.18)!;
+
     return AnimatedScale(
       scale: _isPressed ? 0.90 : 1.0,
       duration: const Duration(milliseconds: 120),
@@ -1613,27 +1629,27 @@ class _FloatingCtaButtonState extends State<_FloatingCtaButton> {
             height: 54,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFFF6B6B),
-                  Color(0xFFFF4757),
-                  Color(0xFFEE5253),
+                  lightStop,
+                  baseColor,
+                  darkStop,
                 ],
               ),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.38),
-                width: 1.2,
+                color: Colors.white.withValues(alpha: 0.72),
+                width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF4757).withValues(alpha: 0.42),
+                  color: baseColor.withValues(alpha: 0.38),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.14),
+                  color: Colors.black.withValues(alpha: 0.16),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
