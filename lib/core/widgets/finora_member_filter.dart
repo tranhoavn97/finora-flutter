@@ -27,15 +27,44 @@ class FinoraMemberAvatar extends StatelessWidget {
     this.studio,
   }) : member = member ?? role ?? memberKey;
 
+  static String? normalizeMember(String? raw) {
+    if (raw == null) return null;
+    final clean = raw.trim().toLowerCase();
+    if (clean.isEmpty ||
+        clean == 'all' ||
+        clean == 'joint' ||
+        clean == 'chung' ||
+        clean == 'tất cả') {
+      return null;
+    }
+    if (clean == 'husband' ||
+        clean == 'chồng' ||
+        clean == 'chong' ||
+        clean.contains('chồng') ||
+        clean.contains('husband')) {
+      return 'husband';
+    }
+    if (clean == 'wife' ||
+        clean == 'vợ' ||
+        clean == 'vo' ||
+        clean.contains('vợ') ||
+        clean.contains('wife')) {
+      return 'wife';
+    }
+    return null;
+  }
+
   static Color colorFor(String? member) {
-    if (member == 'husband') return const Color(0xFF0284C7);
-    if (member == 'wife') return const Color(0xFFE11D48);
+    final norm = normalizeMember(member);
+    if (norm == 'husband') return const Color(0xFF0284C7);
+    if (norm == 'wife') return const Color(0xFFE11D48);
     return const Color(0xFF059669);
   }
 
   static IconData defaultIconFor(String? member) {
-    if (member == 'husband') return Icons.face_rounded;
-    if (member == 'wife') return Icons.face_3_rounded;
+    final norm = normalizeMember(member);
+    if (norm == 'husband') return Icons.face_rounded;
+    if (norm == 'wife') return Icons.face_3_rounded;
     return Icons.people_alt_rounded;
   }
 
@@ -116,8 +145,7 @@ class FinoraMemberAvatar extends StatelessWidget {
     final effectiveStudio =
         studio ?? Provider.of<ThemeStudioController?>(context, listen: true);
     final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    final normalized =
-        (member == 'all' || member == null || member == 'joint') ? null : member;
+    final normalized = normalizeMember(member);
     final accent = colorFor(normalized);
     final baseSurface = dark ? const Color(0xFF1E293B) : Colors.white;
     final badgeBg = Color.alphaBlend(
@@ -281,102 +309,85 @@ class FinoraUnifiedMemberPill extends StatelessWidget {
           )
         : baseSurface;
 
-    final shortLabel = member == 'husband'
-        ? 'Chồng'
-        : (member == 'wife' ? 'Vợ' : 'Tất cả');
     final tooltipLabel = member == 'husband'
         ? 'Đang lọc: Chồng (Chạm để đổi hoặc tải ảnh avatar)'
         : (member == 'wife'
             ? 'Đang lọc: Vợ (Chạm để đổi hoặc tải ảnh avatar)'
             : 'Đang lọc: Tất cả thành viên (Chạm để chọn Vợ/Chồng)');
 
-    return Tooltip(
-      message: tooltipLabel,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            showFinoraMemberFilterSheet(
-              context,
-              currentTag: member,
-              onSelected: onSelected,
-              isDark: isDark,
-            );
-          },
-          borderRadius: BorderRadius.circular(999),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: btnSize,
-            height: btnSize,
-            decoration: BoxDecoration(
-              color: solidBg,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isFiltered
-                    ? Color.alphaBlend(
-                        color.withValues(alpha: isDark ? 0.75 : 0.55),
-                        baseSurface,
-                      )
-                    : (isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFCBD5E1)),
-                width: isFiltered ? 1.5 : 1.1,
-              ),
-              boxShadow: [
-                BoxShadow(
+    return SizedBox(
+      width: btnSize,
+      height: btnSize,
+      child: Tooltip(
+        message: tooltipLabel,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              showFinoraMemberFilterSheet(
+                context,
+                currentTag: member,
+                onSelected: onSelected,
+                isDark: isDark,
+              );
+            },
+            borderRadius: BorderRadius.circular(999),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: btnSize,
+              height: btnSize,
+              decoration: BoxDecoration(
+                color: solidBg,
+                shape: BoxShape.circle,
+                border: Border.all(
                   color: isFiltered
-                      ? color.withValues(alpha: isDark ? 0.28 : 0.14)
-                      : Colors.black.withValues(alpha: isDark ? 0.22 : 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                      ? Color.alphaBlend(
+                          color.withValues(alpha: isDark ? 0.75 : 0.55),
+                          baseSurface,
+                        )
+                      : (isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
+                  width: isFiltered ? 1.5 : 1.1,
                 ),
-              ],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                FinoraMemberAvatar(
-                  member: member,
-                  size: btnSize - 6,
-                  isDark: isDark,
-                ),
-                SizedBox(
-                  width: 1,
-                  height: 1,
-                  child: OverflowBox(
-                    maxWidth: 90,
-                    maxHeight: 20,
-                    child: Opacity(
-                      opacity: 0,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(shortLabel, maxLines: 1),
-                          const Icon(Icons.keyboard_arrow_down_rounded, size: 1),
-                        ],
+                boxShadow: [
+                  BoxShadow(
+                    color: isFiltered
+                        ? color.withValues(alpha: isDark ? 0.28 : 0.14)
+                        : Colors.black.withValues(alpha: isDark ? 0.22 : 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  FinoraMemberAvatar(
+                    member: member,
+                    size: btnSize - 6,
+                    isDark: isDark,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: baseSurface,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  right: 1,
-                  bottom: 1,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: baseSurface,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

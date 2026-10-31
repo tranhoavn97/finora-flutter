@@ -1552,6 +1552,7 @@ class FinoraTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final liquid = studio?.isSystemWideLiquidGlass ?? true;
     final isNumber = keyboardType == TextInputType.number ||
         keyboardType == const TextInputType.numberWithOptions(decimal: true) ||
@@ -1575,6 +1576,9 @@ class FinoraTextField extends StatelessWidget {
     return LiquidGlassSurface(
       radius: radius,
       blur: (studio?.glassBlur ?? 20).clamp(0.0, 16.0),
+      fillColor: isDark
+          ? const Color(0xFF1E293B).withValues(alpha: 0.72)
+          : const Color(0xFFF8FAFC).withValues(alpha: 0.88),
       enabled: liquid,
       specular: studio?.liquidGlassSpecularHighlight ?? true,
       refraction: studio?.liquidGlassCausticRefraction ?? true,
@@ -1590,18 +1594,25 @@ class FinoraTextField extends StatelessWidget {
         inputFormatters: effectiveFormatters,
         style: Theme.of(context).textTheme.bodyLarge,
         decoration: InputDecoration(
-          filled: !liquid,
-          fillColor: liquid ? Colors.transparent : null,
+          filled: false,
+          fillColor: Colors.transparent,
           hintText: hint,
           suffixIcon: suffix,
-          border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(radius)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radius),
+            borderSide: BorderSide(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : const Color(0xFFE2E8F0),
+            ),
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(radius),
-            borderSide: liquid
-                ? BorderSide.none
-                : BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant),
+            borderSide: BorderSide(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : const Color(0xFFE2E8F0),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(radius),

@@ -260,85 +260,35 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
     final goals = mp.goals;
 
     final canPop = !widget.isRoot && Navigator.of(context).canPop();
-    final blurSigma = (studio?.appBarBlur ?? 22.0).clamp(0.0, 48.0);
-    final barOpacity = (studio?.appBarOpacity ?? 0.85).clamp(0.0, 1.0);
-    final topPad = MediaQuery.of(context).padding.top;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-                child: Container(
-                  padding: EdgeInsets.fromLTRB(16, topPad + 6, 16, 10),
-                  decoration: BoxDecoration(
-                    color: (isDark ? const Color(0xFF0B1120) : Colors.white)
-                        .withValues(alpha: barOpacity * (isDark ? 0.72 : 0.78)),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.08 * barOpacity)
-                            : Colors.black.withValues(alpha: 0.05 * barOpacity),
-                        width: 0.8,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      if (canPop) ...[
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 16,
-                          ),
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        child: _buildSegmentSelector(
-                          budgetsCount: budgets.length,
-                          goalsCount: goals.length,
-                          isDark: isDark,
-                          studio: studio,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const ClampingScrollPhysics(),
-                  onPageChanged: (idx) {
-                    if (_selectedTab != idx) {
-                      HapticFeedback.selectionClick();
-                      setState(() => _selectedTab = idx);
-                    }
-                  },
-                  children: [
-                    BudgetScreen(userId: widget.userId, isTab: true),
-                    GoalScreen(userId: widget.userId, isTab: true),
-                    ReportScreen(
-                        userId: widget.userId, isRoot: true, isTab: true),
-                  ],
-                ),
-              ),
-            ],
-          )),
+    return GlassScaffold(
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: '',
+        titleWidget: _buildSegmentSelector(
+          budgetsCount: budgets.length,
+          goalsCount: goals.length,
+          isDark: isDark,
+          studio: studio,
+        ),
+        showBack: canPop,
+        onBack: canPop ? () => Navigator.pop(context) : null,
+        height: 44,
+      ),
+      body: PageView(
+        controller: _pageController,
+        physics: const ClampingScrollPhysics(),
+        onPageChanged: (idx) {
+          if (_selectedTab != idx) {
+            HapticFeedback.selectionClick();
+            setState(() => _selectedTab = idx);
+          }
+        },
+        children: [
+          BudgetScreen(userId: widget.userId, isTab: true),
+          GoalScreen(userId: widget.userId, isTab: true),
+          ReportScreen(userId: widget.userId, isRoot: true, isTab: true),
+        ],
+      ),
     );
   }
 
@@ -1497,6 +1447,7 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
       ],
       height: 42,
       fontSize: 12.5,
+      transparentBackground: true,
       onChanged: (idx) => _switchTab(idx),
     );
   }

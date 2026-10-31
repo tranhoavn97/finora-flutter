@@ -77,12 +77,22 @@ class GlassScaffold extends StatefulWidget {
   });
 
   /// Helper to calculate the top inset needed when [extendBodyBehindAppBar] is true
-  static double topInset(BuildContext context, [double extra = 12.0]) {
+  static double topInset(BuildContext context,
+      [double extra = 6.0, double? customHeaderHeight]) {
     final studio = Provider.of<ThemeStudioController?>(context, listen: false);
-    final isFloating = studio?.isAppBarFloating ?? false;
-    return MediaQuery.paddingOf(context).top +
-        FinoraV8Metrics.pageHeader +
-        (isFloating ? 18.0 : 8.0) +
+    final isFloating = (studio?.isAppBarFloating ?? true) ||
+        studio?.appBarScrollBehavior == AppAppBarScrollBehavior.floating ||
+        studio?.topBarStyle == AppTopBarStyle.floatingIsland;
+    final headerH = customHeaderHeight ?? FinoraV8Metrics.pageHeader;
+    // GlassTopBar preferredSize is height + 12 (6 top margin + 6 bottom margin) when floating
+    final floatingBarMargin = isFloating ? 12.0 : 0.0;
+    // Scaffold inflates body padding.top with the toolbar, and removes the
+    // original viewPadding.top. Read the window's physical inset instead so
+    // descendants neither double-count the toolbar nor lose the status bar.
+    final view = View.of(context);
+    return view.viewPadding.top / view.devicePixelRatio +
+        headerH +
+        floatingBarMargin +
         extra;
   }
 
@@ -188,14 +198,15 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
     final canPop = Navigator.of(context).canPop();
     final shouldShowBack = showBack && (onBack != null || canPop);
 
-    final isFloating = studio?.isAppBarFloating ??
-        (studio?.appBarScrollBehavior == AppAppBarScrollBehavior.floating ||
+    final isFloating = !isTransparent &&
+        ((studio?.isAppBarFloating ?? true) ||
+            studio?.appBarScrollBehavior == AppAppBarScrollBehavior.floating ||
             studio?.topBarStyle == AppTopBarStyle.floatingIsland);
-    final customAlpha = (studio?.appBarOpacity ?? 0.55).clamp(0.0, 1.0);
+    final customAlpha = (studio?.appBarOpacity ?? 0.68).clamp(0.0, 1.0);
     final primary = studio?.primaryColor ?? const Color(0xFF005FEA);
-    final hMargin = studio?.pageHorizontalMargin ?? 14.0;
+    final hMargin = (studio?.pageHorizontalMargin ?? 14.0).clamp(10.0, 20.0);
 
-    final topBarStyle = studio?.topBarStyle ?? AppTopBarStyle.frostedGlass;
+    final topBarStyle = studio?.topBarStyle ?? AppTopBarStyle.floatingIsland;
     final isMinimal = topBarStyle == AppTopBarStyle.pureMinimal;
     final isSeamless = topBarStyle == AppTopBarStyle.seamlessBlend;
 
@@ -212,14 +223,15 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
     if (transparentBar) {
       topBarFill = Colors.transparent;
     } else if (backgroundColor != null) {
-      topBarFill = backgroundColor!;
+      topBarFill = backgroundColor!.withValues(alpha: customAlpha);
     } else {
-      topBarFill = Colors.transparent;
+      topBarFill = (dark ? const Color(0xFF0F172A) : Colors.white)
+          .withValues(alpha: customAlpha);
     }
 
     final effectiveRadius = isFloating
         ? BorderRadius.circular(
-            studio?.cardCornerRadius.clamp(14.0, 24.0) ?? 18)
+            studio?.cardCornerRadius.clamp(18.0, 26.0) ?? 22)
         : BorderRadius.zero;
 
     final isLiquidGlass = studio?.isSystemWideLiquidGlass ?? false;
@@ -355,7 +367,15 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             child: ClipRRect(
               borderRadius: effectiveRadius,
-              child: floatingChild,
+              child: effectiveBlur > 0.1
+                  ? BackdropFilter(
+                      filter: ui.ImageFilter.blur(
+                        sigmaX: effectiveBlur,
+                        sigmaY: effectiveBlur,
+                      ),
+                      child: floatingChild,
+                    )
+                  : floatingChild,
             ),
           ),
         ),
@@ -383,6 +403,79 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
         filter:
             ui.ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
         child: pinnedBar,
+      ),
+    );
+  }
+
+  /// Unified floating blurred header capsule used across all main tabs and subpages.
+  /// Automatically reacts to `ThemeStudioController.appBarBlur` and `appBarOpacity`.
+  static Widget floatingCapsule({
+    required BuildContext context,
+    required Widget child,
+    EdgeInsetsGeometry? margin,
+    EdgeInsetsGeometry? padding,
+    double? borderRadius,
+  }) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final customAlpha = (studio?.appBarOpacity ?? 0.68).clamp(0.0, 1.0);
+    final effectiveBlur = customAlpha <= 0.01
+        ? 0.0
+        : (studio?.appBarBlur ?? 22.0).clamp(0.0, 30.0);
+    final primary = studio?.primaryColor ?? const Color(0xFF0F6E56);
+    final radius = BorderRadius.circular(
+      borderRadius ?? (studio?.cardCornerRadius.clamp(18.0, 26.0) ?? 22.0),
+    );
+    final fill = customAlpha <= 0.01
+        ? Colors.transparent
+        : (dark ? const Color(0xFF0F172A) : Colors.white)
+            .withValues(alpha: customAlpha);
+    final showBorder = (studio?.appBarShowBorder ?? true) && customAlpha > 0.02;
+
+    final inner = Container(
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: radius,
+        border: showBorder
+            ? Border.all(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : primary.withValues(alpha: 0.16),
+                width: 1.0,
+              )
+            : null,
+      ),
+      child: child,
+    );
+
+    return Container(
+      margin: margin ?? const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: customAlpha <= 0.02
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? 0.22 : 0.05),
+                  blurRadius: 16,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: effectiveBlur > 0.1
+            ? BackdropFilter(
+                filter: ui.ImageFilter.blur(
+                  sigmaX: effectiveBlur,
+                  sigmaY: effectiveBlur,
+                ),
+                child: inner,
+              )
+            : inner,
       ),
     );
   }

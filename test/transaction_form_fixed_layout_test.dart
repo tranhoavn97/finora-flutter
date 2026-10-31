@@ -26,6 +26,12 @@ class _Transactions extends TransactionProvider {
   @override
   void load(String userId, {String? familyId, bool force = false}) {}
   @override
+  Future<void> updateTransaction(
+      String userId, String id, TransactionModel tx) async {
+    writes.add(tx);
+  }
+
+  @override
   Future<void> createTransaction(String userId, TransactionModel tx) async {
     writes.add(tx);
     if (pending != null) await pending!.future;
@@ -33,7 +39,7 @@ class _Transactions extends TransactionProvider {
 }
 
 Future<void> mount(WidgetTester tester, _Transactions provider,
-    {double width = 384, double scale = 1}) async {
+    {double width = 384, double scale = 1, TransactionModel? existing}) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, 824);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -49,16 +55,37 @@ Future<void> mount(WidgetTester tester, _Transactions provider,
               data: MediaQuery.of(context)
                   .copyWith(textScaler: TextScaler.linear(scale)),
               child: child!),
-          home: const AddTransactionPage(userId: 'local-test'))));
+          home: AddTransactionPage(userId: 'local-test', existing: existing))));
   await tester.pumpAndSettle();
 }
 
 void main() {
-
+  testWidgets(
+      'Editing an imported transaction hides reference input and keeps its original metadata',
+      (tester) async {
+    final provider = _Transactions();
+    await mount(tester, provider,
+        existing: const TransactionModel(
+            id: 'imported',
+            amount: 50000,
+            type: 'expense',
+            walletId: 'cash',
+            categoryId: 'food',
+            categoryName: 'Ăn uống',
+            bankTransactionCode: 'FT123',
+            rawBankNotification: 'Tin gốc đủ nội dung cuối',
+            tags: ['bank_code:FT123']));
+    expect(find.textContaining('Mã giao dịch chính'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('transaction-save')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(provider.writes.single.bankTransactionCode, 'FT123');
+    expect(
+        provider.writes.single.rawBankNotification, 'Tin gốc đủ nội dung cuối');
+    expect(provider.writes.single.tags, contains('bank_code:FT123'));
+  });
 
   testWidgets('keyboard leaves fixed save action above the inset',
       (tester) async {
-  
     await mount(tester, _Transactions());
     final tab = find.byKey(const ValueKey('transaction-type-tabs'));
     final top = tester.getTopLeft(tab);

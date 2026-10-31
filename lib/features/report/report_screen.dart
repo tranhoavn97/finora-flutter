@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import '../../core/widgets/finora/financial_components.dart'
     show TransactionRow;
 import '../transaction/transaction_detail_sheet.dart';
@@ -8,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design_system/app_colors.dart';
+import '../../core/widgets/glass_widgets.dart';
 import '../../core/utils/date_filter.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/date_filter_modal.dart';
@@ -57,7 +59,11 @@ class ReportScreen extends StatefulWidget {
   State<ReportScreen> createState() => _ReportScreenState();
 }
 
-class _ReportScreenState extends State<ReportScreen> {
+class _ReportScreenState extends State<ReportScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   ReportQuickPeriod _quickPeriod = ReportQuickPeriod.thisMonth;
   OwnerFilter _ownerFilter = OwnerFilter.all;
   DateTimeRange? _customRange;
@@ -208,6 +214,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final text = dark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
     final sub = dark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
@@ -344,7 +351,8 @@ class _ReportScreenState extends State<ReportScreen> {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      padding: EdgeInsets.fromLTRB(
+          16, widget.isTab ? GlassScaffold.topInset(context, 0, 44) : 8, 16, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -440,75 +448,68 @@ class _ReportScreenState extends State<ReportScreen> {
 
     return Row(
       children: [
-        // 1. Period Selector Dropdown Pill (Equal height 40px, premium style)
+        // 1. Left: Circular Member Filter Avatar Button (40x40, matching Dashboard)
+        _buildMemberButton(dark, studio),
+        const SizedBox(width: 10),
+
+        // 2. Right: Solid Stadium Emerald Date Selector Pill (Height 40px)
         Expanded(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(100),
-            onTap: () => _showPeriodSheet(dark, periodItems),
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(
-                  color: const Color(0xFF0F6E56)
-                      .withValues(alpha: dark ? 0.35 : 0.22),
-                  width: 1.0,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => _showPeriodSheet(dark, periodItems),
+              child: Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF059669), Color(0xFF047857)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF059669)
+                          .withValues(alpha: dark ? 0.32 : 0.22),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: dark ? 0.16 : 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F6E56)
-                          .withValues(alpha: dark ? 0.22 : 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
                       Icons.calendar_month_rounded,
-                      size: 14,
-                      color: Color(0xFF0F6E56),
+                      size: 16,
+                      color: Colors.white,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      currentLabel,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: dark ? Colors.white : const Color(0xFF0F172A),
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        currentLabel,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                    size: 18,
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-
-        // 2. Member Filter Pill (👥 Tất cả / Chồng / Vợ - Equal height 40px & equal width)
-        Expanded(
-          child: _buildMemberButton(dark, studio),
         ),
       ],
     );
@@ -810,6 +811,13 @@ class _ReportScreenState extends State<ReportScreen> {
     required bool dark,
     EdgeInsetsGeometry? padding,
   }) {
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final cardFill = studio?.getCardFillColor(dark) ??
+        (dark
+            ? const Color(0xFF142033).withValues(alpha: 0.88)
+            : Colors.white.withValues(alpha: studio?.glassOpacity ?? 0.88));
+    final blur = studio?.glassBlur ?? 0.0;
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -823,23 +831,43 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: Material(
-          color: dark
-              ? const Color(0xFF142033).withValues(alpha: 0.90)
-              : Colors.white.withValues(alpha: 0.96),
-          child: Container(
-            padding: padding ?? const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: (dark ? Colors.white : Colors.black)
-                    .withValues(alpha: dark ? 0.09 : 0.05),
-                width: 1.0,
+        child: blur > 0.5
+            ? BackdropFilter(
+                filter: ui.ImageFilter.blur(
+                  sigmaX: blur.clamp(0.0, 25.0),
+                  sigmaY: blur.clamp(0.0, 25.0),
+                ),
+                child: Material(
+                  color: cardFill,
+                  child: Container(
+                    padding: padding ?? const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: (dark ? Colors.white : Colors.black)
+                            .withValues(alpha: dark ? 0.09 : 0.05),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: child,
+                  ),
+                ),
+              )
+            : Material(
+                color: cardFill,
+                child: Container(
+                  padding: padding ?? const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: (dark ? Colors.white : Colors.black)
+                          .withValues(alpha: dark ? 0.09 : 0.05),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: child,
+                ),
               ),
-            ),
-            child: child,
-          ),
-        ),
       ),
     );
   }
@@ -1285,31 +1313,35 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 172,
-            child: BarChart(
-              BarChartData(
-                maxY: maxVal * 1.15,
-                barTouchData: BarTouchData(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                minX: 0,
+                maxX: (monthlyStats.length - 1).toDouble().clamp(1.0, 10.0),
+                minY: 0,
+                maxY: maxVal * 1.18,
+                lineTouchData: LineTouchData(
                   enabled: true,
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => dark ? const Color(0xFF1E293B) : Colors.white,
-                    tooltipRoundedRadius: 8,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) =>
+                        dark ? const Color(0xFF1E293B) : Colors.white,
+                    tooltipRoundedRadius: 10,
                     tooltipPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final isIncome = rodIndex == 0;
-                      final type = isIncome ? 'Thu' : 'Chi';
-                      final val = rod.toY.toInt();
-                      return BarTooltipItem(
-                        '$type: ${formatVND(val)}',
-                        TextStyle(
-                          color: isIncome
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFFE11D48),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                        ),
-                      );
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        final isIncome = spot.barIndex == 0;
+                        return LineTooltipItem(
+                          '${isIncome ? "Thu: " : "Chi: "}${formatVND(spot.y.toInt())}',
+                          TextStyle(
+                            color: isIncome
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFE11D48),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11.5,
+                          ),
+                        );
+                      }).toList();
                     },
                   ),
                 ),
@@ -1327,7 +1359,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 26,
+                      reservedSize: 28,
                       getTitlesWidget: (val, meta) {
                         final idx = val.toInt();
                         if (idx >= 0 && idx < monthlyStats.length) {
@@ -1336,7 +1368,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             child: Text(
                               monthlyStats[idx]['label'] as String,
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: sub,
                               ),
@@ -1348,48 +1380,90 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
                 ),
-                gridData: const FlGridData(show: false),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: (maxVal / 3).clamp(1.0, double.infinity),
+                  getDrawingHorizontalLine: (val) => FlLine(
+                    color: (dark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.05),
+                    strokeWidth: 1,
+                  ),
+                ),
                 borderData: FlBorderData(show: false),
-                barGroups: [
-                  for (int i = 0; i < monthlyStats.length; i++)
-                    BarChartGroupData(
-                      x: i,
-                      barsSpace: 5,
-                      barRods: [
-                        BarChartRodData(
-                          toY: (monthlyStats[i]['income'] as int).toDouble(),
-                          gradient: const LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [Color(0xFF00866A), Color(0xFF34D399)],
-                          ),
-                          width: 10,
-                          borderRadius: BorderRadius.circular(6),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: maxVal * 1.05,
-                            color: (dark ? Colors.white : Colors.black)
-                                .withValues(alpha: 0.04),
-                          ),
-                        ),
-                        BarChartRodData(
-                          toY: (monthlyStats[i]['expense'] as int).toDouble(),
-                          gradient: const LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [Color(0xFFBE123C), Color(0xFFFB7185)],
-                          ),
-                          width: 10,
-                          borderRadius: BorderRadius.circular(6),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: maxVal * 1.05,
-                            color: (dark ? Colors.white : Colors.black)
-                                .withValues(alpha: 0.04),
-                          ),
-                        ),
-                      ],
+                lineBarsData: [
+                  // Thu nhập (Đường cong xanh ngọc)
+                  LineChartBarData(
+                    spots: [
+                      for (int i = 0; i < monthlyStats.length; i++)
+                        FlSpot(i.toDouble(),
+                            (monthlyStats[i]['income'] as int).toDouble()),
+                    ],
+                    isCurved: true,
+                    curveSmoothness: 0.35,
+                    color: const Color(0xFF10B981),
+                    barWidth: 3.2,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) =>
+                          FlDotCirclePainter(
+                        radius: 3.5,
+                        color: const Color(0xFF10B981),
+                        strokeWidth: 2,
+                        strokeColor:
+                            dark ? const Color(0xFF0F172A) : Colors.white,
+                      ),
                     ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFF10B981)
+                              .withValues(alpha: dark ? 0.22 : 0.12),
+                          const Color(0xFF10B981).withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Chi tiêu (Đường cong đỏ hoa hồng)
+                  LineChartBarData(
+                    spots: [
+                      for (int i = 0; i < monthlyStats.length; i++)
+                        FlSpot(i.toDouble(),
+                            (monthlyStats[i]['expense'] as int).toDouble()),
+                    ],
+                    isCurved: true,
+                    curveSmoothness: 0.35,
+                    color: const Color(0xFFE11D48),
+                    barWidth: 3.2,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) =>
+                          FlDotCirclePainter(
+                        radius: 3.5,
+                        color: const Color(0xFFE11D48),
+                        strokeWidth: 2,
+                        strokeColor:
+                            dark ? const Color(0xFF0F172A) : Colors.white,
+                      ),
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFE11D48)
+                              .withValues(alpha: dark ? 0.22 : 0.12),
+                          const Color(0xFFE11D48).withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1580,15 +1654,15 @@ class _ReportScreenState extends State<ReportScreen> {
             // Donut Chart with Center Total
             Center(
               child: SizedBox(
-                width: 136,
-                height: 136,
+                width: 154,
+                height: 154,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
                     PieChart(
                       PieChartData(
-                        sectionsSpace: 2.5,
-                        centerSpaceRadius: 42,
+                        sectionsSpace: 3.0,
+                        centerSpaceRadius: 48,
                         startDegreeOffset: -90,
                         sections: [
                           for (int i = 0; i < chartCategories.length; i++)
@@ -1596,7 +1670,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               color: colors[i % colors.length],
                               value: chartCategories[i].amount.toDouble(),
                               title: '',
-                              radius: 18,
+                              radius: 20,
                             ),
                         ],
                       ),
@@ -1843,35 +1917,75 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
           const SizedBox(height: 14),
           if (husbandExpense + wifeExpense > 0) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: SizedBox(
-                height: 9,
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: husbandPercent > 0 ? husbandPercent : 1,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Expanded(
-                      flex: wifePercent > 0 ? wifePercent : 1,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFFF472B6), Color(0xFFDB2777)],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              decoration: BoxDecoration(
+                color: (dark ? Colors.white : Colors.black).withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: (dark ? Colors.white : Colors.black).withValues(alpha: 0.06),
                 ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: husbandPercent > 0 ? husbandPercent : 1,
+                    child: Container(
+                      height: 28,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
+                        ),
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0284C7).withValues(alpha: 0.30),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Chồng $husbandPercent%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    flex: wifePercent > 0 ? wifePercent : 1,
+                    child: Container(
+                      height: 28,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFF472B6), Color(0xFFDB2777)],
+                        ),
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFDB2777).withValues(alpha: 0.30),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Vợ $wifePercent%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 14),

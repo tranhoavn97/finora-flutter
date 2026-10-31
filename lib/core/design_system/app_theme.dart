@@ -175,8 +175,8 @@ ThemeData buildAppleTheme(
       labelStyle: AppTypography.subhead,
     ),
     inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: scheme.surface,
+        filled: false,
+        fillColor: Colors.transparent,
         hintStyle: AppTypography.body.copyWith(
           color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
           fontWeight: FontWeight.w400,

@@ -296,186 +296,41 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     final secondaryTextColor =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
 
-    final headerBlur = (studio?.appBarBlur ?? 18.0).clamp(0.0, 32.0);
-    final headerAlpha =
-        (studio?.appBarOpacity ?? (isDark ? 0.84 : 0.88)).clamp(0.15, 1.0);
     final borderColor =
         isDark ? Colors.white.withValues(alpha: 0.10) : const Color(0xFFE2E8F0);
     final canPop = Navigator.of(context).canPop();
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBg : const Color(0xFFF8FAFC),
-      body: Stack(
-        children: [
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: AmbientFloatingBackground(child: SizedBox.expand()),
-            ),
-          ),
-          Column(
+    return GlassScaffold(
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: '',
+        titleWidget: _buildAiHeader(
+          isDark: isDark,
+          primaryTextColor: primaryTextColor,
+          secondaryTextColor: secondaryTextColor,
+          borderColor: borderColor,
+          canPop: canPop,
+        ),
+        showBack: canPop,
+        onBack: canPop ? () => Navigator.of(context).maybePop() : null,
+        height: 52,
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 780),
+          child: Column(
             children: [
-              // Sticky Blur Header aligned with all main screens
-              ClipRect(
-                child: BackdropFilter(
-                  filter:
-                      ImageFilter.blur(sigmaX: headerBlur, sigmaY: headerBlur),
-                  child: Container(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      MediaQuery.of(context).padding.top + 8,
-                      16,
-                      12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: (isDark ? const Color(0xFF0B131E) : Colors.white)
-                          .withValues(alpha: headerAlpha),
-                      border: Border(
-                        bottom: BorderSide(color: borderColor, width: 0.8),
-                      ),
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 780),
-                        child: Row(
-                          children: [
-                            if (canPop) ...[
-                              InkWell(
-                                onTap: () => Navigator.of(context).maybePop(),
-                                borderRadius: BorderRadius.circular(999),
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isDark
-                                        ? Colors.white.withValues(alpha: 0.08)
-                                        : const Color(0xFFF1F5F9),
-                                    border: Border.all(color: borderColor),
-                                  ),
-                                  child: Icon(
-                                    Icons.arrow_back_ios_new_rounded,
-                                    size: 16,
-                                    color: primaryTextColor,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                            ] else ...[
-                              Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF10B981),
-                                      Color(0xFF059669),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF10B981)
-                                          .withValues(alpha: 0.25),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.auto_awesome_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Trợ lý AI FINORA',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontFamily: 'BeVietnamPro',
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      color: primaryTextColor,
-                                      letterSpacing: -0.3,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Miễn phí • Xử lý trên máy',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontFamily: 'BeVietnamPro',
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w500,
-                                      color: secondaryTextColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (_messages.isNotEmpty)
-                              InkWell(
-                                onTap: _busy || _savingDrafts
-                                    ? null
-                                    : () => setState(() {
-                                          _messages.clear();
-                                          _conversationPrompt = '';
-                                          _pendingTransactions = [];
-                                        }),
-                                borderRadius: BorderRadius.circular(999),
-                                child: Tooltip(
-                                  message: 'Làm mới cuộc trò chuyện',
-                                  child: Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: 0.08)
-                                          : const Color(0xFFF1F5F9),
-                                      border: Border.all(color: borderColor),
-                                    ),
-                                    child: Icon(
-                                      Icons.refresh_rounded,
-                                      size: 18,
-                                      color: primaryTextColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // CHAT & BENTO CONTENT
               Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 780),
-                    child: Column(
-                      children: [
-                        // CHAT & BENTO CONTENT
-                        Expanded(
-                          child: ListView(
-                            controller: _scroll,
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(
-                              16,
-                              12,
-                              16,
-                              16,
-                            ),
+                child: ListView(
+                  controller: _scroll,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    GlassScaffold.topInset(context, 6, 52),
+                    16,
+                    16,
+                  ),
                             children: [
                     if (_messages.isEmpty) ...[
                       const SizedBox(height: 10),
@@ -552,15 +407,111 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                 secondaryTextColor: secondaryTextColor,
                 primaryAccent: primaryAccent,
               ),
-                      ],
-                    ),
-                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAiHeader({
+    required bool isDark,
+    required Color primaryTextColor,
+    required Color secondaryTextColor,
+    required Color borderColor,
+    required bool canPop,
+  }) {
+    return Row(
+      children: [
+        if (!canPop) ...[
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF10B981), Color(0xFF059669)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Trợ lý AI FINORA',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'BeVietnamPro',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: primaryTextColor,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              Text(
+                'Miễn phí • Xử lý trên máy',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'BeVietnamPro',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: secondaryTextColor,
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        if (_messages.isNotEmpty)
+          InkWell(
+            onTap: _busy || _savingDrafts
+                ? null
+                : () => setState(() {
+                      _messages.clear();
+                      _conversationPrompt = '';
+                      _pendingTransactions = [];
+                    }),
+            borderRadius: BorderRadius.circular(999),
+            child: Tooltip(
+              message: 'Làm mới cuộc trò chuyện',
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : const Color(0xFFF1F5F9),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Icon(
+                  Icons.refresh_rounded,
+                  size: 17,
+                  color: primaryTextColor,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

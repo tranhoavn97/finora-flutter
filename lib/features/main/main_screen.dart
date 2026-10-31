@@ -123,11 +123,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       }
     }
     _wasBankSyncGranted = granted;
-    _promptedBankIds.clear();
     await BankSyncService().reconnect();
-    if (mounted) {
-      await _promptPendingBankTransactions();
-    }
   }
 
   Future<void> _promptPendingBankTransactions({
@@ -143,22 +139,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     final bank = BankSyncService();
     ParsedBankTransaction? target = priorityTx;
+    if (target != null &&
+        (_promptedBankIds.contains(target.rawId) ||
+            bank.wasAutoPrompted(target.rawId))) return;
     if (target == null) {
       for (final tx in bank.pending) {
-        if (!_promptedBankIds.contains(tx.rawId)) {
+        if (!_promptedBankIds.contains(tx.rawId) &&
+            !bank.wasAutoPrompted(tx.rawId)) {
           target = tx;
-          break;
-        }
-      }
-    }
-    if (target == null && bank.unrecognized.isNotEmpty) {
-      for (final entry in bank.unrecognized.entries) {
-        if (!_promptedBankIds.contains(entry.key)) {
-          target = BankNotificationParser.fromUnrecognized(
-            rawId: entry.key,
-            title: entry.value.title,
-            text: entry.value.text,
-          );
           break;
         }
       }
@@ -168,6 +156,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _showingBankPrompt = true;
     _promptedBankIds.add(target.rawId);
     try {
+      await bank.markAutoPrompted(target.rawId);
+      if (!mounted || !_foreground) return;
       await BankTransactionPromptSheet.show(
         context,
         transaction: target,
@@ -177,17 +167,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _showingBankPrompt = false;
     }
 
-    if (mounted && _foreground) {
-      // Prompt next pending bank notification if user saved/dismissed the previous one
-      final hasMorePending =
-          bank.pending.any((t) => !_promptedBankIds.contains(t.rawId));
-      if (hasMorePending) {
-        await Future<void>.delayed(const Duration(milliseconds: 220));
-        if (mounted) {
-          await _promptPendingBankTransactions();
-        }
-      }
-    }
+    // Other items remain in the inbox. Never chain popups after dismissal.
   }
 
   Future<void> _openBankInbox() async {
@@ -206,13 +186,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _bankInboxSubscription = BankSyncService().onInboxRequested.listen((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        _promptedBankIds.clear();
-        final bank = BankSyncService();
-        if (bank.pending.isNotEmpty || bank.unrecognized.isNotEmpty) {
-          await _promptPendingBankTransactions();
-        } else {
-          await _openBankInbox();
-        }
+        await _openBankInbox();
       });
       WidgetsBinding.instance.ensureVisualUpdate();
     });

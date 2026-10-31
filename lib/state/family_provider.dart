@@ -36,6 +36,10 @@ class FamilyPermissionConfig {
   final bool allowMemberManageWallets;
   final bool autoTagSpouseTransactions;
   final bool zeroLossMergeProtection;
+  final bool shareWallets;
+  final bool shareTransactions;
+  final bool shareBudgetsGoals;
+  final bool shareAssetsLoans;
 
   const FamilyPermissionConfig({
     this.allowMemberCreateTx = true,
@@ -44,6 +48,10 @@ class FamilyPermissionConfig {
     this.allowMemberManageWallets = true,
     this.autoTagSpouseTransactions = true,
     this.zeroLossMergeProtection = true,
+    this.shareWallets = true,
+    this.shareTransactions = true,
+    this.shareBudgetsGoals = true,
+    this.shareAssetsLoans = true,
   });
 
   FamilyPermissionConfig copyWith({
@@ -53,6 +61,10 @@ class FamilyPermissionConfig {
     bool? allowMemberManageWallets,
     bool? autoTagSpouseTransactions,
     bool? zeroLossMergeProtection,
+    bool? shareWallets,
+    bool? shareTransactions,
+    bool? shareBudgetsGoals,
+    bool? shareAssetsLoans,
   }) {
     return FamilyPermissionConfig(
       allowMemberCreateTx: allowMemberCreateTx ?? this.allowMemberCreateTx,
@@ -64,6 +76,10 @@ class FamilyPermissionConfig {
           autoTagSpouseTransactions ?? this.autoTagSpouseTransactions,
       zeroLossMergeProtection:
           zeroLossMergeProtection ?? this.zeroLossMergeProtection,
+      shareWallets: shareWallets ?? this.shareWallets,
+      shareTransactions: shareTransactions ?? this.shareTransactions,
+      shareBudgetsGoals: shareBudgetsGoals ?? this.shareBudgetsGoals,
+      shareAssetsLoans: shareAssetsLoans ?? this.shareAssetsLoans,
     );
   }
 
@@ -74,6 +90,10 @@ class FamilyPermissionConfig {
         'allowMemberManageWallets': allowMemberManageWallets,
         'autoTagSpouseTransactions': autoTagSpouseTransactions,
         'zeroLossMergeProtection': zeroLossMergeProtection,
+        'shareWallets': shareWallets,
+        'shareTransactions': shareTransactions,
+        'shareBudgetsGoals': shareBudgetsGoals,
+        'shareAssetsLoans': shareAssetsLoans,
       };
 
   factory FamilyPermissionConfig.fromMap(Map<String, dynamic>? map) {
@@ -85,6 +105,10 @@ class FamilyPermissionConfig {
       allowMemberManageWallets: map['allowMemberManageWallets'] != false,
       autoTagSpouseTransactions: map['autoTagSpouseTransactions'] != false,
       zeroLossMergeProtection: true,
+      shareWallets: map['shareWallets'] != false,
+      shareTransactions: map['shareTransactions'] != false,
+      shareBudgetsGoals: map['shareBudgetsGoals'] != false,
+      shareAssetsLoans: map['shareAssetsLoans'] != false,
     );
   }
 }
@@ -106,8 +130,8 @@ class FamilyProvider extends ChangeNotifier {
   StreamSubscription? _familySub;
   StreamSubscription? _membersSub;
 
-  /// Keep `familyId` null on repository calls so personal Supabase scope (`userId`)
-  /// is never abandoned or orphaned; shared data is merged non-destructively.
+  /// Personal repositories stay in their existing scope. Email sharing reads
+  /// explicit wallet grants separately through the server RPC; it never merges.
   String? get familyId => null;
   String? get activeFamilyGroupId => _familyId;
   String? get currentUid => _uid;
@@ -130,7 +154,6 @@ class FamilyProvider extends ChangeNotifier {
   }
 
   String _prefsKey(String uid) => 'finora_family_state_v2_$uid';
-  static const String _globalInvitesPrefsKey = 'finora_family_global_invites_v2';
 
   Future<void> init(User? user) async {
     _cancelSubs();
@@ -370,60 +393,14 @@ class FamilyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _generateInviteCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final rnd = Random.secure();
-    return List.generate(6, (_) => chars[rnd.nextInt(chars.length)]).join();
-  }
-
   Future<FamilyInvitationModel?> createInvitation({
     FamilyRole role = FamilyRole.member,
     String? targetEmail,
     String? memberTag,
   }) async {
-    final uid = _uid;
-    if (uid == null) return null;
-    error = null;
-
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final code = _generateInviteCode();
-    final invite = FamilyInvitationModel(
-      id: 'inv_$now',
-      familyId: family?.id ?? 'fam_$uid',
-      familyName: family?.name ?? 'Gia đình Finora',
-      code: code,
-      email: targetEmail?.trim().isNotEmpty == true ? targetEmail!.trim() : null,
-      role: role,
-      memberTag: memberTag ?? (role == FamilyRole.admin ? 'Vợ' : 'Thành viên'),
-      createdBy: uid,
-      createdByName: currentMember?.displayName ?? 'Chủ hộ',
-      createdAt: now,
-      expiresAt: now + (7 * 86400 * 1000),
-      status: 'pending',
-    );
-
-    invitations = [invite, ...invitations.take(9)];
-    await _persistState();
-
-    // Save to global invite registry in SharedPreferences for local/same-browser testing
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final rawGlobal = prefs.getString(_globalInvitesPrefsKey);
-      final globalMap = rawGlobal != null && rawGlobal.isNotEmpty
-          ? Map<String, dynamic>.from(jsonDecode(rawGlobal) as Map)
-          : <String, dynamic>{};
-      globalMap[code] = {
-        'id': invite.id,
-        ...invite.toMap(),
-        'ownerUid': uid,
-        'ownerName': currentMember?.displayName ?? 'Chủ hộ',
-        'ownerEmail': currentMember?.email ?? '',
-      };
-      await prefs.setString(_globalInvitesPrefsKey, jsonEncode(globalMap));
-    } catch (_) {}
-
+    error = 'Hãy tạo lời mời theo email tại mục Gia đình. Mã mời cục bộ đã ngừng hỗ trợ.';
     notifyListeners();
-    return invite;
+    return null;
   }
 
   /// Directly add a family member (e.g., Vợ / Chồng / Con) with specific role & tag
@@ -479,124 +456,10 @@ class FamilyProvider extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> acceptInvitation(String rawInput, User user) async {
-    final clean = rawInput.trim();
-    if (clean.isEmpty) {
-      return {
-        'success': false,
-        'message': 'Vui lòng nhập mã mời hoặc gói đồng bộ gia đình.',
-      };
-    }
-
-    // Case 1: Full portable share package (`FINORA-SYNC:...` or JSON)
-    if (clean.toUpperCase().startsWith('FINORA-SYNC:') || clean.startsWith('{')) {
-      final report = await importAndMergeFamilyPackage(
-        userId: user.uid,
-        rawPackage: clean,
-      );
-      return {
-        'success': true,
-        'message': report.summary,
-      };
-    }
-
-    // Case 2: 6-character invite code
-    final code = clean.toUpperCase();
-    if (code.length < 4) {
-      return {
-        'success': false,
-        'message': 'Mã mời không hợp lệ (cần tối thiểu 6 ký tự).',
-      };
-    }
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final rawGlobal = prefs.getString(_globalInvitesPrefsKey);
-      Map<String, dynamic>? foundInvite;
-      if (rawGlobal != null && rawGlobal.isNotEmpty) {
-        final globalMap = Map<String, dynamic>.from(jsonDecode(rawGlobal) as Map);
-        if (globalMap[code] is Map) {
-          foundInvite = Map<String, dynamic>.from(globalMap[code] as Map);
-        }
-      }
-
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final invitedRole = foundInvite != null
-          ? FamilyRole.fromString(foundInvite['role']?.toString())
-          : FamilyRole.admin;
-      final invitedTag = foundInvite?['memberTag']?.toString() ?? 'Vợ';
-      final hostName = foundInvite?['createdByName']?.toString() ??
-          foundInvite?['ownerName']?.toString() ??
-          'Chủ hộ';
-      final hostUid = foundInvite?['ownerUid']?.toString() ?? 'host_$code';
-      final targetFamilyName =
-          foundInvite?['familyName']?.toString() ?? 'Gia đình chung ($code)';
-
-      if (!members.any((m) => m.uid == hostUid) && hostUid != user.uid) {
-        members = [
-          FamilyMemberModel(
-            uid: hostUid,
-            displayName: hostName,
-            email: foundInvite?['ownerEmail']?.toString() ?? '',
-            role: FamilyRole.owner,
-            memberTag: invitedTag == 'Chồng' ? 'Vợ' : 'Chồng',
-            joinedAt: now,
-          ),
-          ...members,
-        ];
-      }
-
-      final myIdx = members.indexWhere((m) => m.uid == user.uid);
-      if (myIdx >= 0) {
-        final me = members[myIdx];
-        members[myIdx] = FamilyMemberModel(
-          uid: me.uid,
-          displayName: me.displayName,
-          email: me.email,
-          photoURL: me.photoURL,
-          role: me.role == FamilyRole.owner ? FamilyRole.owner : invitedRole,
-          memberTag: invitedTag,
-          joinedAt: me.joinedAt ?? now,
-        );
-      }
-
-      family = FamilyModel(
-        id: foundInvite?['familyId']?.toString() ?? 'fam_$code',
-        name: targetFamilyName,
-        ownerId: family?.ownerId ?? user.uid,
-        memberUids: members.map((m) => m.uid).toList(),
-        memberCount: members.length,
-        createdAt: family?.createdAt ?? now,
-        updatedAt: now,
-      );
-
-      // If the host is on the same device/browser, also merge non-destructively
-      if (foundInvite != null &&
-          hostUid.isNotEmpty &&
-          hostUid != user.uid &&
-          !hostUid.startsWith('host_')) {
-        try {
-          await _mergeFromAnotherLocalUser(
-            sourceUid: hostUid,
-            targetUid: user.uid,
-          );
-        } catch (_) {}
-      }
-
-      lastSyncedAt = now;
-      await _persistState();
-      notifyListeners();
-
-      return {
-        'success': true,
-        'message':
-            'Đã kết nối vào "$targetFamilyName" thành công! Toàn bộ dữ liệu cá nhân được bảo toàn 100%.',
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Không thể kết nối mã mời: $e',
-      };
-    }
+    return {
+      'success': false,
+      'message': 'Mã mời và gói FINORA-SYNC cũ đã ngừng hỗ trợ. Hãy nhận lời mời theo email tại mục Gia đình; sổ riêng không bị gộp.',
+    };
   }
 
   Future<void> changeRole(String memberUid, FamilyRole role) async {
@@ -718,101 +581,16 @@ class FamilyProvider extends ChangeNotifier {
     return 'FINORA-SYNC:$encoded';
   }
 
-  /// Zero-Data-Loss Import & Merge of a Family Sync Package (`FINORA-SYNC:...` or JSON).
-  /// Guarantees:
-  /// - 0% existing data deleted or overwritten destructively.
-  /// - Wallets matched by `id` or `(name + owner)` so balances remain 100% accurate.
-  /// - Transactions deduplicated by `id` AND `(amount, date, type, walletName, note, bankTransactionCode)`.
+  /// Legacy package imports are disabled. Use server-verified wallet sharing.
   Future<FamilySyncReport> importAndMergeFamilyPackage({
     required String userId,
     required String rawPackage,
   }) async {
-    var payloadStr = rawPackage.trim();
-    if (payloadStr.toUpperCase().startsWith('FINORA-SYNC:')) {
-      final b64 = payloadStr.substring('FINORA-SYNC:'.length).trim();
-      payloadStr = utf8.decode(base64Url.decode(base64Url.normalize(b64)));
-    }
-
-    final decoded = jsonDecode(payloadStr);
-    if (decoded is! Map) {
-      throw const FormatException('Gói dữ liệu gia đình không đúng định dạng.');
-    }
-    final pkg = Map<String, dynamic>.from(decoded);
-    final senderTag = (pkg['senderTag'] ?? 'Vợ').toString();
-    final senderUid = (pkg['senderUid'] ?? '').toString();
-    final senderName = (pkg['senderName'] ?? 'Người thân').toString();
-    final senderEmail = (pkg['senderEmail'] ?? '').toString();
-
-    // 1. Merge Family Members
-    if (pkg['familyName'] != null &&
-        pkg['familyName'].toString().trim().isNotEmpty &&
-        family != null) {
-      family = FamilyModel(
-        id: pkg['familyId']?.toString() ?? family!.id,
-        name: pkg['familyName'].toString().trim(),
-        ownerId: family!.ownerId,
-        memberUids: family!.memberUids,
-        memberCount: family!.memberCount,
-        createdAt: family!.createdAt,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-      );
-    }
-
-    if (senderUid.isNotEmpty &&
-        senderUid != userId &&
-        !members.any((m) => m.uid == senderUid)) {
-      members = [
-        ...members,
-        FamilyMemberModel(
-          uid: senderUid,
-          displayName: senderName,
-          email: senderEmail,
-          role: FamilyRole.admin,
-          memberTag: senderTag,
-          joinedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ];
-    }
-
-    if (pkg['members'] is List) {
-      for (final mRaw in pkg['members'] as List) {
-        if (mRaw is Map) {
-          final mMap = Map<String, dynamic>.from(mRaw);
-          final mUid = (mMap['uid'] ?? '').toString();
-          if (mUid.isNotEmpty && !members.any((m) => m.uid == mUid)) {
-            members = [...members, FamilyMemberModel.fromMap(mUid, mMap)];
-          }
-        }
-      }
-    }
-
-    final report = await _mergeCollectionsZeroLoss(
-      targetUid: userId,
-      incomingWallets: _extractMapList(pkg['wallets']),
-      incomingTransactions: _extractMapList(pkg['transactions']),
-      incomingCategories: _extractMapList(pkg['categories']),
-      incomingAssets: _extractMapList(pkg['assets']),
-      incomingLoans: _extractMapList(pkg['loans']),
-      defaultOwnerTag: senderTag,
-    );
-
-    lastSyncedAt = DateTime.now().millisecondsSinceEpoch;
-    await _persistState();
-    notifyListeners();
-    return report;
+    throw StateError('Nhập gói đồng bộ cũ đã ngừng hỗ trợ để tránh gộp nhầm dữ liệu. Hãy dùng chia sẻ ví theo email.');
   }
 
-  List<Map<String, dynamic>> _extractMapList(dynamic raw) {
-    if (raw is! List) return const [];
-    final out = <Map<String, dynamic>>[];
-    for (final item in raw) {
-      if (item is Map) {
-        out.add(Map<String, dynamic>.from(item));
-      }
-    }
-    return out;
-  }
-
+  // Retained for reviewing historical imports; never invoked by email sharing.
+  // ignore: unused_element
   Future<FamilySyncReport> _mergeFromAnotherLocalUser({
     required String sourceUid,
     required String targetUid,

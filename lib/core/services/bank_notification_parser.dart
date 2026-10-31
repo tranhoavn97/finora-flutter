@@ -231,7 +231,9 @@ class BankNotificationParser {
     if (lower.contains('be ') || lower.contains('be,')) return 'Be';
     if (lower.contains('highlands')) return 'Highlands Coffee';
     if (lower.contains('starbucks')) return 'Starbucks';
-    if (lower.contains('phuc long') || lower.contains('phúc lộc') || lower.contains('phúc long')) {
+    if (lower.contains('phuc long') ||
+        lower.contains('phúc lộc') ||
+        lower.contains('phúc long')) {
       return 'Phúc Long';
     }
     if (lower.contains('winmart')) return 'WinMart';
@@ -562,14 +564,20 @@ class BankNotificationParser {
             caseSensitive: false)
         .hasMatch(combined)) return null;
     final normalized = combined.replaceAll('−', '-').replaceAll('–', '-');
+    // A negative current balance is not a new debit. Leave uncertain alerts
+    // for explicit review instead of turning the account balance into spending.
+    if (RegExp(r'^\s*(?:số dư|so du|balance|sd\s*:)', caseSensitive: false)
+            .hasMatch(text) &&
+        !RegExp(r'\bGD\b|biến động|bien dong|thay đổi|thay doi|ghi nợ|ghi no|ghi có|ghi co|thanh toán|thanh toan|đã chuyển|da chuyen',
+                caseSensitive: false)
+            .hasMatch(text)) return null;
     final signedAfter = RegExp(
             r'(?<![\d/.-])([+-])\s*(\d[\d.,]*)\s*(?:VND|VNĐ|đ|₫|dong|đồng|d\b)(?![a-z])',
             caseSensitive: false)
         .firstMatch(normalized);
-    final signedBefore = RegExp(
-            r'(?:VND|VNĐ|đ|₫)\s*([+-])\s*(\d[\d.,]+)',
-            caseSensitive: false)
-        .firstMatch(normalized);
+    final signedBefore =
+        RegExp(r'(?:VND|VNĐ|đ|₫)\s*([+-])\s*(\d[\d.,]+)', caseSensitive: false)
+            .firstMatch(normalized);
     final signedContext = RegExp(
             r'(?:GD|PS|Biến động|Bien dong|SD|Số dư|So du|TK|Tài khoản|Tai khoan)[^+\-\d]{0,25}([+-])\s*(\d[\d.,]{3,})',
             caseSensitive: false)
@@ -588,16 +596,16 @@ class BankNotificationParser {
     } else {
       // Bank debit/credit or Shopee/TikTok order wording before the transaction amount.
       final directed = RegExp(
-        r'(ghi có|ghi co|báo có|bao co|nhận được|nhan duoc|nhận tiền|nhan tien|tiền vào|tien vao|cộng|cong|tăng|tang|credited|hoàn tiền|hoan tien|ghi nợ|ghi no|báo nợ|bao no|thanh toán|thanh toan|đã chuyển|da chuyen|chuyển khoản|chuyen khoan|chuyển tiền|chuyen tien|rút tiền|rut tien|trừ|tru|giảm|giam|debited|đặt đơn|dat don|đơn hàng|don hang|mua hàng|mua hang|tổng tiền|tong tien)[^0-9]{0,35}?(\d[\d.,]+)\s*(?:VND|VNĐ|đ|₫|dong|đồng|d\b)?',
+        r'(ghi có|ghi co|báo có|bao co|nhận được|nhan duoc|nhận tiền|nhan tien|tiền vào|tien vao|cộng|cong|tăng|tang|credited|hoàn tiền|hoan tien|ghi nợ|ghi no|báo nợ|bao no|thanh toán|thanh toan|đã chuyển|da chuyen|chuyển khoản|chuyen khoan|chuyển tiền|chuyen tien|rút tiền|rut tien|trừ|tru|giảm|giam|debited|đặt đơn|dat don|đơn hàng|don hang|mua hàng|mua hang|tổng tiền|tong tien)[^0-9]{0,35}?(\d[\d.,]+)\s*(?:VND|VNĐ|đ|₫|dong|đồng|d\b)(?![a-zÀ-ỹ])',
         caseSensitive: false,
       ).firstMatch(normalized);
       if (directed != null) {
-        type = RegExp(
-                    r'ghi có|ghi co|báo có|bao co|nhận|nhan|tiền vào|tien vao|cộng|cong|tăng|tang|credited|hoàn tiền|hoan tien',
-                    caseSensitive: false)
-                .hasMatch(directed.group(1)!)
-            ? 'income'
-            : 'expense';
+        type =
+            RegExp(r'ghi có|ghi co|báo có|bao co|nhận|nhan|tiền vào|tien vao|cộng|cong|tăng|tang|credited|hoàn tiền|hoan tien',
+                        caseSensitive: false)
+                    .hasMatch(directed.group(1)!)
+                ? 'income'
+                : 'expense';
         extractedAmount = parseAmount(directed.group(2)!);
       }
     }
@@ -695,8 +703,8 @@ class BankNotificationParser {
     ).hasMatch(combined);
 
     double fallbackAmount = 0;
-    final numMatches = RegExp(r'(\d{1,3}(?:[.,]\d{3})+|\d{4,12})')
-        .allMatches(combined);
+    final numMatches =
+        RegExp(r'(\d{1,3}(?:[.,]\d{3})+|\d{4,12})').allMatches(combined);
     for (final m in numMatches) {
       final candidate = parseAmount(m.group(0) ?? '');
       if (candidate != null && candidate >= 1000 && candidate <= 100000000000) {

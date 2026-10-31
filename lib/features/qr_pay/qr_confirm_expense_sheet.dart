@@ -1,3 +1,4 @@
+import '../../core/widgets/finora_transaction_success_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -186,7 +187,12 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       setState(() => _isOpeningBank = true);
       try {
         if (!await _persistDraft() || !mounted) return;
-        await showModalBottomSheet(
+        final walletBank = BankLauncherHelper.resolveWalletBank(
+          bankCode: _selectedWallet?.bankCode,
+          bankName: _selectedWallet?.bankName,
+          walletName: _selectedWallet?.name,
+        );
+        final launched = await showModalBottomSheet<bool>(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
@@ -194,9 +200,13 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
             qrData: widget.qrData,
             amount: amount,
             memo: _memoController.text.trim(),
-            preferredBankBin: _selectedWallet?.bankCode,
+            preferredBankBin: walletBank?.bin ?? _selectedWallet?.bankCode,
+            onBankSelected: (bank) => _recordTemplateTransactionOnly(bank, amount),
           ),
         );
+        if (launched == true && mounted) {
+          Navigator.of(context).pop();
+        }
       } finally {
         if (mounted) setState(() => _isOpeningBank = false);
       }
@@ -253,9 +263,12 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
         await QrPaymentDraftStore.remove(widget.userId, _draftId);
       } catch (_) {}
       if (!mounted) return;
-      FinoraNotice.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã ghi chi theo xác nhận của bạn.')),
+      await FinoraTransactionSuccessModal.show(
+        context,
+        transaction: tx,
+        walletName: _selectedWallet?.name,
       );
+      if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -266,6 +279,49 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Future<void> _recordTemplateTransactionOnly(
+      BankInfo bank, double amount) async {
+    if (_recorded || _selectedWallet == null) return;
+    final txId = _draftId;
+    final memoText = _memoController.text.trim();
+    final note = memoText.isNotEmpty
+        ? memoText
+        : 'Thanh toán QR (${widget.qrData.bankShortName})';
+    final owner = _selectedWallet?.owner;
+    final ownerTag = owner == 'wife'
+        ? 'Vợ'
+        : owner == 'joint'
+            ? 'Chung'
+            : 'Chồng';
+    final tx = TransactionModel(
+      id: txId,
+      userId: widget.userId,
+      amount: amount.toInt(),
+      type: 'expense',
+      date: DateTime.now().millisecondsSinceEpoch,
+      note: note,
+      categoryId: _selectedCategory.id,
+      categoryName: _selectedCategory.name,
+      categoryIcon: _selectedCategory.icon,
+      walletId: _selectedWallet?.id,
+      walletName: _selectedWallet?.name,
+      owner: owner,
+      ownerName: _selectedWallet?.ownerName,
+      creatorTag: ownerTag,
+      bankTransactionCode:
+          'QR-${widget.qrData.bankShortName}-${widget.qrData.accountNumber}',
+      tags: [ownerTag, 'VietQR', bank.shortName],
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    try {
+      final txProvider = context.read<TransactionProvider>();
+      await txProvider.createTransaction(widget.userId, tx);
+      _recorded = true;
+      await QrPaymentDraftStore.remove(widget.userId, _draftId);
+    } catch (_) {}
   }
 
   /// Records the expense into Finora for the selected Husband/Wife wallet AND
@@ -1583,139 +1639,129 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
 
               const SizedBox(height: 20),
 
-              // 6. Action Buttons (Direct Wallet Bank Launch + Selector + Confirm)
+              // 6. Action Buttons (Single Unified Bank Launch Button + Confirm)
               Builder(builder: (context) {
                 final walletBank = BankLauncherHelper.resolveWalletBank(
                   bankCode: selectedWallet?.bankCode,
                   bankName: selectedWallet?.bankName,
                   walletName: selectedWallet?.name,
                 );
-                if (walletBank == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF0F6E56),
-                          primary,
-                          secondary,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primary.withValues(alpha: isDark ? 0.38 : 0.25),
-                          blurRadius: 14,
-                          offset: const Offset(0, 5),
-                        ),
+                final hasDirectOwnerBank =
+                    walletBank != null && selectedWallet?.owner != null;
+
+                return Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF0F6E56),
+                        primary,
+                        secondary,
                       ],
                     ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: (_isSaving || _isOpeningBank)
-                            ? null
-                            : () => _handleDirectWalletBankLaunch(walletBank),
-                        borderRadius: BorderRadius.circular(999),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                LucideIcons.zap,
-                                color: Colors.white,
-                                size: 17,
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  'Mở app ${walletBank.name} & Tạo giao dịch luôn',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    fontFamily: _font,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withValues(alpha: isDark ? 0.38 : 0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: (_isSaving || _isOpeningBank)
+                                ? null
+                                : () => hasDirectOwnerBank
+                                    ? _handleDirectWalletBankLaunch(walletBank)
+                                    : _handleSaveAndProceed(launchBank: true),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              child: _isSaving
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.2,
+                                        ),
+                                      ),
+                                    )
+                                  : Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          hasDirectOwnerBank
+                                              ? LucideIcons.zap
+                                              : LucideIcons.external_link,
+                                          color: Colors.white,
+                                          size: 17,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            hasDirectOwnerBank
+                                                ? 'Mở app ${walletBank.name} & Tạo giao dịch mẫu'
+                                                : 'Mở MB / Techcombank',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w800,
+                                              fontFamily: _font,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      if (hasDirectOwnerBank)
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: (_isSaving || _isOpeningBank)
+                                ? null
+                                : () => _handleSaveAndProceed(launchBank: true),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Tooltip(
+                              message: 'Chọn ngân hàng khác (MB / Techcombank)',
+                              child: Container(
+                                height: 50,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    left: BorderSide(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.24),
+                                    ),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.swap_horiz_rounded,
+                                  color: Colors.white,
+                                  size: 19,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 );
               }),
-
-              Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF172430)
-                      : Color.alphaBlend(
-                          primary.withValues(alpha: 0.12), Colors.white),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: primary.withValues(alpha: isDark ? 0.50 : 0.35),
-                    width: 1.2,
-                  ),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: (_isSaving || _isOpeningBank)
-                        ? null
-                        : () => _handleSaveAndProceed(launchBank: true),
-                    borderRadius: BorderRadius.circular(999),
-                    child: _isSaving
-                        ? Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: isDark
-                                    ? const Color(0xFF34D399)
-                                    : primary,
-                                strokeWidth: 2.2,
-                              ),
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                LucideIcons.external_link,
-                                color: isDark
-                                    ? const Color(0xFF34D399)
-                                    : primary,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  'Mở MB / Techcombank',
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white
-                                        : const Color(0xFF0F172A),
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    fontFamily: _font,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ),
 
               const SizedBox(height: 10),
 

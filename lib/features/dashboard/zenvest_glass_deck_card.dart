@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -1795,9 +1796,14 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
   Widget _buildTransactionsSurface(bool isDark) {
     final txList = widget.txList;
 
-    return Container(
+    final cardFill = widget.studio?.getCardFillColor(isDark) ??
+        (isDark ? const Color(0xFF121A17) : Colors.white)
+            .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
+    final blur = widget.studio?.glassBlur ?? 0.0;
+
+    final surfaceContainer = Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF121A17) : Colors.white,
+        color: cardFill,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isDark
@@ -1980,6 +1986,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         ],
       ),
     );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: blur > 0.5
+          ? BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: surfaceContainer,
+            )
+          : surfaceContainer,
+    );
   }
 
   Widget _buildEmptyTransactionsPlaceholder(bool isDark) {
@@ -2130,49 +2146,28 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           ),
           const SizedBox(width: 8),
         ],
-        // Circular Avatar Icon + Member Avatar Badge
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: isCompact ? 34 : (isMagazine ? 46 : 42),
-              height: isCompact ? 34 : (isMagazine ? 46 : 42),
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: isPhoto
-                    ? Colors.transparent
-                    : catColor.withValues(alpha: isDark ? 0.22 : 0.14),
-                shape: isBento ? BoxShape.rectangle : BoxShape.circle,
-                borderRadius: isBento ? BorderRadius.circular(14) : null,
-              ),
-              child: Center(
-                child: CategoryIconWidget(
-                  icon: resolvedIconStr,
-                  categoryName: catDisplayName,
-                  size: isPhoto
-                      ? (isCompact ? 34 : (isMagazine ? 46 : 42))
-                      : (isCompact ? 18 : 22),
-                  color: effectiveIconColor,
-                ),
-              ),
+        // Circular Avatar Icon
+        Container(
+          width: isCompact ? 34 : (isMagazine ? 46 : 42),
+          height: isCompact ? 34 : (isMagazine ? 46 : 42),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: isPhoto
+                ? Colors.transparent
+                : catColor.withValues(alpha: isDark ? 0.22 : 0.14),
+            shape: isBento ? BoxShape.rectangle : BoxShape.circle,
+            borderRadius: isBento ? BorderRadius.circular(14) : null,
+          ),
+          child: Center(
+            child: CategoryIconWidget(
+              icon: resolvedIconStr,
+              categoryName: catDisplayName,
+              size: isPhoto
+                  ? (isCompact ? 34 : (isMagazine ? 46 : 42))
+                  : (isCompact ? 18 : 22),
+              color: effectiveIconColor,
             ),
-            Positioned(
-              right: -3,
-              bottom: -2,
-              child: Container(
-                padding: const EdgeInsets.all(1.5),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF121A17) : Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: FinoraMemberAvatar(
-                  role: ownerRole,
-                  size: isCompact ? 13 : 15,
-                  studio: widget.studio,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
 
         const SizedBox(width: 12),

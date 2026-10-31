@@ -137,6 +137,26 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(true)
                 }
+                "updateScanSettings" -> {
+                    val scanEcommerce = false
+                    val scanEWallets = call.argument<Boolean>("scanEWallets") ?: true
+                    val scanAllApps = false
+                    val prefs = getSharedPreferences(FinoraBankNotificationListenerService.PREFS_NAME, MODE_PRIVATE)
+                    prefs.edit()
+                        .putBoolean("finora_scan_ecommerce", scanEcommerce)
+                        .putBoolean("finora_scan_ewallets", scanEWallets)
+                        .putBoolean("finora_scan_all_apps", scanAllApps)
+                        .apply()
+                    result.success(true)
+                }
+                "getScanSettings" -> {
+                    val prefs = getSharedPreferences(FinoraBankNotificationListenerService.PREFS_NAME, MODE_PRIVATE)
+                    result.success(mapOf(
+                        "scanEcommerce" to false,
+                        "scanEWallets" to prefs.getBoolean("finora_scan_ewallets", true),
+                        "scanAllApps" to false
+                    ))
+                }
                 else -> result.notImplemented()
             }
         }

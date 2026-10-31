@@ -1,3 +1,4 @@
+import 'adaptive_glass_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -35,10 +36,18 @@ class BankTransactionPromptSheet extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: double.infinity),
       backgroundColor: Colors.transparent,
-      builder: (_) => BankTransactionPromptSheet(
-        tx: transaction,
-        userId: userId,
+      builder: (ctx) => Container(
+        margin: EdgeInsets.only(top: (MediaQuery.paddingOf(ctx).top + 20.0).clamp(44.0, 80.0)),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          child: BankTransactionPromptSheet(tx: transaction, userId: userId),
+        ),
       ),
     );
   }
@@ -60,7 +69,7 @@ class _BankTransactionPromptSheetState
   bool _saving = false;
   bool _savedAwaitingAck = false;
   String? _validationError;
-  bool _showRawText = false;
+  bool _showRawText = true;
 
   String _catKey(Category c) =>
       c.id.trim().isNotEmpty ? c.id.trim() : c.name.trim().toLowerCase();
@@ -77,9 +86,7 @@ class _BankTransactionPromptSheetState
           : '',
     );
     // Mã giao dịch chính lấy trực tiếp từ thông báo ngân hàng
-    final mainBankRef = widget.tx.transactionCode.trim().isNotEmpty
-        ? widget.tx.transactionCode.trim()
-        : widget.tx.note.trim();
+    final mainBankRef = widget.tx.transactionCode.trim();
     _bankCodeCtrl = TextEditingController(text: mainBankRef);
     // Ghi chú riêng của người dùng tách biệt hoàn toàn
     _noteCtrl = TextEditingController(text: '');
@@ -194,12 +201,10 @@ class _BankTransactionPromptSheetState
     return merged;
   }
 
-  List<Category> _categoriesForType(
-      List<Category> allCategories, String type) {
+  List<Category> _categoriesForType(List<Category> allCategories, String type) {
     if (type == 'income') {
-      final incomeList = allCategories
-          .where((c) => c.categoryGroup == 'income')
-          .toList();
+      final incomeList =
+          allCategories.where((c) => c.categoryGroup == 'income').toList();
       return incomeList.isNotEmpty ? incomeList : allCategories;
     }
     final expenseList = allCategories
@@ -221,7 +226,8 @@ class _BankTransactionPromptSheetState
     }
 
     final textLower =
-        '${widget.tx.note} ${_bankCodeCtrl.text} ${_noteCtrl.text}'.toLowerCase();
+        '${widget.tx.note} ${_bankCodeCtrl.text} ${_noteCtrl.text}'
+            .toLowerCase();
     for (final cat in pool) {
       final catLower = cat.name.toLowerCase();
       if (textLower.contains(catLower)) {
@@ -291,22 +297,20 @@ class _BankTransactionPromptSheetState
   }) async {
     if (wallets.isEmpty) return;
     HapticFeedback.selectionClick();
-    final currentId =
-        isDestination ? _selectedToWalletId : _selectedWalletId;
+    final currentId = isDestination ? _selectedToWalletId : _selectedWalletId;
     final chosen = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return Container(
+        return AdaptiveGlassSurface(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.65,
           ),
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: SafeArea(
             top: false,
@@ -363,8 +367,8 @@ class _BankTransactionPromptSheetState
                                 horizontal: 14, vertical: 12),
                             decoration: BoxDecoration(
                               color: selected
-                                  ? const Color(0xFF059669).withValues(
-                                      alpha: isDark ? 0.22 : 0.10)
+                                  ? const Color(0xFF059669)
+                                      .withValues(alpha: isDark ? 0.22 : 0.10)
                                   : (isDark
                                       ? const Color(0xFF0F172A)
                                       : const Color(0xFFF8FAFC)),
@@ -380,7 +384,7 @@ class _BankTransactionPromptSheetState
                             ),
                             child: Row(
                               children: [
-                                Container(
+                                AdaptiveGlassSurface(
                                   width: 40,
                                   height: 40,
                                   decoration: BoxDecoration(
@@ -390,8 +394,7 @@ class _BankTransactionPromptSheetState
                                         : Colors.white,
                                     border: Border.all(
                                       color: isDark
-                                          ? Colors.white
-                                              .withValues(alpha: 0.10)
+                                          ? Colors.white.withValues(alpha: 0.10)
                                           : const Color(0xFFE2E8F0),
                                     ),
                                   ),
@@ -470,23 +473,21 @@ class _BankTransactionPromptSheetState
     if (categories.isEmpty) return;
     HapticFeedback.selectionClick();
     final isIncome = _selectedType == 'income';
-    final accent =
-        isIncome ? const Color(0xFF059669) : const Color(0xFFE11D48);
+    final accent = isIncome ? const Color(0xFF059669) : const Color(0xFFE11D48);
 
     final chosen = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return Container(
+        return AdaptiveGlassSurface(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.68,
           ),
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: SafeArea(
             top: false,
@@ -506,7 +507,9 @@ class _BankTransactionPromptSheetState
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  isIncome ? 'Chọn danh mục Thu nhập' : 'Chọn danh mục Chi tiêu',
+                  isIncome
+                      ? 'Chọn danh mục Thu nhập'
+                      : 'Chọn danh mục Chi tiêu',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
@@ -631,13 +634,11 @@ class _BankTransactionPromptSheetState
     final walletProv = context.read<WalletProvider?>();
     final moreProv = context.read<MoreProvider?>();
     final fromWalletProv = walletProv?.wallets ?? const <Wallet>[];
-    final wallets =
-        fromWalletProv.isNotEmpty ? fromWalletProv : txProv.wallets;
+    final wallets = fromWalletProv.isNotEmpty ? fromWalletProv : txProv.wallets;
     final allCategories = _availableCategories(txProv, moreProv);
     final categories = _categoriesForType(allCategories, _selectedType);
 
-    final wallet =
-        wallets.where((w) => w.id == _selectedWalletId).firstOrNull;
+    final wallet = wallets.where((w) => w.id == _selectedWalletId).firstOrNull;
     final destWallet = _selectedType == 'transfer'
         ? wallets.where((w) => w.id == _selectedToWalletId).firstOrNull
         : null;
@@ -679,17 +680,14 @@ class _BankTransactionPromptSheetState
                 : 'chuyen_khoan')
             : category!.id,
         categoryName: resolvedCategoryName,
-        categoryIcon: _selectedType == 'transfer'
-            ? 'arrow-right-left'
-            : category!.icon,
-        categoryColor: _selectedType == 'transfer'
-            ? '#0284C7'
-            : category!.color,
+        categoryIcon:
+            _selectedType == 'transfer' ? 'arrow-right-left' : category!.icon,
+        categoryColor:
+            _selectedType == 'transfer' ? '#0284C7' : category!.color,
         walletId: wallet.id,
         walletName: wallet.name,
         toWalletId: destWallet?.id,
-        toWalletName:
-            destWallet?.name ?? widget.tx.matchedTransferBankName,
+        toWalletName: destWallet?.name ?? widget.tx.matchedTransferBankName,
         owner: wallet.owner,
         ownerName: wallet.ownerName,
         toOwner: destWallet?.owner,
@@ -707,6 +705,13 @@ class _BankTransactionPromptSheetState
       setState(() => _savedAwaitingAck = true);
       try {
         await BankSyncService().acknowledge(widget.tx.rawId);
+        if (!mounted) return;
+        await FinoraTransactionSuccessModal.show(
+          context,
+          transaction: newTx,
+          walletName: wallet.name,
+          destinationWalletName: destWallet?.name,
+        );
         if (!mounted) return;
         Navigator.of(context).pop(true);
       } catch (_) {
@@ -736,8 +741,7 @@ class _BankTransactionPromptSheetState
 
     final fromWalletProv = walletProv?.wallets ?? const <Wallet>[];
     final fromTxWallets = txProv?.wallets ?? const <Wallet>[];
-    final wallets =
-        fromWalletProv.isNotEmpty ? fromWalletProv : fromTxWallets;
+    final wallets = fromWalletProv.isNotEmpty ? fromWalletProv : fromTxWallets;
     final allCategories = _availableCategories(txProv, moreProv);
     final categories = _categoriesForType(allCategories, _selectedType);
 
@@ -778,17 +782,19 @@ class _BankTransactionPromptSheetState
         DateFormat('HH:mm    -    dd/MM/yyyy').format(widget.tx.timestamp);
     final acct = widget.tx.accountNumber?.trim() ?? '';
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+    return AdaptiveGlassSurface(
+      margin: EdgeInsets.zero,
       padding: EdgeInsets.only(
         left: 18,
         right: 18,
         top: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.viewPaddingOf(context).bottom +
+            20,
       ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF111827) : Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: accentColor.withValues(alpha: isDark ? 0.38 : 0.22),
           width: 1.2,
@@ -913,8 +919,7 @@ class _BankTransactionPromptSheetState
                 ),
                 IconButton(
                   tooltip: 'Xem nội dung thông báo gốc',
-                  onPressed: () =>
-                      setState(() => _showRawText = !_showRawText),
+                  onPressed: () => setState(() => _showRawText = !_showRawText),
                   icon: Icon(
                     _showRawText
                         ? Icons.expand_less_rounded
@@ -972,7 +977,9 @@ class _BankTransactionPromptSheetState
               ),
             ),
 
-            if (_showRawText && widget.tx.note.isNotEmpty) ...[
+            if (_showRawText &&
+                (widget.tx.rawNotificationText.isNotEmpty ||
+                    widget.tx.note.isNotEmpty)) ...[
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -988,7 +995,7 @@ class _BankTransactionPromptSheetState
                         : const Color(0xFFE2E8F0),
                   ),
                 ),
-                child: Text(
+                child: SelectableText(
                   widget.tx.rawNotificationText.isNotEmpty
                       ? widget.tx.rawNotificationText
                       : widget.tx.note,
@@ -1010,9 +1017,8 @@ class _BankTransactionPromptSheetState
               height: 44,
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF1E293B)
-                    : const Color(0xFFF1F5F9),
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: isDark
@@ -1025,7 +1031,6 @@ class _BankTransactionPromptSheetState
                   _buildTypeTab(
                     label: 'Chi tiêu',
                     typeValue: 'expense',
-                    icon: Icons.arrow_upward_rounded,
                     activeColor: const Color(0xFFE11D48),
                     allCategories: allCategories,
                     isDark: isDark,
@@ -1033,7 +1038,6 @@ class _BankTransactionPromptSheetState
                   _buildTypeTab(
                     label: 'Thu nhập',
                     typeValue: 'income',
-                    icon: Icons.arrow_downward_rounded,
                     activeColor: const Color(0xFF059669),
                     allCategories: allCategories,
                     isDark: isDark,
@@ -1041,7 +1045,6 @@ class _BankTransactionPromptSheetState
                   _buildTypeTab(
                     label: 'Chuyển khoản',
                     typeValue: 'transfer',
-                    icon: Icons.swap_horiz_rounded,
                     activeColor: const Color(0xFF0284C7),
                     allCategories: allCategories,
                     isDark: isDark,
@@ -1181,7 +1184,7 @@ class _BankTransactionPromptSheetState
                             ),
                             child: Row(
                               children: [
-                                Container(
+                                AdaptiveGlassSurface(
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
@@ -1191,8 +1194,7 @@ class _BankTransactionPromptSheetState
                                         : Colors.white,
                                     border: Border.all(
                                       color: isDark
-                                          ? Colors.white
-                                              .withValues(alpha: 0.10)
+                                          ? Colors.white.withValues(alpha: 0.10)
                                           : const Color(0xFFE2E8F0),
                                     ),
                                   ),
@@ -1304,14 +1306,13 @@ class _BankTransactionPromptSheetState
                                     borderRadius: BorderRadius.circular(18),
                                     border: Border.all(
                                       color: isDark
-                                          ? Colors.white
-                                              .withValues(alpha: 0.10)
+                                          ? Colors.white.withValues(alpha: 0.10)
                                           : const Color(0xFFE2E8F0),
                                     ),
                                   ),
                                   child: Row(
                                     children: [
-                                      Container(
+                                      AdaptiveGlassSurface(
                                         width: 36,
                                         height: 36,
                                         decoration: BoxDecoration(
@@ -1431,8 +1432,7 @@ class _BankTransactionPromptSheetState
                                     borderRadius: BorderRadius.circular(18),
                                     border: Border.all(
                                       color: isDark
-                                          ? Colors.white
-                                              .withValues(alpha: 0.10)
+                                          ? Colors.white.withValues(alpha: 0.10)
                                           : const Color(0xFFE2E8F0),
                                     ),
                                   ),
@@ -1542,10 +1542,12 @@ class _BankTransactionPromptSheetState
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         isExpanded: true,
-                        initialValue: wallets.any((w) => w.id == _selectedWalletId)
-                            ? _selectedWalletId
-                            : null,
-                        decoration: const InputDecoration.collapsed(hintText: ''),
+                        initialValue:
+                            wallets.any((w) => w.id == _selectedWalletId)
+                                ? _selectedWalletId
+                                : null,
+                        decoration:
+                            const InputDecoration.collapsed(hintText: ''),
                         items: wallets
                             .map(
                               (w) => DropdownMenuItem<String>(
@@ -1572,7 +1574,8 @@ class _BankTransactionPromptSheetState
                                 .any((c) => _catKey(c) == _selectedCategoryId)
                             ? _selectedCategoryId
                             : null,
-                        decoration: const InputDecoration.collapsed(hintText: ''),
+                        decoration:
+                            const InputDecoration.collapsed(hintText: ''),
                         items: categories
                             .map(
                               (c) => DropdownMenuItem<String>(
@@ -1767,9 +1770,8 @@ class _BankTransactionPromptSheetState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF1E293B)
-                    : const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: isDark
@@ -1819,9 +1821,20 @@ class _BankTransactionPromptSheetState
                   child: OutlinedButton(
                     onPressed: _saving
                         ? null
-                        : () {
-                            BankSyncService().acknowledge(widget.tx.rawId);
-                            Navigator.of(context).pop(false);
+                        : () async {
+                            setState(() => _saving = true);
+                            try {
+                              await BankSyncService()
+                                  .acknowledge(widget.tx.rawId);
+                              if (mounted) Navigator.of(context).pop(false);
+                            } catch (_) {
+                              if (mounted)
+                                setState(() {
+                                  _saving = false;
+                                  _validationError =
+                                      'Chưa thể bỏ qua. Thông báo vẫn được giữ để thử lại.';
+                                });
+                            }
                           },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1888,7 +1901,6 @@ class _BankTransactionPromptSheetState
   Widget _buildTypeTab({
     required String label,
     required String typeValue,
-    required IconData icon,
     required Color activeColor,
     required List<Category> allCategories,
     required bool isDark,
@@ -1923,16 +1935,6 @@ class _BankTransactionPromptSheetState
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 14,
-                color: selected
-                    ? Colors.white
-                    : (isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B)),
-              ),
-              const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   label,

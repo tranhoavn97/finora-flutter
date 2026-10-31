@@ -40,7 +40,11 @@ class BudgetScreen extends StatefulWidget {
   State<BudgetScreen> createState() => _BudgetScreenState();
 }
 
-class _BudgetScreenState extends State<BudgetScreen> {
+class _BudgetScreenState extends State<BudgetScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   // Bộ lọc thành viên (Hình 2): 'all', 'husband', 'wife'
   String _memberFilter = 'all';
   bool _isAnalyzingAi = false;
@@ -351,6 +355,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final provider = context.watch<BudgetProvider>();
     final txProv = context.watch<TransactionProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -403,7 +408,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    padding: EdgeInsets.fromLTRB(
+                        16, widget.isTab ? GlassScaffold.topInset(context, 0, 44) : 0, 16, 14),
                     child: Builder(
                       builder: (context) {
                         final totalLimit = effectiveItems.fold<int>(
@@ -884,6 +890,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
       statusLabel = 'An toàn';
     }
 
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final cardFill = studio?.getCardFillColor(isDark) ??
+        (isDark
+            ? const Color(0xFF142033).withValues(alpha: 0.88)
+            : Colors.white.withValues(alpha: studio?.glassOpacity ?? 0.88));
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -899,9 +911,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Material(
-          color: isDark
-              ? const Color(0xFF142033).withValues(alpha: 0.92)
-              : Colors.white.withValues(alpha: 0.98),
+          color: cardFill,
           child: InkWell(
             onTap: () => _showCategoryHistory(item),
             borderRadius: BorderRadius.circular(20),

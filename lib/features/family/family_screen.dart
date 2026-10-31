@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'shared_family_screen.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,14 +20,22 @@ import '../../state/theme_studio_controller.dart';
 import '../../state/transaction_provider.dart';
 import '../../state/wallet_provider.dart';
 
-class FamilyScreen extends StatefulWidget {
+// Preserve the previous local-only editor while routing users to server-verified sharing.
+class FamilyScreen extends StatelessWidget {
   const FamilyScreen({super.key});
 
   @override
-  State<FamilyScreen> createState() => _FamilyScreenState();
+  Widget build(BuildContext context) => const LegacyFamilyScreen();
 }
 
-class _FamilyScreenState extends State<FamilyScreen> {
+class LegacyFamilyScreen extends StatefulWidget {
+  const LegacyFamilyScreen({super.key});
+
+  @override
+  State<LegacyFamilyScreen> createState() => _FamilyScreenState();
+}
+
+class _FamilyScreenState extends State<LegacyFamilyScreen> {
   final _emailController = TextEditingController();
   final _nameController = TextEditingController();
   final _codeController = TextEditingController();
@@ -290,127 +299,36 @@ class _FamilyScreenState extends State<FamilyScreen> {
         .withValues(alpha: (studio?.glassOpacity ?? 0.96).clamp(0.25, 1.0));
     final borderColor =
         isDark ? Colors.white.withValues(alpha: 0.10) : const Color(0xFFE2E8F0);
-    final headerBlur = (studio?.appBarBlur ?? 18.0).clamp(0.0, 32.0);
-    final headerAlpha =
-        (studio?.appBarOpacity ?? (isDark ? 0.84 : 0.88)).clamp(0.15, 1.0);
+    final topPad = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBg : const Color(0xFFF8FAFC),
-      body: Stack(
-        children: [
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: AmbientFloatingBackground(child: SizedBox.expand()),
+    return GlassScaffold(
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: 'Quản lý & Phân quyền Gia đình',
+        showBack: true,
+        onBack: () => Navigator.of(context).maybePop(),
+        actions: [
+          if (user != null)
+            IconButton(
+              onPressed: () => familyProv.init(user),
+              tooltip: 'Làm mới',
+              icon: Icon(Icons.refresh_rounded, size: 20, color: primaryText),
             ),
-          ),
-          Column(
-            children: [
-              // Sticky Blur Header
-              ClipRect(
-                child: BackdropFilter(
-                  filter:
-                      ImageFilter.blur(sigmaX: headerBlur, sigmaY: headerBlur),
-                  child: Container(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      MediaQuery.of(context).padding.top + 8,
-                      16,
-                      12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: (isDark ? const Color(0xFF0B131E) : Colors.white)
-                          .withValues(alpha: headerAlpha),
-                      border: Border(
-                        bottom: BorderSide(color: borderColor, width: 0.8),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        InkWell(
-                          onTap: () => Navigator.of(context).maybePop(),
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : const Color(0xFFF1F5F9),
-                              border: Border.all(color: borderColor),
-                            ),
-                            child: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 16,
-                              color: primaryText,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Quản lý & Phân quyền Gia đình',
-                                style: TextStyle(
-                                  fontFamily: 'BeVietnamPro',
-                                  fontSize: 17.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: primaryText,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                              Text(
-                                'Chia sẻ sổ Vợ & Chồng • An toàn 100% không mất dữ liệu',
-                                style: TextStyle(
-                                  fontFamily: 'BeVietnamPro',
-                                  fontSize: 11.2,
-                                  fontWeight: FontWeight.w600,
-                                  color: secondaryText,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (user != null)
-                          InkWell(
-                            onTap: () => familyProv.init(user),
-                            borderRadius: BorderRadius.circular(999),
-                            child: Tooltip(
-                              message: 'Làm mới',
-                              child: Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.08)
-                                      : const Color(0xFFF1F5F9),
-                                  border: Border.all(color: borderColor),
-                                ),
-                                child: Icon(
-                                  Icons.refresh_rounded,
-                                  size: 18,
-                                  color: primaryText,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+        ],
+      ),
+      body: familyProv.isLoading && family == null
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                GlassScaffold.topInset(context, 6),
+                16,
+                40,
               ),
-              Expanded(
-                child: familyProv.isLoading && family == null
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                             // 1. Luxury Hero Family Card with Mascot Watermark
                             ClipRRect(
                               borderRadius: BorderRadius.circular(24),
@@ -969,6 +887,58 @@ class _FamilyScreenState extends State<FamilyScreen> {
                                   ),
                                   _buildPermissionSwitchRow(
                                     title:
+                                        'Chia sẻ Ví tiền & Thẻ ngân hàng Vợ/Chồng',
+                                    subtitle:
+                                        'Hiển thị số dư ví của Chồng, Vợ và Quỹ chung trên bảng tổng quan',
+                                    value: perm.shareWallets,
+                                    onChanged: (v) =>
+                                        familyProv.updatePermissionConfig(
+                                      perm.copyWith(shareWallets: v),
+                                    ),
+                                    primaryText: primaryText,
+                                    secondaryText: secondaryText,
+                                  ),
+                                  _buildPermissionSwitchRow(
+                                    title:
+                                        'Chia sẻ Sổ Giao dịch Thu/Chi & Chuyển khoản',
+                                    subtitle:
+                                        'Đồng bộ thời gian thực mọi biến động thu chi có gắn avatar Vợ/Chồng',
+                                    value: perm.shareTransactions,
+                                    onChanged: (v) =>
+                                        familyProv.updatePermissionConfig(
+                                      perm.copyWith(shareTransactions: v),
+                                    ),
+                                    primaryText: primaryText,
+                                    secondaryText: secondaryText,
+                                  ),
+                                  _buildPermissionSwitchRow(
+                                    title:
+                                        'Chia sẻ Kế hoạch Ngân sách & Mục tiêu chung',
+                                    subtitle:
+                                        'Cùng theo dõi tiến độ tiết kiệm mua nhà, xe, quỹ con cái',
+                                    value: perm.shareBudgetsGoals,
+                                    onChanged: (v) =>
+                                        familyProv.updatePermissionConfig(
+                                      perm.copyWith(shareBudgetsGoals: v),
+                                    ),
+                                    primaryText: primaryText,
+                                    secondaryText: secondaryText,
+                                  ),
+                                  _buildPermissionSwitchRow(
+                                    title:
+                                        'Chia sẻ Danh mục Tài sản, Đầu tư & Sổ nợ',
+                                    subtitle:
+                                        'Quản lý chung vàng, cổ phiếu, bất động sản và các khoản vay',
+                                    value: perm.shareAssetsLoans,
+                                    onChanged: (v) =>
+                                        familyProv.updatePermissionConfig(
+                                      perm.copyWith(shareAssetsLoans: v),
+                                    ),
+                                    primaryText: primaryText,
+                                    secondaryText: secondaryText,
+                                  ),
+                                  _buildPermissionSwitchRow(
+                                    title:
                                         'Khóa chống xóa nhầm dữ liệu gốc (100% Zero-Loss)',
                                     subtitle:
                                         'Luôn giữ toàn bộ giao dịch cũ khi gộp sổ trên Web & Mobile',
@@ -1482,11 +1452,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
                           ],
                         ),
                       ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 

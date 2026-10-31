@@ -1,3 +1,4 @@
+import '../../core/widgets/adaptive_glass_surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,11 +9,11 @@ import '../../core/services/bank_sync_service.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/bank_transaction_prompt_sheet.dart';
-import '../../core/widgets/finora_notice.dart';
 
 class BankInboxView extends StatefulWidget {
   final String userId;
-  const BankInboxView({super.key, required this.userId});
+  final double? topPadding;
+  const BankInboxView({super.key, required this.userId, this.topPadding});
 
   @override
   State<BankInboxView> createState() => _BankInboxViewState();
@@ -35,13 +36,129 @@ class _BankInboxViewState extends State<BankInboxView> {
   }
 
   Future<void> _review(ParsedBankTransaction tx) async {
-    await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => BankTransactionPromptSheet(
-        tx: tx,
-        userId: widget.userId,
+    await BankTransactionPromptSheet.show(
+      context,
+      transaction: tx,
+      userId: widget.userId,
+    );
+  }
+
+  Widget _buildAppScanSettingsCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+            .withValues(alpha: isDark ? 0.72 : 0.90),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: (isDark ? Colors.white : Colors.black)
+              .withValues(alpha: isDark ? 0.08 : 0.06),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF0D9488)
+                      .withValues(alpha: isDark ? 0.22 : 0.12),
+                ),
+                child: const Icon(Icons.tune_rounded,
+                    size: 17, color: Color(0xFF0D9488)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cài đặt quét ứng dụng',
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      'Chỉ nhận thông báo từ ngân hàng và ví điện tử',
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 11,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildScanToggleRow(
+            title: 'Ví điện tử (MoMo, ZaloPay, Viettel Money, VNPay)',
+            subtitle: 'Bắt biến động trừ tiền, chuyển tiền và nạp rút',
+            value: _bank.scanEWallets,
+            isDark: isDark,
+            onChanged: (v) => _bank.updateScanSettings(scanEWallets: v),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanToggleRow({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required bool isDark,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 10.5,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeColor: const Color(0xFF0D9488),
+            onChanged: (v) {
+              HapticFeedback.selectionClick();
+              onChanged(v);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -54,7 +171,7 @@ class _BankInboxViewState extends State<BankInboxView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
+        return AdaptiveGlassSurface(
           margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           padding: EdgeInsets.fromLTRB(
             20,
@@ -85,7 +202,7 @@ class _BankInboxViewState extends State<BankInboxView> {
               ),
               const SizedBox(height: 14),
               Text(
-                'Bóc tách thông báo Ngân hàng / Shopee / TikTok',
+                'Bóc tách thông báo Ngân hàng / Ví điện tử',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.w900,
@@ -94,7 +211,7 @@ class _BankInboxViewState extends State<BankInboxView> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Tự động tách Mã giao dịch chính, nhận diện chuyển khoản cùng máy, trả thẻ tín dụng & đơn Shopee/TikTok.',
+                'Tự động tách Mã giao dịch chính, nhận diện chuyển khoản cùng máy, trả thẻ tín dụng.',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark
@@ -108,11 +225,14 @@ class _BankInboxViewState extends State<BankInboxView> {
                 textCapitalization: TextCapitalization.sentences,
                 inputFormatters: const [FinoraCapitalizeFirstFormatter()],
                 decoration: InputDecoration(
-                  labelText: 'Ngân hàng hoặc Ứng dụng (Techcombank, VCB, Shopee...)',
-                  prefixIcon: const Icon(Icons.account_balance_rounded, size: 18),
+                  labelText:
+                      'Ngân hàng hoặc ví điện tử (Techcombank, VCB, MoMo...)',
+                  prefixIcon:
+                      const Icon(Icons.account_balance_rounded, size: 18),
                   filled: true,
-                  fillColor:
-                      isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  fillColor: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
@@ -130,8 +250,9 @@ class _BankInboxViewState extends State<BankInboxView> {
                       'VD: TK 1903... -250,000 VND. ND: FT263039912 Thanh toan don Shopee',
                   prefixIcon: const Icon(Icons.receipt_long_rounded, size: 18),
                   filled: true,
-                  fillColor:
-                      isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  fillColor: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
@@ -208,7 +329,7 @@ class _BankInboxViewState extends State<BankInboxView> {
           color: const Color(0xFF059669),
           onRefresh: _refresh,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 36),
+            padding: EdgeInsets.fromLTRB(16, widget.topPadding ?? 14, 16, 36),
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
@@ -223,7 +344,7 @@ class _BankInboxViewState extends State<BankInboxView> {
               if (pending.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 // Summary Bar for Pending Transactions
-                Container(
+                AdaptiveGlassSurface(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
@@ -251,12 +372,54 @@ class _BankInboxViewState extends State<BankInboxView> {
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                       ),
+                      if (pending.length > 1) ...[
+                        InkWell(
+                          onTap: () async {
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (c) => AlertDialog(
+                                title: const Text('Bỏ qua tất cả?'),
+                                content: Text('Bỏ qua toàn bộ ${pending.length} giao dịch đang chờ trong hộp thư?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Hủy')),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
+                                    onPressed: () => Navigator.pop(c, true),
+                                    child: const Text('Bỏ qua tất cả'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (ok == true) {
+                              for (final item in pending) {
+                                await _bank.acknowledge(item.rawId);
+                              }
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE11D48).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'Bỏ qua tất cả',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFE11D48),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                       if (transferCount > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -350,7 +513,7 @@ class _BankInboxViewState extends State<BankInboxView> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Khi ngân hàng, Shopee hoặc TikTok báo biến động số dư, Finora sẽ tự tách Mã giao dịch chính và giữ lại ở đây.',
+                        'Khi ngân hàng hoặc ví điện tử báo biến động số dư, Finora sẽ tự tách Mã giao dịch chính và giữ lại ở đây.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12.5,
@@ -370,6 +533,8 @@ class _BankInboxViewState extends State<BankInboxView> {
                   onDismiss: () => _bank.acknowledge(tx.rawId),
                 ),
               ),
+              const SizedBox(height: 12),
+              _buildAppScanSettingsCard(isDark),
               if (unrecognized.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Padding(
@@ -450,7 +615,7 @@ class _StatusCard extends StatelessWidget {
         : (needsPermission
             ? 'Chưa bật quyền đọc thông báo ngân hàng'
             : connected
-                ? 'Đang lắng nghe Ngân hàng · Shopee · TikTok'
+                ? 'Đang lắng nghe Ngân hàng · Ví điện tử'
                 : 'Dịch vụ đọc thông báo chưa kết nối');
     final subtitle = error ??
         (kIsWeb
@@ -458,10 +623,10 @@ class _StatusCard extends StatelessWidget {
             : (needsPermission
                 ? 'Bật quyền Thông báo thiết bị & ứng dụng cho Finora để tự nhận biến động số dư.'
                 : connected
-                    ? 'Tự động nhận diện Thu/Chi, Chuyển khoản cùng máy, Trả thẻ tín dụng & đơn Shopee/TikTok.'
+                    ? 'Tự động nhận diện Thu/Chi, Chuyển khoản cùng máy, Trả thẻ tín dụng.'
                     : 'Nếu Android vừa khởi động lại hoặc chặn dịch vụ chạy nền, hãy chạm kết nối lại.'));
 
-    return Container(
+    return AdaptiveGlassSurface(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -574,6 +739,172 @@ class _StatusCard extends StatelessWidget {
               ),
             ],
           ),
+          if (!kIsWeb && needsPermission) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.65)
+                    : const Color(0xFFFFF1F2).withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE11D48).withValues(alpha: 0.28),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.security_update_good_rounded,
+                        size: 16,
+                        color: Color(0xFFE11D48),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Bị báo "Ứng dụng bị hạn chế" trên Android 13+?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color:
+                                isDark ? Colors.white : const Color(0xFF881337),
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: () =>
+                            _showRestrictedSettingsGuide(context, isDark),
+                        child: const Padding(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Text(
+                            'Xem 3 bước ›',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFE11D48),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Do cài file APK ngoài CH Play, Android khóa tạm nút gạt. Bạn chỉ cần bấm Bước 1 → chọn menu ⋮ góc trên phải (hoặc kéo xuống cuối) → bật "Cho phép cài đặt bị hạn chế", sau đó bấm Bước 2.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.38,
+                      color: isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF475569),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(999),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            bank.openAppInfo();
+                          },
+                          child: AdaptiveGlassSurface(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFFE11D48)
+                                    .withValues(alpha: 0.45),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.settings_applications_rounded,
+                                  size: 15,
+                                  color: Color(0xFFE11D48),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    'Bước 1: Mở TT Ứng dụng',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11.2,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(999),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            bank.requestPermission();
+                          },
+                          child: Container(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
+                              ),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.notifications_active_rounded,
+                                  size: 15,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    'Bước 2: Bật Thông báo',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11.2,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (!kIsWeb) ...[
             const SizedBox(height: 10),
             Align(
@@ -602,7 +933,7 @@ class _StatusCard extends StatelessWidget {
                       ),
                       SizedBox(width: 6),
                       Text(
-                        'Dán nhanh thông báo Ngân hàng / Shopee / TikTok',
+                        'Dán nhanh thông báo Ngân hàng / Ví điện tử',
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
@@ -617,6 +948,181 @@ class _StatusCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  void _showRestrictedSettingsGuide(BuildContext context, bool isDark) {
+    final bank = BankSyncService();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return AdaptiveGlassSurface(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Cách gỡ "Ứng dụng bị hạn chế" (Android 13+)',
+                  style: TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Từ Android 13 trở lên, khi cài ứng dụng bằng file APK, hệ điều hành sẽ làm mờ nút "Cho phép truy cập thông báo" cho tới khi bạn xác nhận 1 lần duy nhất trong Thông tin ứng dụng:',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF475569),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _buildStepRow(
+                  isDark: isDark,
+                  step: '1',
+                  title: 'Mở trang Thông tin ứng dụng (App Info) của Finora',
+                  desc:
+                      'Bấm nút "Bước 1: Mở TT Ứng dụng" bên dưới (hoặc vào Cài đặt máy → Ứng dụng → Finora).',
+                ),
+                const SizedBox(height: 10),
+                _buildStepRow(
+                  isDark: isDark,
+                  step: '2',
+                  title: 'Bật "Cho phép cài đặt bị hạn chế"',
+                  desc:
+                      '• Máy Samsung / OPPO / Vivo / Pixel: Bấm biểu tượng 3 chấm (⋮) ở góc trên bên phải màn hình → chọn "Cho phép cài đặt bị hạn chế" (Allow restricted settings).\n• Máy Xiaomi / HyperOS: Kéo xuống dưới cùng trang Thông tin ứng dụng → bật "Cho phép cài đặt bị hạn chế" và xác nhận vân tay/mật khẩu.',
+                ),
+                const SizedBox(height: 10),
+                _buildStepRow(
+                  isDark: isDark,
+                  step: '3',
+                  title: 'Quay lại bật "Cho phép truy cập thông báo"',
+                  desc:
+                      'Bấm nút "Bước 2: Bật Thông báo" → gạt công tắc Finora sang BẬT. Từ lúc này Finora sẽ tự động đọc biến động số dư 100%.',
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          bank.openAppInfo();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          shape: const StadiumBorder(),
+                        ),
+                        icon: const Icon(Icons.settings_applications_rounded,
+                            size: 18),
+                        label: const Text('Bước 1: Mở TT App'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          bank.requestPermission();
+                        },
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          backgroundColor: const Color(0xFF059669),
+                          shape: const StadiumBorder(),
+                        ),
+                        icon: const Icon(Icons.notifications_active_rounded,
+                            size: 18),
+                        label: const Text('Bước 2: Bật quyền'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStepRow({
+    required bool isDark,
+    required String step,
+    required String title,
+    required String desc,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Color(0xFFE11D48),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            step,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.4,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF475569),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -655,7 +1161,7 @@ class _PendingTile extends StatelessWidget {
             HapticFeedback.selectionClick();
             onReview();
           },
-          child: Container(
+          child: AdaptiveGlassSurface(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1007,7 +1513,7 @@ class _UnrecognizedTile extends StatelessWidget {
             HapticFeedback.selectionClick();
             onReview();
           },
-          child: Container(
+          child: AdaptiveGlassSurface(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,

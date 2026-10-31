@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -7,14 +8,14 @@ import '../utils/formatters.dart';
 import 'finora_mascot.dart';
 import 'finora_member_filter.dart';
 
-/// Modal xác nhận toàn màn hình (Full-Screen Receipt Modal) khi thêm mới hoặc chỉnh sửa giao dịch thành công.
-class FinoraTransactionSuccessModal extends StatelessWidget {
+/// Modal xác nhận giao dịch dạng Bottom Sheet chuẩn Apple iOS (Không full màn, cách xa StatusBar).
+/// Hiệu ứng chuyển cảnh mượt mà dấu tick và mascot nảy đàn hồi (Spring Animation).
+class FinoraTransactionSuccessModal extends StatefulWidget {
   final TransactionModel transaction;
   final bool isEdit;
   final String? walletName;
   final String? destinationWalletName;
   final String? spenderTag; // 'husband', 'wife', 'joint'
-  final String? bankTransactionCode;
   final VoidCallback? onAddAnother;
 
   const FinoraTransactionSuccessModal({
@@ -24,7 +25,6 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
     this.walletName,
     this.destinationWalletName,
     this.spenderTag,
-    this.bankTransactionCode,
     this.onAddAnother,
   });
 
@@ -40,23 +40,30 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
   }) async {
     if (!context.mounted) return false;
     HapticFeedback.heavyImpact();
+    final screenH = MediaQuery.sizeOf(context).height;
+    final topSafe = MediaQuery.paddingOf(context).top;
+
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: false,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return SizedBox(
-          width: double.infinity,
-          height: MediaQuery.sizeOf(ctx).height,
-          child: FinoraTransactionSuccessModal(
-            transaction: transaction,
-            isEdit: isEdit,
-            walletName: walletName,
-            destinationWalletName: destinationWalletName,
-            spenderTag: spenderTag,
-            bankTransactionCode: bankTransactionCode,
-            onAddAnother: onAddAnother,
+        return Container(
+          margin: EdgeInsets.only(top: math.max(topSafe + 20.0, 48.0)),
+          constraints: BoxConstraints(
+            maxHeight: screenH * 0.80,
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            child: FinoraTransactionSuccessModal(
+              transaction: transaction,
+              isEdit: isEdit,
+              walletName: walletName,
+              destinationWalletName: destinationWalletName,
+              spenderTag: spenderTag,
+              onAddAnother: onAddAnother,
+            ),
           ),
         );
       },
@@ -64,7 +71,54 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
   }
 
   @override
+  State<FinoraTransactionSuccessModal> createState() =>
+      _FinoraTransactionSuccessModalState();
+}
+
+class _FinoraTransactionSuccessModalState
+    extends State<FinoraTransactionSuccessModal>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animCtrl;
+  late final Animation<double> _scaleAnim;
+  late final Animation<double> _checkAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _scaleAnim = CurvedAnimation(
+      parent: _animCtrl,
+      curve: const Interval(0.0, 0.75, curve: Curves.elasticOut),
+    );
+
+    _checkAnim = CurvedAnimation(
+      parent: _animCtrl,
+      curve: const Interval(0.3, 1.0, curve: Curves.elasticOut),
+    );
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animCtrl,
+      curve: const Interval(0.0, 0.45, curve: Curves.easeOut),
+    );
+
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final transaction = widget.transaction;
+    final isEdit = widget.isEdit;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isIncome = transaction.type == 'income' ||
         transaction.type == 'loan_repayment_received';
@@ -82,7 +136,8 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
             ? 'Chuyển khoản nội bộ'
             : (isIncome ? 'Khoản thu nhập' : 'Khoản chi tiêu'));
 
-    String resolvedSpender = spenderTag ?? transaction.owner ?? 'joint';
+    String resolvedSpender =
+        widget.spenderTag ?? transaction.owner ?? 'joint';
     if (resolvedSpender.isEmpty) {
       if (transaction.tags.contains('spender:husband') ||
           transaction.tags.contains('husband')) {
@@ -97,11 +152,6 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
     final String spenderLabel = resolvedSpender == 'husband'
         ? 'Chồng'
         : (resolvedSpender == 'wife' ? 'Vợ' : 'Chung (Cả hai vợ chồng)');
-
-    final String effectiveBankCode =
-        (bankTransactionCode?.trim().isNotEmpty ?? false)
-            ? bankTransactionCode!.trim()
-            : (transaction.bankTransactionCode?.trim() ?? '');
 
     final int tsMs = transaction.date > 0
         ? transaction.date
@@ -125,10 +175,13 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
 
     final String noteDisplay = transaction.note?.trim() ?? '';
 
-    final String sourceWalletDisplay =
-        walletName ?? transaction.walletName ?? transaction.fromWalletName ?? 'Ví chính';
-    final String? destWalletDisplay =
-        destinationWalletName ?? transaction.toWalletName ?? transaction.creditCardName;
+    final String sourceWalletDisplay = widget.walletName ??
+        transaction.walletName ??
+        transaction.fromWalletName ??
+        'Ví chính';
+    final String? destWalletDisplay = widget.destinationWalletName ??
+        transaction.toWalletName ??
+        transaction.creditCardName;
 
     final Color bgStart =
         isDark ? const Color(0xFF07111E) : const Color(0xFFF3F8F6);
@@ -156,17 +209,36 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
             // Linh thú chìm lớn góc dưới phải
             FinoraAmbientMascotWatermark(
               pose: FinoraMascotPose.celebrate,
-              size: 240,
-              opacity: isDark ? 0.12 : 0.09,
+              size: 220,
+              opacity: isDark ? 0.12 : 0.08,
               alignment: Alignment.bottomRight,
-              offset: const Offset(28, 18),
+              offset: const Offset(24, 16),
             ),
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                padding: EdgeInsets.fromLTRB(
+                    20,
+                    10,
+                    20,
+                    math.max(MediaQuery.paddingOf(context).bottom, 16.0) +
+                        8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Thanh gạt modal phong cách Apple Sheet
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4.5,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black)
+                              .withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+
                     // Top bar
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -196,8 +268,8 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                                 Flexible(
                                   child: Text(
                                     isEdit
-                                        ? 'BIÊN LAI CẬP NHẬT SỔ CÁI'
-                                        : 'BIÊN LAI GHI SỔ THÀNH CÔNG',
+                                        ? 'CẬP NHẬT NHẬT KÝ THÀNH CÔNG'
+                                        : 'XÁC NHẬN GHI SỔ THÀNH CÔNG',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -234,71 +306,91 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                     Expanded(
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Column(
                           children: [
-                            // Mascot + Check Badge
+                            // Mascot + Check Badge với Spring Animation nảy mượt mà
                             Stack(
                               alignment: Alignment.bottomRight,
                               children: [
-                                Container(
-                                  width: 96,
-                                  height: 96,
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: RadialGradient(
-                                      colors: [
-                                        accentColor.withValues(
-                                            alpha: isDark ? 0.28 : 0.18),
-                                        accentColor.withValues(alpha: 0.03),
-                                      ],
+                                ScaleTransition(
+                                  scale: _scaleAnim,
+                                  child: Container(
+                                    width: 92,
+                                    height: 92,
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: RadialGradient(
+                                        colors: [
+                                          accentColor.withValues(
+                                              alpha: isDark ? 0.28 : 0.18),
+                                          accentColor.withValues(alpha: 0.03),
+                                        ],
+                                      ),
+                                      border: Border.all(
+                                        color:
+                                            accentColor.withValues(alpha: 0.4),
+                                        width: 1.5,
+                                      ),
                                     ),
-                                    border: Border.all(
-                                      color: accentColor.withValues(alpha: 0.4),
-                                      width: 1.5,
+                                    child: const FinoraMascotImage(
+                                      pose: FinoraMascotPose.celebrate,
+                                      size: 72,
                                     ),
-                                  ),
-                                  child: const FinoraMascotImage(
-                                    pose: FinoraMascotPose.celebrate,
-                                    size: 76,
                                   ),
                                 ),
-                                Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: accentColor,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: cardBg,
-                                      width: 2.2,
+                                ScaleTransition(
+                                  scale: _checkAnim,
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: accentColor,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: cardBg,
+                                        width: 2.2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: accentColor.withValues(
+                                              alpha: 0.45),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.check_rounded,
-                                    size: 18,
-                                    color: Colors.white,
+                                    child: const Icon(
+                                      Icons.check_rounded,
+                                      size: 17,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
-                            Text(
-                              'Đã ghi nhận giao dịch!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.4,
-                                color: textPrimary,
+                            const SizedBox(height: 12),
+                            FadeTransition(
+                              opacity: _fadeAnim,
+                              child: Text(
+                                isEdit
+                                    ? 'Đã cập nhật giao dịch!'
+                                    : 'Đã ghi nhận giao dịch!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 19.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.4,
+                                  color: textPrimary,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               isEdit
-                                  ? 'Đã cập nhật giao dịch · $typeLabel'
-                                  : typeLabel,
+                                  ? 'Nhật ký chi tiêu gia đình đã được đồng bộ'
+                                  : '$typeLabel · Đã lưu vào sổ chi tiêu',
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
@@ -306,16 +398,17 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 14),
-                            // Big Amount Pill
+
+                            // Thẻ số tiền nổi bật
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 14,
+                                horizontal: 22,
+                                vertical: 12,
                               ),
                               decoration: BoxDecoration(
                                 color: accentColor.withValues(
                                     alpha: isDark ? 0.15 : 0.09),
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(22),
                                 border: Border.all(
                                   color: accentColor.withValues(alpha: 0.35),
                                   width: 1.2,
@@ -324,21 +417,21 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                               child: Text(
                                 '$signPrefix${formatVND(transaction.amount)}',
                                 style: TextStyle(
-                                  fontSize: 30,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: -0.8,
                                   color: accentColor,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 18),
 
-                            // Receipt Card
+                            // Bảng kê chi tiết giao dịch (Đã bỏ Mã GD Ngân hàng theo yêu cầu)
                             Container(
-                              padding: const EdgeInsets.all(18),
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: cardBg,
-                                borderRadius: BorderRadius.circular(26),
+                                borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
                                   color: isDark
                                       ? const Color(0xFF334155)
@@ -347,10 +440,10 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black
-                                        .withValues(alpha: isDark ? 0.35 : 0.06),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 10),
+                                    color: Colors.black.withValues(
+                                        alpha: isDark ? 0.35 : 0.06),
+                                    blurRadius: 22,
+                                    offset: const Offset(0, 8),
                                   ),
                                 ],
                               ),
@@ -364,13 +457,16 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                                       height: 28,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: accentColor.withValues(alpha: 0.15),
+                                        color: accentColor.withValues(
+                                            alpha: 0.15),
                                       ),
                                       alignment: Alignment.center,
                                       child: Text(
-                                        CategoryIconHelper.resolveTransactionIcon(
+                                        CategoryIconHelper
+                                            .resolveTransactionIcon(
                                           transactionType: transaction.type,
-                                          categoryIcon: transaction.categoryIcon,
+                                          categoryIcon:
+                                              transaction.categoryIcon,
                                           categoryName: catDisplay,
                                           note: noteDisplay,
                                         ),
@@ -423,16 +519,6 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                                     textPrimary: textPrimary,
                                     textSub: textSub,
                                   ),
-                                  if (effectiveBankCode.isNotEmpty) ...[
-                                    _buildDivider(isDark),
-                                    _buildReceiptRow(
-                                      label: 'Mã GD Ngân hàng',
-                                      value: effectiveBankCode,
-                                      textPrimary: const Color(0xFF0284C7),
-                                      textSub: textSub,
-                                      isMono: true,
-                                    ),
-                                  ],
                                   if (noteDisplay.isNotEmpty) ...[
                                     _buildDivider(isDark),
                                     _buildReceiptRow(
@@ -450,76 +536,73 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
                       ),
                     ),
 
-                    // Bottom Action Buttons
-                    const SizedBox(height: 12),
-                    Row(
+                    // Nút bấm hành động
+                    const SizedBox(height: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (!isEdit) ...[
-                          Expanded(
-                            child: SizedBox(
-                              height: 50,
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  HapticFeedback.selectionClick();
-                                  Navigator.of(context).pop(true);
-                                  onAddAnother?.call();
-                                },
-                                icon: Icon(
-                                  Icons.add_circle_outline_rounded,
-                                  size: 18,
-                                  color: accentColor,
+                          SizedBox(
+                            child: OutlinedButton.icon(
+                              key: const ValueKey(
+                                  "finora-tx-success-add-another-button"),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                Navigator.of(context).pop(true);
+                                widget.onAddAnother?.call();
+                              },
+                              icon: Icon(
+                                Icons.add_circle_outline_rounded,
+                                size: 18,
+                                color: accentColor,
+                              ),
+                              label: Text(
+                                'Ghi tiếp',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: textPrimary,
                                 ),
-                                label: Text(
-                                  'Ghi tiếp',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 14,
-                                    color: textPrimary,
-                                  ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  shape: const StadiumBorder(),
-                                  side: BorderSide(
-                                    color: accentColor.withValues(alpha: 0.45),
-                                    width: 1.2,
-                                  ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                                shape: const StadiumBorder(),
+                                side: BorderSide(
+                                  color: accentColor.withValues(alpha: 0.45),
+                                  width: 1.2,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(height: 8),
                         ],
-                        Expanded(
-                          flex: 2,
-                          child: SizedBox(
-                            height: 50,
-                            child: ElevatedButton.icon(
-                              key: const ValueKey(
-                                  'finora-tx-success-done-button'),
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                Navigator.of(context).pop(false);
-                              },
-                              icon: const Icon(
-                                Icons.check_circle_rounded,
-                                size: 19,
+                        SizedBox(
+                          child: ElevatedButton.icon(
+                            key: const ValueKey('finora-tx-success-done-button'),
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.of(context).pop(false);
+                            },
+                            icon: const Icon(
+                              Icons.check_circle_rounded,
+                              size: 19,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'Hoàn tất & Đóng',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14.5,
                                 color: Colors.white,
                               ),
-                              label: const Text(
-                                'Hoàn tất & Đóng',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 14.5,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: accentColor,
-                                foregroundColor: Colors.white,
-                                elevation: 4,
-                                shadowColor: accentColor.withValues(alpha: 0.4),
-                                shape: const StadiumBorder(),
-                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              shadowColor: accentColor.withValues(alpha: 0.4),
+                              shape: const StadiumBorder(),
                             ),
                           ),
                         ),
@@ -537,7 +620,7 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
 
   Widget _buildDivider(bool isDark) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Divider(
         height: 1,
         color: isDark
@@ -558,16 +641,20 @@ class FinoraTransactionSuccessModal extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: textSub,
+        Expanded(
+          flex: 4,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: textSub,
+            ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
+          flex: 6,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [

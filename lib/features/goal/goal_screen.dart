@@ -36,7 +36,11 @@ class GoalScreen extends StatefulWidget {
   State<GoalScreen> createState() => _GoalScreenState();
 }
 
-class _GoalScreenState extends State<GoalScreen> {
+class _GoalScreenState extends State<GoalScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   StreamSubscription<String>? _eventsSub;
   String _goalFilter = 'all'; // 'all', 'active', 'near', 'completed'
 
@@ -96,6 +100,7 @@ class _GoalScreenState extends State<GoalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final provider = context.watch<MoreProvider>();
@@ -131,7 +136,8 @@ class _GoalScreenState extends State<GoalScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: EdgeInsets.fromLTRB(
+                      16, widget.isTab ? GlassScaffold.topInset(context, 0, 44) : 0, 16, 16),
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: FinoraTokens.emeraldCardDecoration(
@@ -639,6 +645,12 @@ class _GoalScreenState extends State<GoalScreen> {
         ? Icons.check_circle_rounded
         : resolveGoalIcon(goal.name, index);
 
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final cardFill = studio?.getCardFillColor(isDark) ??
+        (isDark
+            ? const Color(0xFF142033).withValues(alpha: 0.88)
+            : Colors.white.withValues(alpha: studio?.glassOpacity ?? 0.88));
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -654,9 +666,7 @@ class _GoalScreenState extends State<GoalScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Material(
-          color: isDark
-              ? const Color(0xFF142033).withValues(alpha: 0.90)
-              : Colors.white.withValues(alpha: 0.96),
+          color: cardFill,
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             decoration: BoxDecoration(

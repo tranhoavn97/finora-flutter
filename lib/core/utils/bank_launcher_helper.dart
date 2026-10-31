@@ -155,21 +155,8 @@ class BankLauncherHelper {
       _ => bank.shortName.toLowerCase(),
     };
 
-    // 1. Try native Android package open first when available
-    if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.android &&
-        bank.androidPackage != null) {
-      try {
-        opened = await _channel.invokeMethod<bool>(
-              'openBank',
-              {'package': bank.androidPackage},
-            ) ??
-            false;
-      } catch (_) {}
-    }
-
-    // 2. Try VietQR universal deep link (passes amount, account & memo)
-    if (!opened && recipient != null && amount > 0) {
+    // 1. Try VietQR universal deep link FIRST (opens bank transfer screen with pre-filled account, amount & memo)
+    if (recipient != null && amount > 0) {
       try {
         final deepLink = Uri.https('dl.vietqr.io', '/pay', {
           'app': appSlug,
@@ -184,6 +171,20 @@ class BankLauncherHelper {
         });
         opened =
             await launchUrl(deepLink, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+
+    // 2. Fallback to native Android package open if deep link handler was unavailable
+    if (!opened &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        bank.androidPackage != null) {
+      try {
+        opened = await _channel.invokeMethod<bool>(
+              'openBank',
+              {'package': bank.androidPackage},
+            ) ??
+            false;
       } catch (_) {}
     }
 
@@ -256,28 +257,13 @@ class BankLauncherHelper {
         return false;
       }
     }
-    bool opened = false;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      try {
-        opened = await _channel.invokeMethod<bool>(
-                'openBank', {'package': bank.androidPackage}) ??
-            false;
-      } catch (_) {}
-    } else if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.iOS &&
-        bank.iosScheme != null) {
-      try {
-        opened = await launchUrl(Uri.parse(bank.iosScheme!),
-            mode: LaunchMode.externalApplication);
-      } catch (_) {}
-    }
-    if (context.mounted)
-      _notice(
-          context,
-          opened
-              ? 'Đã mở ${bank.name}. Tự điền chưa hỗ trợ; hãy quét QR hoặc dán thông tin. Chưa xác nhận thanh toán.'
-              : 'Không mở được ${bank.name} trên thiết bị này. Dùng nút sao chép hoặc quét QR trong ngân hàng.');
-    return opened;
+    return launchBankAppDirect(
+      context: context,
+      bank: bank,
+      data: data,
+      amount: customAmount ?? data.amount ?? 0,
+      memo: customMemo ?? data.memo ?? '',
+    );
   }
 
   static void _notice(BuildContext context, String text) =>

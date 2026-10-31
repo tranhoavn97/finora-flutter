@@ -10,7 +10,9 @@ import 'package:finora/state/transaction_provider.dart';
 
 void main() {
   group('User Reference Images & Interaction Redesign Verification', () {
-    testWidgets('1. showConfirmDeleteDialog renders Luxury Red Squircle Badge & Dual Buttons', (tester) async {
+    testWidgets(
+        '1. showConfirmDeleteDialog renders Luxury Red Squircle Badge & Dual Buttons',
+        (tester) async {
       bool? userChoice;
 
       await tester.pumpWidget(
@@ -59,7 +61,8 @@ void main() {
       expect(userChoice, isFalse);
     });
 
-    testWidgets('2. FinoraUnifiedMemberPill renders Executive Avatar Badge and Label', (tester) async {
+    testWidgets('2. Member avatar button opens family filter and selects wife',
+        (tester) async {
       String? selectedMember;
 
       await tester.pumpWidget(
@@ -76,15 +79,12 @@ void main() {
         ),
       );
 
-      // Check label
-      expect(find.text('Chồng'), findsOneWidget);
-
-      // Check circular avatar face icon and dropdown chevron
-      expect(find.byIcon(Icons.face_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
-
-      // Tap pill to open member sheet
-      await tester.tap(find.text('Chồng'));
+      // The current design uses an avatar-only button with an accessible tooltip.
+      expect(find.byType(FinoraMemberAvatar), findsOneWidget);
+      expect(
+          find.byTooltip('Đang lọc: Chồng (Chạm để đổi hoặc tải ảnh avatar)'),
+          findsOneWidget);
+      await tester.tap(find.byType(FinoraUnifiedMemberPill));
       await tester.pumpAndSettle();
 
       // Check bottom sheet options
@@ -99,7 +99,9 @@ void main() {
       expect(selectedMember, 'wife');
     });
 
-    testWidgets('3. FinoraSwipeableTransactionCard supports Swipe Right (Edit) & Long Press', (tester) async {
+    testWidgets(
+        '3. FinoraSwipeableTransactionCard supports Swipe Right (Edit) & Long Press',
+        (tester) async {
       bool editCalled = false;
 
       final tx = TransactionModel(
@@ -119,7 +121,8 @@ void main() {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
-            ChangeNotifierProvider<TransactionProvider>.value(value: txProvider),
+            ChangeNotifierProvider<TransactionProvider>.value(
+                value: txProvider),
           ],
           child: MaterialApp(
             home: Scaffold(

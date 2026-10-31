@@ -1,4 +1,4 @@
-import 'dart:ui' show ImageFilter;
+import '../../core/widgets/adaptive_glass_surface.dart';
 import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -80,26 +80,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final String _dateLabel = 'Hôm nay';
   final ScrollController _recentTxScrollController = ScrollController();
   final ScrollController _mainScrollController = ScrollController();
-  bool _isAppBarVisible = true;
-  bool _isCollapsedHeader = false;
 
   @override
   void initState() {
     super.initState();
-    _mainScrollController.addListener(() {
-      if (_mainScrollController.hasClients) {
-        final isCollapsed = _mainScrollController.offset > 240;
-        if (isCollapsed != _isCollapsedHeader) {
-          setState(() => _isCollapsedHeader = isCollapsed);
-        }
-      }
-      final direction = _mainScrollController.position.userScrollDirection;
-      if (direction == ScrollDirection.reverse && _isAppBarVisible) {
-        setState(() => _isAppBarVisible = false);
-      } else if (direction == ScrollDirection.forward && !_isAppBarVisible) {
-        setState(() => _isAppBarVisible = true);
-      }
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final studio = context.read<ThemeStudioController>();
@@ -154,7 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (ctx) {
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: Container(
+          child: AdaptiveGlassSurface(
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
               borderRadius:
@@ -168,123 +152,122 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ),
-              padding: EdgeInsets.fromLTRB(
-                  20, 16, 20, MediaQuery.paddingOf(ctx).bottom + 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+            padding: EdgeInsets.fromLTRB(
+                20, 16, 20, MediaQuery.paddingOf(ctx).bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Chọn mốc thời gian',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Chọn mốc thời gian',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close_rounded,
-                              color: Colors.red, size: 18),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
                         ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.red, size: 18),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _buildDateOptionTile(
-                    ctx,
-                    title: 'Hôm nay',
-                    subtitle: 'Số liệu thu chi trong ngày',
-                    icon: Icons.today_rounded,
-                    color: const Color(0xFF3B82F6),
-                    isSelected: currentOption == DateFilterOption.today &&
-                        provider.customDate == null,
-                    isDark: isDark,
-                    onTap: () => Navigator.pop(ctx, 'today'),
-                  ),
-                  _buildDateOptionTile(
-                    ctx,
-                    title: 'Hôm qua',
-                    subtitle: 'Giao dịch ngày hôm qua',
-                    icon: Icons.history_toggle_off_rounded,
-                    color: const Color(0xFF6366F1),
-                    isSelected: currentOption == DateFilterOption.yesterday &&
-                        provider.customDate == null,
-                    isDark: isDark,
-                    onTap: () => Navigator.pop(ctx, 'yesterday'),
-                  ),
-                  _buildDateOptionTile(
-                    ctx,
-                    title: 'Tuần này',
-                    subtitle: 'Tính từ đầu tuần đến nay',
-                    icon: Icons.date_range_rounded,
-                    color: const Color(0xFF0EA5E9),
-                    isSelected: currentOption == DateFilterOption.thisWeek &&
-                        provider.customDate == null,
-                    isDark: isDark,
-                    onTap: () => Navigator.pop(ctx, 'thisWeek'),
-                  ),
-                  _buildDateOptionTile(
-                    ctx,
-                    title: 'Tháng này',
-                    subtitle:
-                        'Tháng hiện tại (${DateTime.now().month}/${DateTime.now().year})',
-                    icon: Icons.calendar_month_rounded,
-                    color: const Color(0xFF10B981),
-                    isSelected: currentOption == DateFilterOption.thisMonth &&
-                        provider.customDate == null,
-                    isDark: isDark,
-                    onTap: () => Navigator.pop(ctx, 'thisMonth'),
-                  ),
-                  _buildDateOptionTile(
-                    ctx,
-                    title: 'Năm nay',
-                    subtitle: 'Tổng hợp cả năm ${DateTime.now().year}',
-                    icon: Icons.calendar_today_rounded,
-                    color: const Color(0xFFF59E0B),
-                    isSelected: currentOption == DateFilterOption.thisYear &&
-                        provider.customDate == null,
-                    isDark: isDark,
-                    onTap: () => Navigator.pop(ctx, 'thisYear'),
-                  ),
-                  _buildDateOptionTile(
-                    ctx,
-                    title: 'Chọn ngày cụ thể...',
-                    subtitle: provider.customDate != null
-                        ? 'Đang chọn: ${DateFormat('dd/MM/yyyy').format(provider.customDate!)}'
-                        : 'Xem số liệu của một ngày bất kỳ',
-                    icon: Icons.edit_calendar_rounded,
-                    color: const Color(0xFF005FEA),
-                    isSelected: provider.customDate != null,
-                    isDark: isDark,
-                    onTap: () => Navigator.pop(ctx, 'custom'),
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _buildDateOptionTile(
+                  ctx,
+                  title: 'Hôm nay',
+                  subtitle: 'Số liệu thu chi trong ngày',
+                  icon: Icons.today_rounded,
+                  color: const Color(0xFF3B82F6),
+                  isSelected: currentOption == DateFilterOption.today &&
+                      provider.customDate == null,
+                  isDark: isDark,
+                  onTap: () => Navigator.pop(ctx, 'today'),
+                ),
+                _buildDateOptionTile(
+                  ctx,
+                  title: 'Hôm qua',
+                  subtitle: 'Giao dịch ngày hôm qua',
+                  icon: Icons.history_toggle_off_rounded,
+                  color: const Color(0xFF6366F1),
+                  isSelected: currentOption == DateFilterOption.yesterday &&
+                      provider.customDate == null,
+                  isDark: isDark,
+                  onTap: () => Navigator.pop(ctx, 'yesterday'),
+                ),
+                _buildDateOptionTile(
+                  ctx,
+                  title: 'Tuần này',
+                  subtitle: 'Tính từ đầu tuần đến nay',
+                  icon: Icons.date_range_rounded,
+                  color: const Color(0xFF0EA5E9),
+                  isSelected: currentOption == DateFilterOption.thisWeek &&
+                      provider.customDate == null,
+                  isDark: isDark,
+                  onTap: () => Navigator.pop(ctx, 'thisWeek'),
+                ),
+                _buildDateOptionTile(
+                  ctx,
+                  title: 'Tháng này',
+                  subtitle:
+                      'Tháng hiện tại (${DateTime.now().month}/${DateTime.now().year})',
+                  icon: Icons.calendar_month_rounded,
+                  color: const Color(0xFF10B981),
+                  isSelected: currentOption == DateFilterOption.thisMonth &&
+                      provider.customDate == null,
+                  isDark: isDark,
+                  onTap: () => Navigator.pop(ctx, 'thisMonth'),
+                ),
+                _buildDateOptionTile(
+                  ctx,
+                  title: 'Năm nay',
+                  subtitle: 'Tổng hợp cả năm ${DateTime.now().year}',
+                  icon: Icons.calendar_today_rounded,
+                  color: const Color(0xFFF59E0B),
+                  isSelected: currentOption == DateFilterOption.thisYear &&
+                      provider.customDate == null,
+                  isDark: isDark,
+                  onTap: () => Navigator.pop(ctx, 'thisYear'),
+                ),
+                _buildDateOptionTile(
+                  ctx,
+                  title: 'Chọn ngày cụ thể...',
+                  subtitle: provider.customDate != null
+                      ? 'Đang chọn: ${DateFormat('dd/MM/yyyy').format(provider.customDate!)}'
+                      : 'Xem số liệu của một ngày bất kỳ',
+                  icon: Icons.edit_calendar_rounded,
+                  color: const Color(0xFF005FEA),
+                  isSelected: provider.customDate != null,
+                  isDark: isDark,
+                  onTap: () => Navigator.pop(ctx, 'custom'),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        );
+      },
     );
 
     if (!mounted || result == null) return;
@@ -390,8 +373,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-
 
   void _push(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
@@ -511,7 +492,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             // Layer 0: Solid foundation backing to ensure cards are always crisp & legible
             Positioned.fill(
-              child: Container(
+              child: AdaptiveGlassSurface(
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A) : Colors.white,
                   borderRadius: BorderRadius.circular(effectiveRadius),
@@ -522,10 +503,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Layer 1: Base background and border
             Container(
               decoration: BoxDecoration(
-                color: (gradient != null || (isLiquidGlass && widgetDec.gradient != null))
+                color: (gradient != null ||
+                        (isLiquidGlass && widgetDec.gradient != null))
                     ? null
                     : baseColor,
-                gradient: gradient ?? (isLiquidGlass ? widgetDec.gradient : null),
+                gradient:
+                    gradient ?? (isLiquidGlass ? widgetDec.gradient : null),
                 borderRadius: BorderRadius.circular(effectiveRadius),
                 border: isLiquidGlass ? null : effectiveBorder,
               ),
@@ -599,101 +582,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final txList = d.recentTransactions;
     final moduleGap = studio.pageVerticalGap;
     final topSafePadding = MediaQuery.paddingOf(context).top;
-    final blurSigma = studio.appBarBlur.clamp(0.0, 32.0);
-    final headerAlpha = studio.appBarOpacity.clamp(0.15, 1.0);
 
+    final headerHeight =
+        (MediaQuery.textScalerOf(context).scale(32) * 1.45).clamp(52.0, 160.0);
     return GlassScaffold(
-      extendBodyBehindAppBar: false,
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-          children: [
-            // Pinned Sticky Header with Adjustable Blur & Opacity
-            ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: blurSigma,
-                  sigmaY: blurSigma,
-                ),
-                child: Container(
-                  padding: EdgeInsets.fromLTRB(
-                    16.0,
-                    topSafePadding + 10.0,
-                    16.0,
-                    10.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (isDark
-                            ? const Color(0xFF0F172A)
-                            : Colors.white)
-                        .withValues(alpha: headerAlpha),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.07)
-                            : const Color(0xFFE2E8F0).withValues(alpha: 0.75),
-                        width: 0.8,
-                      ),
-                    ),
-                  ),
-                  child: _buildHeader(isDark, studio, totalBalance),
-                ),
-              ),
-            ),
-
-            // Scrollable Dashboard Body
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  provider.load(widget.userId);
-                  context.read<MoreProvider>().load(widget.userId);
-                  context.read<BudgetProvider>().load(widget.userId);
-                },
-                child: SingleChildScrollView(
-                  controller: _mainScrollController,
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(
-                    16.0,
-                    14.0,
-                    16.0,
-                    136,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ...(() {
-                        final List<Widget> moduleWidgets = [];
-                        for (final modId in studio.dashboardOrder) {
-                          final w = _buildDashboardModule(
-                            modId,
-                            provider,
-                            d,
-                            totalBalance,
-                            income,
-                            expense,
-                            netFlow,
-                            txList,
-                            isDark,
-                            studio,
-                          );
-                          if (w != null) {
-                            if (moduleWidgets.isNotEmpty) {
-                              moduleWidgets.add(SizedBox(height: moduleGap));
-                            }
-                            moduleWidgets.add(w);
-                          }
-                        }
-                        return moduleWidgets;
-                      })(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: '',
+        titleWidget: _buildHeader(isDark, studio, totalBalance),
+        showBack: false,
+        height: headerHeight,
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          provider.load(widget.userId);
+          context.read<MoreProvider>().load(widget.userId);
+          context.read<BudgetProvider>().load(widget.userId);
+        },
+        child: SingleChildScrollView(
+          controller: _mainScrollController,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            16.0,
+            GlassScaffold.topInset(context, 6, headerHeight),
+            16.0,
+            136,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ...(() {
+                final List<Widget> moduleWidgets = [];
+                for (final modId in studio.dashboardOrder) {
+                  final w = _buildDashboardModule(
+                    modId,
+                    provider,
+                    d,
+                    totalBalance,
+                    income,
+                    expense,
+                    netFlow,
+                    txList,
+                    isDark,
+                    studio,
+                  );
+                  if (w != null) {
+                    if (moduleWidgets.isNotEmpty) {
+                      moduleWidgets.add(SizedBox(height: moduleGap));
+                    }
+                    moduleWidgets.add(w);
+                  }
+                }
+                return moduleWidgets;
+              })(),
+            ],
+          ),
         ),
       ),
     );
@@ -738,9 +683,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildHeader(
       bool isDark, ThemeStudioController studio, num totalBalance) {
-    final displayName = widget.userName.trim().isNotEmpty
-        ? widget.userName.trim()
-        : 'Hoà Trần';
+    final displayName =
+        widget.userName.trim().isNotEmpty ? widget.userName.trim() : 'Hoà Trần';
 
     return Row(
       children: [
@@ -783,44 +727,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(width: 10),
 
-        // Right: Circular Search Button + Circular Notification Bell
-        GestureDetector(
-          onTap: () {
-            if (widget.onViewAllTransactions != null) {
-              widget.onViewAllTransactions!();
-            } else {
-              _openTransactionHistory();
-            }
-          },
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : const Color(0xFFE2E8F0),
-                width: 1.1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.search_rounded,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-              size: 18,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
+        // Right: Circular Notification Bell
         FinoraNotificationBell(userId: widget.userId, size: 38),
       ],
     );
@@ -1007,7 +914,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onViewWallets: widget.onViewWallets,
         onViewLoans: _navigateToLoans,
         onViewPlanning: widget.onViewPlanning,
-        onViewTransactions: widget.onViewAllTransactions ?? _openTransactionHistory,
+        onViewTransactions:
+            widget.onViewAllTransactions ?? _openTransactionHistory,
         onDateFilterTap: _openDateFilter,
         onAiQuickLogTap: () => _showAiQuickLogModal(context),
         onAiAdvisorTap: () => _push(AiAdvisorScreen(
@@ -1096,9 +1004,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
     final cardPrimary = isExecutive
         ? const Color(0xFFFFD700)
-        : (isSpatialPrism
-            ? const Color(0xFF007AFF)
-            : preset.accentColor);
+        : (isSpatialPrism ? const Color(0xFF007AFF) : preset.accentColor);
 
     // Diurnal ambient sky tones for real-time dynamic environmental light
     final nowHour = DateTime.now().hour;
@@ -1114,12 +1020,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ]
             : (nowHour >= 17 && nowHour < 20)
                 ? [
-                    const Color(0xFFFA709A).withValues(alpha: isDark ? 0.30 : 0.15),
-                    const Color(0xFF7B2CBF).withValues(alpha: isDark ? 0.24 : 0.10),
+                    const Color(0xFFFA709A)
+                        .withValues(alpha: isDark ? 0.30 : 0.15),
+                    const Color(0xFF7B2CBF)
+                        .withValues(alpha: isDark ? 0.24 : 0.10),
                   ]
                 : [
-                    const Color(0xFF38BDF8).withValues(alpha: isDark ? 0.24 : 0.11),
-                    const Color(0xFF818CF8).withValues(alpha: isDark ? 0.20 : 0.08),
+                    const Color(0xFF38BDF8)
+                        .withValues(alpha: isDark ? 0.24 : 0.11),
+                    const Color(0xFF818CF8)
+                        .withValues(alpha: isDark ? 0.20 : 0.08),
                   ];
 
     final cardBgGradient = isExecutive
@@ -1137,7 +1047,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cardPadding = studio.getCardPadding(studio.dashboardDensity);
     final cardRadius = studio.getCardRadius(studio.dashboardDensity);
 
-    final bool isLiquid = studio.isSystemWideLiquidGlass || isLiquidSphere || isSpatialPrism;
+    final bool isLiquid =
+        studio.isSystemWideLiquidGlass || isLiquidSphere || isSpatialPrism;
     final enableSpecular = studio.liquidGlassSpecularHighlight;
     final enableCaustics = studio.liquidGlassCausticRefraction;
 
@@ -1175,8 +1086,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 stops: const [0.0, 0.45, 1.0],
                 colors: isDark
                     ? [
-                        Color.alphaBlend(
-                            cardPrimary.withValues(alpha: 0.28),
+                        Color.alphaBlend(cardPrimary.withValues(alpha: 0.28),
                             const Color(0xFF142036)),
                         const Color(0xFF0C1424),
                         const Color(0xFF070D18),
@@ -1184,8 +1094,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     : [
                         Colors.white,
                         const Color(0xFFF8FAFD),
-                        Color.alphaBlend(
-                            cardPrimary.withValues(alpha: 0.08),
+                        Color.alphaBlend(cardPrimary.withValues(alpha: 0.08),
                             const Color(0xFFE8F2FD)),
                       ],
               )
@@ -1204,13 +1113,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               offset: const Offset(0, 12),
             ),
             BoxShadow(
-              color: const Color(0xFF007AFF).withValues(alpha: isDark ? 0.22 : 0.10),
+              color: const Color(0xFF007AFF)
+                  .withValues(alpha: isDark ? 0.22 : 0.10),
               blurRadius: 36,
               spreadRadius: -4,
               offset: const Offset(0, 16),
             ),
             BoxShadow(
-              color: const Color(0xFF00E5FF).withValues(alpha: isDark ? 0.16 : 0.06),
+              color: const Color(0xFF00E5FF)
+                  .withValues(alpha: isDark ? 0.16 : 0.06),
               blurRadius: 48,
               spreadRadius: -6,
               offset: const Offset(0, 20),
@@ -1270,7 +1181,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             // Layer 0: Solid foundation backing to prevent see-through washout
             Positioned.fill(
-              child: Container(
+              child: AdaptiveGlassSurface(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(cardRadius),
                   color: isDark ? const Color(0xFF070B14) : Colors.white,
@@ -1287,172 +1198,180 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
 
-              // Layer 2: Theme background graphic
+            // Layer 2: Theme background graphic
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.04,
+                  child: _buildThemeBackgroundGraphic(assetStyle, cardPrimary),
+                ),
+              ),
+            ),
+
+            // Layer 3: Simulated Caustic Refraction Sheen & Curved Meniscus
+            if (isLiquid && enableCaustics)
               Positioned.fill(
                 child: IgnorePointer(
-                  child: Opacity(
-                    opacity: 0.04,
-                    child: _buildThemeBackgroundGraphic(assetStyle, cardPrimary),
+                  child: CustomPaint(
+                    painter: LiquidRefractionPainter(
+                      borderRadius: cardRadius,
+                      tintColor: cardPrimary,
+                      isDark: isDark,
+                    ),
                   ),
                 ),
               ),
 
-              // Layer 3: Simulated Caustic Refraction Sheen & Curved Meniscus
-              if (isLiquid && enableCaustics)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: LiquidRefractionPainter(
-                        borderRadius: cardRadius,
-                        tintColor: cardPrimary,
-                        isDark: isDark,
+            // Layer 4: 3D Liquid Energy Sphere (Ambient refraction, only when selected)
+            if (isLiquidSphere)
+              Positioned(
+                top: -30,
+                right: -30,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 160,
+                    height: 160,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          cardPrimary.withValues(alpha: isDark ? 0.22 : 0.12),
+                          (studio.resolvedSecondary)
+                              .withValues(alpha: isDark ? 0.10 : 0.05),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.45, 1.0],
                       ),
                     ),
                   ),
                 ),
+              ),
 
-              // Layer 4: 3D Liquid Energy Sphere (Ambient refraction, only when selected)
-              if (isLiquidSphere)
-                Positioned(
-                  top: -30,
-                  right: -30,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 160,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            cardPrimary.withValues(alpha: isDark ? 0.22 : 0.12),
-                            (studio.resolvedSecondary).withValues(alpha: isDark ? 0.10 : 0.05),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.45, 1.0],
-                        ),
+            // Layer 4b: Spatial Prism 3D (VisionOS Quả Cầu Quỹ Đạo & Tilted Celestial Halo)
+            if (isSpatialPrism) ...[
+              // Diurnal Ambient Luminescence (Di chuyển theo thời gian thực trong ngày)
+              Positioned(
+                top: -45,
+                right: -25,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          ambientSkyColors[0],
+                          ambientSkyColors[1],
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.48, 1.0],
                       ),
                     ),
                   ),
                 ),
-
-              // Layer 4b: Spatial Prism 3D (VisionOS Quả Cầu Quỹ Đạo & Tilted Celestial Halo)
-              if (isSpatialPrism) ...[
-                // Diurnal Ambient Luminescence (Di chuyển theo thời gian thực trong ngày)
-                Positioned(
-                  top: -45,
-                  right: -25,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 220,
-                      height: 220,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            ambientSkyColors[0],
-                            ambientSkyColors[1],
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.48, 1.0],
-                        ),
+              ),
+              // Optical depth counter-luminescence on lower-left
+              Positioned(
+                bottom: -35,
+                left: -20,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          const Color(0xFF8B5CF6)
+                              .withValues(alpha: isDark ? 0.16 : 0.08),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
                   ),
                 ),
-                // Optical depth counter-luminescence on lower-left
-                Positioned(
-                  bottom: -35,
-                  left: -20,
-                  child: IgnorePointer(
+              ),
+              // Tilted Celestial Halo / Elliptical Orbital Ring (Vành đai quỹ đạo nghiêng)
+              Positioned(
+                top: 22,
+                right: 28,
+                child: IgnorePointer(
+                  child: Transform.rotate(
+                    angle: -0.32,
                     child: Container(
-                      width: 140,
-                      height: 140,
+                      width: 115,
+                      height: 48,
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.16 : 0.08),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Tilted Celestial Halo / Elliptical Orbital Ring (Vành đai quỹ đạo nghiêng)
-                Positioned(
-                  top: 22,
-                  right: 28,
-                  child: IgnorePointer(
-                    child: Transform.rotate(
-                      angle: -0.32,
-                      child: Container(
-                        width: 115,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.all(Radius.elliptical(115, 48)),
-                          border: Border.all(
-                            color: (isDark ? const Color(0xFF38BDF8) : const Color(0xFF007AFF))
-                                .withValues(alpha: isDark ? 0.45 : 0.35),
-                            width: 1.4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF00E5FF).withValues(alpha: isDark ? 0.35 : 0.20),
-                              blurRadius: 16,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // 3D Luminous Sphere with specular reflection
-                Positioned(
-                  top: 16,
-                  right: 48,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          center: const Alignment(-0.35, -0.4),
-                          radius: 0.85,
-                          colors: isDark
-                              ? [
-                                  const Color(0xFFFFFFFF),
-                                  const Color(0xFF67E8F9),
-                                  const Color(0xFF0284C7),
-                                  const Color(0xFF0F172A),
-                                ]
-                              : [
-                                  const Color(0xFFFFFFFF),
-                                  const Color(0xFFBAE6FD),
-                                  const Color(0xFF0284C7),
-                                  const Color(0xFF0369A1),
-                                ],
-                          stops: const [0.0, 0.3, 0.75, 1.0],
+                        borderRadius:
+                            const BorderRadius.all(Radius.elliptical(115, 48)),
+                        border: Border.all(
+                          color: (isDark
+                                  ? const Color(0xFF38BDF8)
+                                  : const Color(0xFF007AFF))
+                              .withValues(alpha: isDark ? 0.45 : 0.35),
+                          width: 1.4,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00E5FF).withValues(alpha: isDark ? 0.55 : 0.35),
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                          BoxShadow(
-                            color: const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.40 : 0.25),
-                            blurRadius: 28,
-                            spreadRadius: 4,
+                            color: const Color(0xFF00E5FF)
+                                .withValues(alpha: isDark ? 0.35 : 0.20),
+                            blurRadius: 16,
+                            spreadRadius: 1,
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ],
+              ),
+              // 3D Luminous Sphere with specular reflection
+              Positioned(
+                top: 16,
+                right: 48,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.35, -0.4),
+                        radius: 0.85,
+                        colors: isDark
+                            ? [
+                                const Color(0xFFFFFFFF),
+                                const Color(0xFF67E8F9),
+                                const Color(0xFF0284C7),
+                                const Color(0xFF0F172A),
+                              ]
+                            : [
+                                const Color(0xFFFFFFFF),
+                                const Color(0xFFBAE6FD),
+                                const Color(0xFF0284C7),
+                                const Color(0xFF0369A1),
+                              ],
+                        stops: const [0.0, 0.3, 0.75, 1.0],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF00E5FF)
+                              .withValues(alpha: isDark ? 0.55 : 0.35),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFF3B82F6)
+                              .withValues(alpha: isDark ? 0.40 : 0.25),
+                          blurRadius: 28,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
             Padding(
               padding: EdgeInsets.all(cardPadding),
               child: Column(
@@ -1475,18 +1394,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ? const Color(0xFFFFD700)
                                         .withValues(alpha: 0.20)
                                     : (isSpatialPrism
-                                        ? const Color(0xFF00E5FF).withValues(alpha: 0.22)
+                                        ? const Color(0xFF00E5FF)
+                                            .withValues(alpha: 0.22)
                                         : (isLightCard
                                             ? const Color(0xFF3B82F6)
                                                 .withValues(alpha: 0.15)
-                                            : Colors.white.withValues(alpha: 0.18))),
+                                            : Colors.white
+                                                .withValues(alpha: 0.18))),
                                 shape: BoxShape.circle,
-                                boxShadow: isSpatialPrism ? [
-                                  BoxShadow(
-                                    color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
-                                    blurRadius: 8,
-                                  )
-                                ] : null,
+                                boxShadow: isSpatialPrism
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(0xFF00E5FF)
+                                              .withValues(alpha: 0.4),
+                                          blurRadius: 8,
+                                        )
+                                      ]
+                                    : null,
                               ),
                               child: Icon(
                                 isExecutive
@@ -1498,7 +1422,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 color: isExecutive
                                     ? const Color(0xFFFFD700)
                                     : (isSpatialPrism
-                                        ? (isDark ? const Color(0xFF67E8F9) : const Color(0xFF0284C7))
+                                        ? (isDark
+                                            ? const Color(0xFF67E8F9)
+                                            : const Color(0xFF0284C7))
                                         : (isLightCard
                                             ? const Color(0xFF2563EB)
                                             : Colors.white)),
@@ -1518,10 +1444,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   color: isExecutive
                                       ? const Color(0xFFFFD700)
                                       : (isSpatialPrism
-                                          ? (isDark ? const Color(0xFFE0F2FE) : const Color(0xFF0F172A))
+                                          ? (isDark
+                                              ? const Color(0xFFE0F2FE)
+                                              : const Color(0xFF0F172A))
                                           : (isLightCard
                                               ? const Color(0xFF334155)
-                                              : Colors.white.withValues(alpha: 0.85))),
+                                              : Colors.white
+                                                  .withValues(alpha: 0.85))),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: isSpatialPrism ? 0.8 : 0.4,
@@ -1715,7 +1644,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ] else if (isSpatialPrism) ...[
                     const SizedBox(height: 10),
-                    _buildSpatialSatelliteWallets(provider, isDark, cardPrimary),
+                    _buildSpatialSatelliteWallets(
+                        provider, isDark, cardPrimary),
                   ],
                   const SizedBox(height: 14),
 
@@ -1739,8 +1669,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       border: Border.all(
                         color: isSpatialPrism
                             ? (isDark
-                                ? const Color(0xFF38BDF8).withValues(alpha: 0.25)
-                                : const Color(0xFF007AFF).withValues(alpha: 0.20))
+                                ? const Color(0xFF38BDF8)
+                                    .withValues(alpha: 0.25)
+                                : const Color(0xFF007AFF)
+                                    .withValues(alpha: 0.20))
                             : (isLiquid
                                 ? (isDark
                                     ? Colors.white.withValues(alpha: 0.15)
@@ -1979,7 +1911,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.2,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF334155),
                 ),
               ),
             ],
@@ -2012,68 +1946,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(studio.cardCornerRadius),
         border: studio.getCardBorder(isDark),
       ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _showAiQuickLogModal(context),
-              borderRadius: BorderRadius.circular(studio.cardCornerRadius),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: isDark ? 0.22 : 0.14),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: primary.withValues(alpha: 0.35),
-                          width: 1,
-                        ),
-                      ),
-                      child: Icon(Icons.auto_awesome_rounded,
-                          color: primary, size: 15),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showAiQuickLogModal(context),
+          borderRadius: BorderRadius.circular(studio.cardCornerRadius),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: isDark ? 0.22 : 0.14),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: primary.withValues(alpha: 0.35),
+                      width: 1,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Nhập nhanh với AI ("Ăn trưa 45k", "Đổ xăng 70k Momo")...',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? const Color(0xFFCBD5E1)
-                              : const Color(0xFF334155),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: isDark ? 0.20 : 0.10),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: primary.withValues(alpha: 0.35),
-                          width: 0.9,
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.mic_rounded,
-                          size: 16,
-                          color: primary,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                  child: Icon(Icons.auto_awesome_rounded,
+                      color: primary, size: 15),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Nhập nhanh với AI ("Ăn trưa 45k", "Đổ xăng 70k Momo")...',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF334155),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: primary.withValues(alpha: 0.35),
+                      width: 0.9,
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.mic_rounded,
+                      size: 16,
+                      color: primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+        ),
+      ),
     );
   }
 
@@ -2104,7 +2038,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           return ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            child: Container(
+            child: AdaptiveGlassSurface(
               padding: EdgeInsets.fromLTRB(
                   16, 14, 16, MediaQuery.of(ctx).viewInsets.bottom + 20),
               decoration: BoxDecoration(
@@ -2113,315 +2047,315 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const BorderRadius.vertical(top: Radius.circular(28)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFE2E8F0),
                     width: 1.0,
                   ),
                 ),
               ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF94A3B8).withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(100),
-                        ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF94A3B8).withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(100),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: primary.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.auto_awesome_rounded,
-                              color: primary, size: 20),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Ghi chép siêu tốc bằng Finora AI',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF0F172A),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(sheetCtx),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Gõ câu nói tự nhiên, AI tự bóc tách số tiền, danh mục và tài khoản.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: controller,
-                      textCapitalization: TextCapitalization.sentences,
-                      inputFormatters: [FirstLetterUpperCaseFormatter()],
-                      autofocus: true,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Ví dụ: Ăn trưa 45k Momo, Đổ xăng 70k VCB...',
-                        hintStyle: const TextStyle(
-                            fontSize: 13.5, color: Color(0xFF94A3B8)),
-                        filled: true,
-                        fillColor: isDark
-                            ? const Color(0xFF1E293B)
-                            : const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: isDark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: isDark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.send_rounded, color: primary),
-                          onPressed: () => onAnalyze(controller.text),
-                        ),
-                      ),
-                      onChanged: (val) => onAnalyze(val),
-                      onSubmitted: (val) => onAnalyze(val),
-                    ),
-                    const SizedBox(height: 10),
-                    // Gợi ý câu mẫu
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        children: [
-                          'Ăn trưa 45k',
-                          'Cà phê sáng 35k Momo',
-                          'Đổ xăng 70k VCB',
-                          'Lương 25tr chuyển khoản',
-                        ].map((sample) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: InkWell(
-                              onTap: () {
-                                controller.text = sample;
-                                onAnalyze(sample);
-                              },
-                              borderRadius: BorderRadius.circular(100),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? const Color(0xFF1E293B)
-                                      : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(100),
-                                  border: Border.all(
-                                    color: isDark
-                                        ? const Color(0xFF334155)
-                                        : const Color(0xFFE2E8F0),
-                                  ),
-                                ),
-                                child: Text(
-                                  sample,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark
-                                        ? const Color(0xFFCBD5E1)
-                                        : const Color(0xFF475569),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    if (drafts.isNotEmpty) ...[
-                      const SizedBox(height: 14),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: primary.withValues(alpha: 0.25)),
+                          color: primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle_outline_rounded,
-                                    size: 16, color: primary),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'AI đã hiểu (${drafts.length} giao dịch):',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: primary),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            ...drafts.map((d) {
-                              final isExpense = d.type == 'expense';
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            d.note,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                              color: isDark
-                                                  ? Colors.white
-                                                  : const Color(0xFF0F172A),
-                                            ),
-                                          ),
-                                          Text(
-                                            '${d.categoryName ?? "Khác"} • ${d.walletName ?? "Ví chính"}',
-                                            style: const TextStyle(
-                                                fontSize: 11,
-                                                color: Color(0xFF64748B)),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      '${isExpense ? "-" : "+"}${formatVND(d.amount)}',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w900,
-                                        color: isExpense
-                                            ? const Color(0xFFDC2626)
-                                            : const Color(0xFF059669),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }),
-                          ],
+                        child: Icon(Icons.auto_awesome_rounded,
+                            color: primary, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Ghi chép siêu tốc bằng Finora AI',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () async {
-                          for (final draft in drafts) {
-                            final cat = txProvider.categories.firstWhere(
-                              (c) =>
-                                  FinoraNlpEngine.normalize(c.name) ==
-                                  FinoraNlpEngine.normalize(
-                                      draft.categoryName ?? ''),
-                              orElse: () => txProvider.categories.first,
-                            );
-                            final wal = txProvider.wallets.firstWhere(
-                              (w) =>
-                                  FinoraNlpEngine.normalize(w.name) ==
-                                  FinoraNlpEngine.normalize(
-                                      draft.walletName ?? ''),
-                              orElse: () =>
-                                  txProvider.wallets
-                                      .where((w) =>
-                                          !w.isCreditCard && w.type == 'cash')
-                                      .firstOrNull ??
-                                  txProvider.wallets
-                                      .where((w) => !w.isCreditCard)
-                                      .firstOrNull ??
-                                  txProvider.wallets.first,
-                            );
-                            await txProvider.createTransaction(
-                              widget.userId,
-                              TransactionModel(
-                                userId: widget.userId,
-                                amount: draft.amount,
-                                type: draft.type,
-                                date: draft.date,
-                                note: draft.note,
-                                categoryId: cat.id,
-                                categoryName: cat.name,
-                                categoryIcon: cat.icon,
-                                categoryColor: cat.color,
-                                categoryGroup: cat.categoryGroup,
-                                walletId: wal.id,
-                                walletName: wal.name,
-                                owner: draft.owner ?? wal.owner,
-                                ownerName: draft.ownerName ?? wal.ownerName,
-                                creatorTag: 'Finora AI',
-                                tags: ['Finora AI'],
-                              ),
-                            );
-                          }
-                          if (ctx.mounted) Navigator.pop(sheetCtx);
-                          if (context.mounted) {
-                            FinoraNotice.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    'Đã ghi chép thành công ${drafts.length} giao dịch vào sổ!'),
-                                backgroundColor: const Color(0xFF059669),
-                              ),
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF059669),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100)),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Xác nhận lưu vào sổ',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w800),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(sheetCtx),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Gõ câu nói tự nhiên, AI tự bóc tách số tiền, danh mục và tài khoản.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: controller,
+                    textCapitalization: TextCapitalization.sentences,
+                    inputFormatters: [FirstLetterUpperCaseFormatter()],
+                    autofocus: true,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Ví dụ: Ăn trưa 45k Momo, Đổ xăng 70k VCB...',
+                      hintStyle: const TextStyle(
+                          fontSize: 13.5, color: Color(0xFF94A3B8)),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(Icons.send_rounded, color: primary),
+                        onPressed: () => onAnalyze(controller.text),
+                      ),
+                    ),
+                    onChanged: (val) => onAnalyze(val),
+                    onSubmitted: (val) => onAnalyze(val),
+                  ),
+                  const SizedBox(height: 10),
+                  // Gợi ý câu mẫu
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        'Ăn trưa 45k',
+                        'Cà phê sáng 35k Momo',
+                        'Đổ xăng 70k VCB',
+                        'Lương 25tr chuyển khoản',
+                      ].map((sample) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: InkWell(
+                            onTap: () {
+                              controller.text = sample;
+                              onAnalyze(sample);
+                            },
+                            borderRadius: BorderRadius.circular(100),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(100),
+                                border: Border.all(
+                                  color: isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Text(
+                                sample,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  if (drafts.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border:
+                            Border.all(color: primary.withValues(alpha: 0.25)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.check_circle_outline_rounded,
+                                  size: 16, color: primary),
+                              const SizedBox(width: 6),
+                              Text(
+                                'AI đã hiểu (${drafts.length} giao dịch):',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: primary),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...drafts.map((d) {
+                            final isExpense = d.type == 'expense';
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          d.note,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        Text(
+                                          '${d.categoryName ?? "Khác"} • ${d.walletName ?? "Ví chính"}',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF64748B)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    '${isExpense ? "-" : "+"}${formatVND(d.amount)}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                      color: isExpense
+                                          ? const Color(0xFFDC2626)
+                                          : const Color(0xFF059669),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () async {
+                        for (final draft in drafts) {
+                          final cat = txProvider.categories.firstWhere(
+                            (c) =>
+                                FinoraNlpEngine.normalize(c.name) ==
+                                FinoraNlpEngine.normalize(
+                                    draft.categoryName ?? ''),
+                            orElse: () => txProvider.categories.first,
+                          );
+                          final wal = txProvider.wallets.firstWhere(
+                            (w) =>
+                                FinoraNlpEngine.normalize(w.name) ==
+                                FinoraNlpEngine.normalize(
+                                    draft.walletName ?? ''),
+                            orElse: () =>
+                                txProvider.wallets
+                                    .where((w) =>
+                                        !w.isCreditCard && w.type == 'cash')
+                                    .firstOrNull ??
+                                txProvider.wallets
+                                    .where((w) => !w.isCreditCard)
+                                    .firstOrNull ??
+                                txProvider.wallets.first,
+                          );
+                          await txProvider.createTransaction(
+                            widget.userId,
+                            TransactionModel(
+                              userId: widget.userId,
+                              amount: draft.amount,
+                              type: draft.type,
+                              date: draft.date,
+                              note: draft.note,
+                              categoryId: cat.id,
+                              categoryName: cat.name,
+                              categoryIcon: cat.icon,
+                              categoryColor: cat.color,
+                              categoryGroup: cat.categoryGroup,
+                              walletId: wal.id,
+                              walletName: wal.name,
+                              owner: draft.owner ?? wal.owner,
+                              ownerName: draft.ownerName ?? wal.ownerName,
+                              creatorTag: 'Finora AI',
+                              tags: ['Finora AI'],
+                            ),
+                          );
+                        }
+                        if (ctx.mounted) Navigator.pop(sheetCtx);
+                        if (context.mounted) {
+                          FinoraNotice.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Đã ghi chép thành công ${drafts.length} giao dịch vào sổ!'),
+                              backgroundColor: const Color(0xFF059669),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Xác nhận lưu vào sổ',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
-            );
-          },
+            ),
+          );
+        },
       ),
     );
   }
@@ -2517,9 +2451,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? Colors.white70
-                            : const Color(0xFF334155),
+                        color:
+                            isDark ? Colors.white70 : const Color(0xFF334155),
                       ),
                     ),
                     const Icon(Icons.chevron_right_rounded,
@@ -2554,7 +2487,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _push(WalletScreen(userId: widget.userId));
         }
       },
-      child: Container(
+      child: AdaptiveGlassSurface(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: isDark
@@ -2616,9 +2549,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.2,
-                color: isDark
-                    ? const Color(0xFF7DD3FC)
-                    : const Color(0xFF0284C7),
+                color:
+                    isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
               ),
             ),
           ],
@@ -2663,7 +2595,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     );
   }
-
 
   Widget _buildColumnStat(
       String label, String value, Color color, IconData icon, bool isLightCard,
@@ -3253,7 +3184,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             fontSize: 14.5,
                             fontWeight: FontWeight.w900,
                             height: 1.2,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                       ),
@@ -3267,8 +3199,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: const Color(0xFFD1FAE5),
                         borderRadius: BorderRadius.circular(14),
@@ -3571,7 +3503,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (showIcon) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
                     color: isDark
                         ? Colors.white.withValues(alpha: 0.08)
@@ -3655,7 +3588,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: Icon(
                           CupertinoIcons.chart_pie_fill,
-                          color: isDark ? const Color(0xFF2DD4BF) : emeraldAccent,
+                          color:
+                              isDark ? const Color(0xFF2DD4BF) : emeraldAccent,
                           size: 15,
                         ),
                       ),
@@ -4017,8 +3951,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                               child: Icon(
                                 CupertinoIcons.arrow_up_right,
-                                color:
-                                    isDark ? const Color(0xFF2DD4BF) : lentColor,
+                                color: isDark
+                                    ? const Color(0xFF2DD4BF)
+                                    : lentColor,
                                 size: 13,
                               ),
                             ),
@@ -4241,9 +4176,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-
-
 
   Widget _buildWalletMiniCard(
     String name,
@@ -4475,7 +4407,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(Icons.receipt_long_rounded,
-                        color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                        color: isDark
+                            ? const Color(0xFF38BDF8)
+                            : const Color(0xFF0284C7),
                         size: 16),
                   ),
                   const SizedBox(width: 8),
@@ -4817,12 +4751,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF131D31) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF131D31)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF22324D) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF22324D)
+                        : const Color(0xFFE2E8F0),
                     width: 0.8,
                   ),
                 ),
@@ -4832,7 +4771,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icon(
                       Icons.calendar_today_rounded,
                       size: 11,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF475569),
                     ),
                     const SizedBox(width: 5),
                     Text(
@@ -4841,7 +4782,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
-                        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                        color: isDark
+                            ? const Color(0xFFE2E8F0)
+                            : const Color(0xFF1E293B),
                       ),
                     ),
                   ],
@@ -4961,16 +4904,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final txCats = context.watch<TransactionProvider?>()?.categories ?? [];
     final allCats = [...moreCats, ...txCats];
     final matchingCategory = allCats.cast<dynamic>().firstWhere(
-          (category) {
-            final catId = category?.id?.toString().trim().toLowerCase();
-            final catName = category?.name?.toString().trim().toLowerCase();
-            final txCatId = tx.categoryId?.trim().toLowerCase();
-            final txCatName = tx.categoryName?.trim().toLowerCase();
-            return (txCatId != null && txCatId.isNotEmpty && txCatId == catId) ||
-                (txCatName != null && txCatName.isNotEmpty && txCatName == catName);
-          },
-          orElse: () => null,
-        );
+      (category) {
+        final catId = category?.id?.toString().trim().toLowerCase();
+        final catName = category?.name?.toString().trim().toLowerCase();
+        final txCatId = tx.categoryId?.trim().toLowerCase();
+        final txCatName = tx.categoryName?.trim().toLowerCase();
+        return (txCatId != null && txCatId.isNotEmpty && txCatId == catId) ||
+            (txCatName != null && txCatName.isNotEmpty && txCatName == catName);
+      },
+      orElse: () => null,
+    );
     final resolvedCategoryIcon = matchingCategory?.icon ?? tx.categoryIcon;
     final resolvedCategoryName = matchingCategory?.name ?? tx.categoryName;
     final resolvedCategoryColor = matchingCategory?.color ?? tx.categoryColor;
@@ -5038,104 +4981,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ],
       child: Padding(
-            padding: effectivePadding,
-            child: Row(
-              children: [
-                // 1. Category Icon (clean, no overlapped badge)
-                TransactionIconWidget(
-                  type: tx.type,
-                  categoryIcon: resolvedCategoryIcon,
-                  categoryName: resolvedCategoryName ?? tx.note,
-                  categoryColor: resolvedCategoryColor,
-                  merchantId: tx.merchantId,
-                  merchantName: tx.merchantName,
-                  bankBrand: brand,
-                  showBankBadge: false,
-                  size: 40,
-                ),
-                const SizedBox(width: 12),
-                // 2. Note & Unified Member/Wallet Badge
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tx.note?.isNotEmpty == true
-                            ? tx.note!
-                            : (tx.categoryName ?? 'Giao dịch'),
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w800,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
-                          height: 1.25,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 5),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: _buildUnifiedMemberWalletBadge(tx, isDark),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // 3. Amount & Time (Right corner — Always pinned flush right)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 112),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: FinoraPrivacyMask(
-                          isMasked: studio.isPrivacyShieldActive,
-                          style: studio.privacyStyle,
-                          obscureText: '••••••',
-                          child: Text(
-                            '${isIncome ? '+' : (isExpense ? '-' : '')} ${Formatters.formatCurrency(tx.amount)}',
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.3,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                              color: isIncome
-                                  ? (isDark
-                                      ? const Color(0xFF34D399)
-                                      : const Color(0xFF059669))
-                                  : (isExpense
-                                      ? (isDark
-                                          ? const Color(0xFFFB7185)
-                                          : const Color(0xFFE11D48))
-                                      : (isDark
-                                          ? const Color(0xFF34D399)
-                                          : const Color(0xFF0F6E56))),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        DateFormat('HH:mm').format(txDate),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color:
-                              isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+        padding: effectivePadding,
+        child: Row(
+          children: [
+            // 1. Category Icon (clean, no overlapped badge)
+            TransactionIconWidget(
+              type: tx.type,
+              categoryIcon: resolvedCategoryIcon,
+              categoryName: resolvedCategoryName ?? tx.note,
+              categoryColor: resolvedCategoryColor,
+              merchantId: tx.merchantId,
+              merchantName: tx.merchantName,
+              bankBrand: brand,
+              showBankBadge: false,
+              size: 40,
             ),
-          ),
+            const SizedBox(width: 12),
+            // 2. Note & Unified Member/Wallet Badge
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.note?.isNotEmpty == true
+                        ? tx.note!
+                        : (tx.categoryName ?? 'Giao dịch'),
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.25,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 5),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: _buildUnifiedMemberWalletBadge(tx, isDark),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 3. Amount & Time (Right corner — Always pinned flush right)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 112),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: FinoraPrivacyMask(
+                      isMasked: studio.isPrivacyShieldActive,
+                      style: studio.privacyStyle,
+                      obscureText: '••••••',
+                      child: Text(
+                        '${isIncome ? '+' : (isExpense ? '-' : '')} ${Formatters.formatCurrency(tx.amount)}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: isIncome
+                              ? (isDark
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFF059669))
+                              : (isExpense
+                                  ? (isDark
+                                      ? const Color(0xFFFB7185)
+                                      : const Color(0xFFE11D48))
+                                  : (isDark
+                                      ? const Color(0xFF34D399)
+                                      : const Color(0xFF0F6E56))),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    DateFormat('HH:mm').format(txDate),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
 
     return FinoraSwipeableTransactionCard(
@@ -5281,7 +5224,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                color:
+                    isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
               ),
             ),
           ),

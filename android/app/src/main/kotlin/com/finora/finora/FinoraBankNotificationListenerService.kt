@@ -139,7 +139,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
 
         // Known bank names / sender aliases for SMS & push filtering
         val BANK_KEYWORDS = listOf(
-            "vcb", "vietcombank",
+            "vcb", "vcb digibank", "vietcombank",
             "techcombank", "tcb",
             "mbbank", "mb bank",
             "acb",
@@ -289,8 +289,9 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         val lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n") ?: ""
         val messages = Notification.MessagingStyle.Message.getMessagesFromBundleArray(
             extras.getParcelableArray(Notification.EXTRA_MESSAGES)
-        ).lastOrNull()?.text?.toString() ?: ""
-        val combinedText = if (messages.isNotBlank()) messages else listOf(text, bigText, lines).maxByOrNull { it.length } ?: ""
+        ).joinToString("\n") { it.text?.toString() ?: "" }
+        val parts = listOf(bigText, lines, messages, text).filter { it.isNotBlank() }.distinct()
+        val combinedText = parts.filter { part -> parts.none { other -> other.length > part.length && other.contains(part) } }.joinToString("\n")
 
         if (title.isEmpty() && combinedText.isEmpty()) return
 
@@ -312,42 +313,29 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             return
         }
 
-        // 2. Determine if this notification qualifies as a financial transaction alert
-        val isDirectBankApp = pkg in BANK_PACKAGES
-        val isEcommerceApp = pkg in ECOMMERCE_PACKAGES
-        val isSmsApp = pkg in SMS_PACKAGES
-
-        val matchesBank = if (isEcommerceApp) {
-            val hasOrderKeyword = combinedLower.contains("đơn hàng") ||
-                combinedLower.contains("don hang") ||
-                combinedLower.contains("đặt hàng") ||
-                combinedLower.contains("dat hang") ||
-                combinedLower.contains("thanh toán") ||
-                combinedLower.contains("thanh toan") ||
-                combinedLower.contains("shopeepay")
-            val hasAmount = Regex("[0-9][0-9.,]*\\s*(?:vnd|vnđ|đ|₫)").containsMatchIn(combinedLower)
-            hasOrderKeyword && hasAmount
-        } else if (isDirectBankApp) {
-            true
-        } else if (isSmsApp) {
-            val hasBank = BANK_KEYWORDS.any { lowerTitle.contains(it) || lowerText.contains(it) }
-            val hasMoney = MONEY_INDICATORS.any { combinedLower.contains(it) }
-            hasBank && hasMoney
-        } else {
-            // General bank app or notification matching both bank and money indicator
-            val hasBank = BANK_KEYWORDS.any { lowerTitle.contains(it) || pkg.lowercase().contains(it) }
-            val hasMoney = MONEY_INDICATORS.any { combinedLower.contains(it) }
-            hasBank && hasMoney
+        // Financial source allowlist. Content mentioning a bank never grants
+        // a shopping/chat app permission to create financial drafts.
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val walletsEnabled = prefs.getBoolean("finora_scan_ewallets", true)
+        val walletPackages = setOf(
+            "com.mservice.momotransfer", "com.mservice.momopay", "vn.com.vng.zalopay",
+            "com.vng.zalopay", "com.b2c.bankplus", "com.bplus.vtpay",
+            "com.viettel.viettelpay", "vn.vnpay.vnpay", "com.airpay"
+        )
+        val normalizedPackage = pkg.lowercase()
+        val directBank = BANK_PACKAGES.any { it.lowercase() == normalizedPackage } &&
+            pkg !in ECOMMERCE_PACKAGES && pkg !in walletPackages
+        val directWallet = walletsEnabled && pkg in walletPackages
+        val walletSenders = setOf("momo", "zalopay", "viettelmoney", "viettel money", "viettelpay", "vnpay", "shopeepay")
+        val trustedSmsSender = pkg in SMS_PACKAGES && BANK_KEYWORDS.any {
+            it !in setOf("shopee", "tiktok", "tiktok shop", "lazada") && lowerTitle.trim() == it &&
+                (walletsEnabled || it !in walletSenders)
         }
-
-        // Some banks use package IDs or SMS aliases that do not contain their brand.
-        // Require both an account marker and a signed monetary amount for this path.
-        val genericAccountAlert = Regex("(?i)(?:\\btk\\b|tài khoản|tai khoan|account|số dư|so du)").containsMatchIn(combinedLower) &&
-            Regex("[+−-]\\s*[0-9][0-9.,]*\\s*(?:vnd|vnđ|đ|₫)").containsMatchIn(combinedLower)
-        if (!matchesBank && !genericAccountAlert) return
+        if (!directBank && !directWallet && !trustedSmsSender) return
 
         // No financial notification content in logcat.
-        val fingerprint = "$pkg|${sbn.key}|${sbn.postTime}|$title|$combinedText"
+        val eventTime = notification.`when`.takeIf { it > 0 } ?: sbn.postTime
+        val fingerprint = "$pkg|${sbn.key}|$eventTime|$title|$combinedText"
         val eventId = MessageDigest.getInstance("SHA-256").digest(fingerprint.toByteArray())
             .joinToString("") { "%02x".format(it) }
 

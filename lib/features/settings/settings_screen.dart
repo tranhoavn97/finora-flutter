@@ -470,7 +470,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // ==========================================
             _buildSectionHeader(
               title: 'NỀN PHA MÀU ĐÁ THẠCH ANH & GRADIENT BLUR',
-              subtitle: 'Bảng màu pha tinh thể Thạch Anh & Mesh Gradient 3 vùng',
+              subtitle:
+                  'Bảng màu pha tinh thể Thạch Anh & Mesh Gradient 3 vùng',
               icon: Icons.auto_awesome_rounded,
               color: const Color(0xFF10B981),
               primaryTextColor: primaryTextColor,
@@ -1278,23 +1279,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildDockPlusColorPill(
-                            null, 'Ngọc (Chuẩn)', const Color(0xFF10B981), studio),
+                        _buildDockPlusColorPill(null, 'Ngọc (Chuẩn)',
+                            const Color(0xFF10B981), studio),
                         const SizedBox(width: 6),
-                        _buildDockPlusColorPill(const Color(0xFF0284C7), 'Xanh Biển',
-                            const Color(0xFF0284C7), studio),
+                        _buildDockPlusColorPill(const Color(0xFF0284C7),
+                            'Xanh Biển', const Color(0xFF0284C7), studio),
                         const SizedBox(width: 6),
-                        _buildDockPlusColorPill(const Color(0xFFE11D48), 'San Hô',
-                            const Color(0xFFE11D48), studio),
+                        _buildDockPlusColorPill(const Color(0xFFE11D48),
+                            'San Hô', const Color(0xFFE11D48), studio),
                         const SizedBox(width: 6),
-                        _buildDockPlusColorPill(const Color(0xFFF59E0B), 'Vàng Kim',
-                            const Color(0xFFF59E0B), studio),
+                        _buildDockPlusColorPill(const Color(0xFFF59E0B),
+                            'Vàng Kim', const Color(0xFFF59E0B), studio),
                         const SizedBox(width: 6),
-                        _buildDockPlusColorPill(const Color(0xFF8B5CF6), 'Tím Royal',
-                            const Color(0xFF8B5CF6), studio),
+                        _buildDockPlusColorPill(const Color(0xFF8B5CF6),
+                            'Tím Royal', const Color(0xFF8B5CF6), studio),
                         const SizedBox(width: 6),
-                        _buildDockPlusColorPill(const Color(0xFFEC4899), 'Hồng Neon',
-                            const Color(0xFFEC4899), studio),
+                        _buildDockPlusColorPill(const Color(0xFFEC4899),
+                            'Hồng Neon', const Color(0xFFEC4899), studio),
                       ],
                     ),
                   ),
@@ -1418,8 +1419,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trackHeight: 5,
                     ),
                     child: Slider(
-                      value: studio.glassOpacity.clamp(0.20, 1.0),
-                      min: 0.20,
+                      value: studio.glassOpacity.clamp(0.0, 1.0),
+                      min: 0.0,
                       max: 1.0,
                       onChanged: (val) => studio.setGlassOpacity(val),
                     ),
@@ -1580,8 +1581,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildDockPlusColorPill(Color? color, String label, Color previewColor,
       ThemeStudioController studio) {
     final isSelected = (color == null && studio.dockPlusColor == null) ||
-        (color != null &&
-            studio.dockPlusColor?.toARGB32() == color.toARGB32());
+        (color != null && studio.dockPlusColor?.toARGB32() == color.toARGB32());
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();

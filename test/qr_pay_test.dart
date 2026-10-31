@@ -25,7 +25,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  final sampleQrData = VietQrData(
+  const sampleQrData = VietQrData(
     bankBin: '970436',
     bankName: 'Vietcombank',
     bankShortName: 'VCB',
@@ -38,7 +38,7 @@ void main() {
     iosScheme: 'vcb://',
   );
 
-  final sampleWallet = Wallet(
+  const sampleWallet = Wallet(
     id: 'w_vcb',
     name: 'Ví VCB',
     bankCode: 'VCB',
@@ -66,7 +66,7 @@ void main() {
     testWidgets('BankAppSelectorSheet renders recommended bank and other banks',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: BankAppSelectorSheet(
               qrData: sampleQrData,
@@ -97,7 +97,7 @@ void main() {
                 value: txProvider),
             ChangeNotifierProvider<WalletProvider>.value(value: walletProvider),
           ],
-          child: MaterialApp(
+          child: const MaterialApp(
             home: Scaffold(
               body: QrConfirmExpenseSheet(
                 qrData: sampleQrData,
@@ -120,13 +120,14 @@ void main() {
       // Verify pre-filled amount
       expect(find.text('150.000'), findsOneWidget);
 
-      // Verify Action buttons
-      expect(find.text('Mở MB / Techcombank'), findsOneWidget);
+      // Verify single unified bank action button + switch icon
+      expect(
+          find.text('Mở app Vietcombank & Tạo giao dịch mẫu'), findsOneWidget);
       expect(find.text('Đã thanh toán · Ghi chi vào Finora'), findsOneWidget);
       expect(txProvider.writes, 0);
-      final open = find.text('Mở MB / Techcombank');
-      await tester.ensureVisible(open);
-      await tester.tap(open);
+      final switchBank = find.byIcon(Icons.swap_horiz_rounded);
+      await tester.ensureVisible(switchBank);
+      await tester.tap(switchBank);
       await tester.pumpAndSettle();
       expect(find.text('Mở MB Bank'), findsOneWidget);
       expect(find.text('Mở Techcombank'), findsOneWidget);
@@ -159,7 +160,7 @@ void main() {
               ChangeNotifierProvider<WalletProvider>.value(
                   value: walletProvider),
             ],
-            child: MaterialApp(
+            child: const MaterialApp(
               home: Scaffold(
                 body: QrConfirmExpenseSheet(
                   qrData: sampleQrData,

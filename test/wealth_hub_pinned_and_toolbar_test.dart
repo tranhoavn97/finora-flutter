@@ -18,8 +18,18 @@ class _TestWalletProvider extends WalletProvider {
     isRefreshing = false;
     hasLoadedBalances = true;
     wallets = [
-      const Wallet(id: 'w1', name: 'Tiền mặt', type: 'cash', balance: 10000000, owner: 'me'),
-      const Wallet(id: 'w2', name: 'Techcombank', type: 'bank', balance: 50000000, owner: 'me'),
+      const Wallet(
+          id: 'w1',
+          name: 'Tiền mặt',
+          type: 'cash',
+          balance: 10000000,
+          owner: 'me'),
+      const Wallet(
+          id: 'w2',
+          name: 'Techcombank',
+          type: 'bank',
+          balance: 50000000,
+          owner: 'me'),
     ];
   }
   @override
@@ -53,18 +63,18 @@ class _TestTransactionProvider extends TransactionProvider {
   }
   @override
   List<TransactionModel> get transactions => [
-    const TransactionModel(
-      id: 't1',
-      userId: 'test_user',
-      walletId: 'w1',
-      amount: 85000,
-      type: 'expense',
-      categoryId: 'c1',
-      categoryName: 'Ăn uống',
-      date: 1735689600000,
-      note: 'Bún bò',
-    ),
-  ];
+        const TransactionModel(
+          id: 't1',
+          userId: 'test_user',
+          walletId: 'w1',
+          amount: 85000,
+          type: 'expense',
+          categoryId: 'c1',
+          categoryName: 'Ăn uống',
+          date: 1735689600000,
+          note: 'Bún bò',
+        ),
+      ];
 
   @override
   void load(String userId, {String? familyId, bool force = false}) {}
@@ -78,11 +88,15 @@ void main() {
   Widget buildWealthHubHarness({int initialTab = 0}) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<WalletProvider>.value(value: _TestWalletProvider()),
+        ChangeNotifierProvider<WalletProvider>.value(
+            value: _TestWalletProvider()),
         ChangeNotifierProvider<MoreProvider>.value(value: _TestMoreProvider()),
-        ChangeNotifierProvider<TransactionProvider>.value(value: _TestTransactionProvider()),
-        ChangeNotifierProvider<ThemeStudioController>.value(value: ThemeStudioController()),
-        ChangeNotifierProvider<WidgetStyleController>.value(value: WidgetStyleController()),
+        ChangeNotifierProvider<TransactionProvider>.value(
+            value: _TestTransactionProvider()),
+        ChangeNotifierProvider<ThemeStudioController>.value(
+            value: ThemeStudioController()),
+        ChangeNotifierProvider<WidgetStyleController>.value(
+            value: WidgetStyleController()),
         ChangeNotifierProvider<FamilyProvider>.value(value: FamilyProvider()),
       ],
       child: MaterialApp(
@@ -101,7 +115,9 @@ void main() {
     );
   }
 
-  testWidgets('WealthHubScreen verifies transparent header, no DANH SACH GIAO DICH header, and merged 1-row toolbar', (tester) async {
+  testWidgets(
+      'WealthHubScreen verifies transparent header, no DANH SACH GIAO DICH header, and merged 1-row toolbar',
+      (tester) async {
     await tester.pumpWidget(buildWealthHubHarness(initialTab: 0));
     await tester.pumpAndSettle();
 
@@ -115,8 +131,8 @@ void main() {
     // 2. "DANH SÁCH GIAO DỊCH" header text MUST BE ABSENT
     expect(find.textContaining('DANH SÁCH GIAO DỊCH'), findsNothing);
 
-    // 3. Merged 1-row toolbar has filter chips (note: 'Tất cả' appears in member pill and in toolbar chip)
-    expect(find.text('Tất cả'), findsNWidgets(2));
+    // 3. Member uses an avatar-only button; 'Tất cả' belongs to the transaction filter.
+    expect(find.text('Tất cả'), findsOneWidget);
     expect(find.text('Chi tiêu'), findsOneWidget);
     expect(find.text('Thu nhập'), findsOneWidget);
     expect(find.text('Chuyển khoản'), findsOneWidget);
@@ -140,7 +156,9 @@ void main() {
     expect(find.text('Chi tiêu'), findsOneWidget);
   });
 
-  testWidgets('WealthHubScreen Tab 3 Sổ nợ verifies pinned toolbar with Cho vay and Vay no', (tester) async {
+  testWidgets(
+      'WealthHubScreen Tab 3 Sổ nợ verifies pinned toolbar with Cho vay and Vay no',
+      (tester) async {
     await tester.pumpWidget(buildWealthHubHarness(initialTab: 3));
     await tester.pumpAndSettle();
 

@@ -12,13 +12,15 @@ class BankAppSelectorSheet extends StatefulWidget {
   final String memo;
   final String? preferredBankBin;
   final VoidCallback? onCancelTransaction;
+  final Future<void> Function(BankInfo bank)? onBankSelected;
   const BankAppSelectorSheet(
       {super.key,
       required this.qrData,
       required this.amount,
       required this.memo,
       this.preferredBankBin,
-      this.onCancelTransaction});
+      this.onCancelTransaction,
+      this.onBankSelected});
   @override
   State<BankAppSelectorSheet> createState() => _BankAppSelectorSheetState();
 }
@@ -29,12 +31,18 @@ class _BankAppSelectorSheetState extends State<BankAppSelectorSheet> {
     if (_opening) return;
     setState(() => _opening = true);
     try {
-      await BankLauncherHelper.launchBankApp(
-          context: context,
-          bank: bank,
-          data: widget.qrData,
-          customAmount: widget.amount,
-          customMemo: widget.memo);
+      if (widget.onBankSelected != null) {
+        await widget.onBankSelected!(bank);
+      }
+      if (!mounted) return;
+      await BankLauncherHelper.launchBankAppDirect(
+        context: context,
+        bank: bank,
+        data: widget.qrData,
+        amount: widget.amount,
+        memo: widget.memo,
+      );
+      if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => _opening = false);
     }
@@ -57,12 +65,14 @@ class _BankAppSelectorSheetState extends State<BankAppSelectorSheet> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final banks = [
+    final banks = <BankInfo>[
       VietQrParser.supportedBanks['970422']!,
-      VietQrParser.supportedBanks['970407']!
+      VietQrParser.supportedBanks['970407']!,
     ];
-    if (VietQrParser.findBank(widget.preferredBankBin)?.bin == '970407') {
-      banks.insert(0, banks.removeLast());
+    final preferred = VietQrParser.findBank(widget.preferredBankBin);
+    if (preferred != null) {
+      banks.removeWhere((b) => b.bin == preferred.bin);
+      banks.insert(0, preferred);
     }
     return SafeArea(
         top: false,
@@ -116,11 +126,9 @@ class _BankAppSelectorSheetState extends State<BankAppSelectorSheet> {
                                   Text('Mở ${bank.name}',
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w700)),
-                                  Text(
-                                      BankLauncherHelper.supportsAutofill(bank)
-                                          ? 'Tự điền qua VietQR.io · cần đồng ý'
-                                          : 'Mở app · tự điền chưa hỗ trợ',
-                                      style: const TextStyle(fontSize: 11),
+                                  const Text(
+                                      'Tạo giao dịch mẫu & điền sẵn STK, số tiền, nội dung qua VietQR',
+                                      style: TextStyle(fontSize: 11),
                                       maxLines: 2)
                                 ])),
                             const Icon(Icons.open_in_new_rounded, size: 18)

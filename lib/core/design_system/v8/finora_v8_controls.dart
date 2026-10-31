@@ -14,6 +14,7 @@ class FinoraSegmentedTabs extends StatelessWidget {
   final bool compact;
   final double? height;
   final double? fontSize;
+  final bool transparentBackground;
 
   const FinoraSegmentedTabs({
     super.key,
@@ -26,6 +27,7 @@ class FinoraSegmentedTabs extends StatelessWidget {
     this.compact = false,
     this.height,
     this.fontSize,
+    this.transparentBackground = false,
   }) : assert(labels.length > 1);
 
   @override
@@ -62,15 +64,18 @@ class FinoraSegmentedTabs extends StatelessWidget {
                 height: controlHeight,
                 padding: const EdgeInsets.all(FinoraV8Space.x1),
                 decoration: BoxDecoration(
-                  color:
-                      dark ? const Color(0xFF202D39) : const Color(0xFFEDF3F1),
+                  color: transparentBackground
+                      ? Colors.transparent
+                      : (dark ? const Color(0xFF202D39) : const Color(0xFFEDF3F1)),
                   borderRadius: BorderRadius.circular(FinoraV8Radius.pill),
-                  border: Border.all(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : const Color(0xFFDDE6E2),
-                    width: 1.0,
-                  ),
+                  border: transparentBackground
+                      ? null
+                      : Border.all(
+                          color: dark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFFDDE6E2),
+                          width: 0.8,
+                        ),
                 ),
                 child: Stack(
                   children: [

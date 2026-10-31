@@ -50,6 +50,11 @@ enum AmbientBlurPreset {
   cosmicAmethyst,
   emeraldMatrix,
   rubyVelvet,
+  quartzRoseGold,
+  jadeCeladon,
+  northernLights,
+  velvetTwilight,
+  champagnePearl,
 }
 
 enum AppFontFamily {
@@ -886,6 +891,7 @@ class ThemeStudioController extends ChangeNotifier {
       }
     } catch (_) {}
   }
+
   static const _customBgColor3Key = 'finora_studio_custom_bg_color3';
   static const _customBgIntensityKey = 'finora_studio_custom_bg_intensity';
   static const _customBgBlurKey = 'finora_studio_custom_bg_blur';
@@ -1087,7 +1093,7 @@ class ThemeStudioController extends ChangeNotifier {
   };
   AppCurrencyFormat _currencyFormat = AppCurrencyFormat.symbolSuffix;
   AppDockNavStyle _dockNavStyle = AppDockNavStyle.balancedFloatingCta;
-  double _ambientIntensity = 0.0;
+  double _ambientIntensity = 0.68;
   bool _particleSparkles = false;
   AppBudgetStyle _budgetStyle = AppBudgetStyle.liquidBar;
   AppGoalStyle _goalStyle = AppGoalStyle.treasureChest;
@@ -1114,24 +1120,26 @@ class ThemeStudioController extends ChangeNotifier {
   Color _budgetWarningColor = const Color(0xFFF59E0B);
   Color _budgetDangerColor = const Color(0xFFEF4444);
   List<Color> _customBgGradientColors = [
+    const Color(0xFF041C16),
+    const Color(0xFF0A2E26),
     const Color(0xFF0F172A),
-    const Color(0xFF1E1B4B),
-    const Color(0xFF312E81)
+    const Color(0xFF1E1B4B)
   ];
   List<Color> _customBgGradientColorsLight = [
-    const Color(0xFFF8FAFC),
-    const Color(0xFFF1F5F9),
-    const Color(0xFFE2E8F0)
+    const Color(0xFFECFDF5),
+    const Color(0xFFE0F2FE),
+    const Color(0xFFF5F3FF),
+    const Color(0xFFFFF1F2)
   ];
   int _customBgGradientAngle = 0;
-  bool _useCustomBgGradient = false;
+  bool _useCustomBgGradient = true;
   double _backgroundTintOpacity = 0.85;
   double _backgroundBlurSigma = 35.0;
   bool _useCustomRgbMeshBg = false;
   Color _customBgColor1 = const Color(0xFF10B981);
   Color _customBgColor2 = const Color(0xFF0284C7);
   Color _customBgColor3 = const Color(0xFF8B5CF6);
-  double _customBgIntensity = 0.18;
+  double _customBgIntensity = 0.24;
   double _customBgBlur = 65.0;
   MeshBlendStyle _meshBlendStyle = MeshBlendStyle.radialMesh;
   AppDockLabelStyle _dockLabelStyle = AppDockLabelStyle.always;
@@ -1144,10 +1152,10 @@ class ThemeStudioController extends ChangeNotifier {
   AppChartCurveStyle _chartCurveStyle = AppChartCurveStyle.smoothSpline;
   AppChartAreaFill _chartAreaFill = AppChartAreaFill.neonGlow;
   AppChartColorway _chartColorway = AppChartColorway.paletteSync;
-  double _appBarOpacity = 1.0;
-  double _appBarBlur = 0.0;
+  double _appBarOpacity = 0.68;
+  double _appBarBlur = 22.0;
   bool _appBarShowBorder = true;
-  AppTopBarStyle _topBarStyle = AppTopBarStyle.seamlessBlend;
+  AppTopBarStyle _topBarStyle = AppTopBarStyle.floatingIsland;
   bool _pinHeader = true;
   AppWalletViewStyle _walletViewStyle = AppWalletViewStyle.webCards;
   AppSeasonalTheme _seasonalTheme = AppSeasonalTheme.none;
@@ -1160,7 +1168,7 @@ class ThemeStudioController extends ChangeNotifier {
   AppWidgetCardStyle _widgetCardStyle = AppWidgetCardStyle.solidCleanCard;
   AppCategoryIconStyle _categoryIconStyle = AppCategoryIconStyle.minimalCircle;
   AppAppBarScrollBehavior _appBarScrollBehavior =
-      AppAppBarScrollBehavior.pinned;
+      AppAppBarScrollBehavior.floating;
   bool _highRefreshRate120Hz = true;
   AppLoadingIndicatorStyle _loadingStyle =
       AppLoadingIndicatorStyle.infinityDots;
@@ -1173,8 +1181,8 @@ class ThemeStudioController extends ChangeNotifier {
   double? _customButtonCornerRadius;
   double _pageVerticalGap = 12.0;
   double _dockHeightScale = 1.0;
-  double _dockOpacity = 1.0;
-  double _dockBlur = 0.0;
+  double _dockOpacity = 0.42;
+  double _dockBlur = 26.0;
   Color? _dockActiveColor;
   Color? _dockInactiveColor;
   Color? _dockPlusColor;
@@ -1709,6 +1717,61 @@ class ThemeStudioController extends ChangeNotifier {
       orb3: Color(0x00000000),
       orb4: Color(0x00000000),
     ),
+    AmbientBlurMeta(
+      preset: AmbientBlurPreset.quartzRoseGold,
+      title: 'Thạch Anh Hồng Ánh Kim (Rose Gold Quartz)',
+      subtitle: 'Pha lê hồng thạch anh, vàng hồng Champagne & tím phấn',
+      bgColorsDark: [Color(0xFF190B14), Color(0xFF281021), Color(0xFF1E132A)],
+      bgColorsLight: [Color(0xFFFFF1F5), Color(0xFFFEF3C7), Color(0xFFF3E8FF)],
+      orb1: Color(0xFFF43F5E),
+      orb2: Color(0xFFF59E0B),
+      orb3: Color(0xFFD946EF),
+      orb4: Color(0xFFFB7185),
+    ),
+    AmbientBlurMeta(
+      preset: AmbientBlurPreset.jadeCeladon,
+      title: 'Ngọc Bích Đế Vương (Imperial Jade)',
+      subtitle: 'Ngọc bích phỉ thúy pha lam ngọc & ánh vàng vương giả',
+      bgColorsDark: [Color(0xFF031814), Color(0xFF062922), Color(0xFF0A2E36)],
+      bgColorsLight: [Color(0xFFECFDF5), Color(0xFFE0F2FE), Color(0xFFFEF9C3)],
+      orb1: Color(0xFF059669),
+      orb2: Color(0xFF06B6D4),
+      orb3: Color(0xFF10B981),
+      orb4: Color(0xFFF59E0B),
+    ),
+    AmbientBlurMeta(
+      preset: AmbientBlurPreset.northernLights,
+      title: 'Cực Quang Bắc Cực (Northern Borealis)',
+      subtitle: 'Dải cực quang xanh lục bảo giao thoa tím ngân hà & lam băng',
+      bgColorsDark: [Color(0xFF04141C), Color(0xFF0B1D36), Color(0xFF191038)],
+      bgColorsLight: [Color(0xFFE0F2FE), Color(0xFFECFDF5), Color(0xFFF3E8FF)],
+      orb1: Color(0xFF10B981),
+      orb2: Color(0xFF38BDF8),
+      orb3: Color(0xFF8B5CF6),
+      orb4: Color(0xFF06B6D4),
+    ),
+    AmbientBlurMeta(
+      preset: AmbientBlurPreset.velvetTwilight,
+      title: 'Hoàng Hôn Tím Nhung (Velvet Twilight)',
+      subtitle: 'Chiều tà tím indigo, đỏ hồng ruby & cam hổ phách',
+      bgColorsDark: [Color(0xFF120924), Color(0xFF230E36), Color(0xFF331028)],
+      bgColorsLight: [Color(0xFFF5F3FF), Color(0xFFFFE4E6), Color(0xFFFFEDD5)],
+      orb1: Color(0xFF7C3AED),
+      orb2: Color(0xFFE11D48),
+      orb3: Color(0xFFF97316),
+      orb4: Color(0xFFC084FC),
+    ),
+    AmbientBlurMeta(
+      preset: AmbientBlurPreset.champagnePearl,
+      title: 'Ngọc Trai Champagne (Champagne Pearl)',
+      subtitle: 'Ánh ngọc trai kem vàng, xanh mint dịu & sương mai',
+      bgColorsDark: [Color(0xFF14120E), Color(0xFF1F1B14), Color(0xFF111C1A)],
+      bgColorsLight: [Color(0xFFFFFBEB), Color(0xFFF0FDF4), Color(0xFFF0F9FF)],
+      orb1: Color(0xFFD97706),
+      orb2: Color(0xFF10B981),
+      orb3: Color(0xFF38BDF8),
+      orb4: Color(0xFFFBBF24),
+    ),
   ];
 
   static const List<WallpaperMeta> wallpapers = [
@@ -1975,11 +2038,11 @@ class ThemeStudioController extends ChangeNotifier {
       _jointFamilyAvatar = prefs.getString(_jointFamilyAvatarKey);
       final op = _readDouble(prefs, _glassOpacityKey);
       if (op != null) {
-        _glassOpacity = op.clamp(0.20, 1.0);
+        _glassOpacity = op.clamp(0.0, 1.0);
       }
       final bl = _readDouble(prefs, _glassBlurKey);
       if (bl != null) {
-        _glassBlur = (bl < 20.0) ? 25.0 : bl.clamp(4.0, 32.0);
+        _glassBlur = bl.clamp(0.0, 32.0);
       }
       final phm = _readDouble(prefs, _pageHorizontalMarginKey);
       if (phm != null) _pageHorizontalMargin = phm.clamp(8.0, 32.0);
@@ -2291,7 +2354,7 @@ class ThemeStudioController extends ChangeNotifier {
       final hasMigratedGlassOpacity =
           prefs.getBool('finora_migrated_glass_opacity_v3') ?? false;
       if (!hasMigratedGlassOpacity) {
-        if (_glassOpacity <= 0.45) {
+        if (op == null && _glassOpacity <= 0.45) {
           _glassOpacity = 0.88;
           await prefs.setDouble(_glassOpacityKey, 0.88);
         }
@@ -2520,8 +2583,8 @@ class ThemeStudioController extends ChangeNotifier {
         _systemWideLiquidGlass = false;
         _liquidGlassSpecularHighlight = false;
         _liquidGlassCausticRefraction = false;
-        _glassOpacity = 1.0;
-        _glassBlur = 0.0;
+        _glassOpacity = op?.clamp(0.0, 1.0) ?? 1.0;
+        _glassBlur = bl?.clamp(0.0, 32.0) ?? 0.0;
         _appBarBlur = 0.0;
         _dockBlur = 0.0;
         _dockOpacity = 1.0;
@@ -2542,8 +2605,8 @@ class ThemeStudioController extends ChangeNotifier {
         await prefs.setBool(_systemWideLiquidGlassKey, false);
         await prefs.setBool(_liquidGlassSpecularHighlightKey, false);
         await prefs.setBool(_liquidGlassCausticRefractionKey, false);
-        await prefs.setDouble(_glassOpacityKey, 1.0);
-        await prefs.setDouble(_glassBlurKey, 0.0);
+        await prefs.setDouble(_glassOpacityKey, _glassOpacity);
+        await prefs.setDouble(_glassBlurKey, _glassBlur);
         await prefs.setDouble(_appBarBlurKey, 0.0);
         await prefs.setDouble(_dockBlurKey, 0.0);
         await prefs.setDouble(_dockOpacityKey, 1.0);
@@ -2569,8 +2632,8 @@ class ThemeStudioController extends ChangeNotifier {
         _systemWideLiquidGlass = false;
         _liquidGlassSpecularHighlight = false;
         _liquidGlassCausticRefraction = false;
-        _glassOpacity = 1.0;
-        _glassBlur = 0.0;
+        _glassOpacity = op?.clamp(0.0, 1.0) ?? 1.0;
+        _glassBlur = bl?.clamp(0.0, 32.0) ?? 0.0;
         _appBarBlur = 0.0;
         _dockBlur = 0.0;
         _dockOpacity = 1.0;
@@ -2593,8 +2656,8 @@ class ThemeStudioController extends ChangeNotifier {
         await prefs.setBool(_systemWideLiquidGlassKey, false);
         await prefs.setBool(_liquidGlassSpecularHighlightKey, false);
         await prefs.setBool(_liquidGlassCausticRefractionKey, false);
-        await prefs.setDouble(_glassOpacityKey, 1.0);
-        await prefs.setDouble(_glassBlurKey, 0.0);
+        await prefs.setDouble(_glassOpacityKey, _glassOpacity);
+        await prefs.setDouble(_glassBlurKey, _glassBlur);
         await prefs.setDouble(_appBarBlurKey, 0.0);
         await prefs.setDouble(_dockBlurKey, 0.0);
         await prefs.setDouble(_dockOpacityKey, 1.0);
@@ -2702,8 +2765,8 @@ class ThemeStudioController extends ChangeNotifier {
         _heroCardStyle = AppHeroCardStyle.zenvestGlassDeck;
         _dockNavStyle = AppDockNavStyle.balancedFloatingCta;
         _surfaceStyle = CardSurfaceStyle.liquidGlass;
-        _glassOpacity = 0.88;
-        _glassBlur = 20.0;
+        _glassOpacity = op?.clamp(0.0, 1.0) ?? 0.88;
+        _glassBlur = bl?.clamp(0.0, 32.0) ?? 20.0;
         _fontFamily = AppFontFamily.beVietnamPro;
         await prefs.setInt(_uiUxStyleKey, AppUiUxStyle.cupertinoMinimal.index);
         await prefs.setInt(_paletteKey, AppColorPalette.emeraldWealth.index);
@@ -2714,8 +2777,8 @@ class ThemeStudioController extends ChangeNotifier {
         await prefs.setInt(
             _dockNavKey, AppDockNavStyle.balancedFloatingCta.index);
         await prefs.setInt(_surfaceKey, CardSurfaceStyle.liquidGlass.index);
-        await prefs.setDouble(_glassOpacityKey, 0.88);
-        await prefs.setDouble(_glassBlurKey, 20.0);
+        await prefs.setDouble(_glassOpacityKey, _glassOpacity);
+        await prefs.setDouble(_glassBlurKey, _glassBlur);
         await prefs.setInt(_fontFamilyKey, AppFontFamily.beVietnamPro.index);
         await prefs.setBool('finora_migrated_v27_apple_minimalist_rev_1', true);
       }
@@ -2727,6 +2790,27 @@ class ThemeStudioController extends ChangeNotifier {
         await prefs.setInt(_buttonShapeKey, AppButtonShape.pill.index);
         await prefs.remove(_customButtonCornerRadiusKey);
         await prefs.setBool('finora_migrated_unified_pill_buttons_v2', true);
+      }
+
+      if (!(prefs.getBool('finora_migrated_floating_blur_headers_v3') ??
+          false)) {
+        _topBarStyle = AppTopBarStyle.floatingIsland;
+        _appBarScrollBehavior = AppAppBarScrollBehavior.floating;
+        _appBarBlur = 22.0;
+        _appBarOpacity = 0.68;
+        _ambientIntensity = 0.68;
+        _dockBlur = 26.0;
+        _dockOpacity = 0.42;
+        await prefs.setInt(
+            _topBarStyleKey, AppTopBarStyle.floatingIsland.index);
+        await prefs.setInt(
+            _appBarScrollBehaviorKey, AppAppBarScrollBehavior.floating.index);
+        await prefs.setDouble(_appBarBlurKey, 22.0);
+        await prefs.setDouble(_appBarOpacityKey, 0.68);
+        await prefs.setDouble(_ambientIntensityKey, 0.68);
+        await prefs.setDouble(_dockBlurKey, 26.0);
+        await prefs.setDouble(_dockOpacityKey, 0.42);
+        await prefs.setBool('finora_migrated_floating_blur_headers_v3', true);
       }
     } catch (e) {
       debugPrint('[ThemeStudioController] load error: $e');
@@ -3158,7 +3242,7 @@ class ThemeStudioController extends ChangeNotifier {
     }
     final glowShadows = getGlowShadows(isDark);
 
-    final effectiveGlassOpacity = glassOpacity.clamp(0.15, 1.0);
+    final effectiveGlassOpacity = glassOpacity.clamp(0.0, 1.0);
 
     switch (_widgetCardStyle) {
       case AppWidgetCardStyle.liquidGlassCard:
@@ -3176,19 +3260,17 @@ class ThemeStudioController extends ChangeNotifier {
                         Color.alphaBlend(primary.withValues(alpha: 0.12),
                                 const Color(0xFF142036))
                             .withValues(
-                                alpha:
-                                    (_glassOpacity * 0.96).clamp(0.15, 0.96)),
+                                alpha: (_glassOpacity * 0.96).clamp(0.0, 0.96)),
                         const Color(0xFF0C1424).withValues(
-                            alpha: (_glassOpacity * 0.98).clamp(0.18, 0.98)),
+                            alpha: (_glassOpacity * 0.98).clamp(0.0, 0.98)),
                       ]
                     : [
                         Colors.white.withValues(
-                            alpha: (_glassOpacity * 0.98).clamp(0.15, 0.98)),
+                            alpha: (_glassOpacity * 0.98).clamp(0.0, 0.98)),
                         Color.alphaBlend(primary.withValues(alpha: 0.05),
                                 const Color(0xFFF6F9FD))
                             .withValues(
-                                alpha:
-                                    (_glassOpacity * 0.94).clamp(0.15, 0.96)),
+                                alpha: (_glassOpacity * 0.94).clamp(0.0, 0.96)),
                       ],
               )
             : null;
@@ -3280,8 +3362,9 @@ class ThemeStudioController extends ChangeNotifier {
           color: customBg != null
               ? applyWhiteTransparency(customBg, isDark: isDark)
               : (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(
-                  alpha:
-                      isDark ? (glassOpacity * 0.40).clamp(0.05, 0.95) : 0.92),
+                  alpha: isDark
+                      ? (glassOpacity * 0.40).clamp(0.0, 0.95)
+                      : glassOpacity),
           borderRadius: BorderRadius.circular(radius),
           border: _widgetBorderWidth <= 0.05
               ? null
@@ -3439,8 +3522,8 @@ class ThemeStudioController extends ChangeNotifier {
       await prefs.setBool(_systemWideLiquidGlassKey, false);
       await prefs.setBool(_liquidGlassSpecularHighlightKey, false);
       await prefs.setBool(_liquidGlassCausticRefractionKey, false);
-      await prefs.setDouble(_glassOpacityKey, 1.0);
-      await prefs.setDouble(_glassBlurKey, 0.0);
+      await prefs.setDouble(_glassOpacityKey, _glassOpacity);
+      await prefs.setDouble(_glassBlurKey, _glassBlur);
       await prefs.setDouble(_appBarBlurKey, 0.0);
       await prefs.setDouble(_dockBlurKey, 0.0);
       await prefs.setDouble(_dockOpacityKey, 1.0);
@@ -3534,7 +3617,7 @@ class ThemeStudioController extends ChangeNotifier {
   }
 
   Future<void> setGlassOpacity(double val) async {
-    _glassOpacity = val.clamp(0.08, 1.0);
+    _glassOpacity = val.clamp(0.0, 1.0);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_glassOpacityKey, _glassOpacity);
@@ -4929,10 +5012,10 @@ class ThemeStudioController extends ChangeNotifier {
         _categoryIconStyle = AppCategoryIconStyle.values[map['catIcon'] as int];
       }
       if (map['glassOp'] != null) {
-        _glassOpacity = ((map['glassOp'] as num) / 100.0).clamp(0.20, 0.95);
+        _glassOpacity = ((map['glassOp'] as num) / 100.0).clamp(0.0, 1.0);
       }
       if (map['glassBlur'] != null) {
-        _glassBlur = (map['glassBlur'] as num).toDouble().clamp(4.0, 32.0);
+        _glassBlur = (map['glassBlur'] as num).toDouble().clamp(0.0, 32.0);
       }
       if (map['appBarBlur'] != null) {
         _appBarBlur = (map['appBarBlur'] as num).toDouble().clamp(0.0, 30.0);
@@ -5840,12 +5923,14 @@ class ThemeStudioController extends ChangeNotifier {
   }
 
   Color getCardFillColor(bool isDark) {
+    final double alpha = _glassOpacity.clamp(0.0, 1.0);
     if (_freshAppearance) {
-      return isDark ? const Color(0xFF1B2531) : Colors.white;
+      return (isDark ? const Color(0xFF1B2531) : Colors.white)
+          .withValues(alpha: alpha);
     }
     final base = getStyleSurfaceBase(isDark) ??
         (isDark ? const Color(0xFF131B26) : Colors.white);
-    return base;
+    return base.withValues(alpha: alpha);
   }
 
   /// Lấy màu nền thực tế ở đỉnh màn hình để AppBar/Header kính mờ hòa quyện đồng điệu
@@ -6511,7 +6596,7 @@ class ThemeStudioController extends ChangeNotifier {
         return BoxDecoration(
           color: customFill ??
               (isDark ? const Color(0xFF161B26) : Colors.white)
-                  .withValues(alpha: _glassOpacity.clamp(0.15, 1.0)),
+                  .withValues(alpha: _glassOpacity.clamp(0.0, 1.0)),
           borderRadius: BorderRadius.circular(effectiveRadius),
           border: computeBorder(
             Border.all(

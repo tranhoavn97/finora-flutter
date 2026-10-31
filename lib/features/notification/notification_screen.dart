@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/services/bank_sync_service.dart';
+import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../data/models/finance_models.dart';
 import '../../state/family_provider.dart';
@@ -55,254 +56,197 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     final more = context.watch<MoreProvider?>();
-    final studio = context.watch<ThemeStudioController?>();
     final items = more?.notifications ?? const <AppNotification>[];
     final unread = items.where((n) => !n.isRead).length;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final blurSigma = studio?.appBarBlur ?? 18.0;
-    final appBarAlpha = (studio?.appBarOpacity ?? 0.88).clamp(0.25, 1.0);
+    final topPad = MediaQuery.of(context).padding.top;
 
     return DefaultTabController(
       length: 2,
       initialIndex: widget.initialTab.clamp(0, 1),
-      child: AmbientFloatingBackground(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: AnimatedBuilder(
-            animation: _bank,
-            builder: (context, _) {
-              final pending = _bank.pending.length + _bank.unrecognizedCount;
-              return Column(
+      child: AnimatedBuilder(
+        animation: _bank,
+        builder: (context, _) {
+          final pending = _bank.pending.length + _bank.unrecognizedCount;
+          return GlassScaffold(
+            extendBodyBehindAppBar: true,
+            appBar: GlassTopBar(
+              title: '',
+              titleWidget: _buildNotificationTopBarContent(
+                isDark: isDark,
+                pending: pending,
+                unread: unread,
+                more: more,
+                items: items,
+              ),
+              showBack: true,
+              onBack: () => Navigator.of(context).maybePop(),
+              height: 104,
+            ),
+            body: TabBarView(
+              physics: const BouncingScrollPhysics(),
+              children: [
+                BankInboxView(
+                  userId: widget.userId,
+                  topPadding: GlassScaffold.topInset(context, 6, 104),
+                ),
+                _ActivityTab(
+                  userId: widget.userId,
+                  topPadding: GlassScaffold.topInset(context, 6, 104),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNotificationTopBarContent({
+    required bool isDark,
+    required int pending,
+    required int unread,
+    required MoreProvider? more,
+    required List<AppNotification> items,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Sticky Blur Header + Segmented Pill Tabs
-                  ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(
-                        sigmaX: blurSigma,
-                        sigmaY: blurSigma,
-                      ),
-                      child: Container(
-                        padding: EdgeInsets.only(
-                          top: MediaQuery.of(context).padding.top + 8,
-                          left: 16,
-                          right: 16,
-                          bottom: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: (isDark
-                                  ? const Color(0xFF0F172A)
-                                  : Colors.white)
-                              .withValues(alpha: appBarAlpha),
-                          border: Border(
-                            bottom: BorderSide(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : const Color(0xFFE2E8F0),
-                              width: 0.8,
-                            ),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                InkWell(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    Navigator.of(context).maybePop();
-                                  },
-                                  customBorder: const CircleBorder(),
-                                  child: Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isDark
-                                          ? const Color(0xFF1E293B)
-                                          : const Color(0xFFF1F5F9),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? Colors.white
-                                                .withValues(alpha: 0.10)
-                                            : const Color(0xFFE2E8F0),
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      Icons.arrow_back_ios_new_rounded,
-                                      size: 16,
-                                      color: isDark
-                                          ? Colors.white
-                                          : const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Thông báo',
-                                        style: TextStyle(
-                                          fontSize: 19,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.3,
-                                          color: isDark
-                                              ? Colors.white
-                                              : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 1),
-                                      Text(
-                                        pending + unread > 0
-                                            ? '${pending + unread} mục cần bạn kiểm tra'
-                                            : 'Tất cả thông báo đã được cập nhật',
-                                        style: TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w500,
-                                          color: isDark
-                                              ? const Color(0xFF94A3B8)
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (unread > 0 && more != null)
-                                  InkWell(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      _markAllAsRead(more, items);
-                                    },
-                                    borderRadius: BorderRadius.circular(999),
-                                    child: Container(
-                                      height: 34,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF059669)
-                                            .withValues(
-                                                alpha: isDark ? 0.22 : 0.10),
-                                        borderRadius:
-                                            BorderRadius.circular(999),
-                                        border: Border.all(
-                                          color: const Color(0xFF059669)
-                                              .withValues(alpha: 0.35),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.done_all_rounded,
-                                            size: 15,
-                                            color: isDark
-                                                ? const Color(0xFF34D399)
-                                                : const Color(0xFF059669),
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            'Đọc hết',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: isDark
-                                                  ? const Color(0xFF34D399)
-                                                  : const Color(0xFF059669),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            // Luxury Segmented Pill TabBar
-                            Container(
-                              height: 42,
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF1E293B)
-                                    : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.08)
-                                      : const Color(0xFFE2E8F0),
-                                ),
-                              ),
-                              child: TabBar(
-                                dividerColor: Colors.transparent,
-                                indicatorSize: TabBarIndicatorSize.tab,
-                                splashBorderRadius: BorderRadius.circular(999),
-                                indicator: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF059669),
-                                      Color(0xFF047857),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(999),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF059669)
-                                          .withValues(alpha: 0.30),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                labelColor: Colors.white,
-                                unselectedLabelColor: isDark
-                                    ? const Color(0xFF94A3B8)
-                                    : const Color(0xFF475569),
-                                labelStyle: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                                unselectedLabelStyle: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                tabs: [
-                                  Tab(text: 'Giao dịch chờ ($pending)'),
-                                  Tab(text: 'Hoạt động ($unread)'),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  Text(
+                    'Thông báo',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
-                  // Body Content
-                  Expanded(
-                    child: TabBarView(
-                      physics: const BouncingScrollPhysics(),
-                      children: [
-                        BankInboxView(userId: widget.userId),
-                        _ActivityTab(userId: widget.userId),
-                      ],
+                  const SizedBox(height: 1),
+                  Text(
+                    pending + unread > 0
+                        ? '${pending + unread} mục cần bạn kiểm tra'
+                        : 'Tất cả thông báo đã được cập nhật',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                 ],
-              );
-            },
+              ),
+            ),
+            if (unread > 0 && more != null)
+              InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  _markAllAsRead(more, items);
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669)
+                        .withValues(alpha: isDark ? 0.22 : 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFF059669).withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.done_all_rounded,
+                        size: 15,
+                        color: isDark
+                            ? const Color(0xFF34D399)
+                            : const Color(0xFF059669),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Đọc hết',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFF059669),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 38,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.10)
+                  : Colors.black.withValues(alpha: 0.08),
+              width: 0.8,
+            ),
+          ),
+          child: TabBar(
+            dividerColor: Colors.transparent,
+            indicatorSize: TabBarIndicatorSize.tab,
+            splashBorderRadius: BorderRadius.circular(999),
+            indicator: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF059669), Color(0xFF047857)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF059669).withValues(alpha: 0.30),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            labelColor: Colors.white,
+            unselectedLabelColor:
+                isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+            labelStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            tabs: [
+              Tab(text: 'Giao dịch chờ ($pending)'),
+              Tab(text: 'Hoạt động ($unread)'),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
 class _ActivityTab extends StatelessWidget {
   final String userId;
-  const _ActivityTab({required this.userId});
+  final double? topPadding;
+  const _ActivityTab({required this.userId, this.topPadding});
 
   ({IconData icon, Color color}) _styleForType(String type) {
     final lower = type.toLowerCase();
@@ -405,7 +349,7 @@ class _ActivityTab extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: EdgeInsets.fromLTRB(16, topPadding ?? 16, 16, 32),
       physics: const BouncingScrollPhysics(),
       itemCount: more.notifications.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),

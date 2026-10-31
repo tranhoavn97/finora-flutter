@@ -1,7 +1,9 @@
+import '../../core/widgets/adaptive_glass_surface.dart';
 import '../../core/widgets/finora_notice.dart';
 import '../../core/widgets/finora_member_filter.dart';
-import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/finora_transaction_success_modal.dart';
+import '../../state/theme_studio_controller.dart';
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -79,11 +81,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
   late final TextEditingController _noteController;
 
-  late final TextEditingController _bankCodeController;
-
   final ScrollController _scrollController = ScrollController();
 
   final FocusNode _noteFocusNode = FocusNode();
+  final FocusNode _amountFocusNode = FocusNode();
+  final GlobalKey _noteCardKey = GlobalKey();
+  Timer? _amountScrollTimer;
+  Timer? _noteScrollTimer;
 
   late String
       _type; // 'expense' | 'income' | 'transfer' | 'credit_card_payment' | 'investment'
@@ -168,21 +172,35 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     _noteController = TextEditingController(text: e?.note ?? '');
 
-    _bankCodeController =
-        TextEditingController(text: e?.bankTransactionCode ?? '');
-
     _loadDeletedMerchants();
 
     _amountController.addListener(_onAmountChanged);
 
     _noteController.addListener(_onAmountChanged);
 
+    _amountFocusNode.addListener(() {
+      if (_amountFocusNode.hasFocus) {
+        _amountScrollTimer?.cancel();
+        _amountScrollTimer = Timer(const Duration(milliseconds: 150), () {
+          if (mounted && _scrollController.hasClients) {
+            _scrollController.animateTo(
+              0.0,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
+      }
+    });
+
     _noteFocusNode.addListener(() {
       if (_noteFocusNode.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 280), () {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
+        _noteScrollTimer?.cancel();
+        _noteScrollTimer = Timer(const Duration(milliseconds: 280), () {
+          if (mounted && _noteFocusNode.hasFocus && _noteCardKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              _noteCardKey.currentContext!,
+              alignment: 0.35,
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
             );
@@ -467,9 +485,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     _noteController.dispose();
 
-    _bankCodeController.dispose();
-
+    _amountScrollTimer?.cancel();
+    _noteScrollTimer?.cancel();
     _noteFocusNode.dispose();
+    _amountFocusNode.dispose();
 
     _scrollController.dispose();
 
@@ -1210,7 +1229,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     final rawNote = _noteController.text.trim();
     final note = rawNote.isEmpty ? '' : capitalizeFirstLetter(rawNote);
-    final bankCodeRef = _bankCodeController.text.trim();
+    final bankCodeRef = widget.existing?.bankTransactionCode?.trim() ?? '';
 
     final TransactionModel tx;
 
@@ -1232,8 +1251,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     final oldTags = widget.existing?.tags ?? <String>[];
 
     final cleanTags = oldTags
-        .where(
-            (t) => t != 'Chồng' && t != 'Vợ' && t != 'Con' && t != 'Thành viên' && t != 'Chung' && !t.startsWith('bank_code:'))
+        .where((t) =>
+            t != 'Chồng' &&
+            t != 'Vợ' &&
+            t != 'Con' &&
+            t != 'Thành viên' &&
+            t != 'Chung' &&
+            !(bankCodeRef.isNotEmpty && t.startsWith('bank_code:')))
         .toList();
 
     final String ownerName;
@@ -1254,6 +1278,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     final provider = context.read<TransactionProvider>();
 
     final wallets = provider.wallets;
+
+    final resolvedOwnerRole = switch (activeTag.toLowerCase()) {
+      'vợ' || 'vo' || 'wife' => 'wife',
+      'chung' || 'joint' || 'all' => 'joint',
+      _ => 'husband',
+    };
 
     if (_type == 'transfer') {
       final fromW = _fromWallet ?? (wallets.isNotEmpty ? wallets.first : null);
@@ -1276,8 +1306,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         fromWalletName: fromW?.name,
         toWalletId: toW?.id,
         toWalletName: toW?.name,
-        fromOwner: fromW?.owner,
-        toOwner: toW?.owner,
+        owner: fromW?.owner ?? resolvedOwnerRole,
+        ownerName: ownerName,
+        fromOwner: fromW?.owner ?? resolvedOwnerRole,
+        toOwner: toW?.owner ?? resolvedOwnerRole,
         categoryName: 'Chuyển tiền',
         categoryIcon: '🔄',
         categoryColor: '#6B7280',
@@ -1308,8 +1340,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         toWalletId: toW?.id,
         toWalletName: toW?.name,
         creditCardId: toW?.id,
-        fromOwner: fromW?.owner,
-        toOwner: toW?.owner,
+        owner: fromW?.owner ?? resolvedOwnerRole,
+        ownerName: ownerName,
+        fromOwner: fromW?.owner ?? resolvedOwnerRole,
+        toOwner: toW?.owner ?? resolvedOwnerRole,
         categoryName: 'Thanh toán thẻ',
         categoryIcon: '💳',
         categoryColor: '#F59E0B',
@@ -1366,8 +1400,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               userId: widget.userId,
             );
       if (existing != null) {
-        await provider.updateTransaction(
-            widget.userId, existing.id, savedTx);
+        await provider.updateTransaction(widget.userId, existing.id, savedTx);
       } else {
         await provider.createTransaction(widget.userId, savedTx);
       }
@@ -1377,6 +1410,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           context,
           transaction: savedTx,
           isEdit: existing != null,
+          walletName: _wallet?.name ?? _fromWallet?.name,
+          destinationWalletName: _toWallet?.name,
+          spenderTag: activeTag,
         );
 
         if (!mounted) return;
@@ -1384,7 +1420,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           setState(() {
             _amountController.clear();
             _noteController.clear();
-            _bankCodeController.clear();
             _pendingTransactionId = null;
           });
         } else {
@@ -1533,67 +1568,102 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     _category ??= _resolveCategory(provider, _type, widget.existing);
 
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.transparent,
-      body: AmbientFloatingBackground(
-        child: SafeArea(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onHorizontalDragEnd: _handleHorizontalSwipe,
-            child: Column(
-              children: [
-                _buildFloatingHeader(isDark),
-                Expanded(
-                  child: ListView(
-                    key: const ValueKey('transaction-form-scroll'),
-                    controller: _scrollController,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                    children: [
-                      _buildAmountSection(isDark),
+    return GlassScaffold(
+      extendBodyBehindAppBar: true,
+      appBar: GlassTopBar(
+        title: '',
+        titleWidget: _buildTypeSelector(isDark),
+        showBack: true,
+        onBack: () => Navigator.of(context).maybePop(),
+        height: 48,
+      ),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: _handleHorizontalSwipe,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ListView(
+                key: const ValueKey('transaction-form-scroll'),
+                controller: _scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                    16,
+                    GlassScaffold.topInset(context, 6, 48),
+                    16,
+                    MediaQuery.of(context).viewInsets.bottom > 0
+                        ? MediaQuery.of(context).viewInsets.bottom + 120
+                        : 120),
+                children: [
+                  _buildAmountSection(isDark),
 
-                      const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                      // Card 1: Row of 2 Bento Cards (Danh mục & Ví thanh toán / 2 Ví cho Chuyển & Trả thẻ)
+                  // Card 1: Row of 2 Bento Cards (Danh mục & Ví thanh toán / 2 Ví cho Chuyển & Trả thẻ)
 
-                      _buildBentoRowCards(isDark),
+                  _buildBentoRowCards(isDark),
 
-                      // Card 2: Nơi mua sắm Bento Card
+                  // Card 2: Nơi mua sắm Bento Card
 
-                      if (_type == 'expense') ...[
-                        const SizedBox(height: 12),
-                        _buildMerchantBentoCard(isDark),
-                      ],
+                  if (_type == 'expense') ...[
+                    const SizedBox(height: 12),
+                    _buildMerchantBentoCard(isDark),
+                  ],
 
-                      const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                      // Card 3: Thời gian giao dịch Bento Card
+                  // Card 3: Thời gian giao dịch Bento Card
 
-                      _buildDateTimeBentoCard(isDark),
+                  _buildDateTimeBentoCard(isDark),
 
-                      const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                      // Card 4: Ghi chú Bento Card (kèm Gợi ý thông minh)
+                  // Card 4: Ghi chú Bento Card (kèm Gợi ý thông minh)
 
-                      _buildNoteBentoCard(isDark),
+                  _buildNoteBentoCard(isDark),
 
-                      // Card 5: Người chi tiêu Bento Card
+                  // Card 5: Người chi tiêu Bento Card
 
-                      if (_hasFamilyMembers) ...[
-                        const SizedBox(height: 12),
-                        _buildSpenderBentoCard(isDark),
-                      ],
-                    ],
-                  ),
-                ),
-                _buildSaveButton(isDark),
-              ],
+                  if (_hasFamilyMembers) ...[
+                    const SizedBox(height: 12),
+                    _buildSpenderBentoCard(isDark),
+                  ],
+                ],
+              ),
             ),
-          ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildSaveButton(isDark),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAddTxHeaderContent(bool isDark) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.existing != null ? 'Sửa giao dịch' : 'Thêm giao dịch',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: 'BeVietnamPro',
+            fontSize: 18.0,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildTypeSelector(isDark),
+      ],
     );
   }
 
@@ -1620,92 +1690,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     }
   }
 
-  Widget _buildFloatingHeader(bool isDark) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Row 1: Circular Back Button + Title "Thêm giao dịch"
-
-              Row(
-                children: [
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => Navigator.of(context).maybePop(),
-                      borderRadius: BorderRadius.circular(100),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color:
-                              isDark ? const Color(0xFF1E293B) : Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFE2E8F0),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black
-                                  .withValues(alpha: isDark ? 0.20 : 0.04),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.chevron_left_rounded,
-                            size: 24,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      widget.existing != null
-                          ? 'Sửa giao dịch'
-                          : 'Thêm giao dịch',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 18.5,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // Row 2: Full-width Segmented Type Selector
-
-              _buildTypeSelector(isDark),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTypeSelector(bool isDark) {
     const types = [
       'expense',
@@ -1719,8 +1703,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       key: const ValueKey('transaction-type-tabs'),
       labels: const ['Chi tiêu', 'Thu nhập', 'Chuyển', 'Trả thẻ', 'Đầu tư'],
       selectedIndex: types.indexOf(_type).clamp(0, types.length - 1),
-      height: 46,
-      fontSize: 12,
+      height: 42,
+      fontSize: 11.5,
+      transparentBackground: true,
       colors: const [
         Color(0xFFE11D48),
         Color(0xFF059669),
@@ -1815,8 +1800,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _activeTypeAccentColor
-                            .withValues(alpha: isDark ? 0.25 : 0.14),
+                        color: _activeTypeAccentColor.withValues(
+                            alpha: isDark ? 0.25 : 0.14),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -1846,6 +1831,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               child: IntrinsicWidth(
                 child: TextField(
                   controller: _amountController,
+                  focusNode: _amountFocusNode,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
                   inputFormatters: const [DotSeparatorTextInputFormatter()],
@@ -1912,8 +1898,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     final catColorHex = _category?.color ?? '#E11D48';
 
-
-
     final bankCode =
         activeWallet != null ? _inferBankCodeForWallet(activeWallet) : 'cash';
 
@@ -1929,7 +1913,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             child: InkWell(
               onTap: _pickCategory,
               borderRadius: BorderRadius.circular(20),
-              child: Container(
+              child: AdaptiveGlassSurface(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2044,7 +2028,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 title: 'Chọn ví thanh toán',
               ),
               borderRadius: BorderRadius.circular(20),
-              child: Container(
+              child: AdaptiveGlassSurface(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2185,7 +2169,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     final allMerchants = _getAllMerchants(provider);
 
-    return Container(
+    return AdaptiveGlassSurface(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2230,8 +2214,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                     onTap: _showMerchantPickerModal,
                     borderRadius: BorderRadius.circular(100),
                     child: Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -2384,7 +2368,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     final timeStr =
         '${currentDt.hour.toString().padLeft(2, '0')}:${currentDt.minute.toString().padLeft(2, '0')}';
 
-    return Container(
+    return AdaptiveGlassSurface(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2461,8 +2445,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                 decoration: BoxDecoration(
-                  color:
-                      isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isDark
@@ -2494,7 +2479,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.2,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                     ],
@@ -2610,11 +2596,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     );
   }
 
-  /// Bento Card 4: Ghi chú riêng & Mã giao dịch Ngân hàng Bento Card
+  /// Bento Card 4: Ghi chú Ngân hàng Bento Card
 
   Widget _buildNoteBentoCard(bool isDark) {
     final accent = _activeTypeAccentColor;
     return Container(
+      key: _noteCardKey,
+      child: AdaptiveGlassSurface(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2644,7 +2632,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Ghi chú riêng & Mã giao dịch',
+                  'Ghi chú',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -2672,6 +2660,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             child: TextField(
               controller: _noteController,
               focusNode: _noteFocusNode,
+              scrollPadding: const EdgeInsets.only(bottom: 140),
               textCapitalization: TextCapitalization.sentences,
               inputFormatters: const [
                 FinoraCapitalizeFirstFormatter(),
@@ -2704,67 +2693,16 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF0F172A).withValues(alpha: 0.75)
-                  : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: accent.withValues(alpha: isDark ? 0.28 : 0.18),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.tag_rounded,
-                  size: 16,
-                  color: accent,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _bankCodeController,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'BeVietnamPro',
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                    decoration: InputDecoration(
-                      hintText:
-                          'Mã giao dịch chính (Tự nhận từ Ngân hàng / Shopee / TikTok)',
-                      hintStyle: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'BeVietnamPro',
-                        color: isDark
-                            ? const Color(0xFF64748B)
-                            : const Color(0xFF94A3B8),
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
+    ),
     );
   }
 
   /// Bento Card 5: Người chi tiêu Bento Card
 
   Widget _buildSpenderBentoCard(bool isDark) {
-    return Container(
+    return AdaptiveGlassSurface(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2863,7 +2801,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
     );
 
-    return Container(
+    return AdaptiveGlassSurface(
       width: double.infinity,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -3040,7 +2978,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
+        child: AdaptiveGlassSurface(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -3079,7 +3017,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Container(
+                  AdaptiveGlassSurface(
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
@@ -3298,7 +3236,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           borderRadius: BorderRadius.circular(16),
           child: Row(
             children: [
-              Container(
+              AdaptiveGlassSurface(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
@@ -3711,8 +3649,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                     });
                   },
                   child: Container(
-                    padding:
-                        const EdgeInsets.fromLTRB(6, 5, 14, 5),
+                    padding: const EdgeInsets.fromLTRB(6, 5, 14, 5),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? (isDark
@@ -3798,7 +3735,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     );
   }
 
-
   Widget _buildBentoSpenderTile(bool isDark) {
     final options = const [
       (tag: 'Chồng', role: 'husband'),
@@ -3816,8 +3752,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             Icon(
               Icons.people_outline_rounded,
               size: 16,
-              color:
-                  isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
             const SizedBox(width: 6),
             Text(
@@ -3826,9 +3761,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 fontFamily: 'BeVietnamPro',
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: isDark
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -3859,8 +3793,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? _activeTypeAccentColor
-                              .withValues(alpha: isDark ? 0.22 : 0.12)
+                          ? _activeTypeAccentColor.withValues(
+                              alpha: isDark ? 0.22 : 0.12)
                           : (isDark
                               ? const Color(0xFF0F172A)
                               : const Color(0xFFF1F5F9)),
@@ -3891,8 +3825,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             style: TextStyle(
                               fontFamily: 'BeVietnamPro',
                               fontSize: 11.2,
-                              fontWeight:
-                                  isSelected ? FontWeight.w800 : FontWeight.w600,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                               color: isSelected
                                   ? _activeTypeAccentColor
                                   : (isDark
@@ -4088,8 +4023,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     }
   }
 
-  List<({String id, String name, String? asset, String icon, String? colorHex})> _getAllMerchants(
-      TransactionProvider provider) {
+  List<({String id, String name, String? asset, String icon, String? colorHex})>
+      _getAllMerchants(TransactionProvider provider) {
     List<Category> moreCategories = const [];
     try {
       moreCategories = context.read<MoreProvider>().categories;
@@ -4420,6 +4355,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
   Widget _buildSaveButton(bool isDark) {
     final valid = _isValid();
+    final studio = context.watch<ThemeStudioController?>();
+    final blurSigma = (studio?.appBarBlur ?? 22.0).clamp(12.0, 30.0);
 
     final label = widget.existing != null
         ? 'Cập nhật giao dịch'
@@ -4433,68 +4370,94 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           };
 
     final accent = _activeTypeAccentColor;
+    final secondaryAccent = accent == const Color(0xFFE11D48)
+        ? const Color(0xFFF43F5E)
+        : accent == const Color(0xFF00866A)
+            ? const Color(0xFF10B981)
+            : accent == const Color(0xFF0284C7)
+                ? const Color(0xFF38BDF8)
+                : accent == const Color(0xFFD97706)
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF0D9488);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      child: SizedBox(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+      child: Container(
         width: double.infinity,
-        height: 52,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(100),
-            gradient: valid
-                ? LinearGradient(
-                    colors: [
-                      accent,
-                      accent == const Color(0xFFE11D48)
-                          ? const Color(0xFFF43F5E)
-                          : accent == const Color(0xFF00866A)
-                              ? const Color(0xFF10B981)
-                              : accent == const Color(0xFF0284C7)
-                                  ? const Color(0xFF0284C7)
-                                  : accent == const Color(0xFFD97706)
-                                      ? const Color(0xFFF59E0B)
-                                      : const Color(0xFF0D9488),
-                    ],
-                  )
-                : null,
-            color: valid
-                ? null
-                : (isDark ? const Color(0xFF294139) : const Color(0xFFDCE8E1)),
-            boxShadow: valid
-                ? [
-                    BoxShadow(
-                        color: accent.withValues(alpha: .28),
-                        blurRadius: 16,
-                        offset: const Offset(0, 5))
-                  ]
-                : null,
-          ),
-          child: TextButton(
-            key: const ValueKey('transaction-save'),
-            onPressed: valid ? _save : null,
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              disabledForegroundColor:
-                  isDark ? const Color(0xFFA2B9AE) : const Color(0xFF64776D),
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+        height: 54,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: [
+            BoxShadow(
+              color: valid
+                  ? accent.withValues(alpha: isDark ? 0.36 : 0.26)
+                  : Colors.black.withValues(alpha: isDark ? 0.24 : 0.06),
+              blurRadius: 20,
+              spreadRadius: -2,
+              offset: const Offset(0, 8),
             ),
-            child: _isSaving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.check_circle_rounded, size: 20),
-                      const SizedBox(width: 8),
-                      Text(label,
-                          style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700)),
-                    ])),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                gradient: valid
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          accent.withValues(alpha: isDark ? 0.80 : 0.86),
+                          secondaryAccent.withValues(
+                              alpha: isDark ? 0.74 : 0.82),
+                        ],
+                      )
+                    : null,
+                color: valid
+                    ? null
+                    : (isDark
+                        ? const Color(0xFF1E293B).withValues(alpha: 0.68)
+                        : Colors.white.withValues(alpha: 0.72)),
+                border: Border.all(
+                  color: valid
+                      ? Colors.white.withValues(alpha: 0.32)
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : const Color(0xFFCBD5E1).withValues(alpha: 0.75)),
+                  width: 1.1,
+                ),
+              ),
+              child: TextButton(
+                key: const ValueKey('transaction-save'),
+                onPressed: valid ? _save : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  disabledForegroundColor: isDark
+                      ? const Color(0xFFA2B9AE)
+                      : const Color(0xFF475569),
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.check_circle_rounded, size: 20),
+                          const SizedBox(width: 8),
+                          Text(label,
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w800)),
+                        ])),
+              ),
+            ),
           ),
         ),
       ),
@@ -5226,7 +5189,7 @@ class _DateAndTimePickerSheetState extends State<_DateAndTimePickerSheet> {
     required VoidCallback onDecrement,
     required VoidCallback onIncrement,
   }) {
-    return Container(
+    return AdaptiveGlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -5332,17 +5295,26 @@ class _CategoryGridTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             color: selected
-                ? accentColor.withValues(alpha: isDark ? 0.22 : 0.12)
+                ? accentColor.withValues(alpha: isDark ? 0.26 : 0.16)
                 : (isDark
-                    ? Colors.white.withValues(alpha: 0.04)
+                    ? Colors.white.withValues(alpha: 0.06)
                     : const Color(0xFFF8FAFC)),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: selected
                   ? accentColor
-                  : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              width: selected ? 1.6 : 0.8,
+                  : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              width: selected ? 1.8 : 1.0,
             ),
+            boxShadow: [
+              if (selected)
+                BoxShadow(
+                  color: accentColor.withValues(alpha: isDark ? 0.40 : 0.28),
+                  blurRadius: 12,
+                  spreadRadius: -1,
+                  offset: const Offset(0, 4),
+                ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -5362,7 +5334,7 @@ class _CategoryGridTile extends StatelessWidget {
                     Positioned(
                       right: -3,
                       top: -3,
-                      child: Container(
+                      child: AdaptiveGlassSurface(
                         padding: const EdgeInsets.all(2.5),
                         decoration: BoxDecoration(
                           color: accentColor,
