@@ -29,6 +29,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Enable 120Hz ProMotion high-frequency touch resampling for ultra-smooth scrolling
   GestureBinding.instance.resamplingEnabled = true;
+  try {
+    const channel = MethodChannel('com.finora.display/refresh_rate');
+    await channel.invokeMethod<double>('enable120Hz');
+  } catch (_) {}
   AppErrorBoundary.initializeGlobalHandlers();
 
   // Android Luxury Experience: Seamless edge-to-edge transparent system bars

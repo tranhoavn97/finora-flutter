@@ -607,9 +607,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     }
   }
 
-  void _pickCategory() => _showCategorySearchModal();
+  Future<void> _pickCategory() async {
+    final chosen = await _showCategorySearchModal();
+    if (chosen != null && mounted) {
+      setState(() => _category = chosen);
+    }
+  }
 
-  void _showCategorySearchModal() {
+  Future<Category?> _showCategorySearchModal() {
     final provider = context.read<TransactionProvider>();
 
     final rawCats = _categoriesFor(provider, _type);
@@ -628,7 +633,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     final searchController = TextEditingController();
 
-    showModalBottomSheet(
+    return showModalBottomSheet<Category?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -765,9 +770,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                       onTap: () {
                                         HapticFeedback.selectionClick();
 
-                                        setState(() => _category = item);
-
-                                        Navigator.of(sheetContext).pop();
+                                        Navigator.of(sheetContext).pop(item);
                                       },
                                     );
                                   },
@@ -5284,90 +5287,92 @@ class _CategoryGridTile extends StatelessWidget {
 
     final catColor = BankIconRegistry.parseThemeColor(category.color);
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    return RepaintBoundary(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected
-                ? accentColor.withValues(alpha: isDark ? 0.26 : 0.16)
-                : (isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : const Color(0xFFF8FAFC)),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            decoration: BoxDecoration(
               color: selected
-                  ? accentColor
-                  : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-              width: selected ? 1.8 : 1.0,
+                  ? accentColor.withValues(alpha: isDark ? 0.26 : 0.16)
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : const Color(0xFFF8FAFC)),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selected
+                    ? accentColor
+                    : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                width: selected ? 1.8 : 1.0,
+              ),
+              boxShadow: [
+                if (selected)
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: isDark ? 0.40 : 0.28),
+                    blurRadius: 12,
+                    spreadRadius: -1,
+                    offset: const Offset(0, 4),
+                  ),
+              ],
             ),
-            boxShadow: [
-              if (selected)
-                BoxShadow(
-                  color: accentColor.withValues(alpha: isDark ? 0.40 : 0.28),
-                  blurRadius: 12,
-                  spreadRadius: -1,
-                  offset: const Offset(0, 4),
-                ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  CategoryIconBadge(
-                    icon: category.icon,
-                    categoryName: category.name,
-                    color: catColor,
-                    size: 38,
-                    isDark: isDark,
-                  ),
-                  if (selected)
-                    Positioned(
-                      right: -3,
-                      top: -3,
-                      child: AdaptiveGlassSurface(
-                        padding: const EdgeInsets.all(2.5),
-                        decoration: BoxDecoration(
-                          color: accentColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color:
-                                isDark ? const Color(0xFF1E293B) : Colors.white,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: const Icon(Icons.check,
-                            size: 9, color: Colors.white),
-                      ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    CategoryIconBadge(
+                      icon: category.icon,
+                      categoryName: category.name,
+                      color: catColor,
+                      size: 38,
+                      isDark: isDark,
                     ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  category.name,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    height: 1.15,
+                    if (selected)
+                      Positioned(
+                        right: -3,
+                        top: -3,
+                        child: AdaptiveGlassSurface(
+                          padding: const EdgeInsets.all(2.5),
+                          decoration: BoxDecoration(
+                            color: accentColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  isDark ? const Color(0xFF1E293B) : Colors.white,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: const Icon(Icons.check,
+                              size: 9, color: Colors.white),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    category.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.15,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

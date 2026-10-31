@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'adaptive_glass_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,19 +34,36 @@ class BankTransactionPromptSheet extends StatefulWidget {
     required ParsedBankTransaction transaction,
     required String userId,
   }) {
+    final screenH = MediaQuery.sizeOf(context).height;
+    final bottomSafe = MediaQuery.paddingOf(context).bottom;
+
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      constraints: const BoxConstraints(maxWidth: double.infinity),
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        margin: EdgeInsets.only(top: (MediaQuery.paddingOf(ctx).top + 20.0).clamp(44.0, 80.0)),
+        margin: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          math.max(bottomSafe, 12.0) + 8.0,
+        ),
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
+          maxHeight: math.min(screenH * 0.72, 580.0),
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          borderRadius: BorderRadius.circular(32),
           child: BankTransactionPromptSheet(tx: transaction, userId: userId),
         ),
       ),
@@ -789,12 +807,12 @@ class _BankTransactionPromptSheetState
         right: 18,
         top: 14,
         bottom: MediaQuery.of(context).viewInsets.bottom +
-            MediaQuery.viewPaddingOf(context).bottom +
-            20,
+            math.max(MediaQuery.paddingOf(context).bottom, 14.0) +
+            8.0,
       ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF111827) : Colors.white,
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(32),
         border: Border.all(
           color: accentColor.withValues(alpha: isDark ? 0.38 : 0.22),
           width: 1.2,

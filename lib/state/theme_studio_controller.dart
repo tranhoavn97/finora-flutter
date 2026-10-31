@@ -2497,6 +2497,9 @@ class ThemeStudioController extends ChangeNotifier {
       }
       final hr120 = prefs.getBool(_highRefreshRate120HzKey);
       if (hr120 != null) _highRefreshRate120Hz = hr120;
+      if (_highRefreshRate120Hz) {
+        await applyHighRefreshRateNative();
+      }
       final loadStyleIdx = _readInt(prefs, _loadingStyleKey);
       if (loadStyleIdx != null &&
           loadStyleIdx >= 0 &&

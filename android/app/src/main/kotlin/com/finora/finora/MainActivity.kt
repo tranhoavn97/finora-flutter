@@ -213,34 +213,35 @@ class MainActivity : FlutterActivity() {
                 windowManager.defaultDisplay
             } ?: return 60.0f
 
-            val currentMode = display.mode
             val modes = display.supportedModes
-
-            // Find best mode with highest refresh rate up to 144Hz (preferring 120Hz)
             var bestMode: Display.Mode? = null
-            var maxRate = currentMode.refreshRate
+            var maxRate = 60.0f
 
+            // Unconditionally find best mode with highest refresh rate up to 165Hz (90Hz / 120Hz / 144Hz)
             for (m in modes) {
-                if (m.physicalWidth == currentMode.physicalWidth && m.physicalHeight == currentMode.physicalHeight) {
-                    if (m.refreshRate > maxRate && m.refreshRate <= 144.5f) {
-                        maxRate = m.refreshRate
-                        bestMode = m
-                    }
+                if (m.refreshRate > maxRate && m.refreshRate <= 165.5f) {
+                    maxRate = m.refreshRate
+                    bestMode = m
                 }
             }
 
+            val params = window.attributes
             if (bestMode != null) {
-                val params = window.attributes
                 params.preferredDisplayModeId = bestMode.modeId
                 params.preferredRefreshRate = bestMode.refreshRate
-                window.attributes = params
-                return bestMode.refreshRate
             } else {
-                val params = window.attributes
                 params.preferredRefreshRate = maxRate
-                window.attributes = params
-                return maxRate
             }
+
+            // Dynamic lock to highest refresh rate (available on Android 11+)
+            try {
+                params.javaClass.getField("preferredMinDisplayRefreshRate").set(params, maxRate)
+            } catch (_: Exception) {}
+            try {
+                params.javaClass.getField("preferredMaxDisplayRefreshRate").set(params, maxRate)
+            } catch (_: Exception) {}
+            window.attributes = params
+            return maxRate
         } catch (e: Exception) {
             return 60.0f
         }
