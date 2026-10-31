@@ -352,7 +352,7 @@ class _ReportScreenState extends State<ReportScreen>
         parent: BouncingScrollPhysics(),
       ),
       padding: EdgeInsets.fromLTRB(
-          16, widget.isTab ? (MediaQuery.paddingOf(context).top + 54) : 8, 16, 120),
+          16, widget.isTab ? GlassScaffold.topInset(context, 4, 44) : 8, 16, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

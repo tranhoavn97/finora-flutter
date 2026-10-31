@@ -830,7 +830,6 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       extendBodyBehindAppBar: true,
       appBar: GlassTopBar(
         title: '',
-        isTransparent: true,
         titleWidget: _buildAppleSegmentBar(
           isDark: isDark,
           studio: studio,
