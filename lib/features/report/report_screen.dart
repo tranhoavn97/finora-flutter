@@ -352,7 +352,7 @@ class _ReportScreenState extends State<ReportScreen>
         parent: BouncingScrollPhysics(),
       ),
       padding: EdgeInsets.fromLTRB(
-          16, widget.isTab ? GlassScaffold.topInset(context, 0, 44) : 8, 16, 120),
+          16, widget.isTab ? (MediaQuery.paddingOf(context).top + 54) : 8, 16, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -811,7 +811,7 @@ class _ReportScreenState extends State<ReportScreen>
     required bool dark,
     EdgeInsetsGeometry? padding,
   }) {
-    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final cardFill = studio?.getCardFillColor(dark) ??
         (dark
             ? const Color(0xFF142033).withValues(alpha: 0.88)

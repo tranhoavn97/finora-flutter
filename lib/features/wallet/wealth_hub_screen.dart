@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import '../../core/widgets/adaptive_glass_surface.dart';
 // ignore: unused_import
 
@@ -829,6 +830,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       extendBodyBehindAppBar: true,
       appBar: GlassTopBar(
         title: '',
+        isTransparent: true,
         titleWidget: _buildAppleSegmentBar(
           isDark: isDark,
           studio: studio,
@@ -5572,9 +5574,10 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     Wallet activeWallet,
     bool isDark,
   ) {
-    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final glassOpacity = studio?.glassOpacity ?? 0.88;
-    return Container(
+    final blur = studio?.glassBlur ?? 16.0;
+    final container = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: (isDark ? const Color(0xFF1E293B) : Colors.white).withValues(
@@ -5838,6 +5841,16 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ],
       ),
     );
+    if (blur > 0.5) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: container,
+        ),
+      );
+    }
+    return container;
   }
 
   Widget _buildWalletRecentTransactionsSection(
@@ -5859,8 +5872,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     final allCats = <dynamic>[...moreCats, ...txCats];
     final studio = context.watch<ThemeStudioController?>();
     final glassOpacity = studio?.glassOpacity ?? 0.85;
+    final blur = studio?.glassBlur ?? 16.0;
 
-    return Container(
+    final container = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: (isDark ? const Color(0xFF1E293B) : Colors.white).withValues(
@@ -6084,6 +6098,16 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ],
       ),
     );
+    if (blur > 0.5) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: container,
+        ),
+      );
+    }
+    return container;
   }
 
   void _confirmDeleteWallet(BuildContext context, Wallet wallet) {
@@ -7948,7 +7972,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
           lent ? 'Khoản cho vay đang theo dõi' : 'Khoản nợ đang theo dõi';
     }
 
-    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final glassOpacity = studio?.glassOpacity ?? 0.88;
     return AdaptiveGlassSurface(
       padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),

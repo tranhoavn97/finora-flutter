@@ -53,6 +53,95 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
   }
 
+  Future<void> _confirmClearAllNotifications(
+    BuildContext context,
+    MoreProvider more,
+  ) async {
+    HapticFeedback.heavyImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE11D48).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.delete_sweep_rounded,
+                color: Color(0xFFE11D48),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Dọn dẹp thông báo?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Toàn bộ danh sách thông báo lịch sử sẽ bị xoá sạch. Bạn có chắc muốn tiếp tục?',
+          style: TextStyle(fontSize: 13.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Huỷ',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE11D48),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'Xoá tất cả',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await more.clearAllNotifications(widget.userId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text('Đã dọn dẹp sạch toàn bộ thông báo.'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF059669),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final more = context.watch<MoreProvider?>();
@@ -72,6 +161,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
             extendBodyBehindAppBar: true,
             appBar: GlassTopBar(
               title: '',
+              showBack: false,
+              height: 106,
               titleWidget: _buildNotificationTopBarContent(
                 isDark: isDark,
                 pending: pending,
@@ -79,20 +170,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 more: more,
                 items: items,
               ),
-              showBack: true,
-              onBack: () => Navigator.of(context).maybePop(),
-              height: 104,
             ),
             body: TabBarView(
               physics: const BouncingScrollPhysics(),
               children: [
                 BankInboxView(
                   userId: widget.userId,
-                  topPadding: GlassScaffold.topInset(context, 6, 104),
+                  topPadding: GlassScaffold.topInset(context, 6, 106),
                 ),
                 _ActivityTab(
                   userId: widget.userId,
-                  topPadding: GlassScaffold.topInset(context, 6, 104),
+                  topPadding: GlassScaffold.topInset(context, 6, 106),
                 ),
               ],
             ),
@@ -109,17 +197,31 @@ class _NotificationScreenState extends State<NotificationScreen> {
     required MoreProvider? more,
     required List<AppNotification> items,
   }) {
+    final bool hasUnread = unread > 0 && more != null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Row 1: Back Button + Title + Actions
         Row(
           children: [
+            FinoraCircleIconButton(
+              icon: Icons.arrow_back_rounded,
+              tooltip: 'Quay lại',
+              size: 36,
+              iconSize: 20,
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'Thông báo',
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -130,8 +232,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   const SizedBox(height: 1),
                   Text(
                     pending + unread > 0
-                        ? '${pending + unread} mục cần bạn kiểm tra'
-                        : 'Tất cả thông báo đã được cập nhật',
+                        ? ' mục cần bạn kiểm tra'
+                        : 'Tất cả thông báo đã cập nhật',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -143,62 +247,118 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ],
               ),
             ),
-            if (unread > 0 && more != null)
-              InkWell(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  _markAllAsRead(more, items);
-                },
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF059669)
-                        .withValues(alpha: isDark ? 0.22 : 0.10),
+            const SizedBox(width: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasUnread) ...[
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      _markAllAsRead(more, items);
+                    },
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: const Color(0xFF059669).withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.done_all_rounded,
-                        size: 15,
-                        color: isDark
-                            ? const Color(0xFF34D399)
-                            : const Color(0xFF059669),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        'Đọc hết',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? const Color(0xFF34D399)
-                              : const Color(0xFF059669),
+                    child: Container(
+                      height: 30,
+                      padding: const EdgeInsets.symmetric(horizontal: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF059669)
+                            .withValues(alpha: isDark ? 0.22 : 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color:
+                              const Color(0xFF059669).withValues(alpha: 0.35),
                         ),
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.done_all_rounded,
+                            size: 14,
+                            color: isDark
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFF059669),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đọc hết',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFF059669),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                  const SizedBox(width: 6),
+                ],
+                if (items.isNotEmpty && more != null)
+                  InkWell(
+                    onTap: () => _confirmClearAllNotifications(context, more),
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      height: 30,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: hasUnread ? 8 : 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE11D48)
+                            .withValues(alpha: isDark ? 0.20 : 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color:
+                              const Color(0xFFE11D48).withValues(alpha: 0.32),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.delete_sweep_rounded,
+                            size: 15,
+                            color: isDark
+                                ? const Color(0xFFFB7185)
+                                : const Color(0xFFE11D48),
+                          ),
+                          if (!hasUnread) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              'Xoá tất cả',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? const Color(0xFFFB7185)
+                                    : const Color(0xFFE11D48),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
         const SizedBox(height: 8),
+        // Row 2: Segmented TabBar
         Container(
-          height: 38,
-          padding: const EdgeInsets.all(3),
+          height: 36,
+          padding: const EdgeInsets.all(2.5),
           decoration: BoxDecoration(
-            color: Colors.transparent,
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.25)
+                : Colors.black.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.10)
-                  : Colors.black.withValues(alpha: 0.08),
+                  : Colors.black.withValues(alpha: 0.06),
               width: 0.8,
             ),
           ),

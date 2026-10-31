@@ -273,10 +273,11 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
         showBack: canPop,
         onBack: canPop ? () => Navigator.pop(context) : null,
         height: 44,
+        isTransparent: true,
       ),
       body: PageView(
         controller: _pageController,
-        physics: const ClampingScrollPhysics(),
+        physics: const NeverScrollableScrollPhysics(),
         onPageChanged: (idx) {
           if (_selectedTab != idx) {
             HapticFeedback.selectionClick();

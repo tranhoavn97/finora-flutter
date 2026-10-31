@@ -711,7 +711,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     );
   }
 
-  // 2. Widget Chi tiêu, Thu nhập, Số dư (Tiền mặt)
+  // 2. Widget Chi tiêu, Thu nhập, Số dư (Phong cách UI/UX Apple Glass Bento Mới, Bỏ "Tháng này")
   Widget _buildExpenseIncomeBalanceStats(bool isDark) {
     final wallets = widget.provider.data.wallets;
     final cashBalance = wallets
@@ -724,11 +724,10 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         Expanded(
           child: _buildMetricMiniCard(
             label: 'Thu nhập',
-            subtitle: 'Tháng này',
             amount: widget.income,
             prefix: '+',
             color: const Color(0xFF059669),
-            icon: Icons.south_west_rounded,
+            icon: Icons.arrow_downward_rounded,
             isDark: isDark,
             onTap: widget.onViewTransactions,
           ),
@@ -737,11 +736,10 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         Expanded(
           child: _buildMetricMiniCard(
             label: 'Chi tiêu',
-            subtitle: 'Tháng này',
             amount: widget.expense,
             prefix: '−',
             color: const Color(0xFFE11D48),
-            icon: Icons.north_east_rounded,
+            icon: Icons.arrow_upward_rounded,
             isDark: isDark,
             onTap: widget.onViewTransactions,
           ),
@@ -749,8 +747,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         const SizedBox(width: 8),
         Expanded(
           child: _buildMetricMiniCard(
-            label: 'Số dư',
-            subtitle: 'Tiền mặt',
+            label: 'Số dư ví',
             amount: cashBalance,
             prefix: '',
             color: const Color(0xFF0284C7),
@@ -765,7 +762,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
 
   Widget _buildMetricMiniCard({
     required String label,
-    required String subtitle,
     required num amount,
     required String prefix,
     required Color color,
@@ -799,18 +795,18 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         },
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(11, 11, 11, 11),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           decoration: BoxDecoration(
             color: baseSurface.withValues(alpha: cardAlpha),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: color.withValues(alpha: isDark ? 0.36 : 0.24),
+              color: color.withValues(alpha: isDark ? 0.38 : 0.22),
               width: 1.15,
             ),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: isDark ? 0.16 : 0.07),
-                blurRadius: 12,
+                color: color.withValues(alpha: isDark ? 0.16 : 0.06),
+                blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -819,32 +815,39 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Top: Circular Jewel Icon Badge + Label
+              // Top: Circular Jewel Icon Badge + Full Label
               Row(
                 children: [
                   Container(
-                    width: 30,
-                    height: 30,
+                    width: 26,
+                    height: 26,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          color.withValues(alpha: isDark ? 0.30 : 0.18),
+                          color.withValues(alpha: isDark ? 0.32 : 0.20),
                           color.withValues(alpha: isDark ? 0.14 : 0.08),
                         ],
                       ),
                       border: Border.all(
-                        color: color.withValues(alpha: isDark ? 0.45 : 0.28),
+                        color: color.withValues(alpha: isDark ? 0.48 : 0.30),
                         width: 1.0,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: isDark ? 0.24 : 0.12),
+                          blurRadius: 6,
+                          offset: const Offset(0, 1.5),
+                        ),
+                      ],
                     ),
                     child: Center(
-                      child: Icon(icon, color: color, size: 15),
+                      child: Icon(icon, color: color, size: 14),
                     ),
                   ),
-                  const SizedBox(width: 7),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       label,
@@ -852,7 +855,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: 'BeVietnamPro',
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.2,
                         color: isDark
@@ -865,7 +868,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
               ),
               const SizedBox(height: 10),
 
-              // Value
+              // Value (Tabular Figures, High-Contrast)
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -874,45 +877,37 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   maxLines: 1,
                   style: TextStyle(
                     fontFamily: 'BeVietnamPro',
-                    fontSize: 16,
+                    fontSize: 16.5,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
+                    letterSpacing: -0.4,
                     color: valueColor,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
 
-              // Bottom Accent Bar + Subtitle
-              Row(
-                children: [
-                  Container(
-                    width: 14,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+              // Bottom Ambient Indicator Bar (Glowing Capsule)
+              Container(
+                width: 18,
+                height: 3.5,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color,
+                      color.withValues(alpha: 0.50),
+                    ],
                   ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.45),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -980,10 +975,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                 ? widget.onViewPlanning
                 : (widget.onAiAdvisorTap ?? widget.onViewPlanning),
             borderRadius: BorderRadius.circular(18),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF13221E) : Colors.white,
+            child: Builder(
+              builder: (ctx) {
+                final blur = widget.studio?.glassBlur ?? 16.0;
+                final fill = (widget.studio?.getCardFillColor(isDark) ??
+                        (isDark ? const Color(0xFF13221E) : Colors.white))
+                    .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
+                final card = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: fill,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: isDark
@@ -1122,11 +1123,22 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   ),
                 ],
               ),
-            ),
-          ),
-        );
-      },
-    );
+            );
+            if (blur > 0.5) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                  child: card,
+                ),
+              );
+            }
+            return card;
+          }),
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildZenvestAiQuickInputBar(bool isDark) {
@@ -1138,10 +1150,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           widget.onAiQuickLogTap?.call();
         },
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF121A17) : Colors.white,
+        child: Builder(
+          builder: (ctx) {
+            final blur = widget.studio?.glassBlur ?? 16.0;
+            final fill = (widget.studio?.getCardFillColor(isDark) ??
+                    (isDark ? const Color(0xFF121A17) : Colors.white))
+                .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
+            final card = Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: fill,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isDark
@@ -1235,6 +1253,18 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
               ),
             ],
           ),
+        );
+        if (blur > 0.5) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: card,
+            ),
+          );
+        }
+        return card;
+          },
         ),
       ),
     );
@@ -1261,10 +1291,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           widget.onAiAdvisorTap?.call();
         },
         borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF121A17) : Colors.white,
+        child: Builder(
+          builder: (ctx) {
+            final blur = widget.studio?.glassBlur ?? 16.0;
+            final fill = (widget.studio?.getCardFillColor(isDark) ??
+                    (isDark ? const Color(0xFF121A17) : Colors.white))
+                .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
+            final card = Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: fill,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: isDark
@@ -1435,9 +1471,20 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           ),
           ],
           ),
-        ),
-      ),
-    );
+        );
+        if (blur > 0.5) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: card,
+            ),
+          );
+        }
+        return card;
+      }),
+    ),
+  );
   }
 
   Widget _buildZenvestAiMetricRow(String label, String value, bool isDark) {
@@ -1524,10 +1571,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           }
         },
         borderRadius: BorderRadius.circular(22),
-        child: Container(
+        child: Builder(
+          builder: (ctx) {
+            final blur = widget.studio?.glassBlur ?? 16.0;
+            final fill = (widget.studio?.getCardFillColor(isDark) ??
+                    (isDark ? const Color(0xFF121A17) : Colors.white))
+                .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
+            final card = Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF121A17) : Colors.white,
+            color: fill,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: isDark
@@ -1787,9 +1840,20 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
               ),
             ],
           ),
-        ),
-      ),
-    );
+        );
+        if (blur > 0.5) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: card,
+            ),
+          );
+        }
+        return card;
+      }),
+    ),
+  );
   }
 
   // 5. Zenvest Transactions Surface Container

@@ -35,35 +35,21 @@ class BankTransactionPromptSheet extends StatefulWidget {
     required String userId,
   }) {
     final screenH = MediaQuery.sizeOf(context).height;
-    final bottomSafe = MediaQuery.paddingOf(context).bottom;
 
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
+      useSafeArea: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        margin: EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          math.max(bottomSafe, 12.0) + 8.0,
-        ),
         constraints: BoxConstraints(
-          maxHeight: math.min(screenH * 0.72, 580.0),
+          maxHeight: screenH * 0.94,
         ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.28),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
           child: BankTransactionPromptSheet(tx: transaction, userId: userId),
         ),
       ),
@@ -812,7 +798,7 @@ class _BankTransactionPromptSheetState
       ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF111827) : Colors.white,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         border: Border.all(
           color: accentColor.withValues(alpha: isDark ? 0.38 : 0.22),
           width: 1.2,

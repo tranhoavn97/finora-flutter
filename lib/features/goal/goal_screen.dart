@@ -137,7 +137,7 @@ class _GoalScreenState extends State<GoalScreen>
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
-                      16, widget.isTab ? GlassScaffold.topInset(context, 0, 44) : 0, 16, 16),
+                      16, widget.isTab ? (MediaQuery.paddingOf(context).top + 54) : 0, 16, 16),
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: FinoraTokens.emeraldCardDecoration(

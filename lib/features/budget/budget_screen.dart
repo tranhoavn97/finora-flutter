@@ -409,7 +409,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
-                        16, widget.isTab ? GlassScaffold.topInset(context, 0, 44) : 0, 16, 14),
+                        16, widget.isTab ? (MediaQuery.paddingOf(context).top + 54) : 0, 16, 14),
                     child: Builder(
                       builder: (context) {
                         final totalLimit = effectiveItems.fold<int>(

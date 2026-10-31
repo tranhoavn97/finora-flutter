@@ -207,6 +207,19 @@ class MoreProvider extends ChangeNotifier {
   Future<void> deleteNotification(String u, String id) =>
       _notifRepo.deleteNotification(u, id);
 
+  Future<void> clearAllNotifications(String u) async {
+    final list = List<AppNotification>.from(notifications);
+    notifications.clear();
+    notifyListeners();
+    for (final n in list) {
+      if (n.id.isNotEmpty) {
+        try {
+          await _notifRepo.deleteNotification(u, n.id);
+        } catch (_) {}
+      }
+    }
+  }
+
   // Categories
   Future<bool> addCategory(String u, Category c) => _run(
       () => _categoryRepo.createCategory(u, c),
