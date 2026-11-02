@@ -47,25 +47,25 @@ class FinoraTransactionSuccessModal extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: false,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: screenH * 0.94,
-          ),
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-            child: FinoraTransactionSuccessModal(
-              transaction: transaction,
-              isEdit: isEdit,
-              walletName: walletName,
-              destinationWalletName: destinationWalletName,
-              spenderTag: spenderTag,
-              onAddAnother: onAddAnother,
+        return SizedBox(
+          height: screenH * 0.95,
+          child: Container(
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              child: FinoraTransactionSuccessModal(
+                transaction: transaction,
+                isEdit: isEdit,
+                walletName: walletName,
+                destinationWalletName: destinationWalletName,
+                spenderTag: spenderTag,
+                onAddAnother: onAddAnother,
+              ),
             ),
           ),
         );

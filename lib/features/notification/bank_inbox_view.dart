@@ -377,7 +377,7 @@ class _BankInboxViewState extends State<BankInboxView> {
                           ),
                         ),
                       ),
-                      if (pending.length > 1) ...[
+                      if (pending.isNotEmpty) ...[
                         InkWell(
                           onTap: () async {
                             final ok = await showDialog<bool>(

@@ -123,6 +123,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     if (confirm == true && mounted) {
       await more.clearAllNotifications(widget.userId);
+      // Dọn dẹp đồng thời các giao dịch ngân hàng đang chờ bóc tách nếu có
+      for (final tx in _bank.pending) {
+        await _bank.acknowledge(tx.rawId);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -130,7 +134,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
                 SizedBox(width: 8),
-                Text('Đã dọn dẹp sạch toàn bộ thông báo.'),
+                Text('Đã dọn dẹp sạch toàn bộ thông báo và giao dịch chờ.'),
               ],
             ),
             backgroundColor: const Color(0xFF059669),
@@ -297,14 +301,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
                   const SizedBox(width: 6),
                 ],
-                if (items.isNotEmpty && more != null)
+                if ((items.isNotEmpty || pending > 0) && more != null)
                   InkWell(
                     onTap: () => _confirmClearAllNotifications(context, more),
                     borderRadius: BorderRadius.circular(999),
                     child: Container(
                       height: 30,
-                      padding: EdgeInsets.symmetric(
-                          horizontal: hasUnread ? 8 : 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 9),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE11D48)
                             .withValues(alpha: isDark ? 0.20 : 0.08),
@@ -324,19 +327,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 ? const Color(0xFFFB7185)
                                 : const Color(0xFFE11D48),
                           ),
-                          if (!hasUnread) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              'Xoá tất cả',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: isDark
-                                    ? const Color(0xFFFB7185)
-                                    : const Color(0xFFE11D48),
-                              ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Xoá tất cả',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? const Color(0xFFFB7185)
+                                  : const Color(0xFFE11D48),
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),

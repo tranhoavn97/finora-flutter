@@ -39,18 +39,18 @@ class BankTransactionPromptSheet extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: false,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        constraints: BoxConstraints(
-          maxHeight: screenH * 0.94,
-        ),
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BankTransactionPromptSheet(tx: transaction, userId: userId),
+      builder: (ctx) => SizedBox(
+        height: screenH * 0.95,
+        child: Container(
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            child: BankTransactionPromptSheet(tx: transaction, userId: userId),
+          ),
         ),
       ),
     );
@@ -1461,19 +1461,22 @@ class _BankTransactionPromptSheetState
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              selectedCategory?.name ??
-                                                  (isIncome
-                                                      ? 'Thu nhập khác'
-                                                      : 'Chi tiêu khác'),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w800,
-                                                color: isDark
-                                                    ? Colors.white
-                                                    : const Color(0xFF0F172A),
+                                            FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(
+                                                selectedCategory?.name ??
+                                                    (isIncome
+                                                        ? 'Thu nhập khác'
+                                                        : 'Chi tiêu khác'),
+                                                maxLines: 1,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : const Color(0xFF0F172A),
+                                                ),
                                               ),
                                             ),
                                             const SizedBox(height: 1),

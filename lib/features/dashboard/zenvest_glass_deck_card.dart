@@ -795,7 +795,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         },
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
           decoration: BoxDecoration(
             color: baseSurface.withValues(alpha: cardAlpha),
             borderRadius: BorderRadius.circular(22),
@@ -849,18 +849,21 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: isDark
-                            ? const Color(0xFFE2E8F0)
-                            : const Color(0xFF1E293B),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                          color: isDark
+                              ? const Color(0xFFE2E8F0)
+                              : const Color(0xFF1E293B),
+                        ),
                       ),
                     ),
                   ),

@@ -280,61 +280,68 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
     ];
 
+    void handleBackOrExit() {
+      if (_currentIndex != 0) {
+        setState(() => _currentIndex = 0);
+      } else {
+        final now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) >
+                const Duration(milliseconds: 2000)) {
+          _lastBackPressTime = now;
+          HapticFeedback.lightImpact();
+          FinoraNotice.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: const Row(
+                  children: [
+                    Icon(
+                      Icons.touch_app_rounded,
+                      color: Color(0xFF34D399),
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Vuốt lần nữa để thoát FINORA',
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor:
+                    const Color(0xFF0F172A).withValues(alpha: 0.94),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: const Color(0xFF059669).withValues(alpha: 0.45),
+                    width: 1.2,
+                  ),
+                ),
+                duration: const Duration(seconds: 2),
+                margin: const EdgeInsets.fromLTRB(20, 0, 20, 96),
+              ),
+            );
+        } else {
+          // Lần vuốt thứ 2 trong vòng 2 giây: Thoát app mượt mà tối ưu cho Android 17
+          HapticFeedback.heavyImpact();
+          SystemNavigator.pop();
+        }
+      }
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (_currentIndex != 0) {
-          setState(() => _currentIndex = 0);
-        } else {
-          final now = DateTime.now();
-          if (_lastBackPressTime == null ||
-              now.difference(_lastBackPressTime!) >
-                  const Duration(milliseconds: 2000)) {
-            _lastBackPressTime = now;
-            HapticFeedback.lightImpact();
-            FinoraNotice.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  content: const Row(
-                    children: [
-                      Icon(
-                        Icons.touch_app_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Vuốt hoặc nhấn quay lại lần nữa để thoát ứng dụng',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  backgroundColor:
-                      const Color(0xFF0F172A).withValues(alpha: 0.92),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      width: 1.0,
-                    ),
-                  ),
-                  duration: const Duration(seconds: 2),
-                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 96),
-                ),
-              );
-          } else {
-            // Lần vuốt thứ 2 trong vòng 2 giây: Thoát app mượt mà chuẩn Android 17
-            SystemNavigator.pop();
-          }
-        }
+        handleBackOrExit();
       },
       child: Builder(
         builder: (context) {
