@@ -780,139 +780,171 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                 ? (isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48))
                 : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7))));
 
-    final cardAlpha = widget.studio.glassOpacity.clamp(0.25, 1.0);
-    final baseSurface = isDark
-        ? Color.alphaBlend(
-            color.withValues(alpha: 0.08), const Color(0xFF1E293B))
-        : Color.alphaBlend(color.withValues(alpha: 0.04), Colors.white);
+    final String subBadgeText = label == 'Thu nhập'
+        ? 'Tiền vào'
+        : (label == 'Chi tiêu' ? 'Tiền ra' : 'Khả dụng');
+    final IconData subBadgeIcon = label == 'Thu nhập'
+        ? Icons.trending_up_rounded
+        : (label == 'Chi tiêu'
+            ? Icons.trending_down_rounded
+            : Icons.account_balance_wallet_outlined);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          if (onTap != null) onTap();
-        },
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-          decoration: BoxDecoration(
-            color: baseSurface.withValues(alpha: cardAlpha),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              if (onTap != null) onTap();
+            },
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: color.withValues(alpha: isDark ? 0.38 : 0.22),
-              width: 1.15,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: isDark ? 0.16 : 0.06),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Top: Circular Jewel Icon Badge + Full Label
-              Row(
-                children: [
-                  Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          color.withValues(alpha: isDark ? 0.32 : 0.20),
-                          color.withValues(alpha: isDark ? 0.14 : 0.08),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 11),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          color.withValues(alpha: 0.18),
+                          const Color(0xFF132238).withValues(alpha: 0.75),
+                        ]
+                      : [
+                          color.withValues(alpha: 0.08),
+                          Colors.white.withValues(alpha: 0.90),
                         ],
-                      ),
-                      border: Border.all(
-                        color: color.withValues(alpha: isDark ? 0.48 : 0.30),
-                        width: 1.0,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withValues(alpha: isDark ? 0.24 : 0.12),
-                          blurRadius: 6,
-                          offset: const Offset(0, 1.5),
+                ),
+                border: Border.all(
+                  color: color.withValues(alpha: isDark ? 0.40 : 0.22),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: isDark ? 0.20 : 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Top: Squircle Jewel Icon Badge + Full Label
+                  Row(
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(9),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              color.withValues(alpha: isDark ? 0.38 : 0.24),
+                              color.withValues(alpha: isDark ? 0.16 : 0.08),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: color.withValues(alpha: isDark ? 0.52 : 0.32),
+                            width: 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withValues(alpha: isDark ? 0.28 : 0.14),
+                              blurRadius: 6,
+                              offset: const Offset(0, 1.5),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Icon(icon, color: color, size: 14),
+                        child: Center(
+                          child: Icon(icon, color: color, size: 14),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              color: isDark
+                                  ? const Color(0xFFE2E8F0)
+                                  : const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Value (Tabular Figures, High-Contrast)
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      formattedValue,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                        color: valueColor,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        style: TextStyle(
-                          fontFamily: 'BeVietnamPro',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
-                          color: isDark
-                              ? const Color(0xFFE2E8F0)
-                              : const Color(0xFF1E293B),
-                        ),
+
+                  const SizedBox(height: 8),
+
+                  // Bottom Micro-Badge: No "Tháng này", sleek status indicator
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: isDark ? 0.14 : 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: color.withValues(alpha: isDark ? 0.28 : 0.16),
+                        width: 0.8,
                       ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          subBadgeIcon,
+                          size: 10,
+                          color: color,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          subBadgeText,
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-
-              // Value (Tabular Figures, High-Contrast)
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  formattedValue,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontFamily: 'BeVietnamPro',
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.4,
-                    color: valueColor,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // Bottom Ambient Indicator Bar (Glowing Capsule)
-              Container(
-                width: 18,
-                height: 3.5,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      color,
-                      color.withValues(alpha: 0.50),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.45),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

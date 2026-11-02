@@ -418,29 +418,87 @@ class _FinoraTransactionSuccessModalState
                           ),
                           const SizedBox(height: 16),
 
-                          // Amount Card
+                          // Amount Card: Apple Wallet Jewel Pod
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
+                              horizontal: 28,
+                              vertical: 14,
                             ),
                             decoration: BoxDecoration(
-                              color: accentColor.withValues(
-                                  alpha: isDark ? 0.16 : 0.09),
-                              borderRadius: BorderRadius.circular(22),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  accentColor.withValues(
+                                      alpha: isDark ? 0.24 : 0.14),
+                                  accentColor.withValues(
+                                      alpha: isDark ? 0.08 : 0.04),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(26),
                               border: Border.all(
-                                color: accentColor.withValues(alpha: 0.38),
-                                width: 1.2,
+                                color: accentColor.withValues(
+                                    alpha: isDark ? 0.45 : 0.30),
+                                width: 1.4,
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: accentColor.withValues(
+                                      alpha: isDark ? 0.28 : 0.12),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              '$signPrefix${formatVND(transaction.amount)}',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.8,
-                                color: accentColor,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '$signPrefix${formatVND(transaction.amount)}',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.8,
+                                    color: accentColor,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 9, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withValues(
+                                        alpha: isDark ? 0.20 : 0.12),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 11,
+                                        color: accentColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isEdit
+                                            ? 'Cập nhật thành công'
+                                            : 'Ghi sổ thành công',
+                                        style: TextStyle(
+                                          fontFamily: 'BeVietnamPro',
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: accentColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 18),
@@ -468,6 +526,51 @@ class _FinoraTransactionSuccessModalState
                             ),
                             child: Column(
                               children: [
+                                // Header: Electronic Receipt Badge & Reference
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.receipt_long_rounded,
+                                          size: 15,
+                                          color: textSub,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'BIÊN LAI ĐIỆN TỬ',
+                                          style: TextStyle(
+                                            fontFamily: 'BeVietnamPro',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.6,
+                                            color: textSub,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: (isDark ? Colors.white : Colors.black)
+                                            .withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '#TX-${(transaction.id.length > 8 ? transaction.id.substring(transaction.id.length - 8) : transaction.id).toUpperCase()}',
+                                        style: TextStyle(
+                                          fontFamily: 'monospace',
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: textSub,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                _buildDivider(isDark),
                                 // Danh mục (Full category icon/logo using TransactionIconWidget)
                                 _buildReceiptRow(
                                   label: 'Danh mục',
