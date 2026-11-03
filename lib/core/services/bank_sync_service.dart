@@ -73,6 +73,7 @@ class BankSyncService extends ChangeNotifier {
   ParsedBankTransaction _tryMatchInternalTransfer(
     ParsedBankTransaction incoming,
   ) {
+    if (!pairTransfers) return incoming;
     for (final existing in _pending.values.toList()) {
       if (existing.rawId == incoming.rawId) continue;
       // Equal amounts alone do not prove two independent transactions are
@@ -187,20 +188,31 @@ class BankSyncService extends ChangeNotifier {
   bool scanEcommerce = false;
   bool scanEWallets = true;
   bool scanAllApps = false;
+  bool pairTransfers = true;
+  bool detectCreditCardRepay = true;
 
   Future<void> updateScanSettings({
     bool? scanEcommerce,
     bool? scanEWallets,
     bool? scanAllApps,
+    bool? pairTransfers,
+    bool? detectCreditCardRepay,
   }) async {
     this.scanEcommerce = false;
     if (scanEWallets != null) this.scanEWallets = scanEWallets;
+    if (pairTransfers != null) this.pairTransfers = pairTransfers;
+    if (detectCreditCardRepay != null) {
+      this.detectCreditCardRepay = detectCreditCardRepay;
+    }
     this.scanAllApps = false;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('finora_scan_ecommerce', false);
       await prefs.setBool('finora_scan_all_apps', false);
       await prefs.setBool('finora_scan_ewallets', this.scanEWallets);
+      await prefs.setBool('finora_pair_transfers', this.pairTransfers);
+      await prefs.setBool(
+          'finora_detect_credit_card_repay', this.detectCreditCardRepay);
       if (!supported) {
         notifyListeners();
         return;
@@ -209,6 +221,8 @@ class BankSyncService extends ChangeNotifier {
         'scanEcommerce': this.scanEcommerce,
         'scanEWallets': this.scanEWallets,
         'scanAllApps': this.scanAllApps,
+        'pairTransfers': this.pairTransfers,
+        'detectCreditCardRepay': this.detectCreditCardRepay,
       });
     } catch (_) {}
     notifyListeners();
@@ -219,6 +233,9 @@ class BankSyncService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       scanEcommerce = false;
       scanEWallets = prefs.getBool('finora_scan_ewallets') ?? true;
+      pairTransfers = prefs.getBool('finora_pair_transfers') ?? true;
+      detectCreditCardRepay =
+          prefs.getBool('finora_detect_credit_card_repay') ?? true;
       scanAllApps = false;
       await prefs.setBool('finora_scan_ecommerce', false);
       await prefs.setBool('finora_scan_all_apps', false);
@@ -228,6 +245,8 @@ class BankSyncService extends ChangeNotifier {
           'scanEcommerce': scanEcommerce,
           'scanEWallets': scanEWallets,
           'scanAllApps': scanAllApps,
+          'pairTransfers': pairTransfers,
+          'detectCreditCardRepay': detectCreditCardRepay,
         });
       }
     } catch (_) {}

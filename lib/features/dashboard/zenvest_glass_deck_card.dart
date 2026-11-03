@@ -769,14 +769,15 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     required bool isDark,
     VoidCallback? onTap,
   }) {
-    final formattedValue =
-        widget.masked ? '••••••' : '\ ₫';
+    final String amountStr =
+        NumberFormat('#,##0', 'vi_VN').format(amount.abs());
+    final formattedValue = widget.masked
+        ? '••••••'
+        : (amount == 0 ? '0 ₫' : '$prefix$amountStr ₫');
 
     // 100% Solid Opaque Colors - Modern, Bright & Fresh (ko trong suốt, màu sắc tươi sáng)
     final Color solidBg;
     final Color solidBorder;
-    final Color solidBadgeBg;
-    final Color solidBadgeText;
     final Color solidIconBg;
     final Color solidIconColor;
     final Color labelColor;
@@ -787,8 +788,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
       solidBorder = isDark ? const Color(0xFF10B981) : const Color(0xFF86EFAC);
       solidIconBg = const Color(0xFF10B981);
       solidIconColor = Colors.white;
-      solidBadgeBg = isDark ? const Color(0xFF163E2E) : const Color(0xFFD1FAE5);
-      solidBadgeText = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857);
       labelColor = isDark ? const Color(0xFFD1FAE5) : const Color(0xFF065F46);
       valueColor = widget.masked
           ? (isDark ? Colors.white : const Color(0xFF065F46))
@@ -798,8 +797,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
       solidBorder = isDark ? const Color(0xFFF43F5E) : const Color(0xFFFDA4AF);
       solidIconBg = const Color(0xFFF43F5E);
       solidIconColor = Colors.white;
-      solidBadgeBg = isDark ? const Color(0xFF451720) : const Color(0xFFFFE4E6);
-      solidBadgeText = isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C);
       labelColor = isDark ? const Color(0xFFFFE4E6) : const Color(0xFF9F1239);
       valueColor = widget.masked
           ? (isDark ? Colors.white : const Color(0xFF9F1239))
@@ -809,22 +806,11 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
       solidBorder = isDark ? const Color(0xFF0284C7) : const Color(0xFF7DD3FC);
       solidIconBg = const Color(0xFF0284C7);
       solidIconColor = Colors.white;
-      solidBadgeBg = isDark ? const Color(0xFF113854) : const Color(0xFFE0F2FE);
-      solidBadgeText = isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
       labelColor = isDark ? const Color(0xFFE0F2FE) : const Color(0xFF075985);
       valueColor = widget.masked
           ? (isDark ? Colors.white : const Color(0xFF075985))
           : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1));
     }
-
-    final String subBadgeText = label == 'Thu nhập'
-        ? 'Tiền vào'
-        : (label == 'Chi tiêu' ? 'Tiền ra' : 'Khả dụng');
-    final IconData subBadgeIcon = label == 'Thu nhập'
-        ? Icons.trending_up_rounded
-        : (label == 'Chi tiêu'
-            ? Icons.trending_down_rounded
-            : Icons.account_balance_wallet_outlined);
 
     return Material(
       color: Colors.transparent,
@@ -835,7 +821,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(10, 11, 10, 11),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 12),
           decoration: BoxDecoration(
             color: solidBg,
             borderRadius: BorderRadius.circular(20),
@@ -895,7 +881,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 10),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -910,34 +896,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     color: valueColor,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-                decoration: BoxDecoration(
-                  color: solidBadgeBg,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      subBadgeIcon,
-                      size: 10,
-                      color: solidBadgeText,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      subBadgeText,
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: solidBadgeText,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],

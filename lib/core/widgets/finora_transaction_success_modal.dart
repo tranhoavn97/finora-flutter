@@ -444,9 +444,9 @@ class _FinoraTransactionSuccessModalState
                               boxShadow: [
                                 BoxShadow(
                                   color: accentColor.withValues(
-                                      alpha: isDark ? 0.28 : 0.12),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 6),
+                                      alpha: isDark ? 0.20 : 0.08),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
@@ -474,22 +474,31 @@ class _FinoraTransactionSuccessModalState
 
                           // Receipt Details Table
                           Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 16,
+                            ),
                             decoration: BoxDecoration(
                               color: cardBg,
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
                                 color: isDark
-                                    ? const Color(0xFF334155)
-                                    : const Color(0xFFE2E8F0),
-                                width: 1.1,
+                                    ? const Color(0xFF334155).withValues(alpha: 0.6)
+                                    : const Color(0xFFF1F5F9),
+                                width: 1.0,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(
-                                      alpha: isDark ? 0.32 : 0.06),
-                                  blurRadius: 22,
-                                  offset: const Offset(0, 8),
+                                      alpha: isDark ? 0.18 : 0.025),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 3),
+                                ),
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                      alpha: isDark ? 0.08 : 0.015),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 1),
                                 ),
                               ],
                             ),
@@ -747,7 +756,7 @@ class _FinoraTransactionSuccessModalState
         height: 1,
         color: isDark
             ? Colors.white.withValues(alpha: 0.08)
-            : const Color(0xFFE2E8F0),
+            : const Color(0xFFF1F5F9),
       ),
     );
   }

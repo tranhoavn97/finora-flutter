@@ -527,9 +527,13 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
             title: 'Ghép cặp chuyển khoản cùng máy (Transfer Pairing)',
             subtitle:
                 'Tự động khớp khi chuyển tiền giữa 2 tài khoản ngân hàng trên cùng điện thoại',
-            value: true,
+            value: _service.pairTransfers,
             isDark: isDark,
-            onChanged: null, // Always enabled intelligence
+            onChanged: (v) async {
+              HapticFeedback.selectionClick();
+              await _service.updateScanSettings(pairTransfers: v);
+              if (mounted) setState(() {});
+            },
           ),
           Divider(
             height: 20,
@@ -541,9 +545,13 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
             title: 'Nhận diện thanh toán thẻ tín dụng (Credit Card)',
             subtitle:
                 'Tách riêng dòng tiền trả nợ thẻ, không tính 2 lần vào chi tiêu thực tế',
-            value: true,
+            value: _service.detectCreditCardRepay,
             isDark: isDark,
-            onChanged: null, // Always enabled intelligence
+            onChanged: (v) async {
+              HapticFeedback.selectionClick();
+              await _service.updateScanSettings(detectCreditCardRepay: v);
+              if (mounted) setState(() {});
+            },
           ),
         ],
       ),
