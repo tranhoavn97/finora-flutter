@@ -254,14 +254,47 @@ class BankSyncService extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final ok = await _channel.invokeMethod<bool>('acknowledgeNotifications', {
-      'ids': idsToAck,
-    });
-    if (ok != true) throw StateError('Chưa cập nhật được hàng đợi ngân hàng.');
+    try {
+      if (supported && !kIsWeb) {
+        await _channel.invokeMethod<bool>('acknowledgeNotifications', {
+          'ids': idsToAck,
+        });
+      }
+    } catch (_) {}
     for (final ackId in idsToAck) {
       _pending.remove(ackId);
       _unrecognized.remove(ackId);
     }
+    notifyListeners();
+  }
+
+  /// Dọn dẹp sạch toàn bộ hàng đợi giao dịch chờ và thông báo chưa đọc số tiền
+  Future<void> acknowledgeAll() async {
+    final allIds = <String>{
+      ..._pending.keys,
+      ..._unrecognized.keys,
+    }.toList();
+
+    if (allIds.isEmpty) {
+      _pending.clear();
+      _unrecognized.clear();
+      notifyListeners();
+      return;
+    }
+
+    try {
+      if (supported && !kIsWeb) {
+        final nativeIds = allIds.where((id) => !id.startsWith('manual_')).toList();
+        if (nativeIds.isNotEmpty) {
+          await _channel.invokeMethod<bool>('acknowledgeNotifications', {
+            'ids': nativeIds,
+          });
+        }
+      }
+    } catch (_) {}
+
+    _pending.clear();
+    _unrecognized.clear();
     notifyListeners();
   }
 

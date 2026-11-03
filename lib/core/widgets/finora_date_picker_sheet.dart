@@ -126,6 +126,154 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
     });
   }
 
+  Future<void> _showMonthYearPicker(BuildContext context, bool isDark) async {
+    HapticFeedback.selectionClick();
+    int tempYear = _displayedMonth.year;
+    int tempMonth = _displayedMonth.month;
+
+    final picked = await showModalBottomSheet<DateTime>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            14,
+            20,
+            MediaQuery.paddingOf(ctx).bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4.5,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Chọn tháng & năm',
+                    style: TextStyle(
+                      fontFamily: 'BeVietnamPro',
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(sheetCtx),
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Year selector
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: () =>
+                        setSheetState(() => tempYear = tempYear - 1),
+                    icon: const Icon(Icons.chevron_left_rounded),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF059669)
+                          .withValues(alpha: isDark ? 0.22 : 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Năm $tempYear',
+                      style: const TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF059669),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () =>
+                        setSheetState(() => tempYear = tempYear + 1),
+                    icon: const Icon(Icons.chevron_right_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // 12 Months Grid
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.8,
+                ),
+                itemCount: 12,
+                itemBuilder: (_, mIdx) {
+                  final m = mIdx + 1;
+                  final isSel = m == tempMonth;
+                  return InkWell(
+                    onTap: () {
+                      Navigator.pop(sheetCtx, DateTime(tempYear, m, 1));
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSel
+                            ? const Color(0xFF059669)
+                            : (isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Tháng $m',
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 12.5,
+                          fontWeight:
+                              isSel ? FontWeight.w800 : FontWeight.w600,
+                          color: isSel
+                              ? Colors.white
+                              : (isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (picked != null) {
+      setState(() => _displayedMonth = picked);
+    }
+  }
+
   void _nextMonth() {
     HapticFeedback.selectionClick();
     setState(() {
@@ -454,12 +602,32 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                       constraints:
                           const BoxConstraints(minWidth: 36, minHeight: 36),
                     ),
-                    Text(
-                      'Tháng ${_displayedMonth.month} năm ${_displayedMonth.year}',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: primaryTextColor,
+                    InkWell(
+                      onTap: () => _showMonthYearPicker(context, isDark),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Tháng ${_displayedMonth.month} năm ${_displayedMonth.year}',
+                              style: TextStyle(
+                                fontFamily: 'BeVietnamPro',
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: brandPrimary,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     IconButton(

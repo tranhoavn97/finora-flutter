@@ -466,38 +466,7 @@ class _FinoraTransactionSuccessModalState
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 9, vertical: 2.5),
-                                  decoration: BoxDecoration(
-                                    color: accentColor.withValues(
-                                        alpha: isDark ? 0.20 : 0.12),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle_rounded,
-                                        size: 11,
-                                        color: accentColor,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        isEdit
-                                            ? 'Cập nhật thành công'
-                                            : 'Ghi sổ thành công',
-                                        style: TextStyle(
-                                          fontFamily: 'BeVietnamPro',
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: accentColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+
                               ],
                             ),
                           ),
@@ -530,26 +499,34 @@ class _FinoraTransactionSuccessModalState
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.receipt_long_rounded,
-                                          size: 15,
-                                          color: textSub,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'BIÊN LAI ĐIỆN TỬ',
-                                          style: TextStyle(
-                                            fontFamily: 'BeVietnamPro',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0.6,
+                                    Flexible(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.receipt_long_rounded,
+                                            size: 15,
                                             color: textSub,
                                           ),
-                                        ),
-                                      ],
+                                          const SizedBox(width: 6),
+                                          Flexible(
+                                            child: Text(
+                                              'BIÊN LAI ĐIỆN TỬ',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontFamily: 'BeVietnamPro',
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 0.6,
+                                                color: textSub,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 7, vertical: 2),

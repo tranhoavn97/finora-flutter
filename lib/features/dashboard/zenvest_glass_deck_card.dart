@@ -770,15 +770,52 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     VoidCallback? onTap,
   }) {
     final formattedValue =
-        widget.masked ? '••••••' : '$prefix${_formatAmount(amount)} ₫';
+        widget.masked ? '••••••' : '\ ₫';
 
-    final valueColor = widget.masked
-        ? (isDark ? Colors.white : const Color(0xFF0F172A))
-        : (label == 'Thu nhập'
-            ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
-            : (label == 'Chi tiêu'
-                ? (isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48))
-                : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7))));
+    // 100% Solid Opaque Colors - Modern, Bright & Fresh (ko trong suốt, màu sắc tươi sáng)
+    final Color solidBg;
+    final Color solidBorder;
+    final Color solidBadgeBg;
+    final Color solidBadgeText;
+    final Color solidIconBg;
+    final Color solidIconColor;
+    final Color labelColor;
+    final Color valueColor;
+
+    if (label == 'Thu nhập') {
+      solidBg = isDark ? const Color(0xFF0D281E) : const Color(0xFFEDFCF2);
+      solidBorder = isDark ? const Color(0xFF10B981) : const Color(0xFF86EFAC);
+      solidIconBg = const Color(0xFF10B981);
+      solidIconColor = Colors.white;
+      solidBadgeBg = isDark ? const Color(0xFF163E2E) : const Color(0xFFD1FAE5);
+      solidBadgeText = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857);
+      labelColor = isDark ? const Color(0xFFD1FAE5) : const Color(0xFF065F46);
+      valueColor = widget.masked
+          ? (isDark ? Colors.white : const Color(0xFF065F46))
+          : (isDark ? const Color(0xFF34D399) : const Color(0xFF047857));
+    } else if (label == 'Chi tiêu') {
+      solidBg = isDark ? const Color(0xFF2D1217) : const Color(0xFFFFF1F2);
+      solidBorder = isDark ? const Color(0xFFF43F5E) : const Color(0xFFFDA4AF);
+      solidIconBg = const Color(0xFFF43F5E);
+      solidIconColor = Colors.white;
+      solidBadgeBg = isDark ? const Color(0xFF451720) : const Color(0xFFFFE4E6);
+      solidBadgeText = isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C);
+      labelColor = isDark ? const Color(0xFFFFE4E6) : const Color(0xFF9F1239);
+      valueColor = widget.masked
+          ? (isDark ? Colors.white : const Color(0xFF9F1239))
+          : (isDark ? const Color(0xFFFB7185) : const Color(0xFFBE123C));
+    } else {
+      solidBg = isDark ? const Color(0xFF0B2436) : const Color(0xFFF0F9FF);
+      solidBorder = isDark ? const Color(0xFF0284C7) : const Color(0xFF7DD3FC);
+      solidIconBg = const Color(0xFF0284C7);
+      solidIconColor = Colors.white;
+      solidBadgeBg = isDark ? const Color(0xFF113854) : const Color(0xFFE0F2FE);
+      solidBadgeText = isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
+      labelColor = isDark ? const Color(0xFFE0F2FE) : const Color(0xFF075985);
+      valueColor = widget.masked
+          ? (isDark ? Colors.white : const Color(0xFF075985))
+          : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1));
+    }
 
     final String subBadgeText = label == 'Thu nhập'
         ? 'Tiền vào'
@@ -789,169 +826,128 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
             ? Icons.trending_down_rounded
             : Icons.account_balance_wallet_outlined);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              if (onTap != null) onTap();
-            },
-            borderRadius: BorderRadius.circular(22),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(10, 12, 10, 11),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          color.withValues(alpha: 0.18),
-                          const Color(0xFF132238).withValues(alpha: 0.75),
-                        ]
-                      : [
-                          color.withValues(alpha: 0.08),
-                          Colors.white.withValues(alpha: 0.90),
-                        ],
-                ),
-                border: Border.all(
-                  color: color.withValues(alpha: isDark ? 0.40 : 0.22),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withValues(alpha: isDark ? 0.20 : 0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          if (onTap != null) onTap();
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 11, 10, 11),
+          decoration: BoxDecoration(
+            color: solidBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: solidBorder,
+              width: 1.4,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (isDark ? Colors.black : solidBorder).withValues(alpha: isDark ? 0.35 : 0.20),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
                 children: [
-                  // Top: Squircle Jewel Icon Badge + Full Label
-                  Row(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(9),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              color.withValues(alpha: isDark ? 0.38 : 0.24),
-                              color.withValues(alpha: isDark ? 0.16 : 0.08),
-                            ],
-                          ),
-                          border: Border.all(
-                            color: color.withValues(alpha: isDark ? 0.52 : 0.32),
-                            width: 1.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: color.withValues(alpha: isDark ? 0.28 : 0.14),
-                              blurRadius: 6,
-                              offset: const Offset(0, 1.5),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Icon(icon, color: color, size: 14),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontFamily: 'BeVietnamPro',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                              color: isDark
-                                  ? const Color(0xFFE2E8F0)
-                                  : const Color(0xFF1E293B),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Value (Tabular Figures, High-Contrast)
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      formattedValue,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.4,
-                        color: valueColor,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Bottom Micro-Badge: No "Tháng này", sleek status indicator
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                    width: 24,
+                    height: 24,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: isDark ? 0.14 : 0.08),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: color.withValues(alpha: isDark ? 0.28 : 0.16),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          subBadgeIcon,
-                          size: 10,
-                          color: color,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          subBadgeText,
-                          style: TextStyle(
-                            fontFamily: 'BeVietnamPro',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: color,
-                          ),
+                      color: solidIconBg,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: solidIconBg.withValues(alpha: 0.35),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1.5),
                         ),
                       ],
                     ),
+                    child: Center(
+                      child: Icon(icon, color: solidIconColor, size: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                          color: labelColor,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 9),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formattedValue,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.4,
+                    color: valueColor,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: solidBadgeBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      subBadgeIcon,
+                      size: 10,
+                      color: solidBadgeText,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      subBadgeText,
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: solidBadgeText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // 4. Khối AI Thông Minh Tích Hợp (Nhập Nhanh AI + Sức Khỏe AI + Cho Vay / Vay Nợ + Companion Banner)
+    // 4. Khối AI Thông Minh Tích Hợp (Nhập Nhanh AI + Sức Khỏe AI + Cho Vay / Vay Nợ + Companion Banner)
   Widget _buildZenvestAiSection(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

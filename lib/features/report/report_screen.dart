@@ -22,15 +22,7 @@ import '../../data/models/transaction.dart';
 import '../../state/theme_studio_controller.dart';
 import '../../state/transaction_provider.dart';
 
-enum ReportQuickPeriod {
-  thisMonth,
-  lastMonth,
-  thisQuarter,
-  sixMonths,
-  thisYear,
-  allTime,
-  customRange,
-}
+
 
 class _CategoryStatItem {
   final String name;
@@ -64,9 +56,10 @@ class _ReportScreenState extends State<ReportScreen>
   @override
   bool get wantKeepAlive => true;
 
-  ReportQuickPeriod _quickPeriod = ReportQuickPeriod.thisMonth;
-  OwnerFilter _ownerFilter = OwnerFilter.all;
+  DateFilterOption _dateOption = DateFilterOption.thisMonth;
+  DateTime? _customDate;
   DateTimeRange? _customRange;
+  OwnerFilter _ownerFilter = OwnerFilter.all;
   bool _showIncomeCategories = false; // false: Chi tiêu, true: Thu nhập
 
   @override
@@ -104,113 +97,76 @@ class _ReportScreenState extends State<ReportScreen>
     return DateTime.fromMillisecondsSinceEpoch(raw);
   }
 
-  bool _matchesPeriod(DateTime date, ReportQuickPeriod period) {
-    final now = DateTime.now();
-    switch (period) {
-      case ReportQuickPeriod.thisMonth:
-        return date.year == now.year && date.month == now.month;
-      case ReportQuickPeriod.lastMonth:
-        final lastMonthDate = DateTime(now.year, now.month - 1, 1);
-        return date.year == lastMonthDate.year &&
-            date.month == lastMonthDate.month;
-      case ReportQuickPeriod.thisQuarter:
-        final startQuarterMonth = ((now.month - 1) ~/ 3) * 3 + 1;
-        final quarterStart = DateTime(now.year, startQuarterMonth, 1);
-        final quarterEnd = DateTime(now.year, startQuarterMonth + 3, 1);
-        return !date.isBefore(quarterStart) && date.isBefore(quarterEnd);
-      case ReportQuickPeriod.sixMonths:
-        final sixMonthsStart = DateTime(now.year, now.month - 5, 1);
-        return !date.isBefore(sixMonthsStart);
-      case ReportQuickPeriod.thisYear:
-        return date.year == now.year;
-      case ReportQuickPeriod.allTime:
-        return true;
-      case ReportQuickPeriod.customRange:
-        if (_customRange == null) return true;
-        final start = DateTime(
-          _customRange!.start.year,
-          _customRange!.start.month,
-          _customRange!.start.day,
-        );
-        final end = DateTime(
-          _customRange!.end.year,
-          _customRange!.end.month,
-          _customRange!.end.day,
-          23,
-          59,
-          59,
-          999,
-        );
-        return !date.isBefore(start) && !date.isAfter(end);
+  bool _matchesDate(DateTime date) {
+    if (_dateOption == DateFilterOption.customRange && _customRange != null) {
+      final start = DateTime(_customRange!.start.year, _customRange!.start.month, _customRange!.start.day);
+      final end = DateTime(_customRange!.end.year, _customRange!.end.month, _customRange!.end.day, 23, 59, 59, 999);
+      return !date.isBefore(start) && !date.isAfter(end);
     }
+    if (_dateOption == DateFilterOption.customDate && _customDate != null) {
+      return date.year == _customDate!.year &&
+          date.month == _customDate!.month &&
+          date.day == _customDate!.day;
+    }
+    if (_dateOption == DateFilterOption.customMonth && _customDate != null) {
+      return date.year == _customDate!.year && date.month == _customDate!.month;
+    }
+    return isDateInFilterOption(
+      date.millisecondsSinceEpoch,
+      _dateOption,
+      customDate: _customDate,
+      customStartDate: _customRange?.start,
+      customEndDate: _customRange?.end,
+    );
   }
 
   int _activePeriodDaysCount() {
     final now = DateTime.now();
-    switch (_quickPeriod) {
-      case ReportQuickPeriod.thisMonth:
+    switch (_dateOption) {
+      case DateFilterOption.today:
+      case DateFilterOption.yesterday:
+      case DateFilterOption.customDate:
+        return 1;
+      case DateFilterOption.thisWeek:
+      case DateFilterOption.lastWeek:
+        return 7;
+      case DateFilterOption.thisMonth:
         return now.day.clamp(1, 31);
-      case ReportQuickPeriod.lastMonth:
-        return DateTime(now.year, now.month, 0).day.clamp(1, 31);
-      case ReportQuickPeriod.thisQuarter:
-        final startQuarterMonth = ((now.month - 1) ~/ 3) * 3 + 1;
-        final quarterStart = DateTime(now.year, startQuarterMonth, 1);
-        return (now.difference(quarterStart).inDays + 1).clamp(1, 92);
-      case ReportQuickPeriod.sixMonths:
-        final sixMonthsStart = DateTime(now.year, now.month - 5, 1);
-        return (now.difference(sixMonthsStart).inDays + 1).clamp(1, 185);
-      case ReportQuickPeriod.thisYear:
+      case DateFilterOption.lastMonth:
+      case DateFilterOption.customMonth:
+        final m = _customDate?.month ?? (now.month == 1 ? 12 : now.month - 1);
+        final y = _customDate?.year ?? (now.month == 1 ? now.year - 1 : now.year);
+        return DateTime(y, m + 1, 0).day.clamp(1, 31);
+      case DateFilterOption.thisYear:
         final yearStart = DateTime(now.year, 1, 1);
         return (now.difference(yearStart).inDays + 1).clamp(1, 366);
-      case ReportQuickPeriod.allTime:
+      case DateFilterOption.allTime:
         return 30;
-      case ReportQuickPeriod.customRange:
+      case DateFilterOption.customRange:
         if (_customRange == null) return 30;
         return (_customRange!.end.difference(_customRange!.start).inDays + 1)
             .clamp(1, 3650);
     }
   }
 
-  Future<void> _pickCustomRange() async {
-    HapticFeedback.selectionClick();
-    final picked = await FinoraDatePickerSheet.showDateRange(
-      context,
-      initialStartDate: _customRange?.start ??
-          DateTime.now().subtract(const Duration(days: 30)),
-      initialEndDate: _customRange?.end ?? DateTime.now(),
-    );
-    if (picked != null && mounted) {
-      setState(() {
-        _customRange = picked;
-        _quickPeriod = ReportQuickPeriod.customRange;
-      });
-    }
-  }
-
-  // ignore: unused_element
   Future<void> _openUnifiedDateFilterModal() async {
+    HapticFeedback.selectionClick();
     final res = await showDateFilterModal(
       context,
-      currentOption: DateFilterOption.thisMonth,
+      currentOption: _dateOption,
+      currentCustomDate: _customDate,
       currentCustomRange: _customRange,
+      showAllTime: true,
     );
     if (res == null || !mounted) return;
     setState(() {
-      if (res.option == DateFilterOption.thisMonth) {
-        _quickPeriod = ReportQuickPeriod.thisMonth;
-      } else if (res.option == DateFilterOption.lastMonth) {
-        _quickPeriod = ReportQuickPeriod.lastMonth;
-      } else if (res.option == DateFilterOption.thisYear) {
-        _quickPeriod = ReportQuickPeriod.thisYear;
-      } else if (res.option == DateFilterOption.allTime) {
-        _quickPeriod = ReportQuickPeriod.allTime;
-      } else if (res.option == DateFilterOption.customRange &&
-          res.customRange != null) {
-        _customRange = res.customRange;
-        _quickPeriod = ReportQuickPeriod.customRange;
-      }
+      _dateOption = res.option;
+      _customDate = res.customDate;
+      _customRange = res.customRange;
     });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +181,7 @@ class _ReportScreenState extends State<ReportScreen>
     // Filter transactions by selected member & period
     final txs = all.where((t) {
       final memberOk = _ownerFilter.matchTransaction(t, walletMap: walletMap);
-      final dateOk = _matchesPeriod(_parseTxDate(t.date), _quickPeriod);
+      final dateOk = _matchesDate(_parseTxDate(t.date));
       return memberOk && dateOk;
     }).toList();
 
@@ -428,37 +384,28 @@ class _ReportScreenState extends State<ReportScreen>
 
   /// Bộ lọc ngày & thành viên đặt dưới widget tổng quan (`height: 40`)
   Widget _buildFilterBar(bool dark, ThemeStudioController? studio) {
-    final periodItems = <(ReportQuickPeriod, String)>[
-      (ReportQuickPeriod.thisMonth, 'Tháng này'),
-      (ReportQuickPeriod.lastMonth, 'Tháng trước'),
-      (ReportQuickPeriod.thisQuarter, 'Quý này (3T)'),
-      (ReportQuickPeriod.sixMonths, '6 tháng'),
-      (ReportQuickPeriod.thisYear, 'Năm nay'),
-      (ReportQuickPeriod.allTime, 'Tất cả'),
-    ];
-
-    String currentLabel = 'Tháng này';
-    for (final (period, label) in periodItems) {
-      if (_quickPeriod == period) currentLabel = label;
-    }
-    if (_quickPeriod == ReportQuickPeriod.customRange && _customRange != null) {
+    String currentLabel;
+    if (_dateOption == DateFilterOption.customRange && _customRange != null) {
       currentLabel =
-          '${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}';
+          '${DateFormat("dd/MM").format(_customRange!.start)} - ${DateFormat("dd/MM/yyyy").format(_customRange!.end)}';
+    } else if (_dateOption == DateFilterOption.customMonth && _customDate != null) {
+      currentLabel = 'Tháng ${_customDate!.month}/${_customDate!.year}';
+    } else if (_dateOption == DateFilterOption.customDate && _customDate != null) {
+      currentLabel = DateFormat('dd/MM/yyyy').format(_customDate!);
+    } else {
+      currentLabel = _dateOption.label;
     }
 
     return Row(
       children: [
-        // 1. Left: Circular Member Filter Avatar Button (40x40, matching Dashboard)
         _buildMemberButton(dark, studio),
         const SizedBox(width: 10),
-
-        // 2. Right: Solid Stadium Emerald Date Selector Pill (Height 40px)
         Expanded(
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(999),
-              onTap: () => _showPeriodSheet(dark, periodItems),
+              onTap: _openUnifiedDateFilterModal,
               child: Container(
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -513,274 +460,6 @@ class _ReportScreenState extends State<ReportScreen>
         ),
       ],
     );
-  }
-
-  Future<void> _showPeriodSheet(
-    bool dark,
-    List<(ReportQuickPeriod, String)> periodItems,
-  ) async {
-    HapticFeedback.selectionClick();
-    final itemsWithMeta = <({
-      ReportQuickPeriod period,
-      String title,
-      String subtitle,
-      IconData icon,
-      Color iconColor,
-      Color iconBgLight,
-      Color iconBgDark,
-    })>[
-      (
-        period: ReportQuickPeriod.thisMonth,
-        title: 'Tháng này',
-        subtitle: 'Từ ngày 1 đến hết tháng hiện tại',
-        icon: Icons.calendar_today_rounded,
-        iconColor: const Color(0xFF00875A),
-        iconBgLight: const Color(0xFFE6F7F0),
-        iconBgDark: const Color(0xFF13382C),
-      ),
-      (
-        period: ReportQuickPeriod.lastMonth,
-        title: 'Tháng trước',
-        subtitle: 'Số liệu tháng liền kề trước đó',
-        icon: Icons.history_rounded,
-        iconColor: const Color(0xFF0284C7),
-        iconBgLight: const Color(0xFFE0F2FE),
-        iconBgDark: const Color(0xFF0C2D48),
-      ),
-      (
-        period: ReportQuickPeriod.thisQuarter,
-        title: 'Quý này',
-        subtitle: 'Thống kê trọn 3 tháng của quý hiện tại',
-        icon: Icons.pie_chart_rounded,
-        iconColor: const Color(0xFFD97706),
-        iconBgLight: const Color(0xFFFEF3C7),
-        iconBgDark: const Color(0xFF382305),
-      ),
-      (
-        period: ReportQuickPeriod.sixMonths,
-        title: '6 tháng gần nhất',
-        subtitle: 'Nửa năm để nhìn rõ xu hướng dòng tiền dài hạn',
-        icon: Icons.auto_awesome_rounded,
-        iconColor: const Color(0xFFE11D48),
-        iconBgLight: const Color(0xFFFFECEF),
-        iconBgDark: const Color(0xFF3B1019),
-      ),
-      (
-        period: ReportQuickPeriod.thisYear,
-        title: 'Năm nay',
-        subtitle: 'Toàn bộ 12 tháng năm ',
-        icon: Icons.calendar_month_rounded,
-        iconColor: const Color(0xFF0F6E56),
-        iconBgLight: const Color(0xFFE6F4EA),
-        iconBgDark: const Color(0xFF083329),
-      ),
-      (
-        period: ReportQuickPeriod.allTime,
-        title: 'Toàn bộ thời gian',
-        subtitle: 'Lịch sử từ ngày đầu tiên sử dụng app',
-        icon: Icons.all_inclusive_rounded,
-        iconColor: const Color(0xFF64748B),
-        iconBgLight: const Color(0xFFF1F5F9),
-        iconBgDark: const Color(0xFF1E293B),
-      ),
-      (
-        period: ReportQuickPeriod.customRange,
-        title: 'Tùy chọn khoảng ngày...',
-        subtitle: 'Chọn ngày bắt đầu và kết thúc linh hoạt',
-        icon: Icons.tune_rounded,
-        iconColor: const Color(0xFF4F46E5),
-        iconBgLight: const Color(0xFFEEF2FF),
-        iconBgDark: const Color(0xFF1E1B4B),
-      ),
-    ];
-
-    final selected = await showModalBottomSheet<ReportQuickPeriod>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.78,
-          ),
-          margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-          decoration: BoxDecoration(
-            color: dark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: (dark ? Colors.white : Colors.black)
-                  .withValues(alpha: dark ? 0.12 : 0.08),
-              width: 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: dark ? 0.40 : 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: dark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: dark
-                            ? const Color(0xFF0F6E56).withValues(alpha: 0.35)
-                            : const Color(0xFFE6F4EA),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.calendar_today_rounded,
-                        color: Color(0xFF0F6E56),
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Kỳ phân tích báo cáo',
-                            style: TextStyle(
-                              fontSize: 16.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                              color: dark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Chọn khoảng thời gian để thống kê dữ liệu',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: dark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  children: [
-                    for (final item in itemsWithMeta) ...[
-                      Builder(builder: (ctx) {
-                        final isSelected = _quickPeriod == item.period;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(24),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.pop(sheetContext, item.period);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? (dark
-                                        ? const Color(0xFF064E3B)
-                                            .withValues(alpha: 0.35)
-                                        : const Color(0xFFF0FDF4))
-                                    : (dark
-                                        ? Colors.white.withValues(alpha: 0.04)
-                                        : const Color(0xFFF8FAFC)),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF0F6E56)
-                                      : (dark
-                                          ? const Color(0xFF334155)
-                                          : const Color(0xFFE2E8F0)),
-                                  width: isSelected ? 1.5 : 1.0,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    item.icon,
-                                    size: 20,
-                                    color: isSelected
-                                        ? const Color(0xFF0F6E56)
-                                        : (dark
-                                            ? const Color(0xFF94A3B8)
-                                            : const Color(0xFF64748B)),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Text(
-                                      item.title,
-                                      style: TextStyle(
-                                        fontSize: 14.5,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                        color: isSelected
-                                            ? const Color(0xFF0F6E56)
-                                            : (dark
-                                                ? Colors.white
-                                                : const Color(0xFF0F172A)),
-                                      ),
-                                    ),
-                                  ),
-                                  if (isSelected)
-                                    const Icon(
-                                      Icons.check_circle_rounded,
-                                      color: Color(0xFF0F6E56),
-                                      size: 22,
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (!mounted || selected == null) return;
-    if (selected == ReportQuickPeriod.customRange) {
-      _pickCustomRange();
-    } else {
-      setState(() => _quickPeriod = selected);
-    }
   }
 
   Widget _buildMemberButton(bool dark, ThemeStudioController? studio) {
@@ -872,7 +551,7 @@ class _ReportScreenState extends State<ReportScreen>
     );
   }
 
-  /// Card 1 — Chi Tiết Dòng Tiền Ròng (Cashflow Waterfall & Breakdown Card)
+  /// Card 1 — Chi Tiết Dòng Tiền Ròng (Redesigned Cashflow Card)
   Widget _buildCashflowWaterfallCard({
     required bool dark,
     required int income,
@@ -886,52 +565,86 @@ class _ReportScreenState extends State<ReportScreen>
     required Color sub,
   }) {
     final isPositive = netCashflow >= 0;
-    final badgeColor =
-        isPositive ? const Color(0xFF10B981) : const Color(0xFFE11D48);
-    final maxBreakdown = [
-      income,
-      expense,
-      lendingFlow,
-      debtFlow,
-      1,
-    ].reduce((a, b) => a > b ? a : b);
+    final totalFlow = income + expense;
+    final double incomeRatio =
+        totalFlow > 0 ? (income / totalFlow).clamp(0.0, 1.0) : 0.5;
+    final double expenseRatio =
+        totalFlow > 0 ? (expense / totalFlow).clamp(0.0, 1.0) : 0.5;
 
-    return _buildReportGlassCard(
-      dark: dark,
+    return Container(
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: dark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: dark ? 0.35 : 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header: Dòng tiền ròng (Thu - Chi) + Net Badge (+Thặng dư / -Thâm hụt)
+          // 1. Top Header: DÒNG TIỀN RÒNG + Status Pill
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Dòng tiền',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: text,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isPositive
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFE11D48),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'DÒNG TIỀN RÒNG',
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: sub,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
                       child: FinoraPrivacyMask(
                         child: Text(
-                          '${isPositive ? '+' : '-'}${formatVND(netCashflow.abs())}',
+                          '${isPositive ? "+" : "−"}${formatVND(netCashflow.abs())}',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 26,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                            color: badgeColor,
+                            letterSpacing: -0.6,
+                            color: isPositive
+                                ? (dark
+                                    ? const Color(0xFF34D399)
+                                    : const Color(0xFF059669))
+                                : (dark
+                                    ? const Color(0xFFFB7185)
+                                    : const Color(0xFFE11D48)),
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                       ),
@@ -939,61 +652,260 @@ class _ReportScreenState extends State<ReportScreen>
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: badgeColor.withValues(alpha: dark ? 0.20 : 0.12),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: badgeColor.withValues(alpha: 0.35),
-                        width: 1,
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(100),
-                      child: Image.asset(
-                        isPositive
-                            ? 'assets/mascot/expression-04-excited.png'
-                            : 'assets/mascot/sticker-01-encourage.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+              const SizedBox(width: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isPositive
+                      ? const Color(0xFF059669)
+                          .withValues(alpha: dark ? 0.22 : 0.12)
+                      : const Color(0xFFE11D48)
+                          .withValues(alpha: dark ? 0.22 : 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isPositive
+                        ? const Color(0xFF059669).withValues(alpha: 0.35)
+                        : const Color(0xFFE11D48).withValues(alpha: 0.35),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                    decoration: BoxDecoration(
-                      color: badgeColor.withValues(alpha: dark ? 0.20 : 0.12),
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                        color: badgeColor.withValues(alpha: 0.35),
-                        width: 0.8,
-                      ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isPositive
+                          ? Icons.trending_up_rounded
+                          : Icons.trending_down_rounded,
+                      size: 14,
+                      color: isPositive
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFE11D48),
                     ),
-                    child: Text(
-                      isPositive ? '+Thặng dư' : '-Thâm hụt',
+                    const SizedBox(width: 4),
+                    Text(
+                      isPositive ? 'Thặng dư' : 'Thâm hụt',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w800,
-                        color: badgeColor,
+                        color: isPositive
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFE11D48),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          // Summary Pills: Tỷ lệ tích luỹ (%) & Trung bình chi/ngày
+          // 2. Dual Bento Metric Pods: Thu vào vs Chi ra (Bright, solid, high contrast)
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? const Color(0xFF0D281E)
+                        : const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: dark
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFF86EFAC),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: const Icon(Icons.arrow_downward_rounded,
+                                size: 13, color: Colors.white),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Tổng thu vào',
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: dark
+                                  ? const Color(0xFF6EE7B7)
+                                  : const Color(0xFF047857),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: FinoraPrivacyMask(
+                          child: Text(
+                            '+${formatVND(income)}',
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: dark
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFF047857),
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? const Color(0xFF2D1217)
+                        : const Color(0xFFFFF1F2),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: dark
+                          ? const Color(0xFFF43F5E)
+                          : const Color(0xFFFDA4AF),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF43F5E),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: const Icon(Icons.arrow_upward_rounded,
+                                size: 13, color: Colors.white),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Tổng chi ra',
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: dark
+                                  ? const Color(0xFFFDA4AF)
+                                  : const Color(0xFFBE123C),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: FinoraPrivacyMask(
+                          child: Text(
+                            '−${formatVND(expense)}',
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: dark
+                                  ? const Color(0xFFFB7185)
+                                  : const Color(0xFFBE123C),
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // 3. Proportion Comparison Track (Thu vs Chi)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Thu ${(incomeRatio * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      fontFamily: 'BeVietnamPro',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  Text(
+                    'Tỷ trọng thu chi',
+                    style: TextStyle(
+                      fontFamily: 'BeVietnamPro',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: sub,
+                    ),
+                  ),
+                  Text(
+                    'Chi ${(expenseRatio * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      fontFamily: 'BeVietnamPro',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF43F5E),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: SizedBox(
+                  height: 8,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: (incomeRatio * 1000).toInt().clamp(1, 999),
+                        child: Container(color: const Color(0xFF10B981)),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        flex: (expenseRatio * 1000).toInt().clamp(1, 999),
+                        child: Container(color: const Color(0xFFF43F5E)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // 4. Sub-Metrics: Tỷ lệ tích luỹ & TB chi/ngày
           Row(
             children: [
               Expanded(
@@ -1010,27 +922,23 @@ class _ReportScreenState extends State<ReportScreen>
                     children: [
                       Text(
                         'Tỷ lệ tích luỹ',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: sub,
                         ),
                       ),
                       const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${savingsRate.toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            color: savingsRate >= 0
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFE11D48),
-                          ),
+                      Text(
+                        '${savingsRate.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: savingsRate >= 0
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFE11D48),
                         ),
                       ),
                     ],
@@ -1051,27 +959,23 @@ class _ReportScreenState extends State<ReportScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Trung bình chi/ngày',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        'Chi tiêu TB/ngày',
                         style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: sub,
                         ),
                       ),
                       const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: FinoraPrivacyMask(
-                          child: Text(
-                            formatVND(avgDailyExpense),
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: text,
-                            ),
+                      FinoraPrivacyMask(
+                        child: Text(
+                          formatVND(avgDailyExpense),
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: text,
                           ),
                         ),
                       ),
@@ -1081,138 +985,8 @@ class _ReportScreenState extends State<ReportScreen>
               ),
             ],
           ),
-
-          const SizedBox(height: 14),
-
-          // 4 Clear Horizontal Breakdown Rows with progress bars & right-pinned amounts
-          _buildCashflowBreakdownRow(
-            label: 'Tổng thu nhập',
-            formattedAmount: '+${formatVND(income)}',
-            color: const Color(0xFF10B981),
-            progress: (income / maxBreakdown).clamp(0.0, 1.0),
-            dark: dark,
-            text: text,
-          ),
-          const SizedBox(height: 10),
-          _buildCashflowBreakdownRow(
-            label: 'Tổng chi tiêu',
-            formattedAmount: '-${formatVND(expense)}',
-            color: const Color(0xFFE11D48),
-            progress: (expense / maxBreakdown).clamp(0.0, 1.0),
-            dark: dark,
-            text: text,
-          ),
-          const SizedBox(height: 10),
-          _buildCashflowBreakdownRow(
-            label: 'Cho vay / Thu nợ',
-            formattedAmount: formatVND(lendingFlow),
-            color: const Color(0xFFD97706),
-            progress: (lendingFlow / maxBreakdown).clamp(0.0, 1.0),
-            dark: dark,
-            text: text,
-          ),
-          const SizedBox(height: 10),
-          _buildCashflowBreakdownRow(
-            label: 'Đi vay / Trả nợ',
-            formattedAmount: formatVND(debtFlow),
-            color: const Color(0xFF0284C7),
-            progress: (debtFlow / maxBreakdown).clamp(0.0, 1.0),
-            dark: dark,
-            text: text,
-          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCashflowBreakdownRow({
-    required String label,
-    required String formattedAmount,
-    required Color color,
-    required double progress,
-    required bool dark,
-    required Color text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: text,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 118),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: FinoraPrivacyMask(
-                  child: Text(
-                    formattedAmount,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Container(
-          height: 6,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: (dark ? Colors.white : Colors.black)
-                .withValues(alpha: dark ? 0.08 : 0.05),
-            borderRadius: BorderRadius.circular(100),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  width: constraints.maxWidth * progress,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 

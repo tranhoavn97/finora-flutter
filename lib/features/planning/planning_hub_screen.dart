@@ -276,7 +276,7 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
       ),
       body: PageView(
         controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
+        physics: const BouncingScrollPhysics(),
         onPageChanged: (idx) {
           if (_selectedTab != idx) {
             HapticFeedback.selectionClick();

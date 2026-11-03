@@ -184,25 +184,18 @@ class _BankTransactionPromptSheetState
 
   List<Category> _availableCategories(
       TransactionProvider? txProv, MoreProvider? moreProv) {
-    final fromMore = moreProv?.categories ?? const <Category>[];
     final fromTx = txProv?.categories ?? const <Category>[];
-    final merged = <Category>[];
-    final seenNames = <String>{};
-    final seenIds = <String>{};
+    final fromMore = moreProv?.categories ?? const <Category>[];
+    final userCategories = fromTx.isNotEmpty ? fromTx : fromMore;
 
-    for (final c in [...fromMore, ...fromTx, ...Category.defaults]) {
-      if (c.isArchived || c.categoryGroup == 'merchant') continue;
-      final idKey = c.id.trim().toLowerCase();
-      final nameKey = c.name.trim().toLowerCase();
-      if ((idKey.isNotEmpty && seenIds.contains(idKey)) ||
-          (nameKey.isNotEmpty && seenNames.contains(nameKey))) {
-        continue;
-      }
-      if (idKey.isNotEmpty) seenIds.add(idKey);
-      if (nameKey.isNotEmpty) seenNames.add(nameKey);
-      merged.add(c);
+    if (userCategories.isNotEmpty) {
+      return userCategories
+          .where((c) => !c.isArchived && c.categoryGroup != 'merchant')
+          .toList();
     }
-    return merged;
+    return Category.defaults
+        .where((c) => !c.isArchived && c.categoryGroup != 'merchant')
+        .toList();
   }
 
   List<Category> _categoriesForType(List<Category> allCategories, String type) {
@@ -1606,133 +1599,167 @@ class _BankTransactionPromptSheetState
               ),
             ),
 
-            // 4b. Quick Category Chips (when not transfer)
-            if (!isTransfer && categories.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: Padding(
+            // 4b. Chọn nơi mua (Merchant / Shopping Place Chips)
+            if (!isTransfer) ...[
+              () {
+                final merchants = <String>[
+                  if (widget.tx.suggestedMerchant?.trim().isNotEmpty == true)
+                    widget.tx.suggestedMerchant!.trim(),
+                  'Shopee',
+                  'TikTok Shop',
+                  'Grab',
+                  'WinMart',
+                  'Highlands Coffee',
+                  'Phúc Long',
+                  'ShopeeFood',
+                  'Circle K',
+                  'Bách Hoá Xanh',
+                  'Be',
+                  'Xanh SM',
+                  'GS25',
+                  'Lazada',
+                  'Tiki',
+                  'Starbucks',
+                  'KFC',
+                  'Lotteria',
+                  'CGV',
+                ].toSet().toList();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
                       padding: const EdgeInsets.only(left: 4),
-                      child: Text(
-                        'Chọn nhanh danh mục',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(999),
-                    onTap: () => _pickCategory(categories, isDark),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Xem tất cả (${categories.length})',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                              color: accentColor,
-                            ),
-                          ),
                           Icon(
-                            Icons.chevron_right_rounded,
-                            size: 16,
+                            Icons.storefront_rounded,
+                            size: 15,
                             color: accentColor,
                           ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Chọn nơi mua',
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const Spacer(),
+                          if (_noteCtrl.text.trim().isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() => _noteCtrl.text = '');
+                              },
+                              child: Text(
+                                'Xóa',
+                                style: TextStyle(
+                                  fontFamily: 'BeVietnamPro',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: 44,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: categories.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (_, idx) {
-                    final cat = categories[idx];
-                    final key = _catKey(cat);
-                    final isSelected = key == _selectedCategoryId;
-                    return Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(999),
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _selectedCategoryId = key);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? accentColor.withValues(
-                                    alpha: isDark ? 0.24 : 0.12)
-                                : (isDark
-                                    ? const Color(0xFF1E293B)
-                                    : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: isSelected
-                                  ? accentColor
-                                  : (isDark
-                                      ? Colors.white.withValues(alpha: 0.10)
-                                      : const Color(0xFFE2E8F0)),
-                              width: isSelected ? 1.4 : 1.0,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CategoryIconBadge(
-                                icon: cat.icon,
-                                categoryName: cat.name,
-                                colorHex: cat.color,
-                                size: 28,
-                                isDark: isDark,
-                              ),
-                              const SizedBox(width: 7),
-                              Text(
-                                cat.name,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 38,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: merchants.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, idx) {
+                          final merchant = merchants[idx];
+                          final isSelected = _noteCtrl.text.trim() == merchant;
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  if (isSelected) {
+                                    _noteCtrl.text = '';
+                                  } else {
+                                    _noteCtrl.text = merchant;
+                                  }
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
                                   color: isSelected
-                                      ? accentColor
+                                      ? accentColor.withValues(
+                                          alpha: isDark ? 0.24 : 0.12)
                                       : (isDark
-                                          ? Colors.white
-                                          : const Color(0xFF0F172A)),
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFF8FAFC)),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? accentColor
+                                        : (isDark
+                                            ? Colors.white.withValues(alpha: 0.10)
+                                            : const Color(0xFFE2E8F0)),
+                                    width: isSelected ? 1.4 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isSelected
+                                          ? Icons.check_circle_rounded
+                                          : Icons.store_rounded,
+                                      size: 14,
+                                      color: isSelected
+                                          ? accentColor
+                                          : (isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B)),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      merchant,
+                                      style: TextStyle(
+                                        fontFamily: 'BeVietnamPro',
+                                        fontSize: 12,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: isSelected
+                                            ? accentColor
+                                            : (isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A)),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              }(),
             ],
-
             // 5. Mã giao dịch chính (Gán trực tiếp từ thông báo ngân hàng)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),

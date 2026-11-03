@@ -12,6 +12,7 @@ import '../../state/family_provider.dart';
 import '../../state/more_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import 'bank_inbox_view.dart';
+import '../settings/bank_sync_settings_sheet.dart';
 
 class NotificationScreen extends StatefulWidget {
   final String userId;
@@ -201,11 +202,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
     required MoreProvider? more,
     required List<AppNotification> items,
   }) {
-    final bool hasUnread = unread > 0 && more != null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Row 1: Back Button + Title + Actions
+        // Row 1: Back Button + Title + Settings Button (NO action buttons in header)
         Row(
           children: [
             FinoraCircleIconButton(
@@ -227,6 +227,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     softWrap: false,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
+                      fontFamily: 'BeVietnamPro',
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
@@ -236,11 +237,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   const SizedBox(height: 1),
                   Text(
                     pending + unread > 0
-                        ? ' mục cần bạn kiểm tra'
+                        ? '$pending giao dịch chờ · $unread chưa đọc'
                         : 'Tất cả thông báo đã cập nhật',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
+                      fontFamily: 'BeVietnamPro',
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: isDark
@@ -252,97 +254,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
               ),
             ),
             const SizedBox(width: 6),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (hasUnread) ...[
-                  InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      _markAllAsRead(more, items);
-                    },
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      height: 30,
-                      padding: const EdgeInsets.symmetric(horizontal: 9),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF059669)
-                            .withValues(alpha: isDark ? 0.22 : 0.10),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color:
-                              const Color(0xFF059669).withValues(alpha: 0.35),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.done_all_rounded,
-                            size: 14,
-                            color: isDark
-                                ? const Color(0xFF34D399)
-                                : const Color(0xFF059669),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Đọc hết',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? const Color(0xFF34D399)
-                                  : const Color(0xFF059669),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                if ((items.isNotEmpty || pending > 0) && more != null)
-                  InkWell(
-                    onTap: () => _confirmClearAllNotifications(context, more),
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      height: 30,
-                      padding: const EdgeInsets.symmetric(horizontal: 9),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE11D48)
-                            .withValues(alpha: isDark ? 0.20 : 0.08),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color:
-                              const Color(0xFFE11D48).withValues(alpha: 0.32),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.delete_sweep_rounded,
-                            size: 15,
-                            color: isDark
-                                ? const Color(0xFFFB7185)
-                                : const Color(0xFFE11D48),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Xoá tất cả',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? const Color(0xFFFB7185)
-                                  : const Color(0xFFE11D48),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
+            FinoraCircleIconButton(
+              icon: Icons.tune_rounded,
+              tooltip: 'Cài đặt đọc biến động (Beta)',
+              size: 36,
+              iconSize: 18,
+              onPressed: () =>
+                  BankSyncSettingsSheet.show(context, userId: widget.userId),
             ),
           ],
         ),
@@ -386,10 +304,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
             unselectedLabelColor:
                 isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
             labelStyle: const TextStyle(
+              fontFamily: 'BeVietnamPro',
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
             unselectedLabelStyle: const TextStyle(
+              fontFamily: 'BeVietnamPro',
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -509,13 +429,166 @@ class _ActivityTab extends StatelessWidget {
       return _buildEmptyState(isDark);
     }
 
-    return ListView.separated(
+    final itemsList = more.notifications;
+    final unreadCount = itemsList.where((n) => !n.isRead).length;
+
+    return ListView(
       padding: EdgeInsets.fromLTRB(16, topPadding ?? 16, 16, 32),
       physics: const BouncingScrollPhysics(),
-      itemCount: more.notifications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final item = more.notifications[index];
+      children: [
+        // Action toolbar moved out of header
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF1E293B).withValues(alpha: 0.80)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                'Hoạt động (${itemsList.length})',
+                style: TextStyle(
+                  fontFamily: 'BeVietnamPro',
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const Spacer(),
+              if (unreadCount > 0) ...[
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    for (final n in itemsList) {
+                      if (!n.isRead && n.id.isNotEmpty) {
+                        more.markNotificationAsRead(userId, n.id);
+                      }
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF059669)
+                          .withValues(alpha: isDark ? 0.22 : 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: const Color(0xFF059669).withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.done_all_rounded,
+                          size: 13,
+                          color: isDark
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFF059669),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Đọc hết',
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFF059669),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              InkWell(
+                onTap: () async {
+                  HapticFeedback.heavyImpact();
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                      title: const Text('Xoá tất cả thông báo?'),
+                      content: const Text(
+                          'Toàn bộ lịch sử thông báo hoạt động sẽ bị xoá vĩnh viễn.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Huỷ'),
+                        ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFE11D48),
+                          ),
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Xoá tất cả'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (ok == true) {
+                    await more.clearAllNotifications(userId);
+                  }
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 28,
+                  padding: const EdgeInsets.symmetric(horizontal: 9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE11D48)
+                        .withValues(alpha: isDark ? 0.20 : 0.08),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFFE11D48).withValues(alpha: 0.32),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.delete_sweep_rounded,
+                        size: 14,
+                        color: isDark
+                            ? const Color(0xFFFB7185)
+                            : const Color(0xFFE11D48),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Xoá tất cả',
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? const Color(0xFFFB7185)
+                              : const Color(0xFFE11D48),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...itemsList.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
         final meta = _styleForType(item.type ?? 'info');
         final isUnread = !item.isRead;
         final title = (item.title?.trim().isNotEmpty == true)
@@ -664,7 +737,8 @@ class _ActivityTab extends StatelessWidget {
             ),
           ),
         );
-      },
+        }),
+      ],
     );
   }
 }

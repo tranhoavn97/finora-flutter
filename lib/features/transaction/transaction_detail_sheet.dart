@@ -490,7 +490,7 @@ class _TransactionDetailModalContent extends StatelessWidget {
                     text: TextSpan(
                       children: [
                         TextSpan(
-                          text: '$sign${formatVND(tx.amount)}',
+                          text: '$sign${NumberFormat('#,##0', 'vi_VN').format(tx.amount)}',
                           style: const TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.w900,

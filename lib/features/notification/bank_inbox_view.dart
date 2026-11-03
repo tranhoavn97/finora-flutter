@@ -43,275 +43,6 @@ class _BankInboxViewState extends State<BankInboxView> {
     );
   }
 
-  Widget _buildAppScanSettingsCard(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: isDark ? 0.72 : 0.90),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: (isDark ? Colors.white : Colors.black)
-              .withValues(alpha: isDark ? 0.08 : 0.06),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF0D9488)
-                      .withValues(alpha: isDark ? 0.22 : 0.12),
-                ),
-                child: const Icon(Icons.tune_rounded,
-                    size: 17, color: Color(0xFF0D9488)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cài đặt quét ứng dụng',
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                    ),
-                    Text(
-                      'Chỉ nhận thông báo từ ngân hàng và ví điện tử',
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 11,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _buildScanToggleRow(
-            title: 'Ví điện tử (MoMo, ZaloPay, Viettel Money, VNPay)',
-            subtitle: 'Bắt biến động trừ tiền, chuyển tiền và nạp rút',
-            value: _bank.scanEWallets,
-            isDark: isDark,
-            onChanged: (v) => _bank.updateScanSettings(scanEWallets: v),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScanToggleRow({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required bool isDark,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: 'BeVietnamPro',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontFamily: 'BeVietnamPro',
-                    fontSize: 10.5,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch.adaptive(
-            value: value,
-            activeColor: const Color(0xFF0D9488),
-            onChanged: (v) {
-              HapticFeedback.selectionClick();
-              onChanged(v);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showPasteNotificationModal(bool isDark) async {
-    final bankCtrl = TextEditingController(text: 'Techcombank');
-    final contentCtrl = TextEditingController();
-    final created = await showModalBottomSheet<ParsedBankTransaction>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return AdaptiveGlassSurface(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: const Color(0xFF059669).withValues(alpha: 0.32),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.black12,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Bóc tách thông báo Ngân hàng / Ví điện tử',
-                style: TextStyle(
-                  fontSize: 16.5,
-                  fontWeight: FontWeight.w900,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Tự động tách Mã giao dịch chính, nhận diện chuyển khoản cùng máy, trả thẻ tín dụng.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: bankCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                inputFormatters: const [FinoraCapitalizeFirstFormatter()],
-                decoration: InputDecoration(
-                  labelText:
-                      'Ngân hàng hoặc ví điện tử (Techcombank, VCB, MoMo...)',
-                  prefixIcon:
-                      const Icon(Icons.account_balance_rounded, size: 18),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF1E293B)
-                      : const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: contentCtrl,
-                maxLines: 3,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: 'Nội dung biến động số dư / SMS ngân hàng',
-                  hintText:
-                      'VD: TK 1903... -250,000 VND. ND: FT263039912 Thanh toan don Shopee',
-                  prefixIcon: const Icon(Icons.receipt_long_rounded, size: 18),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF1E293B)
-                      : const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Hủy'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        final rawText = contentCtrl.text.trim();
-                        if (rawText.isEmpty) return;
-                        final parsed = _bank.injectManualNotification(
-                          title: bankCtrl.text.trim().isNotEmpty
-                              ? bankCtrl.text.trim()
-                              : 'Ngân hàng',
-                          text: rawText,
-                        );
-                        Navigator.pop(ctx, parsed);
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF059669),
-                        foregroundColor: Colors.white,
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      icon: const Icon(Icons.auto_awesome_rounded, size: 17),
-                      label: const Text(
-                        'Phân tích & Mở lưu',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    if (created != null && mounted) {
-      await _review(created);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -321,9 +52,7 @@ class _BankInboxViewState extends State<BankInboxView> {
       builder: (context, _) {
         final pending = _bank.pending;
         final unrecognized = _bank.unrecognized;
-        final incomeCount = pending.where((e) => e.type == 'income').length;
-        final expenseCount = pending.where((e) => e.type == 'expense').length;
-        final transferCount = pending.where((e) => e.isTransfer).length;
+        final totalCount = pending.length + unrecognized.length;
 
         return RefreshIndicator(
           color: const Color(0xFF059669),
@@ -334,24 +63,16 @@ class _BankInboxViewState extends State<BankInboxView> {
               parent: BouncingScrollPhysics(),
             ),
             children: [
-              _StatusCard(
-                granted: _granted,
-                connected: _bank.connected,
-                error: _bank.error,
-                onRefresh: _refresh,
-                onOpenPasteModal: () => _showPasteNotificationModal(isDark),
-              ),
-              if (pending.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                // Summary Bar for Pending Transactions
-                AdaptiveGlassSurface(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              if (totalCount > 0) ...[
+                // Action toolbar moved out of header: Xoá tất cả giao dịch chờ
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? const Color(0xFF1E293B).withValues(alpha: 0.85)
+                        ? const Color(0xFF1E293B).withValues(alpha: 0.80)
                         : Colors.white,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isDark
                           ? Colors.white.withValues(alpha: 0.08)
@@ -362,128 +83,98 @@ class _BankInboxViewState extends State<BankInboxView> {
                     children: [
                       const Icon(
                         Icons.auto_awesome_rounded,
-                        size: 16,
+                        size: 15,
                         color: Color(0xFF059669),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Đã bóc tách ${pending.length} biến động số dư',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
+                      Text(
+                        'Đã bóc tách $totalCount biến động',
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const Spacer(),
+                      InkWell(
+                        onTap: () async {
+                          HapticFeedback.heavyImpact();
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (c) => AlertDialog(
+                              backgroundColor:
+                                  isDark ? const Color(0xFF1E293B) : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24)),
+                              title: const Text('Xoá tất cả giao dịch chờ?'),
+                              content: Text(
+                                  'Bỏ qua toàn bộ $totalCount biến động số dư đang chờ? Các giao dịch này sẽ không được ghi vào sổ.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(c, false),
+                                  child: const Text('Huỷ'),
+                                ),
+                                FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFFE11D48),
+                                  ),
+                                  onPressed: () => Navigator.pop(c, true),
+                                  child: const Text('Xoá tất cả'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok == true) {
+                            await _bank.acknowledgeAll();
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          height: 28,
+                          padding: const EdgeInsets.symmetric(horizontal: 9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE11D48)
+                                .withValues(alpha: isDark ? 0.20 : 0.08),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: const Color(0xFFE11D48)
+                                  .withValues(alpha: 0.32),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.delete_sweep_rounded,
+                                size: 14,
+                                color: isDark
+                                    ? const Color(0xFFFB7185)
+                                    : const Color(0xFFE11D48),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Xoá tất cả',
+                                style: TextStyle(
+                                  fontFamily: 'BeVietnamPro',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? const Color(0xFFFB7185)
+                                      : const Color(0xFFE11D48),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                      if (pending.isNotEmpty) ...[
-                        InkWell(
-                          onTap: () async {
-                            final ok = await showDialog<bool>(
-                              context: context,
-                              builder: (c) => AlertDialog(
-                                title: const Text('Bỏ qua tất cả?'),
-                                content: Text('Bỏ qua toàn bộ ${pending.length} giao dịch đang chờ trong hộp thư?'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Hủy')),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
-                                    onPressed: () => Navigator.pop(c, true),
-                                    child: const Text('Bỏ qua tất cả'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (ok == true) {
-                              for (final item in pending) {
-                                await _bank.acknowledge(item.rawId);
-                              }
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                            margin: const EdgeInsets.only(right: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE11D48).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Bỏ qua tất cả',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFFE11D48),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (transferCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          margin: const EdgeInsets.only(right: 6),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF0284C7).withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '$transferCount CK',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0284C7),
-                            ),
-                          ),
-                        ),
-                      if (incomeCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          margin: const EdgeInsets.only(right: 6),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF059669).withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '+$incomeCount Thu',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF059669),
-                            ),
-                          ),
-                        ),
-                      if (expenseCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFFE11D48).withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '-$expenseCount Chi',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFE11D48),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
-              if (pending.isEmpty && unrecognized.isEmpty)
+              if (totalCount == 0)
                 Padding(
-                  padding: const EdgeInsets.only(top: 36),
+                  padding: const EdgeInsets.only(top: 60),
                   child: Column(
                     children: [
                       Container(
@@ -505,6 +196,7 @@ class _BankInboxViewState extends State<BankInboxView> {
                         'Không có giao dịch ngân hàng chờ xử lý',
                         textAlign: TextAlign.center,
                         style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
                           fontSize: 15.5,
                           fontWeight: FontWeight.w800,
                           color:
@@ -513,9 +205,10 @@ class _BankInboxViewState extends State<BankInboxView> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Khi ngân hàng hoặc ví điện tử báo biến động số dư, Finora sẽ tự tách Mã giao dịch chính và giữ lại ở đây.',
+                        'Khi ngân hàng hoặc ví điện tử báo biến động số dư, Finora sẽ tự bóc tách Mã GD và giữ lại ở đây để bạn kiểm tra.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
                           fontSize: 12.5,
                           height: 1.4,
                           color: isDark
@@ -533,8 +226,6 @@ class _BankInboxViewState extends State<BankInboxView> {
                   onDismiss: () => _bank.acknowledge(tx.rawId),
                 ),
               ),
-              const SizedBox(height: 12),
-              _buildAppScanSettingsCard(isDark),
               if (unrecognized.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Padding(
@@ -550,6 +241,7 @@ class _BankInboxViewState extends State<BankInboxView> {
                       Text(
                         'Thông báo ngân hàng chưa đọc được số tiền (${unrecognized.length})',
                         style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: isDark
