@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import android.content.Context
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import java.security.MessageDigest
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -23,12 +24,42 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         const val PREFS_NAME = "finora_bank_sync_prefs"
         const val KEY_PENDING_NOTIFICATIONS = "pending_notifications"
         private const val KEY_HANDLED = "handled_notifications"
+        @Volatile var instance: FinoraBankNotificationListenerService? = null
         @Volatile var connected = false
+        var onConnectionStatusChanged: ((Boolean) -> Unit)? = null
         private val queueLock = Any()
 
+        fun isAliveAndConnected(): Boolean {
+            if (connected) return true
+            val inst = instance ?: return false
+            return try {
+                inst.activeNotifications != null
+            } catch (_: Exception) {
+                false
+            }
+        }
+
         fun requestReconnect(context: Context) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !connected) {
-                requestRebind(ComponentName(context, FinoraBankNotificationListenerService::class.java))
+            try {
+                val pm = context.packageManager
+                val componentName = ComponentName(context, FinoraBankNotificationListenerService::class.java)
+                pm.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                pm.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    try {
+                        requestRebind(componentName)
+                    } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to request reconnect", e)
             }
         }
 
@@ -216,9 +247,16 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         }
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
+
     override fun onListenerConnected() {
         super.onListenerConnected()
+        instance = this
         connected = true
+        onConnectionStatusChanged?.invoke(true)
         // Android can deliver notifications before Flutter starts listening.
         try { activeNotifications?.forEach { onNotificationPosted(it) } }
         catch (_: Exception) { /* Notification access may have been revoked. */ }
@@ -226,12 +264,15 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         connected = false
+        onConnectionStatusChanged?.invoke(false)
         super.onListenerDisconnected()
         requestReconnect(this)
     }
 
     override fun onDestroy() {
+        instance = null
         connected = false
+        onConnectionStatusChanged?.invoke(false)
         super.onDestroy()
     }
 

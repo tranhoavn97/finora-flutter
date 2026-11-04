@@ -56,6 +56,11 @@ class BankSyncService extends ChangeNotifier {
         if (call.method == 'onBankNotification' && call.arguments is String) {
           _processRawJson(call.arguments as String);
         }
+        if (call.method == 'onSyncStatusChanged' && call.arguments is Map) {
+          final map = call.arguments as Map;
+          connected = map['connected'] == true;
+          notifyListeners();
+        }
       });
     }
     await loadScanSettings();
@@ -257,9 +262,10 @@ class BankSyncService extends ChangeNotifier {
 
   Future<bool> requestPostNotifications() =>
       _invokeBool('requestPostNotifications');
-  Future<void> reconnect() async {
+  Future<bool> reconnect() async {
     await _invokeBool('reconnect');
     await checkPendingNotifications();
+    return connected;
   }
 
   Future<void> acknowledge(String rawId) async {

@@ -69,6 +69,13 @@ class MainActivity : FlutterActivity() {
 
         val bankSyncChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.finora/bank_sync")
         bankInboxChannel = bankSyncChannel
+        FinoraBankNotificationListenerService.onConnectionStatusChanged = { isConnected ->
+            runOnUiThread {
+                try {
+                    bankSyncChannel.invokeMethod("onSyncStatusChanged", mapOf("connected" to isConnected))
+                } catch (_: Exception) {}
+            }
+        }
         bankSyncChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "consumeBankInboxRequest" -> {
@@ -78,8 +85,14 @@ class MainActivity : FlutterActivity() {
                 }
                 "isPermissionGranted" -> {
                     try {
-                        val enabledPackages = NotificationManagerCompat.getEnabledListenerPackages(this)
-                        result.success(enabledPackages.contains(packageName))
+                        val enabledPackages = try {
+                            NotificationManagerCompat.getEnabledListenerPackages(this)
+                        } catch (_: Exception) {
+                            emptySet()
+                        }
+                        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
+                        val isGranted = enabledPackages.contains(packageName) || flat.contains(packageName)
+                        result.success(isGranted)
                     } catch (e: Exception) {
                         result.success(false)
                     }
@@ -121,8 +134,9 @@ class MainActivity : FlutterActivity() {
                 }
                 "getSyncStatus" -> {
                     val prefs = getSharedPreferences(FinoraBankNotificationListenerService.PREFS_NAME, MODE_PRIVATE)
+                    val isConn = FinoraBankNotificationListenerService.isAliveAndConnected()
                     result.success(mapOf(
-                        "connected" to FinoraBankNotificationListenerService.connected,
+                        "connected" to isConn,
                         "lastReceivedAt" to prefs.getLong("lastReceivedAt", 0)
                     ))
                 }

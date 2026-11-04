@@ -139,35 +139,34 @@ class _FinoraTransactionSuccessModalState
             ? 'Chuyển khoản nội bộ'
             : (isIncome ? 'Khoản thu nhập' : 'Khoản chi tiêu'));
 
-    String resolvedSpender =
+    String rawSpender =
         widget.spenderTag ?? transaction.owner ?? '';
-    if (resolvedSpender.isEmpty ||
-        resolvedSpender == 'joint' ||
-        resolvedSpender == 'Chung' ||
-        resolvedSpender == 'all' ||
-        resolvedSpender == 'Thành viên') {
+    final sLower = rawSpender.toLowerCase().trim();
+    bool isHusband = sLower == 'husband' || sLower == 'chồng' || sLower == 'chong';
+    bool isWife = sLower == 'wife' || sLower == 'vợ' || sLower == 'vo';
+
+    if (!isHusband && !isWife) {
       if (transaction.tags.contains('spender:husband') ||
           transaction.tags.contains('husband') ||
           transaction.tags.contains('Chồng')) {
-        resolvedSpender = 'husband';
+        isHusband = true;
       } else if (transaction.tags.contains('spender:wife') ||
           transaction.tags.contains('wife') ||
           transaction.tags.contains('Vợ')) {
-        resolvedSpender = 'wife';
+        isWife = true;
       } else {
         final wLower = '${widget.walletName ?? ''} ${transaction.walletName ?? ''} ${transaction.fromWalletName ?? ''}'.toLowerCase();
         if (wLower.contains('chồng') || wLower.contains('chong') || wLower.contains('husband')) {
-          resolvedSpender = 'husband';
+          isHusband = true;
         } else if (wLower.contains('vợ') || wLower.contains('vo') || wLower.contains('wife')) {
-          resolvedSpender = 'wife';
-        } else {
-          resolvedSpender = 'joint';
+          isWife = true;
         }
       }
     }
-    final String spenderLabel = resolvedSpender == 'husband'
+    final String finalSpenderKey = isHusband ? 'husband' : (isWife ? 'wife' : 'joint');
+    final String spenderLabel = isHusband
         ? 'Chồng'
-        : (resolvedSpender == 'wife' ? 'Vợ' : 'Chung (Cả hai vợ chồng)');
+        : (isWife ? 'Vợ' : 'Chung (Cả hai vợ chồng)');
 
     final int tsMs = transaction.date > 0
         ? transaction.date
@@ -646,9 +645,9 @@ class _FinoraTransactionSuccessModalState
                                   label: 'Người chi tiêu',
                                   value: spenderLabel,
                                   iconWidget: FinoraMemberAvatar(
-                                    member: resolvedSpender == 'joint'
+                                    member: finalSpenderKey == 'joint'
                                         ? null
-                                        : resolvedSpender,
+                                        : finalSpenderKey,
                                     size: 26,
                                     isDark: isDark,
                                     showRing: true,

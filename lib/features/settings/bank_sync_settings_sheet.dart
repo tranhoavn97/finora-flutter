@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/services/bank_sync_service.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/glass_widgets.dart';
+import '../../core/widgets/finora_notice.dart';
 
 /// Trang / Bottom Sheet Cài Đặt Đọc Biến Động Số Dư (BETA)
 /// Tích hợp toàn bộ quyền thông báo, kiểm tra kết nối dịch vụ ngầm,
@@ -45,6 +46,7 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
     with WidgetsBindingObserver {
   final _service = BankSyncService();
   bool _granted = false;
+  bool _isChecking = false;
 
   @override
   void initState() {
@@ -90,13 +92,13 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                     ? const Color(0xFFE11D48)
                     : (isConnected
                         ? const Color(0xFF059669)
-                        : const Color(0xFFD97706)));
+                        : const Color(0xFF0284C7)));
 
             final statusText = !isSupported
                 ? 'Không hỗ trợ trên nền tảng này'
                 : (!_granted
                     ? 'Chưa cấp quyền'
-                    : (isConnected ? 'Đang hoạt động' : 'Cần kết nối lại'));
+                    : (isConnected ? 'Đang hoạt động' : 'Đã cấp quyền • Sẵn sàng'));
 
             return Column(
               children: [
@@ -319,7 +321,7 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                               ? 'Chưa cấp quyền Đọc thông báo'
                               : (isConnected
                                   ? 'Dịch vụ đang lắng nghe biến động'
-                                  : 'Dịch vụ chưa kết nối lại')),
+                                  : 'Đã sẵn sàng nhận thông báo')),
                       style: TextStyle(
                         fontFamily: 'BeVietnamPro',
                         fontSize: 14,
@@ -333,7 +335,7 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                           ? 'Cần cấp quyền để Finora tự bắt thông báo số dư từ ngân hàng và ví.'
                           : (isConnected
                               ? 'Tự động bóc tách Mã GD, số tiền và giữ lại để bạn kiểm tra.'
-                              : 'Nếu Android vừa khởi động lại hoặc tắt app ngầm, hãy kết nối lại.'),
+                              : 'Quyền hệ thống đã kích hoạt. Dịch vụ tự bắt biến động khi có thông báo ngân hàng mới tới.'),
                       style: TextStyle(
                         fontFamily: 'BeVietnamPro',
                         fontSize: 11.5,
@@ -385,16 +387,50 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () async {
+                      onPressed: _isChecking ? null : () async {
                         HapticFeedback.selectionClick();
+                        setState(() => _isChecking = true);
                         await _service.reconnect();
+                        for (int i = 0; i < 4 && !_service.connected; i++) {
+                          await Future.delayed(const Duration(milliseconds: 250));
+                          await _service.checkPendingNotifications();
+                        }
                         await _service.requestPostNotifications();
                         await _refresh();
+                        final isOk = _service.connected;
+                        if (!mounted) return;
+                        setState(() => _isChecking = false);
+                        if (isOk || _service.connected) {
+                          FinoraNotice.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('✓ Dịch vụ đọc biến động số dư đã kết nối thành công!'),
+                              backgroundColor: Color(0xFF059669),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } else {
+                          FinoraNotice.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Đã gửi yêu cầu kết nối lại tới hệ thống Android. Dịch vụ sẽ tự kích hoạt khi có thông báo ngân hàng mới.'),
+                              backgroundColor: Color(0xFF0284C7),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
                       },
-                      icon: const Icon(Icons.sync_rounded, size: 16),
-                      label: const Text(
-                        'Kiểm tra lại',
-                        style: TextStyle(
+                      icon: _isChecking
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF059669),
+                              ),
+                            )
+                          : const Icon(Icons.sync_rounded, size: 16),
+                      label: Text(
+                        _isChecking ? 'Đang kiểm tra...' : 'Kiểm tra lại',
+                        style: const TextStyle(
                           fontFamily: 'BeVietnamPro',
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
