@@ -27,12 +27,22 @@ class NotificationScreen extends StatefulWidget {
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> {
+class _NotificationScreenState extends State<NotificationScreen>
+    with SingleTickerProviderStateMixin {
   final _bank = BankSyncService();
+  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 1),
+    );
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _bank.initialize();
@@ -41,6 +51,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
             familyId: context.read<FamilyProvider?>()?.familyId,
           );
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _markAllAsRead(
@@ -155,43 +171,40 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final topPad = MediaQuery.of(context).padding.top;
 
-    return DefaultTabController(
-      length: 2,
-      initialIndex: widget.initialTab.clamp(0, 1),
-      child: AnimatedBuilder(
-        animation: _bank,
-        builder: (context, _) {
-          final pending = _bank.pending.length + _bank.unrecognizedCount;
-          return GlassScaffold(
-            extendBodyBehindAppBar: true,
-            appBar: GlassTopBar(
-              title: '',
-              showBack: false,
-              height: 106,
-              titleWidget: _buildNotificationTopBarContent(
-                isDark: isDark,
-                pending: pending,
-                unread: unread,
-                more: more,
-                items: items,
+    return AnimatedBuilder(
+      animation: _bank,
+      builder: (context, _) {
+        final pending = _bank.pending.length + _bank.unrecognizedCount;
+        return GlassScaffold(
+          extendBodyBehindAppBar: true,
+          appBar: GlassTopBar(
+            title: '',
+            showBack: false,
+            height: 154,
+            titleWidget: _buildNotificationTopBarContent(
+              isDark: isDark,
+              pending: pending,
+              unread: unread,
+              more: more,
+              items: items,
+            ),
+          ),
+          body: TabBarView(
+            controller: _tabController,
+            physics: const BouncingScrollPhysics(),
+            children: [
+              BankInboxView(
+                userId: widget.userId,
+                topPadding: GlassScaffold.topInset(context, 8, 154),
               ),
-            ),
-            body: TabBarView(
-              physics: const BouncingScrollPhysics(),
-              children: [
-                BankInboxView(
-                  userId: widget.userId,
-                  topPadding: GlassScaffold.topInset(context, 6, 106),
-                ),
-                _ActivityTab(
-                  userId: widget.userId,
-                  topPadding: GlassScaffold.topInset(context, 6, 106),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              _ActivityTab(
+                userId: widget.userId,
+                topPadding: GlassScaffold.topInset(context, 8, 154),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -202,10 +215,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     required MoreProvider? more,
     required List<AppNotification> items,
   }) {
+    final isPendingTab = _tabController.index == 0;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Row 1: Back Button + Title + Settings Button (NO action buttons in header)
+        // Row 1: Back Button + Title + Settings Button
         Row(
           children: [
             FinoraCircleIconButton(
@@ -282,6 +296,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
           ),
           child: TabBar(
+            controller: _tabController,
             dividerColor: Colors.transparent,
             indicatorSize: TabBarIndicatorSize.tab,
             splashBorderRadius: BorderRadius.circular(999),
@@ -316,6 +331,222 @@ class _NotificationScreenState extends State<NotificationScreen> {
             tabs: [
               Tab(text: 'Giao dịch chờ ($pending)'),
               Tab(text: 'Hoạt động ($unread)'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Row 3: Always visible Action Toolbar across BOTH tabs (Đọc hết & Xoá tất cả)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF1E293B).withValues(alpha: 0.70)
+                : Colors.white.withValues(alpha: 0.90),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : const Color(0xFFE2E8F0),
+              width: 0.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isPendingTab
+                    ? Icons.auto_awesome_rounded
+                    : Icons.notifications_active_rounded,
+                size: 14,
+                color: const Color(0xFF059669),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  isPendingTab
+                      ? (pending > 0
+                          ? '$pending giao dịch đang chờ'
+                          : 'Hộp chờ trống')
+                      : (unread > 0
+                          ? '$unread thông báo chưa đọc'
+                          : 'Tất cả đã đọc'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Nút Đọc hết
+              InkWell(
+                onTap: () async {
+                  HapticFeedback.mediumImpact();
+                  if (isPendingTab) {
+                    await _bank.acknowledgeAll();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded,
+                                  color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Text('Đã duyệt và dọn dẹp hàng đợi giao dịch chờ.'),
+                            ],
+                          ),
+                          backgroundColor: const Color(0xFF059669),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                      );
+                    }
+                  } else {
+                    if (more != null) {
+                      await _markAllAsRead(more, items);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded,
+                                    color: Colors.white, size: 18),
+                                SizedBox(width: 8),
+                                Text('Đã đánh dấu đọc tất cả thông báo.'),
+                              ],
+                            ),
+                            backgroundColor: const Color(0xFF059669),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 26,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669)
+                        .withValues(alpha: isDark ? 0.20 : 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFF059669)
+                          .withValues(alpha: isDark ? 0.35 : 0.25),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Đọc hết',
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF059669),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Nút Xoá tất cả
+              InkWell(
+                onTap: () async {
+                  HapticFeedback.heavyImpact();
+                  if (isPendingTab) {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        backgroundColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24)),
+                        title: const Text('Xoá tất cả giao dịch chờ?'),
+                        content: Text(
+                            'Bỏ qua toàn bộ $pending biến động số dư đang chờ? Các giao dịch này sẽ không được ghi vào sổ.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(c, false),
+                            child: const Text('Huỷ'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFE11D48),
+                            ),
+                            onPressed: () => Navigator.pop(c, true),
+                            child: const Text('Xoá tất cả'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await _bank.acknowledgeAll();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded,
+                                    color: Colors.white, size: 18),
+                                SizedBox(width: 8),
+                                Text('Đã dọn dẹp sạch toàn bộ giao dịch chờ.'),
+                              ],
+                            ),
+                            backgroundColor: const Color(0xFF059669),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                        );
+                      }
+                    }
+                  } else {
+                    if (more != null) {
+                      await _confirmClearAllNotifications(context, more);
+                    }
+                  }
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 26,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE11D48)
+                        .withValues(alpha: isDark ? 0.20 : 0.08),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFFE11D48)
+                          .withValues(alpha: isDark ? 0.35 : 0.22),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Xoá tất cả',
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE11D48),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

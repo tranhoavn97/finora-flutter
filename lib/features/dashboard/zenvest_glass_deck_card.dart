@@ -2290,26 +2290,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                         ),
                       ),
                     ),
-                    if (bankCode != null && bankCode.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '#$bankCode',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF10B981),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ],

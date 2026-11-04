@@ -815,6 +815,85 @@ class _TransactionDetailModalContent extends StatelessWidget {
                           ),
                         ),
                 ),
+                if (tx.bankTransactionCode != null &&
+                    tx.bankTransactionCode!.trim().isNotEmpty) ...[
+                  _buildHairlineDivider(isDark),
+                  _buildInsetRow(
+                    isDark: isDark,
+                    iconBoxColor: const Color(0xFFD1FAE5),
+                    iconColor: const Color(0xFF059669),
+                    icon: Icons.qr_code_2_rounded,
+                    label: 'Mã GD ngân hàng',
+                    valueWidget: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        Clipboard.setData(
+                          ClipboardData(text: tx.bankTransactionCode!.trim()),
+                        );
+                        FinoraNotice.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.check_circle_rounded,
+                                    color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Đã sao chép mã GD: #${tx.bankTransactionCode!.trim()}',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: const Color(0xFF059669),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981)
+                              .withValues(alpha: isDark ? 0.20 : 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF10B981)
+                                .withValues(alpha: 0.35),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '#${tx.bankTransactionCode!.trim()}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  fontFamily: 'BeVietnamPro',
+                                  color: Color(0xFF059669),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.copy_rounded,
+                              size: 14,
+                              color: Color(0xFF059669),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

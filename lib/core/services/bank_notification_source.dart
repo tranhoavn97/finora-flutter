@@ -46,6 +46,17 @@ class BankNotificationSource {
     'vn.liobank',
     'com.vnpay.vietcapitalbank',
     'com.kasikornbank.kplus.vn',
+    'com.vnpay.agribankplus',
+    'com.vib.myvib2',
+    'vn.com.msb.smartBanking',
+    'com.ocb.omni.app',
+    'vn.com.lpb.lienviet24h',
+    'vn.com.lpbank.mobile',
+    'vn.com.abbank.mobile',
+    'com.vnpay.abbank',
+    'com.vnpay.baca',
+    'com.vnpay.namabank',
+    'com.shopeepay.vn',
   };
   static const smsPackages = {
     'com.google.android.apps.messaging',
@@ -113,19 +124,23 @@ class BankNotificationSource {
   };
   static bool accepts(String package, String title, {bool wallets = true}) {
     final pkg = package.trim().toLowerCase();
-    return bankPackages.contains(pkg) ||
-        (wallets && walletPackages.contains(pkg)) ||
-        (smsPackages.contains(pkg) &&
-            senderAliases.contains(title.trim().toLowerCase()) &&
-            (wallets ||
-                !{
-                  'momo',
-                  'zalopay',
-                  'viettelmoney',
-                  'viettel money',
-                  'viettelpay',
-                  'vnpay',
-                  'shopeepay'
-                }.contains(title.trim().toLowerCase())));
+    final t = title.trim().toLowerCase();
+    if (bankPackages.contains(pkg)) return true;
+    if (wallets && walletPackages.contains(pkg)) return true;
+    if (smsPackages.contains(pkg)) {
+      final isWalletTitle = const {
+        'momo',
+        'zalopay',
+        'viettelmoney',
+        'viettel money',
+        'viettelpay',
+        'vnpay',
+        'shopeepay'
+      }.any((w) => t.contains(w));
+      if (isWalletTitle && !wallets) return false;
+      return senderAliases.any((alias) => t.contains(alias) || alias == t);
+    }
+    if (pkg == 'manual.bank' || pkg.isEmpty) return true;
+    return false;
   }
 }

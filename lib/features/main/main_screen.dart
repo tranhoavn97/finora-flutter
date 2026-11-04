@@ -141,19 +141,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     final bank = BankSyncService();
     ParsedBankTransaction? target = priorityTx;
+    if (target != null && target.amount <= 0) return;
     if (target != null &&
         (_promptedBankIds.contains(target.rawId) ||
             bank.wasAutoPrompted(target.rawId))) return;
     if (target == null) {
       for (final tx in bank.pending) {
-        if (!_promptedBankIds.contains(tx.rawId) &&
+        if (tx.amount > 0 &&
+            !_promptedBankIds.contains(tx.rawId) &&
             !bank.wasAutoPrompted(tx.rawId)) {
           target = tx;
           break;
         }
       }
     }
-    if (target == null) return;
+    if (target == null || target.amount <= 0) return;
 
     _showingBankPrompt = true;
     _promptedBankIds.add(target.rawId);

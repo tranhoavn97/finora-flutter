@@ -6949,23 +6949,6 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                       ),
                     ),
                   ),
-                if (bankCode != null && bankCode.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5.5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '#$bankCode',
-                      style: const TextStyle(
-                        fontSize: 9.2,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF10B981),
-                      ),
-                    ),
-                  ),
                 Text(
                   dateStr,
                   style: TextStyle(

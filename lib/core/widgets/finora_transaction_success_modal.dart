@@ -140,16 +140,29 @@ class _FinoraTransactionSuccessModalState
             : (isIncome ? 'Khoản thu nhập' : 'Khoản chi tiêu'));
 
     String resolvedSpender =
-        widget.spenderTag ?? transaction.owner ?? 'joint';
-    if (resolvedSpender.isEmpty) {
+        widget.spenderTag ?? transaction.owner ?? '';
+    if (resolvedSpender.isEmpty ||
+        resolvedSpender == 'joint' ||
+        resolvedSpender == 'Chung' ||
+        resolvedSpender == 'all' ||
+        resolvedSpender == 'Thành viên') {
       if (transaction.tags.contains('spender:husband') ||
-          transaction.tags.contains('husband')) {
+          transaction.tags.contains('husband') ||
+          transaction.tags.contains('Chồng')) {
         resolvedSpender = 'husband';
       } else if (transaction.tags.contains('spender:wife') ||
-          transaction.tags.contains('wife')) {
+          transaction.tags.contains('wife') ||
+          transaction.tags.contains('Vợ')) {
         resolvedSpender = 'wife';
       } else {
-        resolvedSpender = 'joint';
+        final wLower = '${widget.walletName ?? ''} ${transaction.walletName ?? ''} ${transaction.fromWalletName ?? ''}'.toLowerCase();
+        if (wLower.contains('chồng') || wLower.contains('chong') || wLower.contains('husband')) {
+          resolvedSpender = 'husband';
+        } else if (wLower.contains('vợ') || wLower.contains('vo') || wLower.contains('wife')) {
+          resolvedSpender = 'wife';
+        } else {
+          resolvedSpender = 'joint';
+        }
       }
     }
     final String spenderLabel = resolvedSpender == 'husband'

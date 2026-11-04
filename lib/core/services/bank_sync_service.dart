@@ -132,7 +132,7 @@ class BankSyncService extends ChangeNotifier {
         text: map['text']?.toString() ?? '',
         timestampMs: (map['timestamp'] as num?)?.toInt(),
       );
-      if (parsed == null) {
+      if (parsed == null || parsed.amount <= 0) {
         _unrecognized[id] = (
           title: map['title']?.toString() ?? '',
           text: map['text']?.toString() ?? ''
@@ -140,7 +140,9 @@ class BankSyncService extends ChangeNotifier {
       } else {
         final resolved = _tryMatchInternalTransfer(parsed);
         _pending[resolved.rawId] = resolved;
-        _events.add(resolved);
+        if (resolved.amount > 0) {
+          _events.add(resolved);
+        }
       }
       notifyListeners();
     } catch (_) {

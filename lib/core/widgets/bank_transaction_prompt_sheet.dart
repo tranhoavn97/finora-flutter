@@ -685,8 +685,16 @@ class _BankTransactionPromptSheetState
         walletName: wallet.name,
         toWalletId: destWallet?.id,
         toWalletName: destWallet?.name ?? widget.tx.matchedTransferBankName,
-        owner: wallet.owner,
-        ownerName: wallet.ownerName,
+        owner: (wallet.owner.isEmpty || wallet.owner == 'joint')
+            ? ((wallet.name.toLowerCase().contains('chồng') || wallet.name.toLowerCase().contains('chong'))
+                ? 'husband'
+                : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'wife' : wallet.owner))
+            : wallet.owner,
+        ownerName: (wallet.ownerName.isEmpty || wallet.ownerName == 'Chung')
+            ? ((wallet.name.toLowerCase().contains('chồng') || wallet.name.toLowerCase().contains('chong'))
+                ? 'Chồng'
+                : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'Vợ' : wallet.ownerName))
+            : wallet.ownerName,
         toOwner: destWallet?.owner,
         merchantName: widget.tx.suggestedMerchant,
         date: widget.tx.timestamp.millisecondsSinceEpoch,
@@ -703,11 +711,15 @@ class _BankTransactionPromptSheetState
       try {
         await BankSyncService().acknowledge(widget.tx.rawId);
         if (!mounted) return;
+        final inferredSpender = (wallet.name.toLowerCase().contains('chồng') || wallet.name.toLowerCase().contains('chong'))
+            ? 'husband'
+            : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'wife' : wallet.owner);
         await FinoraTransactionSuccessModal.show(
           context,
           transaction: newTx,
           walletName: wallet.name,
           destinationWalletName: destWallet?.name,
+          spenderTag: inferredSpender,
         );
         if (!mounted) return;
         Navigator.of(context).pop(true);

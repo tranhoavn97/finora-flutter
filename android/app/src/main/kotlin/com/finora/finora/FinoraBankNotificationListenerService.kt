@@ -100,6 +100,17 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             "vn.liobank",
             "com.vnpay.vietcapitalbank",
             "com.kasikornbank.kplus.vn",
+            "com.vnpay.agribankplus",
+            "com.vib.myvib2",
+            "vn.com.msb.smartBanking",
+            "com.ocb.omni.app",
+            "vn.com.lpb.lienviet24h",
+            "vn.com.lpbank.mobile",
+            "vn.com.abbank.mobile",
+            "com.vnpay.abbank",
+            "com.vnpay.baca",
+            "com.vnpay.namabank",
+            "com.shopeepay.vn",
             // E-Wallets
             "com.mservice.momotransfer",
             "com.mservice.momopay",
@@ -328,7 +339,8 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         val directWallet = walletsEnabled && pkg in walletPackages
         val walletSenders = setOf("momo", "zalopay", "viettelmoney", "viettel money", "viettelpay", "vnpay", "shopeepay")
         val trustedSmsSender = pkg in SMS_PACKAGES && BANK_KEYWORDS.any {
-            it !in setOf("shopee", "tiktok", "tiktok shop", "lazada") && lowerTitle.trim() == it &&
+            it !in setOf("shopee", "tiktok", "tiktok shop", "lazada") &&
+                (lowerTitle.contains(it) || it == lowerTitle.trim()) &&
                 (walletsEnabled || it !in walletSenders)
         }
         if (!directBank && !directWallet && !trustedSmsSender) return

@@ -1409,13 +1409,22 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       }
 
       if (mounted) {
+        String? effectiveSpender = activeTag;
+        final wNameLower = (_wallet?.name ?? _fromWallet?.name ?? '').toLowerCase();
+        if (effectiveSpender == 'Chung' || effectiveSpender == 'Thành viên') {
+          if (wNameLower.contains('chồng') || wNameLower.contains('chong') || wNameLower.contains('husband')) {
+            effectiveSpender = 'Chồng';
+          } else if (wNameLower.contains('vợ') || wNameLower.contains('vo') || wNameLower.contains('wife')) {
+            effectiveSpender = 'Vợ';
+          }
+        }
         final recordAnother = await FinoraTransactionSuccessModal.show(
           context,
           transaction: savedTx,
           isEdit: existing != null,
           walletName: _wallet?.name ?? _fromWallet?.name,
           destinationWalletName: _toWallet?.name,
-          spenderTag: activeTag,
+          spenderTag: effectiveSpender,
         );
 
         if (!mounted) return;
