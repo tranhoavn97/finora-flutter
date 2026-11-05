@@ -66,14 +66,119 @@ class _BankTransactionPromptSheetState
   late TextEditingController _amountCtrl;
   late TextEditingController _bankCodeCtrl;
   late TextEditingController _noteCtrl;
+  late TextEditingController _merchantInputCtrl;
   late String _selectedType; // 'expense' | 'income' | 'transfer'
   String? _selectedWalletId;
   String? _selectedToWalletId;
   String? _selectedCategoryId;
+  String? _selectedMerchant;
   bool _saving = false;
   bool _savedAwaitingAck = false;
   String? _validationError;
   bool _showRawText = true;
+
+  Wallet? _findBestWallet(List<Wallet> wallets, ParsedBankTransaction tx) {
+    if (wallets.isEmpty) return null;
+    if (wallets.length == 1) return wallets.first;
+
+    // 1. Khớp chính xác hoặc phần đuôi số tài khoản ngân hàng
+    final notifAcct = tx.accountNumber?.replaceAll(RegExp(r'\D'), '') ?? '';
+    if (notifAcct.length >= 3) {
+      final acctMatch = wallets.where((w) {
+        final wAcct = (w.accountNumber ?? '').replaceAll(RegExp(r'\D'), '');
+        return wAcct.isNotEmpty &&
+            (wAcct.endsWith(notifAcct) || notifAcct.endsWith(wAcct));
+      }).firstOrNull;
+      if (acctMatch != null) return acctMatch;
+    }
+
+    // 2. Lọc các ví khớp tên ngân hàng hoặc mã ngân hàng (MB, Techcombank, VCB, ACB, VPBank,...)
+    final bankKeywords = <String>{
+      tx.bankCode.toLowerCase(),
+      tx.bankName.toLowerCase(),
+    };
+    final bLower = '${tx.bankName} ${tx.bankCode}'.toLowerCase();
+    if (bLower.contains('mb') || bLower.contains('mbbank')) {
+      bankKeywords.addAll(['mb', 'mbbank', 'quân đội', 'quan doi']);
+    }
+    if (bLower.contains('tech') || bLower.contains('tcb')) {
+      bankKeywords.addAll(['tech', 'techcom', 'techcombank', 'tcb']);
+    }
+    if (bLower.contains('vietcom') || bLower.contains('vcb')) {
+      bankKeywords.addAll(['vietcom', 'vietcombank', 'vcb']);
+    }
+    if (bLower.contains('vietin') || bLower.contains('vtb') || bLower.contains('ctg')) {
+      bankKeywords.addAll(['vietin', 'vietinbank', 'vtb', 'ctg']);
+    }
+    if (bLower.contains('acb')) {
+      bankKeywords.addAll(['acb', 'á châu', 'a chau']);
+    }
+    if (bLower.contains('vpbank') || bLower.contains('vpb')) {
+      bankKeywords.addAll(['vpbank', 'vpb', 'vp']);
+    }
+    if (bLower.contains('bidv')) {
+      bankKeywords.addAll(['bidv']);
+    }
+    if (bLower.contains('tpbank') || bLower.contains('tpb')) {
+      bankKeywords.addAll(['tpbank', 'tpb', 'tiên phong', 'tien phong']);
+    }
+    if (bLower.contains('agribank') || bLower.contains('agri')) {
+      bankKeywords.addAll(['agribank', 'agri', 'nông nghiệp', 'nong nghiep', 'vba']);
+    }
+    if (bLower.contains('sacom') || bLower.contains('stb')) {
+      bankKeywords.addAll(['sacom', 'sacombank', 'stb']);
+    }
+    if (bLower.contains('momo')) {
+      bankKeywords.addAll(['momo']);
+    }
+    if (bLower.contains('zalo')) {
+      bankKeywords.addAll(['zalo', 'zalopay']);
+    }
+    if (bLower.contains('viettel')) {
+      bankKeywords.addAll(['viettel', 'viettel money', 'vtpay']);
+    }
+
+    final bankMatches = wallets.where((w) {
+      final wName = w.name.toLowerCase();
+      final wBName = (w.bankName ?? '').toLowerCase();
+      final wBCode = (w.bankCode ?? '').toLowerCase();
+      return bankKeywords.any((k) =>
+          k.isNotEmpty && (wName.contains(k) || wBName.contains(k) || wBCode.contains(k)));
+    }).toList();
+
+    final candidatePool = bankMatches.isNotEmpty ? bankMatches : wallets;
+
+    // 3. Khớp số dư gần đúng nhất với số dư sau giao dịch (SD / So du)
+    final notifBal = tx.balanceAfter;
+    if (notifBal != null && notifBal > 0) {
+      Wallet? closest;
+      double minDiff = double.infinity;
+      for (final w in candidatePool) {
+        final wBal = w.balance.toDouble();
+        final diffDirect = (wBal - notifBal).abs();
+        final diffPreTx = tx.isExpense
+            ? (wBal - (notifBal + tx.amount)).abs()
+            : (wBal - (notifBal - tx.amount)).abs();
+        final diff = math.min(diffDirect, diffPreTx);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = w;
+        }
+      }
+      if (closest != null) return closest;
+    }
+
+    // 4. Nếu là thanh toán thẻ tín dụng, ưu tiên ví loại credit/thẻ tín dụng
+    if (tx.isCreditCardPayment) {
+      final credit = candidatePool.where((w) =>
+          w.type == 'credit' ||
+          w.name.toLowerCase().contains('tín dụng') ||
+          w.name.toLowerCase().contains('credit')).firstOrNull;
+      if (credit != null) return credit;
+    }
+
+    return candidatePool.first;
+  }
 
   String _catKey(Category c) =>
       c.id.trim().isNotEmpty ? c.id.trim() : c.name.trim().toLowerCase();
@@ -94,6 +199,10 @@ class _BankTransactionPromptSheetState
     _bankCodeCtrl = TextEditingController(text: mainBankRef);
     // Ghi chú riêng của người dùng tách biệt hoàn toàn
     _noteCtrl = TextEditingController(text: '');
+    _selectedMerchant = widget.tx.suggestedMerchant?.trim().isNotEmpty == true
+        ? widget.tx.suggestedMerchant!.trim()
+        : null;
+    _merchantInputCtrl = TextEditingController(text: _selectedMerchant ?? '');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -120,21 +229,10 @@ class _BankTransactionPromptSheetState
     final wallets = fromWalletProv.isNotEmpty ? fromWalletProv : fromTxProv;
     final categories = _availableCategories(txProv, moreProv);
 
-    // 1. Auto-match source wallet by bank name / code
+    // 1. Auto-match source wallet by bank name / code and closest balance
     if (wallets.isNotEmpty && _selectedWalletId == null) {
-      final matched = wallets.where((w) {
-        final nameLower = w.name.toLowerCase();
-        final bankLower = widget.tx.bankName.toLowerCase();
-        final codeLower = widget.tx.bankCode.toLowerCase();
-        final wBankCode = (w.bankCode ?? '').toLowerCase();
-        final wBankName = (w.bankName ?? '').toLowerCase();
-        return nameLower.contains(bankLower) ||
-            nameLower.contains(codeLower) ||
-            wBankCode.contains(codeLower) ||
-            wBankName.contains(bankLower);
-      }).toList();
-      _selectedWalletId =
-          matched.isNotEmpty ? matched.first.id : wallets.first.id;
+      final best = _findBestWallet(wallets, widget.tx);
+      _selectedWalletId = best?.id ?? wallets.first.id;
     }
 
     // 2. Auto-match destination wallet if internal transfer or credit card payment
@@ -284,6 +382,7 @@ class _BankTransactionPromptSheetState
     _amountCtrl.dispose();
     _bankCodeCtrl.dispose();
     _noteCtrl.dispose();
+    _merchantInputCtrl.dispose();
     super.dispose();
   }
 
@@ -696,9 +795,16 @@ class _BankTransactionPromptSheetState
                 : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'Vợ' : wallet.ownerName))
             : wallet.ownerName,
         toOwner: destWallet?.owner,
-        merchantName: widget.tx.suggestedMerchant,
+        merchantName: (_merchantInputCtrl.text.trim().isNotEmpty
+            ? _merchantInputCtrl.text.trim()
+            : _selectedMerchant)?.trim(),
         date: widget.tx.timestamp.millisecondsSinceEpoch,
-        note: userNote.isNotEmpty ? userNote : resolvedCategoryName,
+        note: userNote.isNotEmpty
+            ? userNote
+            : ((_merchantInputCtrl.text.trim().isNotEmpty
+                    ? _merchantInputCtrl.text.trim()
+                    : _selectedMerchant) ??
+                resolvedCategoryName),
         bankTransactionCode: mainBankCode,
         rawBankNotification: widget.tx.rawNotificationText.isNotEmpty
             ? widget.tx.rawNotificationText
@@ -757,7 +863,8 @@ class _BankTransactionPromptSheetState
     if (wallets.isNotEmpty &&
         (_selectedWalletId == null ||
             !wallets.any((w) => w.id == _selectedWalletId))) {
-      _selectedWalletId = wallets.first.id;
+      final best = _findBestWallet(wallets, widget.tx);
+      _selectedWalletId = best?.id ?? wallets.first.id;
     }
     if (wallets.isNotEmpty &&
         (_selectedToWalletId == null ||
@@ -1611,164 +1718,257 @@ class _BankTransactionPromptSheetState
               ),
             ),
 
-            // 4b. Chọn nơi mua (Merchant / Shopping Place Chips)
+            // 4b. Nơi mua sắm / Đơn vị chi tiêu (Luxury Bento Hub)
             if (!isTransfer) ...[
               () {
-                final merchants = <String>[
+                final popularMerchants = <({String name, Color color, IconData icon})>[
                   if (widget.tx.suggestedMerchant?.trim().isNotEmpty == true)
-                    widget.tx.suggestedMerchant!.trim(),
-                  'Shopee',
-                  'TikTok Shop',
-                  'Grab',
-                  'WinMart',
-                  'Highlands Coffee',
-                  'Phúc Long',
-                  'ShopeeFood',
-                  'Circle K',
-                  'Bách Hoá Xanh',
-                  'Be',
-                  'Xanh SM',
-                  'GS25',
-                  'Lazada',
-                  'Tiki',
-                  'Starbucks',
-                  'KFC',
-                  'Lotteria',
-                  'CGV',
-                ].toSet().toList();
+                    (
+                      name: widget.tx.suggestedMerchant!.trim(),
+                      color: const Color(0xFFF97316),
+                      icon: Icons.auto_awesome_rounded,
+                    ),
+                  (name: 'Shopee', color: const Color(0xFFEE4D2D), icon: Icons.shopping_bag_outlined),
+                  (name: 'TikTok Shop', color: const Color(0xFF1E293B), icon: Icons.music_note_rounded),
+                  (name: 'Grab', color: const Color(0xFF00B14F), icon: Icons.delivery_dining_outlined),
+                  (name: 'WinMart', color: const Color(0xFFEA2427), icon: Icons.shopping_cart_outlined),
+                  (name: 'Highlands Coffee', color: const Color(0xFFB22830), icon: Icons.coffee_rounded),
+                  (name: 'Phúc Long', color: const Color(0xFF0C5B36), icon: Icons.local_cafe_rounded),
+                  (name: 'ShopeeFood', color: const Color(0xFFEE4D2D), icon: Icons.fastfood_outlined),
+                  (name: 'Bách Hoá Xanh', color: const Color(0xFF007840), icon: Icons.store_rounded),
+                  (name: 'Circle K', color: const Color(0xFFED1C24), icon: Icons.storefront_outlined),
+                  (name: 'Be', color: const Color(0xFFEAB308), icon: Icons.directions_car_filled_rounded),
+                  (name: 'Xanh SM', color: const Color(0xFF00A389), icon: Icons.electric_car_rounded),
+                  (name: 'GS25', color: const Color(0xFF006CA8), icon: Icons.local_convenience_store_rounded),
+                  (name: 'Lazada', color: const Color(0xFF0F146D), icon: Icons.shopping_bag_rounded),
+                  (name: 'Tiki', color: const Color(0xFF1A94FF), icon: Icons.local_mall_outlined),
+                  (name: 'Starbucks', color: const Color(0xFF00704A), icon: Icons.coffee_maker_rounded),
+                  (name: 'KFC', color: const Color(0xFFE4002B), icon: Icons.lunch_dining_rounded),
+                  (name: 'Lotteria', color: const Color(0xFFED1B24), icon: Icons.fastfood_rounded),
+                  (name: 'CGV', color: const Color(0xFFE71A0F), icon: Icons.movie_filter_rounded),
+                ];
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Row(
+                final activeMerchant = _merchantInputCtrl.text.trim().isNotEmpty
+                    ? _merchantInputCtrl.text.trim()
+                    : (_selectedMerchant ?? '');
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: activeMerchant.isNotEmpty
+                          ? accentColor.withValues(alpha: isDark ? 0.40 : 0.28)
+                          : (isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFFE2E8F0)),
+                      width: activeMerchant.isNotEmpty ? 1.2 : 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Row
+                      Row(
                         children: [
-                          Icon(
-                            Icons.storefront_rounded,
-                            size: 15,
-                            color: accentColor,
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF97316).withValues(alpha: isDark ? 0.24 : 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.storefront_rounded,
+                              size: 15,
+                              color: Color(0xFFF97316),
+                            ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Text(
-                            'Chọn nơi mua',
+                            'Nơi mua sắm / Đơn vị chi tiêu',
                             style: TextStyle(
                               fontFamily: 'BeVietnamPro',
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
                           ),
                           const Spacer(),
-                          if (_noteCtrl.text.trim().isNotEmpty)
-                            GestureDetector(
+                          if (activeMerchant.isNotEmpty)
+                            InkWell(
                               onTap: () {
                                 HapticFeedback.selectionClick();
-                                setState(() => _noteCtrl.text = '');
+                                setState(() {
+                                  _selectedMerchant = null;
+                                  _merchantInputCtrl.text = '';
+                                  if (_noteCtrl.text.trim() == activeMerchant) {
+                                    _noteCtrl.text = '';
+                                  }
+                                });
                               },
-                              child: Text(
-                                'Xóa',
-                                style: TextStyle(
-                                  fontFamily: 'BeVietnamPro',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
+                              borderRadius: BorderRadius.circular(6),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                child: Text(
+                                  'Bỏ chọn',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFE11D48),
+                                  ),
                                 ),
                               ),
                             ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 38,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: merchants.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (_, idx) {
-                          final merchant = merchants[idx];
-                          final isSelected = _noteCtrl.text.trim() == merchant;
-                          return Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(999),
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() {
-                                  if (isSelected) {
-                                    _noteCtrl.text = '';
-                                  } else {
-                                    _noteCtrl.text = merchant;
-                                  }
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 160),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? accentColor.withValues(
-                                          alpha: isDark ? 0.24 : 0.12)
-                                      : (isDark
-                                          ? const Color(0xFF1E293B)
-                                          : const Color(0xFFF8FAFC)),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? accentColor
-                                        : (isDark
-                                            ? Colors.white.withValues(alpha: 0.10)
-                                            : const Color(0xFFE2E8F0)),
-                                    width: isSelected ? 1.4 : 1.0,
+                      const SizedBox(height: 10),
+
+                      // Quick Brand Chips
+                      SizedBox(
+                        height: 36,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: popularMerchants.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (_, idx) {
+                            final m = popularMerchants[idx];
+                            final isSel = activeMerchant.toLowerCase() == m.name.toLowerCase();
+                            return Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    if (isSel) {
+                                      _selectedMerchant = null;
+                                      _merchantInputCtrl.text = '';
+                                      if (_noteCtrl.text.trim() == m.name) {
+                                        _noteCtrl.text = '';
+                                      }
+                                    } else {
+                                      _selectedMerchant = m.name;
+                                      _merchantInputCtrl.text = m.name;
+                                      if (_noteCtrl.text.trim().isEmpty) {
+                                        _noteCtrl.text = m.name;
+                                      }
+                                    }
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6.5),
+                                  decoration: BoxDecoration(
+                                    color: isSel
+                                        ? m.color.withValues(alpha: isDark ? 0.28 : 0.14)
+                                        : (isDark ? const Color(0xFF0F172A) : Colors.white),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSel
+                                          ? m.color
+                                          : (isDark
+                                              ? Colors.white.withValues(alpha: 0.10)
+                                              : const Color(0xFFE2E8F0)),
+                                      width: isSel ? 1.4 : 1.0,
+                                    ),
+                                    boxShadow: isSel
+                                        ? [
+                                            BoxShadow(
+                                              color: m.color.withValues(alpha: 0.22),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isSel ? Icons.check_circle_rounded : m.icon,
+                                        size: 13.5,
+                                        color: isSel
+                                            ? m.color
+                                            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                      ),
+                                      const SizedBox(width: 5.5),
+                                      Text(
+                                        m.name,
+                                        style: TextStyle(
+                                          fontFamily: 'BeVietnamPro',
+                                          fontSize: 11.5,
+                                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                                          color: isSel
+                                              ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                                              : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      isSelected
-                                          ? Icons.check_circle_rounded
-                                          : Icons.store_rounded,
-                                      size: 14,
-                                      color: isSelected
-                                          ? accentColor
-                                          : (isDark
-                                              ? const Color(0xFF94A3B8)
-                                              : const Color(0xFF64748B)),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      merchant,
-                                      style: TextStyle(
-                                        fontFamily: 'BeVietnamPro',
-                                        fontSize: 12,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                        color: isSelected
-                                            ? accentColor
-                                            : (isDark
-                                                ? Colors.white
-                                                : const Color(0xFF0F172A)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                      const SizedBox(height: 10),
+
+                      // Custom Merchant Name Input
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.10)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _merchantInputCtrl,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedMerchant = val.trim().isNotEmpty ? val.trim() : null;
+                            });
+                          },
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: 'Hoặc tự nhập tên nơi mua (ví dụ: Circle K, Quán ăn...)',
+                            hintStyle: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 11.5,
+                              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            ),
+                            icon: Icon(
+                              Icons.edit_location_alt_rounded,
+                              size: 16,
+                              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }(),
             ],
@@ -1872,14 +2072,17 @@ class _BankTransactionPromptSheetState
                             try {
                               await BankSyncService()
                                   .acknowledge(widget.tx.rawId);
-                              if (mounted) Navigator.of(context).pop(false);
+                              if (context.mounted) {
+                                Navigator.of(context).pop(false);
+                              }
                             } catch (_) {
-                              if (mounted)
+                              if (mounted) {
                                 setState(() {
                                   _saving = false;
                                   _validationError =
                                       'Chưa thể bỏ qua. Thông báo vẫn được giữ để thử lại.';
                                 });
+                              }
                             }
                           },
                     style: OutlinedButton.styleFrom(

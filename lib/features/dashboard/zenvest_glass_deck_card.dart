@@ -2147,10 +2147,12 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         ? tx.note!.trim()
         : catDisplayName;
     final txDate = DateTime.fromMillisecondsSinceEpoch(tx.date);
-    final shortWallet = formatShortWalletName(tx.walletName);
+    final fullWallet = (tx.walletName != null && tx.walletName!.trim().isNotEmpty)
+        ? tx.walletName!.trim()
+        : 'Ví chính';
     final ownerRole = (tx.owner ?? tx.creatorTag ?? 'all').trim();
     final bankCode = tx.bankTransactionCode?.trim();
-    final subtitle = '$catDisplayName • $shortWallet • ${_formatRelativeDate(txDate)}';
+    final subtitle = '$catDisplayName • $fullWallet • ${_formatRelativeDate(txDate)}';
 
     final statusColor = TransactionVisuals.colorFor(tx.type);
     final statusLabel = switch (tx.type.toLowerCase()) {
@@ -2257,7 +2259,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        shortWallet,
+                        fullWallet,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

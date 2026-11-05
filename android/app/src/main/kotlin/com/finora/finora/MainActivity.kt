@@ -151,6 +151,11 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(true)
                 }
+                "updateAppBadge" -> {
+                    val count = call.argument<Int>("count") ?: 0
+                    FinoraBankNotificationListenerService.updateAppBadge(this, count)
+                    result.success(true)
+                }
                 "updateScanSettings" -> {
                     val scanEcommerce = false
                     val scanEWallets = call.argument<Boolean>("scanEWallets") ?: true

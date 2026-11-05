@@ -410,87 +410,99 @@ class BankNotificationParser {
     return (id: 'khac', name: 'Khác', icon: 'more-horizontal');
   }
 
-  /// Resolve bank or shopping app code and brand name from package name or title
-  static ({String code, String name}) resolveBank(String pkg, String title) {
+  /// Resolve bank or shopping app code and brand name from package name, title, or message text
+  static ({String code, String name}) resolveBank(String pkg, String title, [String text = '']) {
     final p = pkg.toLowerCase();
     final t = title.toLowerCase();
+    final txt = text.toLowerCase();
+    final combined = '$t $txt';
 
     if (p.contains('shopee.vn') ||
-        (t.contains('shopee') && !t.contains('shopeepay'))) {
+        (combined.contains('shopee') && !combined.contains('shopeepay'))) {
       return (code: 'shopee', name: 'Shopee');
     }
     if (p.contains('musically') ||
         p.contains('trill') ||
-        t.contains('tiktok')) {
+        combined.contains('tiktok')) {
       return (code: 'tiktok', name: 'TikTok Shop');
     }
-    if (p.contains('lazada') || t.contains('lazada')) {
+    if (p.contains('lazada') || combined.contains('lazada')) {
       return (code: 'lazada', name: 'Lazada');
     }
 
     if (p.contains('vietcombank') ||
         p.contains('vcb') ||
-        t.contains('vietcombank') ||
-        t.contains('vcb')) {
+        combined.contains('vietcombank') ||
+        combined.contains('vcb')) {
       return (code: 'vcb', name: 'Vietcombank');
     }
     if (p.contains('techcombank') ||
-        t.contains('techcombank') ||
-        t.contains('tcb')) {
+        combined.contains('techcombank') ||
+        combined.contains('tcb')) {
       return (code: 'techcombank', name: 'Techcombank');
     }
     if (p.contains('mb.mbbank') ||
         p.contains('mbmobile') ||
-        t.contains('mb bank') ||
-        t.contains('mbbank') ||
-        t.contains('mb ')) {
+        combined.contains('mb bank') ||
+        combined.contains('mbbank') ||
+        combined.contains('ngan hang quan doi') ||
+        RegExp(r'\bmb\b').hasMatch(combined)) {
       return (code: 'mbbank', name: 'MB Bank');
     }
-    if (p.contains('acb') || t.contains('acb')) {
+    if (p.contains('acb') || combined.contains('acb') || combined.contains('á châu') || combined.contains('a chau')) {
       return (code: 'acb', name: 'ACB');
     }
-    if (p.contains('vpbank') || t.contains('vpbank')) {
+    if (p.contains('vpbank') || combined.contains('vpbank') || combined.contains('vpb')) {
       return (code: 'vpbank', name: 'VPBank');
     }
-    if (p.contains('bidv') || t.contains('bidv')) {
+    if (p.contains('bidv') || combined.contains('bidv')) {
       return (code: 'bidv', name: 'BIDV');
     }
-    if (p.contains('vietinbank') || t.contains('vietinbank')) {
+    if (p.contains('vietinbank') ||
+        combined.contains('vietinbank') ||
+        combined.contains('vietin') ||
+        combined.contains('ctg') ||
+        combined.contains('vtb')) {
       return (code: 'vietinbank', name: 'VietinBank');
     }
-    if (p.contains('tpb') || t.contains('tpbank')) {
+    if (p.contains('tpb') || combined.contains('tpbank') || combined.contains('tpb') || combined.contains('tien phong')) {
       return (code: 'tpbank', name: 'TPBank');
     }
-    if (p.contains('cake') || t.contains('cake')) {
+    if (p.contains('cake') || combined.contains('cake')) {
       return (code: 'cake', name: 'Cake by VPBank');
     }
-    if (p.contains('timo') || t.contains('timo')) {
+    if (p.contains('timo') || combined.contains('timo')) {
       return (code: 'timo', name: 'Timo Digital Bank');
     }
-    if (p.contains('mservice') || t.contains('momo')) {
+    if (p.contains('liobank') || combined.contains('liobank')) {
+      return (code: 'liobank', name: 'Liobank');
+    }
+    if (p.contains('mservice') || combined.contains('momo') || combined.contains('ví momo')) {
       return (code: 'momo', name: 'Ví MoMo');
     }
-    if (p.contains('zalopay') || t.contains('zalopay')) {
+    if (p.contains('zalopay') || combined.contains('zalopay')) {
       return (code: 'zalopay', name: 'ZaloPay');
     }
     if (p.contains('vtpay') ||
         p.contains('bankplus') ||
-        t.contains('viettel')) {
+        combined.contains('viettel money') ||
+        combined.contains('viettelpay') ||
+        combined.contains('viettel')) {
       return (code: 'viettelmoney', name: 'Viettel Money');
     }
-    if (p.contains('sacombank') || t.contains('sacombank')) {
+    if (p.contains('sacombank') || combined.contains('sacombank') || combined.contains('stb')) {
       return (code: 'sacombank', name: 'Sacombank');
     }
-    if (p.contains('agribank') || t.contains('agribank')) {
+    if (p.contains('agribank') || combined.contains('agribank') || combined.contains('agri') || combined.contains('vba')) {
       return (code: 'agribank', name: 'Agribank');
     }
-    if (p.contains('vib') || t.contains('vib')) {
+    if (p.contains('vib') || combined.contains('vib') || combined.contains('quoc te')) {
       return (code: 'vib', name: 'VIB');
     }
-    if (p.contains('ocb') || t.contains('ocb')) {
+    if (p.contains('ocb') || combined.contains('ocb') || combined.contains('phuong dong')) {
       return (code: 'ocb', name: 'OCB');
     }
-    if (p.contains('msb') || t.contains('msb')) {
+    if (p.contains('msb') || combined.contains('msb') || combined.contains('hang hai')) {
       return (code: 'msb', name: 'MSB');
     }
 
@@ -499,7 +511,6 @@ class BankNotificationParser {
       'shb': 'SHB',
       'eximbank': 'Eximbank',
       'seabank': 'SeABank',
-      'liobank': 'Liobank',
       'namabank': 'Nam A Bank',
       'bacabank': 'Bac A Bank',
       'vietbank': 'VietBank',
@@ -520,7 +531,7 @@ class BankNotificationParser {
       'vnpay': 'VNPay',
       'airpay': 'ShopeePay',
     }.entries) {
-      if (p.contains(entry.key) || t.contains(entry.key)) {
+      if (p.contains(entry.key) || combined.contains(entry.key)) {
         return (code: entry.key, name: entry.value);
       }
     }
@@ -553,7 +564,7 @@ class BankNotificationParser {
       return null;
     }
 
-    final bank = resolveBank(packageName, title);
+    final bank = resolveBank(packageName, title, text);
     final dt = timestampMs != null
         ? DateTime.fromMillisecondsSinceEpoch(timestampMs)
         : DateTime.now();
@@ -696,6 +707,7 @@ class BankNotificationParser {
     final bank = resolveBank(
       packageName.isNotEmpty ? packageName : rawId,
       title,
+      text,
     );
     final isIncome = RegExp(
       r'\+|ghi có|ghi co|báo có|bao co|nhận|nhan|tiền vào|tien vao|cộng|cong|tăng|tang|credited',

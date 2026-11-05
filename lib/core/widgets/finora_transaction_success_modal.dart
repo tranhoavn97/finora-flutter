@@ -1,9 +1,10 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/models/transaction.dart';
+import '../../state/wallet_provider.dart';
 import '../utils/formatters.dart';
 import 'bank_icon.dart';
 import 'finora_mascot.dart';
@@ -155,7 +156,19 @@ class _FinoraTransactionSuccessModalState
           transaction.tags.contains('Vợ')) {
         isWife = true;
       } else {
-        final wLower = '${widget.walletName ?? ''} ${transaction.walletName ?? ''} ${transaction.fromWalletName ?? ''}'.toLowerCase();
+        String walletNames = '${widget.walletName ?? ''} ${transaction.walletName ?? ''} ${transaction.fromWalletName ?? ''}'.trim();
+        if (walletNames.isEmpty && (transaction.walletId != null || transaction.fromWalletId != null)) {
+          try {
+            final wallets = context.read<WalletProvider>().wallets;
+            final targetW = wallets.where(
+              (w) => w.id == transaction.walletId || w.id == transaction.fromWalletId,
+            ).firstOrNull;
+            if (targetW != null) {
+              walletNames = '${targetW.name} ${targetW.owner}';
+            }
+          } catch (_) {}
+        }
+        final wLower = walletNames.toLowerCase();
         if (wLower.contains('chồng') || wLower.contains('chong') || wLower.contains('husband')) {
           isHusband = true;
         } else if (wLower.contains('vợ') || wLower.contains('vo') || wLower.contains('wife')) {

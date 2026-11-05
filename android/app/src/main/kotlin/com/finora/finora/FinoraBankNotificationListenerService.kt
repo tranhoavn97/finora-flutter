@@ -6,6 +6,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
+import android.content.ContentValues
+import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import android.content.Context
 import android.content.ComponentName
@@ -28,6 +34,98 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         @Volatile var connected = false
         var onConnectionStatusChanged: ((Boolean) -> Unit)? = null
         private val queueLock = Any()
+
+        fun updateAppBadge(context: Context, count: Int) {
+            try {
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                val badgeChannelId = "finora_app_badge_channel"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val channel = NotificationChannel(
+                        badgeChannelId,
+                        "FINORA Số thông báo",
+                        NotificationManager.IMPORTANCE_MIN
+                    ).apply {
+                        setShowBadge(true)
+                        description = "Hiển thị số lượng thông báo trên biểu tượng ứng dụng"
+                    }
+                    notificationManager.createNotificationChannel(channel)
+                }
+
+                if (count > 0) {
+                    val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        putExtra("from_bank_sync", true)
+                    }
+                    val pendingIntent = if (launchIntent != null) {
+                        PendingIntent.getActivity(
+                            context,
+                            8888,
+                            launchIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                        )
+                    } else null
+
+                    val builder = NotificationCompat.Builder(context, badgeChannelId)
+                        .setSmallIcon(R.drawable.finora_bank_notification)
+                        .setContentTitle("FINORA")
+                        .setContentText("Có $count biến động số dư đang chờ xử lý")
+                        .setNumber(count)
+                        .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
+                        .setPriority(NotificationCompat.PRIORITY_MIN)
+                        .setOngoing(true)
+                        .setAutoCancel(false)
+
+                    if (pendingIntent != null) {
+                        builder.setContentIntent(pendingIntent)
+                    }
+                    notificationManager.notify(88888, builder.build())
+                } else {
+                    notificationManager.cancel(88888)
+                }
+
+                // 1. Samsung OneUI Badge
+                try {
+                    val contentUri = Uri.parse("content://com.sec.android.provider.badge/apps")
+                    val contentValues = ContentValues().apply {
+                        put("package", context.packageName)
+                        put("class", "com.finora.finora.MainActivity")
+                        put("badgecount", count)
+                    }
+                    context.contentResolver.insert(contentUri, contentValues)
+                } catch (_: Exception) {}
+
+                // 2. Xiaomi / MIUI / HyperOS Badge
+                try {
+                    val miuiIntent = Intent("android.intent.action.APPLICATION_MESSAGE_UPDATE")
+                    miuiIntent.putExtra("android.intent.extra.update_application_component_name", "${context.packageName}/com.finora.finora.MainActivity")
+                    miuiIntent.putExtra("android.intent.extra.update_application_message_text", if (count > 0) count.toString() else "")
+                    context.sendBroadcast(miuiIntent)
+                } catch (_: Exception) {}
+
+                // 3. Sony
+                try {
+                    val sonyIntent = Intent("com.sonyericsson.home.action.UPDATE_BADGE")
+                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.PACKAGE_NAME", context.packageName)
+                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.ACTIVITY_NAME", "com.finora.finora.MainActivity")
+                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.MESSAGE", count.toString())
+                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.SHOW_MESSAGE", count > 0)
+                    context.sendBroadcast(sonyIntent)
+                } catch (_: Exception) {}
+
+                // 4. Huawei / Honor
+                try {
+                    val bundle = Bundle().apply {
+                        putString("package", context.packageName)
+                        putString("class", "com.finora.finora.MainActivity")
+                        putInt("badgenumber", count)
+                    }
+                    context.contentResolver.call(Uri.parse("content://com.huawei.android.launcher.settings/badge/"), "change_badge", null, bundle)
+                } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to update launcher badge: ${e.message}")
+            }
+        }
+
 
         fun isAliveAndConnected(): Boolean {
             if (connected) return true
@@ -74,8 +172,10 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             val handled = (prefs.getStringSet(KEY_HANDLED, emptySet()) ?: emptySet()).toMutableSet()
             handled.addAll(ids)
             // Keep IDs, not notification bodies, for replay prevention.
-            prefs.edit().putString(KEY_PENDING_NOTIFICATIONS, keep.toString())
+            val ok = prefs.edit().putString(KEY_PENDING_NOTIFICATIONS, keep.toString())
                 .putStringSet(KEY_HANDLED, handled).commit()
+            if (ok) updateAppBadge(context, keep.length())
+            ok
         }
 
         // Set of known Vietnamese banking and wallet packages
@@ -242,8 +342,10 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             }
             array.put(jsonObj.toString())
             // Never drop pending financial events just because the app has not opened.
-            prefs.edit().putString(KEY_PENDING_NOTIFICATIONS, array.toString())
+            val ok = prefs.edit().putString(KEY_PENDING_NOTIFICATIONS, array.toString())
                 .putLong("lastReceivedAt", jsonObj.getLong("timestamp")).commit()
+            if (ok) updateAppBadge(context, array.length())
+            ok
         }
     }
 
@@ -276,7 +378,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         super.onDestroy()
     }
 
-    private fun showCapturedNotification(context: Context, title: String, text: String) {
+    private fun showCapturedNotification(context: Context, title: String, text: String, pkg: String = "") {
         try {
             val channelId = "finora_bank_sync_channel"
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -288,6 +390,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 ).apply {
                     description = "Thông báo nhận diện biến động số dư ngân hàng tự động"
                     enableVibration(true)
+                    setShowBadge(true)
                 }
                 notificationManager.createNotificationChannel(channel)
             }
@@ -305,14 +408,62 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 )
             } else null
 
-            val notifTitle = "FINORA: Có thông báo ngân hàng cần kiểm tra"
+            // Determine bank name from package, title or text
+            val combined = "$pkg $title $text".lowercase()
+            val bankName = when {
+                combined.contains("vcb") || combined.contains("vietcombank") -> "Vietcombank"
+                combined.contains("mbbank") || combined.contains("mb bank") || combined.contains("mbmobile") || combined.contains("quân đội") -> "MB Bank"
+                combined.contains("techcombank") || combined.contains("tcb") -> "Techcombank"
+                combined.contains("vietinbank") || combined.contains("vtb") || combined.contains("ctg") -> "VietinBank"
+                combined.contains("acb") || combined.contains("á châu") || combined.contains("a chau") -> "ACB"
+                combined.contains("vpbank") || combined.contains("vpb") -> "VPBank"
+                combined.contains("bidv") -> "BIDV"
+                combined.contains("tpbank") || combined.contains("tpb") -> "TPBank"
+                combined.contains("agribank") || combined.contains("vba") -> "Agribank"
+                combined.contains("sacombank") || combined.contains("stb") -> "Sacombank"
+                combined.contains("vib") -> "VIB"
+                combined.contains("ocb") -> "OCB"
+                combined.contains("msb") -> "MSB"
+                combined.contains("shb") -> "SHB"
+                combined.contains("hdbank") -> "HDBank"
+                combined.contains("momo") -> "Ví MoMo"
+                combined.contains("zalopay") -> "Ví ZaloPay"
+                combined.contains("viettel") -> "Viettel Money"
+                combined.contains("vnpay") -> "Ví VNPay"
+                combined.contains("shopee") -> "ShopeePay"
+                title.isNotBlank() -> title.trim()
+                else -> "Ngân hàng"
+            }
+
+            val notifTitle = "$bankName: Biến động số dư mới"
+            val notifContent = if (text.isNotBlank()) text.lines().firstOrNull()?.take(70) ?: "Mở FINORA để kiểm tra và ghi vào sổ." else "Mở FINORA để kiểm tra và ghi vào sổ."
+
             val builder = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.finora_bank_notification)
                 .setContentTitle(notifTitle)
-                .setContentText("Mở FINORA để kiểm tra và ghi vào sổ.")
+                .setContentText(notifContent)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
+
+            // Load app icon as large icon if available
+            if (pkg.isNotEmpty()) {
+                try {
+                    val appIcon = context.packageManager.getApplicationIcon(pkg)
+                    val bitmap = if (appIcon is BitmapDrawable) {
+                        appIcon.bitmap
+                    } else {
+                        val w = appIcon.intrinsicWidth.coerceAtLeast(1)
+                        val h = appIcon.intrinsicHeight.coerceAtLeast(1)
+                        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                        val canvas = Canvas(bmp)
+                        appIcon.setBounds(0, 0, canvas.width, canvas.height)
+                        appIcon.draw(canvas)
+                        bmp
+                    }
+                    builder.setLargeIcon(bitmap)
+                } catch (_: Exception) {}
+            }
 
             if (pendingIntent != null) {
                 builder.setContentIntent(pendingIntent)
@@ -381,7 +532,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         val walletSenders = setOf("momo", "zalopay", "viettelmoney", "viettel money", "viettelpay", "vnpay", "shopeepay")
         val trustedSmsSender = pkg in SMS_PACKAGES && BANK_KEYWORDS.any {
             it !in setOf("shopee", "tiktok", "tiktok shop", "lazada") &&
-                (lowerTitle.contains(it) || it == lowerTitle.trim()) &&
+                (lowerTitle.contains(it) || it == lowerTitle.trim() || lowerText.contains(it)) &&
                 (walletsEnabled || it !in walletSenders)
         }
         if (!directBank && !directWallet && !trustedSmsSender) return
@@ -404,7 +555,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         if (!queueNotification(applicationContext, json)) return
 
         // 2. Show heads-up Android notification in system tray
-        showCapturedNotification(applicationContext, title, combinedText)
+        showCapturedNotification(applicationContext, title, combinedText, pkg)
 
         // 3. Notify active Flutter listener if foreground
         val listener = onNotificationReceivedListener

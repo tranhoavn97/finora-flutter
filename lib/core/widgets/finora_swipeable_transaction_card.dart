@@ -292,6 +292,8 @@ void showFinoraTransactionQuickSheet(
                     context,
                     transaction: transaction,
                     isEdit: true,
+                    walletName: transaction.walletName ?? transaction.fromWalletName,
+                    destinationWalletName: transaction.toWalletName ?? transaction.creditCardName,
                   );
                 },
               ),

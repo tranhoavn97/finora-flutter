@@ -6753,7 +6753,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       );
     }
 
-    final shortWallet = formatShortWalletName(walletDisplayName);
+    final fullWallet = (walletDisplayName != null && walletDisplayName.trim().isNotEmpty)
+        ? walletDisplayName.trim()
+        : 'Ví chính';
     final rawTagOwner = tx.tags?.firstWhere(
       (t) => FinoraMemberAvatar.normalizeMember(t) != null,
       orElse: () => '',
@@ -6832,7 +6834,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                   ),
                 ),
               ],
-              TextSpan(text: shortWallet),
+              TextSpan(text: fullWallet),
             ],
           ),
           maxLines: 1,
@@ -7161,15 +7163,6 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                       children: [
                         buildOwnerPill(compact: true),
                         buildShortWalletPill(compact: true),
-                        if (bankCode != null && bankCode.isNotEmpty)
-                          Text(
-                            '#$bankCode',
-                            style: const TextStyle(
-                              fontSize: 9.2,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF10B981),
-                            ),
-                          ),
                         Text(
                           dateStr,
                           style: TextStyle(

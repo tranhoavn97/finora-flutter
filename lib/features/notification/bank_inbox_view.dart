@@ -1221,16 +1221,25 @@ class _UnrecognizedTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFFD97706).withValues(alpha: 0.14),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.10)
+                              : const Color(0xFFE2E8F0),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.receipt_long_rounded,
-                        size: 18,
-                        color: Color(0xFFD97706),
+                      child: Center(
+                        child: BankIcon(
+                          bankCode: BankNotificationParser.resolveBank(rawId, title, text).code,
+                          bankName: BankNotificationParser.resolveBank(rawId, title, text).name,
+                          size: 26,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1239,7 +1248,9 @@ class _UnrecognizedTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            title.isEmpty ? 'Thông báo ngân hàng' : title,
+                            BankNotificationParser.resolveBank(rawId, title, text).code != 'bank'
+                                ? BankNotificationParser.resolveBank(rawId, title, text).name
+                                : (title.isEmpty ? 'Thông báo ngân hàng' : title),
                             style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w800,

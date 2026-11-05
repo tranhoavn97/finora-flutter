@@ -262,6 +262,15 @@ class BankSyncService extends ChangeNotifier {
 
   Future<bool> requestPostNotifications() =>
       _invokeBool('requestPostNotifications');
+  /// Cập nhật số lượng thông báo / giao dịch chờ lên biểu tượng ứng dụng ngoài màn hình chính
+  Future<void> updateAppBadge([int? count]) async {
+    if (!supported || kIsWeb) return;
+    try {
+      final total = count ?? (_pending.length + _unrecognized.length);
+      await _channel.invokeMethod('updateAppBadge', {'count': total});
+    } catch (_) {}
+  }
+
   Future<bool> reconnect() async {
     await _invokeBool('reconnect');
     await checkPendingNotifications();
@@ -293,6 +302,7 @@ class BankSyncService extends ChangeNotifier {
       _unrecognized.remove(ackId);
     }
     notifyListeners();
+    updateAppBadge();
   }
 
   /// Dọn dẹp sạch toàn bộ hàng đợi giao dịch chờ và thông báo chưa đọc số tiền
@@ -323,6 +333,7 @@ class BankSyncService extends ChangeNotifier {
     _pending.clear();
     _unrecognized.clear();
     notifyListeners();
+    updateAppBadge(0);
   }
 
   Future<void> checkPendingNotifications() async {
