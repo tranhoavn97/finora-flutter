@@ -9,12 +9,12 @@ import 'package:provider/provider.dart';
 import '../../core/design_system/app_colors.dart';
 import '../../core/theme/finora_tokens.dart';
 import '../../core/widgets/glass_widgets.dart';
+import '../../state/dashboard_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../ai/ai_advisor_screen.dart';
 import '../audit/activity_logs_screen.dart';
 import '../category/category_screen.dart';
 import '../notification/notification_screen.dart';
-import '../settings/bank_sync_settings_sheet.dart';
 import '../settings/settings_screen.dart';
 import '../trash/trash_screen.dart';
 
@@ -111,7 +111,11 @@ class ProfileScreen extends StatelessWidget {
     final displayName = userName.isNotEmpty ? userName : 'Hòa Trần';
     final displayEmail =
         userEmail.isNotEmpty ? userEmail : 'tranhoavn97@gmail.com';
-    final primaryAccent = studio?.primaryColor ?? const Color(0xFF2563EB);
+    final primaryAccent = studio?.resolvedPrimary ?? const Color(0xFF2563EB);
+    final dashProv = Provider.of<DashboardProvider?>(context);
+    final healthScore = (dashProv?.data.aiHealthScore ?? 0) > 0
+        ? dashProv!.data.aiHealthScore
+        : 92;
 
     return GlassScaffold(
       extendBodyBehindAppBar: true,
@@ -221,7 +225,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // 2. SPOTLIGHT: TRỢ LÝ TÀI CHÍNH FINORA & SỨC KHỎE TÀI CHÍNH (Emerald Fintech)
+          // 2. SPOTLIGHT: TRỢ LÝ TÀI CHÍNH FINORA & SỨC KHỎE TÀI CHÍNH
           InkWell(
             onTap: () => _push(context, AiAdvisorScreen(userId: userId)),
             borderRadius: BorderRadius.circular(20),
@@ -230,6 +234,7 @@ class ProfileScreen extends StatelessWidget {
               decoration: FinoraTokens.emeraldCardDecoration(
                 isDark: isDark,
                 radius: 20,
+                primaryColor: primaryAccent,
               ),
               child: Row(
                 children: [
@@ -265,7 +270,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Sức khỏe tài chính 92% · Tư vấn chi tiêu thông minh',
+                          'Sức khỏe tài chính $healthScore% · Tư vấn chi tiêu thông minh',
                           style: TextStyle(
                             fontFamily: 'BeVietnamPro',
                             fontSize: 12,
@@ -278,7 +283,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // Radial Gauge 92%
+                  // Radial Gauge
                   SizedBox(
                     width: 44,
                     height: 44,
@@ -289,7 +294,7 @@ class ProfileScreen extends StatelessWidget {
                           width: 44,
                           height: 44,
                           child: CircularProgressIndicator(
-                            value: 0.92,
+                            value: (healthScore / 100.0).clamp(0.0, 1.0),
                             strokeWidth: 4.5,
                             backgroundColor:
                                 Colors.white.withValues(alpha: 0.18),
@@ -298,9 +303,9 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Text(
-                          '92%',
-                          style: TextStyle(
+                        Text(
+                          '$healthScore%',
+                          style: const TextStyle(
                             fontFamily: 'BeVietnamPro',
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
@@ -326,8 +331,12 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 _buildMenuItem(
                   icon: LucideIcons.users,
-                  iconBg: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
-                  iconColor: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                  iconBg: isDark
+                      ? const Color(0xFF0C4A6E)
+                      : const Color(0xFFE0F2FE),
+                  iconColor: isDark
+                      ? const Color(0xFF38BDF8)
+                      : const Color(0xFF0066CC),
                   title: 'Quản lý gia đình',
                   subtitle: 'Thành viên, lời mời và quyền truy cập',
                   isDark: isDark,
@@ -351,11 +360,11 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 _buildDivider(isDark),
                 _buildMenuItem(
-                  icon: LucideIcons.bell,
+                  icon: LucideIcons.bell_ring,
                   iconBg: isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
                   iconColor: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
-                  title: 'Thông báo',
-                  subtitle: 'Hoạt động và cập nhật của bạn',
+                  title: 'Thông báo & Biến động số dư',
+                  subtitle: 'Hoạt động, cảnh báo & đọc ngân hàng (BETA)',
                   isDark: isDark,
                   primaryTextColor: FinoraTokens.text(isDark),
                   secondaryTextColor: FinoraTokens.textMuted(isDark),
@@ -401,19 +410,6 @@ class ProfileScreen extends StatelessWidget {
                   studio: studio,
                   onTap: () =>
                       _push(context, ActivityLogsScreen(userId: userId)),
-                ),
-                _buildDivider(isDark),
-                _buildMenuItem(
-                  icon: LucideIcons.bell_ring,
-                  iconBg: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
-                  iconColor: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
-                  title: 'Đọc biến động ngân hàng (BETA)',
-                  subtitle: 'Tự động nhận diện số dư 30+ ngân hàng (Cách A)',
-                  isDark: isDark,
-                  primaryTextColor: FinoraTokens.text(isDark),
-                  secondaryTextColor: FinoraTokens.textMuted(isDark),
-                  studio: studio,
-                  onTap: () => BankSyncSettingsSheet.show(context, userId: userId),
                 ),
                 _buildDivider(isDark),
                 _buildMenuItem(
@@ -470,13 +466,38 @@ class ProfileScreen extends StatelessWidget {
 
           // 6. FOOTER
           Center(
-            child: Text(
-              'Finora Finance · Quản lý tài chính cá nhân thông minh',
-              style: TextStyle(
-                fontSize: 11,
-                color: secondaryTextColor.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w500,
-              ),
+            child: Column(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: primaryAccent.withValues(alpha: isDark ? 0.16 : 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: primaryAccent.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: Text(
+                    'FINORA 2.0 · v2.0.0',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: primaryAccent,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Finora Finance 2.0 · Quản lý tài chính cá nhân thông minh',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: secondaryTextColor.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -549,14 +570,8 @@ class ProfileScreen extends StatelessWidget {
               alignment: Alignment.center,
               child: Icon(
                 icon,
-                color: (studio != null &&
-                        (studio.iconStyle == AppIconStyle.round ||
-                            studio.iconStyle == AppIconStyle.glassGlow))
-                    ? iconColor
-                    : (studio != null &&
-                            studio.iconStyle == AppIconStyle.dimensional
-                        ? Colors.white
-                        : iconColor),
+                color: studio?.resolveIconGlyphColor(iconColor, isDark) ??
+                    iconColor,
                 size: 20,
               ),
             ),

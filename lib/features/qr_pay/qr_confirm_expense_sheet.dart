@@ -13,16 +13,20 @@ import '../../core/utils/vietqr_parser.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/finora_member_filter.dart';
 import '../../core/widgets/finora_notice.dart';
+import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../data/models/category.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/vietqr_data.dart';
 import '../../data/models/wallet.dart';
 import '../../data/services/qr_payment_draft_store.dart';
+import '../../state/dashboard_provider.dart';
+import '../../state/family_provider.dart';
 import '../../state/more_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../../state/transaction_provider.dart';
 import '../../state/wallet_provider.dart';
+import '../transaction/add_transaction_page.dart';
 import 'bank_app_selector_sheet.dart';
 
 /// Luxury Bento Modal Bottom Sheet to confirm, categorize, and save an expense
@@ -80,6 +84,21 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     return byId.values.toList();
   }
 
+  List<Wallet> _resolveWallets(BuildContext context, {bool listen = true}) {
+    final wProv = Provider.of<WalletProvider?>(context, listen: listen);
+    final txProv = Provider.of<TransactionProvider?>(context, listen: listen);
+    final dProv = Provider.of<DashboardProvider?>(context, listen: listen);
+    final byId = <String, Wallet>{};
+    for (final w in <Wallet>[
+      ...(dProv?.data.wallets ?? const []),
+      ...(txProv?.wallets ?? const []),
+      ...(wProv?.wallets ?? const []),
+    ]) {
+      byId[w.id] = w;
+    }
+    return byId.values.toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -104,8 +123,24 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final walletProv = context.read<WalletProvider>();
-      final wallets = walletProv.wallets;
+      String? familyId;
+      try {
+        familyId = Provider.of<FamilyProvider?>(context, listen: false)?.family?.id;
+      } catch (_) {}
+      final walletProv = Provider.of<WalletProvider?>(context, listen: false);
+      final txProv = Provider.of<TransactionProvider?>(context, listen: false);
+      var wallets = _resolveWallets(context, listen: false);
+      if (wallets.isEmpty &&
+          widget.userId.isNotEmpty &&
+          widget.userId != 'guest') {
+        try {
+          walletProv?.load(widget.userId, familyId: familyId);
+        } catch (_) {}
+        try {
+          txProv?.load(widget.userId, familyId: familyId);
+        } catch (_) {}
+        wallets = _resolveWallets(context, listen: false);
+      }
       if (wallets.isNotEmpty) {
         setState(() {
           _selectedWallet = wallets.first;
@@ -187,6 +222,7 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       setState(() => _isOpeningBank = true);
       try {
         if (!await _persistDraft() || !mounted) return;
+        QrPaymentDraftStore.pendingAutoResumeInSession = true;
         final walletBank = BankLauncherHelper.resolveWalletBank(
           bankCode: _selectedWallet?.bankCode,
           bankName: _selectedWallet?.bankName,
@@ -213,12 +249,17 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       return;
     }
 
-    if (_selectedWallet == null) {
+    final effectiveWallet = _selectedWallet ??
+        (_resolveWallets(context, listen: false).isNotEmpty
+            ? _resolveWallets(context, listen: false).first
+            : null);
+    if (effectiveWallet == null) {
       FinoraNotice.of(context).showSnackBar(
         const SnackBar(content: Text('Chọn ví để ghi nhận khoản chi.')),
       );
       return;
     }
+    _selectedWallet = effectiveWallet;
 
     setState(() => _isSaving = true);
     final txId = _draftId;
@@ -226,7 +267,7 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
         ? _memoController.text.trim()
         : 'Thanh toán QR (${widget.qrData.bankShortName})';
 
-    final owner = _selectedWallet?.owner;
+    final owner = effectiveWallet.owner;
     final ownerTag = owner == 'wife'
         ? 'Vợ'
         : owner == 'joint'
@@ -242,10 +283,10 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       categoryId: _selectedCategory.id,
       categoryName: _selectedCategory.name,
       categoryIcon: _selectedCategory.icon,
-      walletId: _selectedWallet?.id,
-      walletName: _selectedWallet?.name,
+      walletId: effectiveWallet.id,
+      walletName: effectiveWallet.name,
       owner: owner,
-      ownerName: _selectedWallet?.ownerName,
+      ownerName: effectiveWallet.ownerName,
       creatorTag: ownerTag,
       bankTransactionCode:
           'QR-${widget.qrData.bankShortName}-${widget.qrData.accountNumber}',
@@ -257,8 +298,15 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     try {
       final txProvider = context.read<TransactionProvider>();
       await txProvider.createTransaction(widget.userId, tx);
+      try {
+        final familyId =
+            Provider.of<FamilyProvider?>(context, listen: false)?.family?.id;
+        Provider.of<DashboardProvider?>(context, listen: false)
+            ?.load(widget.userId, familyId: familyId);
+      } catch (_) {}
 
       _recorded = true;
+      QrPaymentDraftStore.pendingAutoResumeInSession = false;
       try {
         await QrPaymentDraftStore.remove(widget.userId, _draftId);
       } catch (_) {}
@@ -266,7 +314,7 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       await FinoraTransactionSuccessModal.show(
         context,
         transaction: tx,
-        walletName: _selectedWallet?.name,
+        walletName: effectiveWallet.name,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -281,15 +329,66 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     }
   }
 
+  Future<void> _dismissAndDiscardDraft() async {
+    QrPaymentDraftStore.pendingAutoResumeInSession = false;
+    final effectiveUid = widget.userId.isEmpty ? 'guest' : widget.userId;
+    try {
+      await QrPaymentDraftStore.remove(effectiveUid, _draftId);
+      if (widget.userId.isNotEmpty) {
+        await QrPaymentDraftStore.remove('guest', _draftId);
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    Navigator.of(context).maybePop();
+  }
+
+  Future<void> _openFullAddTransactionPage() async {
+    QrPaymentDraftStore.pendingAutoResumeInSession = false;
+    final effectiveWallet = _selectedWallet ??
+        (_resolveWallets(context, listen: false).isNotEmpty
+            ? _resolveWallets(context, listen: false).first
+            : null);
+    final memoText = _memoController.text.trim();
+    final note = memoText.isNotEmpty
+        ? memoText
+        : 'Thanh toán QR (${widget.qrData.bankShortName} · ${widget.qrData.accountNumber})';
+    final amountInt = _parsedAmount.toInt();
+    try {
+      await QrPaymentDraftStore.remove(widget.userId, _draftId);
+    } catch (_) {}
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    navigator.push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => AddTransactionPage(
+          userId: widget.userId,
+          initialType: 'expense',
+          initialAmount: amountInt > 0 ? amountInt : null,
+          initialNote: note,
+          initialCategoryId: _selectedCategory.id,
+          initialWalletId: effectiveWallet?.id,
+        ),
+      ),
+    );
+  }
+
   Future<void> _recordTemplateTransactionOnly(
       BankInfo bank, double amount) async {
-    if (_recorded || _selectedWallet == null) return;
+    if (_recorded) return;
+    final effectiveWallet = _selectedWallet ??
+        (_resolveWallets(context, listen: false).isNotEmpty
+            ? _resolveWallets(context, listen: false).first
+            : null);
+    if (effectiveWallet == null) return;
+    _selectedWallet = effectiveWallet;
     final txId = _draftId;
     final memoText = _memoController.text.trim();
     final note = memoText.isNotEmpty
         ? memoText
         : 'Thanh toán QR (${widget.qrData.bankShortName})';
-    final owner = _selectedWallet?.owner;
+    final owner = effectiveWallet.owner;
     final ownerTag = owner == 'wife'
         ? 'Vợ'
         : owner == 'joint'
@@ -305,10 +404,10 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       categoryId: _selectedCategory.id,
       categoryName: _selectedCategory.name,
       categoryIcon: _selectedCategory.icon,
-      walletId: _selectedWallet?.id,
-      walletName: _selectedWallet?.name,
+      walletId: effectiveWallet.id,
+      walletName: effectiveWallet.name,
       owner: owner,
-      ownerName: _selectedWallet?.ownerName,
+      ownerName: effectiveWallet.ownerName,
       creatorTag: ownerTag,
       bankTransactionCode:
           'QR-${widget.qrData.bankShortName}-${widget.qrData.accountNumber}',
@@ -319,6 +418,12 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     try {
       final txProvider = context.read<TransactionProvider>();
       await txProvider.createTransaction(widget.userId, tx);
+      try {
+        final familyId =
+            Provider.of<FamilyProvider?>(context, listen: false)?.family?.id;
+        Provider.of<DashboardProvider?>(context, listen: false)
+            ?.load(widget.userId, familyId: familyId);
+      } catch (_) {}
       _recorded = true;
       await QrPaymentDraftStore.remove(widget.userId, _draftId);
     } catch (_) {}
@@ -337,12 +442,17 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       );
       return;
     }
-    if (_selectedWallet == null) {
+    final effectiveWallet = _selectedWallet ??
+        (_resolveWallets(context, listen: false).isNotEmpty
+            ? _resolveWallets(context, listen: false).first
+            : null);
+    if (effectiveWallet == null) {
       FinoraNotice.of(context).showSnackBar(
         const SnackBar(content: Text('Chọn ví để ghi nhận khoản chi.')),
       );
       return;
     }
+    _selectedWallet = effectiveWallet;
 
     setState(() {
       _isSaving = true;
@@ -353,7 +463,7 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     final note = memoText.isNotEmpty
         ? memoText
         : 'Thanh toán QR (${widget.qrData.bankShortName})';
-    final owner = _selectedWallet?.owner;
+    final owner = effectiveWallet.owner;
     final ownerTag = owner == 'wife'
         ? 'Vợ'
         : owner == 'joint'
@@ -370,10 +480,10 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       categoryId: _selectedCategory.id,
       categoryName: _selectedCategory.name,
       categoryIcon: _selectedCategory.icon,
-      walletId: _selectedWallet?.id,
-      walletName: _selectedWallet?.name,
+      walletId: effectiveWallet.id,
+      walletName: effectiveWallet.name,
       owner: owner,
-      ownerName: _selectedWallet?.ownerName,
+      ownerName: effectiveWallet.ownerName,
       creatorTag: ownerTag,
       bankTransactionCode:
           'QR-${widget.qrData.bankShortName}-${widget.qrData.accountNumber}',
@@ -385,6 +495,12 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     try {
       final txProvider = context.read<TransactionProvider>();
       await txProvider.createTransaction(widget.userId, tx);
+      try {
+        final familyId =
+            Provider.of<FamilyProvider?>(context, listen: false)?.family?.id;
+        Provider.of<DashboardProvider?>(context, listen: false)
+            ?.load(widget.userId, familyId: familyId);
+      } catch (_) {}
       _recorded = true;
       try {
         await QrPaymentDraftStore.remove(widget.userId, _draftId);
@@ -424,39 +540,35 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(ctx).height * 0.72,
-          ),
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF121C24) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border(
-              top: BorderSide(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : const Color(0xFFE2E8F0),
+        return FinoraDraggableSheetWrapper(
+          onClose: () => Navigator.pop(ctx),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.72,
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 22),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF121C24) : Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border(
+                top: BorderSide(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : const Color(0xFFE2E8F0),
+                ),
               ),
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 38,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.22)
-                        : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(99),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FinoraSheetDragHandle(
+                    padding: const EdgeInsets.only(top: 4, bottom: 12),
+                    onClose: () => Navigator.pop(ctx),
                   ),
-                ),
-                Row(
+                  Row(
                   children: [
                     Icon(LucideIcons.layout_grid, size: 18, color: primary),
                     const SizedBox(width: 8),
@@ -569,6 +681,7 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -582,151 +695,150 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(ctx).height * 0.65,
-          ),
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF121C24) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border(
-              top: BorderSide(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : const Color(0xFFE2E8F0),
+        return FinoraDraggableSheetWrapper(
+          onClose: () => Navigator.pop(ctx),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.65,
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 22),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF121C24) : Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border(
+                top: BorderSide(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : const Color(0xFFE2E8F0),
+                ),
               ),
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 38,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.22)
-                        : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(99),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FinoraSheetDragHandle(
+                    padding: const EdgeInsets.only(top: 4, bottom: 12),
+                    onClose: () => Navigator.pop(ctx),
                   ),
-                ),
-                Row(
-                  children: [
-                    Icon(LucideIcons.wallet, size: 18, color: primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Chọn ví nguồn thanh toán',
-                        style: TextStyle(
-                          fontFamily: _font,
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  Row(
+                    children: [
+                      Icon(LucideIcons.wallet, size: 18, color: primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Chọn ví nguồn thanh toán',
+                          style: TextStyle(
+                            fontFamily: _font,
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w800,
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: wallets.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, idx) {
-                      final w = wallets[idx];
-                      final selected = w.id == _selectedWallet?.id;
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _selectedWallet = w);
-                          _persistDraft();
-                          Navigator.pop(ctx);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? primary.withValues(
-                                    alpha: isDark ? 0.20 : 0.10)
-                                : (isDark
-                                    ? const Color(0xFF1A2632)
-                                    : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: wallets.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, idx) {
+                        final w = wallets[idx];
+                        final selected = w.id == _selectedWallet?.id;
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selectedWallet = w);
+                            _persistDraft();
+                            Navigator.pop(ctx);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
                               color: selected
-                                  ? primary
+                                  ? primary.withValues(
+                                      alpha: isDark ? 0.20 : 0.10)
                                   : (isDark
-                                      ? Colors.white.withValues(alpha: 0.08)
-                                      : const Color(0xFFE2E8F0)),
-                              width: selected ? 1.5 : 1.0,
+                                      ? const Color(0xFF1A2632)
+                                      : const Color(0xFFF8FAFC)),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: selected
+                                    ? primary
+                                    : (isDark
+                                        ? Colors.white.withValues(alpha: 0.08)
+                                        : const Color(0xFFE2E8F0)),
+                                width: selected ? 1.5 : 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                BankIcon(
+                                  bankCode: w.bankCode,
+                                  bankName: w.name,
+                                  size: 40,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        w.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily: _font,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Số dư: ${_currencyFormat.format(w.balance).replaceAll(',', '.')} ₫',
+                                        style: TextStyle(
+                                          fontFamily: _font,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures()
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (selected)
+                                  Icon(Icons.check_circle_rounded,
+                                      color: primary, size: 20),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              BankIcon(
-                                bankCode: w.bankCode,
-                                bankName: w.name,
-                                size: 40,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      w.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontFamily: _font,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Số dư: ${_currencyFormat.format(w.balance).replaceAll(',', '.')} ₫',
-                                      style: TextStyle(
-                                        fontFamily: _font,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark
-                                            ? const Color(0xFF94A3B8)
-                                            : const Color(0xFF64748B),
-                                        fontFeatures: const [
-                                          FontFeature.tabularFigures()
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (selected)
-                                Icon(Icons.check_circle_rounded,
-                                    color: primary, size: 20),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -740,8 +852,11 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
     final studio = Provider.of<ThemeStudioController?>(context);
     final primary = studio?.primaryColor ?? const Color(0xFF00866A);
     final secondary = studio?.secondaryColor ?? const Color(0xFF10B981);
-    final wallets = context.watch<WalletProvider>().wallets;
+    final wallets = _resolveWallets(context);
     final expenseCategories = _resolveExpenseCategories(context);
+    if (_selectedWallet == null && wallets.isNotEmpty) {
+      _selectedWallet = wallets.first;
+    }
     final selectedWallet =
         _selectedWallet ?? (wallets.isNotEmpty ? wallets.first : null);
     final selectedCatColor = BankIconRegistry.parseThemeColor(
@@ -749,54 +864,45 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
       fallback: primary,
     );
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: (MediaQuery.sizeOf(context).height -
-                MediaQuery.viewInsetsOf(context).bottom -
-                40)
-            .clamp(220, MediaQuery.sizeOf(context).height),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF101920) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        border: Border(
-          top: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.14)
-                : const Color(0xFFE2E8F0),
-            width: 1.0,
-          ),
+    return FinoraDraggableSheetWrapper(
+      onClose: _dismissAndDiscardDraft,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: (MediaQuery.sizeOf(context).height -
+                  MediaQuery.viewInsetsOf(context).bottom -
+                  40)
+              .clamp(220, MediaQuery.sizeOf(context).height),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.50 : 0.12),
-            blurRadius: 28,
-            offset: const Offset(0, -6),
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 18),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF101920) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          border: Border(
+            top: BorderSide(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.14)
+                  : const Color(0xFFE2E8F0),
+              width: 1.0,
+            ),
           ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.50 : 0.12),
+              blurRadius: 28,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4.5,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.22)
-                        : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
+              // Interactive Drag handle outside ScrollView
+              FinoraSheetDragHandle(
+                padding: const EdgeInsets.only(top: 6, bottom: 10),
+                onClose: _dismissAndDiscardDraft,
               ),
 
               // Header Row with Draft Status Pill
@@ -877,12 +983,7 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
                     ),
                   ),
                   InkWell(
-                    onTap: () async {
-                      if (await _persistDraft()) {
-                        if (!mounted) return;
-                        Navigator.of(context).pop();
-                      }
-                    },
+                    onTap: _dismissAndDiscardDraft,
                     borderRadius: BorderRadius.circular(100),
                     child: Container(
                       width: 34,
@@ -903,10 +1004,17 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // 1. Beneficiary Card (Luxury Bento Style)
-              Container(
+              Flexible(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Beneficiary Card (Luxury Bento Style)
+                      Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -1809,6 +1917,42 @@ class _QrConfirmExpenseSheetState extends State<QrConfirmExpenseSheet> {
                           textAlign: TextAlign.center,
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              SizedBox(
+                height: 42,
+                child: TextButton.icon(
+                  onPressed: (_isSaving || _isOpeningBank)
+                      ? null
+                      : _openFullAddTransactionPage,
+                  icon: Icon(
+                    Icons.edit_note_rounded,
+                    size: 18,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF475569),
+                  ),
+                  label: Text(
+                    'Mở trang Tạo giao dịch chi tiết',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: _font,
+                      color: isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF475569),
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    shape: const StadiumBorder(),
+                  ),
+                ),
+              ),
                     ],
                   ),
                 ),

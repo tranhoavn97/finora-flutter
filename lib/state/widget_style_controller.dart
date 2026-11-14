@@ -33,11 +33,11 @@ class WidgetStyleController extends ChangeNotifier {
   static const List<ThemePresetMeta> assetPresets = [
     ThemePresetMeta(
       id: 0,
-      title: 'Vũ trụ huyền bí',
-      subtitle: 'Nền không gian vũ trụ Finora',
+      title: 'Emerald Horizon',
+      subtitle: 'Nền không gian ngọc lục bảo Finora',
       isDark: true,
-      gradientColors: [Color(0xFF020617), Color(0xFF1E1B4B)],
-      accentColor: Color(0xFF818CF8),
+      gradientColors: [Color(0xFF041C16), Color(0xFF0B3B2D)],
+      accentColor: Color(0xFF10B981),
     ),
     ThemePresetMeta(
       id: 1,
@@ -49,11 +49,11 @@ class WidgetStyleController extends ChangeNotifier {
     ),
     ThemePresetMeta(
       id: 2,
-      title: 'Cyber Purple EQ',
-      subtitle: 'Cột Equalizer tím Neon sống động',
+      title: 'Ocean Sapphire EQ',
+      subtitle: 'Cột Equalizer xanh đại dương sống động',
       isDark: true,
-      gradientColors: [Color(0xFF0F061E), Color(0xFF220D45)],
-      accentColor: Color(0xFFC084FC),
+      gradientColors: [Color(0xFF071529), Color(0xFF0C2D57)],
+      accentColor: Color(0xFF005FEA),
     ),
     ThemePresetMeta(
       id: 3,
@@ -100,11 +100,11 @@ class WidgetStyleController extends ChangeNotifier {
     ),
     ThemePresetMeta(
       id: 1,
-      title: 'Gradient Purple',
-      subtitle: 'Tím gradient phát quang (Dark)',
+      title: 'Deep Emerald',
+      subtitle: 'Ngọc lục bảo phát quang (Dark)',
       isDark: true,
-      gradientColors: [Color(0xFF170F26), Color(0xFF2A1545)],
-      accentColor: Color(0xFFA855F7),
+      gradientColors: [Color(0xFF041C16), Color(0xFF064E3B)],
+      accentColor: Color(0xFF10B981),
     ),
     ThemePresetMeta(
       id: 2,
@@ -135,11 +135,11 @@ class WidgetStyleController extends ChangeNotifier {
     ),
     ThemePresetMeta(
       id: 1,
-      title: 'Dark Neon Purple',
-      subtitle: 'Vòng sáng tím huyền ảo (Dark)',
+      title: 'Dark Sapphire Glow',
+      subtitle: 'Vòng sáng xanh sapphire (Dark)',
       isDark: true,
-      gradientColors: [Color(0xFF100D24), Color(0xFF221742)],
-      accentColor: Color(0xFFA855F7),
+      gradientColors: [Color(0xFF071326), Color(0xFF0F294D)],
+      accentColor: Color(0xFF38BDF8),
     ),
     ThemePresetMeta(
       id: 2,
@@ -170,10 +170,10 @@ class WidgetStyleController extends ChangeNotifier {
     ),
     ThemePresetMeta(
       id: 1,
-      title: 'Deep Purple Glow',
-      subtitle: 'Viền sáng neon xanh tím (Dark)',
+      title: 'Deep Sapphire Glow',
+      subtitle: 'Viền sáng neon xanh lam (Dark)',
       isDark: true,
-      gradientColors: [Color(0xFF0C1033), Color(0xFF161F58)],
+      gradientColors: [Color(0xFF071326), Color(0xFF0F294D)],
       accentColor: Color(0xFF38BDF8),
     ),
     ThemePresetMeta(
@@ -186,11 +186,11 @@ class WidgetStyleController extends ChangeNotifier {
     ),
     ThemePresetMeta(
       id: 3,
-      title: 'Purple Wave',
-      subtitle: 'Pastel tím uốn lượn mềm (Light)',
+      title: 'Mint Breeze',
+      subtitle: 'Pastel xanh bạc hà uốn lượn mềm (Light)',
       isDark: false,
-      gradientColors: [Color(0xFFFAF5FF), Color(0xFFF3E8FF)],
-      accentColor: Color(0xFF9333EA),
+      gradientColors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+      accentColor: Color(0xFF0D9488),
     ),
     ThemePresetMeta(
       id: 4,

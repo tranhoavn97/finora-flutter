@@ -24,6 +24,8 @@ class _TransactionThemeModalContent extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final studio = context.watch<ThemeStudioController>();
     final currentStyle = studio.transactionListStyle;
+    final brandPrimary = studio.resolvedPrimary;
+    final brandSecondary = studio.resolvedSecondary;
 
     final styles = [
       (
@@ -31,7 +33,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
         '1. Pha lê Zenvest',
         'Avatar Vợ/Chồng lồng góc & chip ví rút gọn',
         Icons.auto_awesome_mosaic_rounded,
-        const Color(0xFF00866A),
+        brandPrimary,
       ),
       (
         AppTransactionListStyle.bentoCards,
@@ -49,22 +51,22 @@ class _TransactionThemeModalContent extends StatelessWidget {
       ),
       (
         AppTransactionListStyle.magazineLedger,
-        '4. Sổ Cái Hoàng Gia',
-        'Ruy-băng màu dọc 6px & chữ số kế toán',
+        '4. Sổ Cái Tạp Chí',
+        'Ô lịch ngày DD/Tháng bên trái & số tiền nổi bật',
         Icons.menu_book_rounded,
         const Color(0xFFF59E0B),
       ),
       (
         AppTransactionListStyle.compactTable,
-        '5. Bảng Vi Mạch',
-        'Siêu gọn 1 dòng: Avatar Vợ/Chồng + Tên + Ví ngắn',
+        '5. Bảng Kế Toán Gọn',
+        'Siêu gọn 1 dòng: Icon + Tên + Ví + Số tiền',
         Icons.table_rows_rounded,
         const Color(0xFFEC4899),
       ),
       (
         AppTransactionListStyle.minimalDivided,
-        '6. Lụa Phẳng Tinh Khiết',
-        'Không khung hộp, kẻ chỉ mảnh kèm avatar Vợ/Chồng',
+        '6. Tối Giản Kẻ Chỉ',
+        'Viền icon mảnh, phân cách thanh lịch chuẩn Swiss',
         Icons.horizontal_rule_rounded,
         const Color(0xFF64748B),
       ),
@@ -88,14 +90,26 @@ class _TransactionThemeModalContent extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
-                    ? const [Color(0xFF063B2D), Color(0xFF0F6E56), Color(0xFF2E1065)]
-                    : const [Color(0xFFECFDF5), Color(0xFFD1FAE5), Color(0xFFEDE9FE)],
+                    ? [
+                        Color.alphaBlend(
+                          brandPrimary.withValues(alpha: 0.34),
+                          const Color(0xFF0F172A),
+                        ),
+                        Color.alphaBlend(
+                          brandSecondary.withValues(alpha: 0.24),
+                          const Color(0xFF1E293B),
+                        ),
+                      ]
+                    : [
+                        Color.lerp(brandPrimary, Colors.white, 0.88)!,
+                        Color.lerp(brandSecondary, Colors.white, 0.90)!,
+                      ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.35 : 0.25),
+                color: brandPrimary.withValues(alpha: isDark ? 0.38 : 0.28),
                 width: 1,
               ),
             ),
@@ -117,8 +131,8 @@ class _TransactionThemeModalContent extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF10B981)
-                                  .withValues(alpha: isDark ? 0.25 : 0.16),
+                              color: brandPrimary
+                                  .withValues(alpha: isDark ? 0.26 : 0.14),
                               borderRadius: BorderRadius.circular(100),
                             ),
                             child: Text(
@@ -128,8 +142,8 @@ class _TransactionThemeModalContent extends StatelessWidget {
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 0.6,
                                 color: isDark
-                                    ? const Color(0xFF34D399)
-                                    : const Color(0xFF0F6E56),
+                                    ? Color.lerp(brandPrimary, Colors.white, 0.35)!
+                                    : brandPrimary,
                               ),
                             ),
                           ),
@@ -166,7 +180,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
           const SizedBox(height: 14),
 
           // 2. Live Preview Strip of Selected Style
-          _buildLivePreviewStrip(context, currentStyle, isDark),
+          _buildLivePreviewStrip(context, currentStyle, isDark, brandPrimary),
 
           const SizedBox(height: 14),
 
@@ -177,9 +191,9 @@ class _TransactionThemeModalContent extends StatelessWidget {
             itemCount: styles.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.18,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.32,
             ),
             itemBuilder: (context, index) {
               final (style, title, subtitle, icon, accent) = styles[index];
@@ -208,15 +222,15 @@ class _TransactionThemeModalContent extends StatelessWidget {
             height: 46,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F6E56), Color(0xFF10B981)],
+                gradient: LinearGradient(
+                  colors: [brandPrimary, brandSecondary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(100),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.32),
+                    color: brandPrimary.withValues(alpha: 0.32),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -247,6 +261,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
     BuildContext context,
     AppTransactionListStyle style,
     bool isDark,
+    Color brandPrimary,
   ) {
     final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final borderCol =
@@ -264,8 +279,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.visibility_rounded,
-                  size: 13, color: Color(0xFF10B981)),
+              Icon(Icons.visibility_rounded, size: 13, color: brandPrimary),
               const SizedBox(width: 5),
               Text(
                 'XEM TRƯỚC TRỰC TIẾP',
@@ -281,7 +295,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          _buildSampleTransactionPreview(style, isDark),
+          _buildSampleTransactionPreview(style, isDark, brandPrimary),
         ],
       ),
     );
@@ -290,6 +304,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
   Widget _buildSampleTransactionPreview(
     AppTransactionListStyle style,
     bool isDark,
+    Color brandPrimary,
   ) {
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSub =
@@ -303,13 +318,17 @@ class _TransactionThemeModalContent extends StatelessWidget {
             width: compact ? 28 : 34,
             height: compact ? 28 : 34,
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(compact ? 8 : 10),
+              shape: BoxShape.circle,
+              color: brandPrimary.withValues(alpha: 0.16),
+              border: Border.all(
+                color: brandPrimary.withValues(alpha: 0.32),
+                width: 1.0,
+              ),
             ),
             child: Icon(
               Icons.coffee_rounded,
               size: compact ? 15 : 18,
-              color: const Color(0xFF10B981),
+              color: brandPrimary,
             ),
           ),
           const SizedBox(width: 10),
@@ -359,15 +378,15 @@ class _TransactionThemeModalContent extends StatelessWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
+                  decoration: BoxDecoration(
+                    color: brandPrimary,
                     shape: BoxShape.circle,
                   ),
                 ),
                 Container(
                   width: 2,
                   height: 28,
-                  color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                  color: brandPrimary.withValues(alpha: 0.35),
                 ),
               ],
             ),
@@ -380,7 +399,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
                   color: cardSurface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                    color: brandPrimary.withValues(alpha: 0.25),
                   ),
                 ),
                 child: rowContent(),
@@ -416,7 +435,7 @@ class _TransactionThemeModalContent extends StatelessWidget {
             color: cardSurface.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: const Color(0xFF7C3AED).withValues(alpha: 0.25),
+              color: brandPrimary.withValues(alpha: 0.25),
               width: 0.8,
             ),
           ),
@@ -529,10 +548,10 @@ class _TransactionThemeModalContent extends StatelessWidget {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                       color: isSelected
                           ? accentColor
                           : accentColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                      borderRadius: BorderRadius.circular(9),
                     ),
                     child: Icon(
                       icon,

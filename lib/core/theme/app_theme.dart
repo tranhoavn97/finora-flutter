@@ -84,11 +84,11 @@ extension FinoraColorsContext on BuildContext {
       if (studio != null) {
         return FinoraColors(
           bgGradient: base.bgGradient,
-          glowA: base.glowA,
-          glowB: base.glowB,
+          glowA: studio.resolvedPrimary,
+          glowB: studio.resolvedSecondary,
           surface: studio.getCardFillColor(dark),
           surfaceElevated: studio.getCardFillColor(dark).withValues(alpha: (studio.glassOpacity + 0.12).clamp(0.25, 0.95)),
-          highlight: base.highlight,
+          highlight: studio.resolvedPrimary,
           textPrimary: base.textPrimary,
           textSecondary: base.textSecondary,
           textTertiary: base.textTertiary,

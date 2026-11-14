@@ -167,7 +167,9 @@ class _PeriodPickerState extends State<PeriodPicker> {
     final bgColor = studio?.getModalFillColor(isDark) ??
         (isDark ? const Color(0xFF0F172A) : Colors.white);
     final primaryAccent =
-        studio?.primaryColor ?? const Color(0xFF007AFF);
+        studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+    final secondaryAccent =
+        studio?.resolvedSecondary ?? const Color(0xFF14B8A6);
     final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final secondaryTextColor =
         isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
@@ -224,11 +226,37 @@ class _PeriodPickerState extends State<PeriodPicker> {
                 ),
                 const SizedBox(height: 14),
 
-                // Header Row: [ Khoảng thời gian ] ------------ [ ✕ ]
+                // Header Row: Circular Badge + [ Khoảng thời gian ] + [ ✕ ]
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 22),
                   child: Row(
                     children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              primaryAccent.withValues(
+                                  alpha: isDark ? 0.28 : 0.16),
+                              secondaryAccent.withValues(
+                                  alpha: isDark ? 0.16 : 0.08),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: primaryAccent.withValues(alpha: 0.30),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.date_range_rounded,
+                          size: 20,
+                          color: primaryAccent,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,8 +264,8 @@ class _PeriodPickerState extends State<PeriodPicker> {
                             Text(
                               'Khoảng thời gian',
                               style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
                                 color: textColor,
                                 letterSpacing: -0.4,
                               ),
@@ -246,7 +274,7 @@ class _PeriodPickerState extends State<PeriodPicker> {
                             Text(
                               'Lọc nhanh hoặc chọn khoảng ngày linh hoạt',
                               style: TextStyle(
-                                fontSize: 12.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w500,
                                 color: secondaryTextColor,
                               ),
@@ -254,10 +282,11 @@ class _PeriodPickerState extends State<PeriodPicker> {
                           ],
                         ),
                       ),
-                      FinoraIconAction(
+                      FinoraCircleIconButton(
                         icon: Icons.close_rounded,
-                        label: 'Đóng',
-                        size: 38,
+                        tooltip: 'Đóng',
+                        size: 36,
+                        iconSize: 18,
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
@@ -288,19 +317,19 @@ class _PeriodPickerState extends State<PeriodPicker> {
                     // Range Picker Tile [ Từ ngày ➔ Đến ngày ]
                     InkWell(
                       onTap: () => _pickDateRange(context),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
                           color: isCustomRange
-                              ? const Color(0xFF007AFF).withValues(alpha: isDark ? 0.2 : 0.08)
+                              ? primaryAccent.withValues(alpha: isDark ? 0.2 : 0.08)
                               : surfaceColor,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isCustomRange
-                                ? const Color(0xFF007AFF)
+                                ? primaryAccent
                                 : borderColor,
                             width: isCustomRange ? 1.5 : 1,
                           ),
@@ -308,17 +337,17 @@ class _PeriodPickerState extends State<PeriodPicker> {
                         child: Row(
                           children: [
                             Container(
-                              width: 38,
-                              height: 38,
+                              width: 40,
+                              height: 40,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF007AFF)
-                                    .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(12),
+                                color: primaryAccent
+                                    .withValues(alpha: isCustomRange ? 0.20 : 0.12),
+                                shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.date_range_rounded,
                                 size: 20,
-                                color: Color(0xFF007AFF),
+                                color: primaryAccent,
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -332,9 +361,9 @@ class _PeriodPickerState extends State<PeriodPicker> {
                                         'Từ ngày đến ngày',
                                         style: TextStyle(
                                           fontSize: 14.5,
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w800,
                                           color: isCustomRange
-                                              ? const Color(0xFF007AFF)
+                                              ? primaryAccent
                                               : textColor,
                                         ),
                                       ),
@@ -342,11 +371,11 @@ class _PeriodPickerState extends State<PeriodPicker> {
                                         const SizedBox(width: 6),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
+                                              horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF007AFF),
+                                            color: primaryAccent,
                                             borderRadius:
-                                                BorderRadius.circular(6),
+                                                BorderRadius.circular(999),
                                           ),
                                           child: const Text(
                                             'Đang chọn',
@@ -376,12 +405,21 @@ class _PeriodPickerState extends State<PeriodPicker> {
                                 ],
                               ),
                             ),
-                            Icon(
-                              Icons.edit_calendar_rounded,
-                              size: 20,
-                              color: isCustomRange
-                                  ? const Color(0xFF007AFF)
-                                  : secondaryTextColor,
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: primaryAccent.withValues(
+                                    alpha: isCustomRange ? 0.16 : 0.08),
+                              ),
+                              child: Icon(
+                                Icons.edit_calendar_rounded,
+                                size: 17,
+                                color: isCustomRange
+                                    ? primaryAccent
+                                    : secondaryTextColor,
+                              ),
                             ),
                           ],
                         ),
@@ -395,31 +433,42 @@ class _PeriodPickerState extends State<PeriodPicker> {
                         Expanded(
                           child: InkWell(
                             onTap: () => _pickSingleDate(context),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(20),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
+                                  horizontal: 12, vertical: 11),
                               decoration: BoxDecoration(
                                 color: isCustomDate
-                                    ? const Color(0xFF007AFF).withValues(alpha: isDark ? 0.2 : 0.08)
+                                    ? primaryAccent.withValues(alpha: isDark ? 0.2 : 0.08)
                                     : surfaceColor,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: isCustomDate
-                                      ? const Color(0xFF007AFF)
+                                      ? primaryAccent
                                       : borderColor,
                                   width: isCustomDate ? 1.5 : 1,
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.today_rounded,
-                                    size: 18,
-                                    color: isCustomDate
-                                        ? const Color(0xFF007AFF)
-                                        : secondaryTextColor,
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isCustomDate
+                                          ? primaryAccent
+                                          : primaryAccent.withValues(
+                                              alpha: 0.10),
+                                    ),
+                                    child: Icon(
+                                      Icons.today_rounded,
+                                      size: 15,
+                                      color: isCustomDate
+                                          ? Colors.white
+                                          : primaryAccent,
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -429,12 +478,12 @@ class _PeriodPickerState extends State<PeriodPicker> {
                                               .format(_selectedDate!)
                                           : 'Chọn 1 ngày',
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 12.5,
                                         fontWeight: isCustomDate
-                                            ? FontWeight.w700
+                                            ? FontWeight.w800
                                             : FontWeight.w600,
                                         color: isCustomDate
-                                            ? const Color(0xFF007AFF)
+                                            ? primaryAccent
                                             : textColor,
                                       ),
                                       maxLines: 1,
@@ -454,49 +503,98 @@ class _PeriodPickerState extends State<PeriodPicker> {
                                 _selectedOption = DateFilterOption.customMonth;
                               });
                             },
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(20),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
+                                  horizontal: 12, vertical: 11),
                               decoration: BoxDecoration(
                                 color: isCustomMonth
-                                    ? const Color(0xFF007AFF).withValues(alpha: isDark ? 0.2 : 0.08)
+                                    ? primaryAccent.withValues(alpha: isDark ? 0.2 : 0.08)
                                     : surfaceColor,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: isCustomMonth
-                                      ? const Color(0xFF007AFF)
+                                      ? primaryAccent
                                       : borderColor,
                                   width: isCustomMonth ? 1.5 : 1,
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.calendar_view_month_rounded,
-                                    size: 18,
-                                    color: isCustomMonth
-                                        ? const Color(0xFF007AFF)
-                                        : secondaryTextColor,
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      setState(() {
+                                        _displayedMonth = DateTime(
+                                          _displayedMonth.year,
+                                          _displayedMonth.month - 1,
+                                          1,
+                                        );
+                                        _selectedOption =
+                                            DateFilterOption.customMonth;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: primaryAccent.withValues(
+                                            alpha: 0.12),
+                                      ),
+                                      child: Icon(
+                                        Icons.chevron_left_rounded,
+                                        size: 16,
+                                        color: primaryAccent,
+                                      ),
+                                    ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
-                                      isCustomMonth
-                                          ? 'Tháng ${_displayedMonth.month}/${_displayedMonth.year}'
-                                          : 'Chọn tháng',
+                                      'Tháng ${_displayedMonth.month}/${_displayedMonth.year}',
+                                      textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 12.2,
                                         fontWeight: isCustomMonth
-                                            ? FontWeight.w700
+                                            ? FontWeight.w800
                                             : FontWeight.w600,
                                         color: isCustomMonth
-                                            ? const Color(0xFF007AFF)
+                                            ? primaryAccent
                                             : textColor,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      setState(() {
+                                        _displayedMonth = DateTime(
+                                          _displayedMonth.year,
+                                          _displayedMonth.month + 1,
+                                          1,
+                                        );
+                                        _selectedOption =
+                                            DateFilterOption.customMonth;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: primaryAccent.withValues(
+                                            alpha: 0.12),
+                                      ),
+                                      child: Icon(
+                                        Icons.chevron_right_rounded,
+                                        size: 16,
+                                        color: primaryAccent,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -532,6 +630,7 @@ class _PeriodPickerState extends State<PeriodPicker> {
                             textColor: textColor,
                             surfaceColor: surfaceColor,
                             borderColor: borderColor,
+                            primaryAccent: primaryAccent,
                           ),
                         ],
                       ],
@@ -551,10 +650,10 @@ class _PeriodPickerState extends State<PeriodPicker> {
                   gradient: LinearGradient(
                     colors: [
                       primaryAccent,
-                      Color.lerp(primaryAccent, Colors.black, 0.15)!,
+                      secondaryAccent,
                     ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(100),
                   boxShadow: [
@@ -604,6 +703,7 @@ class _PeriodPickerState extends State<PeriodPicker> {
     required Color textColor,
     required Color surfaceColor,
     required Color borderColor,
+    required Color primaryAccent,
   }) {
     final isSelected = _selectedOption == option;
 
@@ -620,17 +720,17 @@ class _PeriodPickerState extends State<PeriodPicker> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF007AFF)
+              ? primaryAccent
               : surfaceColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: isSelected ? const Color(0xFF007AFF) : borderColor,
+            color: isSelected ? primaryAccent : borderColor,
             width: 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF007AFF).withValues(alpha: 0.3),
+                    color: primaryAccent.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),

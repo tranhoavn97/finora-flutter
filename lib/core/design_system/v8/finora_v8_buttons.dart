@@ -185,13 +185,7 @@ class FinoraIconButton extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final buttonSize =
         studio?.getIconButtonSize() ?? FinoraV8Metrics.iconButton;
-    final shapeRadius = studio?.getIconBorderRadius(buttonSize);
-
-    final shape = shapeRadius != null &&
-            studio?.iconStyle != AppIconStyle.round &&
-            studio?.iconStyle != AppIconStyle.glassGlow
-        ? RoundedRectangleBorder(borderRadius: shapeRadius)
-        : const CircleBorder();
+    final shape = const CircleBorder();
 
     return SizedBox.square(
       dimension: FinoraV8Metrics.minTouchTarget,

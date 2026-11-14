@@ -8,6 +8,7 @@ import '../design_system/v8/finora_v8.dart' hide FinoraButton;
 import '../theme/app_theme.dart';
 import 'premium_widgets.dart';
 import 'finora_icon_action.dart';
+import 'finora_modal_scope.dart';
 import 'liquid_glass/liquid_glass_card.dart';
 export 'premium_widgets.dart'
     show
@@ -29,6 +30,7 @@ class BouncyPillTabs extends StatelessWidget {
   final ValueChanged<int> onChanged;
   final List<Color>? colors;
   final List<IconData>? icons;
+  final List<int>? counts;
   final double height;
   final double? fontSize;
 
@@ -39,6 +41,7 @@ class BouncyPillTabs extends StatelessWidget {
     required this.onChanged,
     this.colors,
     this.icons,
+    this.counts,
     this.height = 38,
     this.fontSize,
   }) : assert(labels.length > 1);
@@ -50,6 +53,7 @@ class BouncyPillTabs extends StatelessWidget {
         onChanged: onChanged,
         colors: colors,
         icons: icons,
+        counts: counts,
         height: height,
         fontSize: fontSize,
       );
@@ -202,8 +206,11 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
         ((studio?.isAppBarFloating ?? true) ||
             studio?.appBarScrollBehavior == AppAppBarScrollBehavior.floating ||
             studio?.topBarStyle == AppTopBarStyle.floatingIsland);
-    final customAlpha = (studio?.appBarOpacity ?? 0.68).clamp(0.0, 1.0);
-    final primary = studio?.primaryColor ?? const Color(0xFF005FEA);
+    final rawBarOpacity = studio?.appBarOpacity ?? 0.95;
+    final customAlpha =
+        ((rawBarOpacity - 0.68).abs() < 0.01 ? 0.95 : rawBarOpacity)
+            .clamp(0.0, 1.0);
+    final primary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
     final hMargin = (studio?.pageHorizontalMargin ?? 14.0).clamp(10.0, 20.0);
 
     final topBarStyle = studio?.topBarStyle ?? AppTopBarStyle.floatingIsland;
@@ -217,7 +224,7 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
 
     final effectiveBlur = transparentBar
         ? 0.0
-        : (studio?.appBarBlur ?? (isSeamless ? 18.0 : 22.0)).clamp(0.0, 30.0);
+        : (studio?.appBarBlur ?? 16.0).clamp(0.0, 18.0);
 
     final Color topBarFill;
     if (transparentBar) {
@@ -292,21 +299,25 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
                   ]
                 : studio?.getGlowShadows(dark)));
 
+    final isFullSegmentedBar =
+        titleWidget != null && title.isEmpty && !shouldShowBack && actions.isEmpty;
+
     Widget barContent = SizedBox(
       height: height,
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: isFloating ? 12 : hMargin),
+        padding: EdgeInsets.symmetric(
+          horizontal: isFloating ? (isFullSegmentedBar ? 4 : 10) : hMargin,
+        ),
         child: Row(
           children: [
             if (shouldShowBack) ...[
               FinoraCircleIconButton(
                 icon: Icons.arrow_back_rounded,
-                tooltip: 'Quay lại',
-                size: 38,
-                iconSize: 20,
+                size: 34,
+                iconSize: 18,
                 onPressed: onBack ?? () => Navigator.of(context).maybePop(),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
             ] else if (titleWidget != null && title.isEmpty) ...[
               // Full width for custom titleWidget
             ] else ...[
@@ -319,7 +330,7 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 18.5,
+                      fontSize: 17.0,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
                       color: dark ? Colors.white : const Color(0xFF0F172A),
@@ -331,7 +342,7 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: actions.map((action) {
                   return Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
+                    padding: const EdgeInsets.only(left: 6.0),
                     child: action,
                   );
                 }).toList(),
@@ -421,7 +432,7 @@ class GlassTopBar extends StatelessWidget implements PreferredSizeWidget {
     final customAlpha = (studio?.appBarOpacity ?? 0.68).clamp(0.0, 1.0);
     final effectiveBlur = customAlpha <= 0.01
         ? 0.0
-        : (studio?.appBarBlur ?? 22.0).clamp(0.0, 30.0);
+        : (studio?.appBarBlur ?? 16.0).clamp(0.0, 18.0);
     final primary = studio?.primaryColor ?? const Color(0xFF0F6E56);
     final radius = BorderRadius.circular(
       borderRadius ?? (studio?.cardCornerRadius.clamp(18.0, 26.0) ?? 22.0),
@@ -525,6 +536,220 @@ class FinoraSliverBlurAppBar extends StatelessWidget {
   }
 }
 
+class FinoraDraggableSheetScope extends InheritedWidget {
+  final void Function(double delta) onDragUpdate;
+  final void Function(double velocity) onDragEnd;
+  final VoidCallback onDragCancel;
+
+  const FinoraDraggableSheetScope({
+    required this.onDragUpdate,
+    required this.onDragEnd,
+    required this.onDragCancel,
+    required super.child,
+  });
+
+  static FinoraDraggableSheetScope? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<FinoraDraggableSheetScope>();
+  }
+
+  @override
+  bool updateShouldNotify(covariant FinoraDraggableSheetScope oldWidget) =>
+      false;
+}
+
+typedef _FinoraDraggableSheetScope = FinoraDraggableSheetScope;
+
+/// Wraps any bottom sheet surface so dragging down on [FinoraSheetDragHandle]
+/// or [FinoraSheetHeader] translates the sheet downward with the user's finger
+/// and dismisses it when released.
+class FinoraDraggableSheetWrapper extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onClose;
+
+  const FinoraDraggableSheetWrapper({
+    super.key,
+    required this.child,
+    this.onClose,
+  });
+
+  @override
+  State<FinoraDraggableSheetWrapper> createState() =>
+      _FinoraDraggableSheetWrapperState();
+}
+
+class _FinoraDraggableSheetWrapperState
+    extends State<FinoraDraggableSheetWrapper> {
+  double _dragOffset = 0.0;
+  bool _dismissing = false;
+
+  void _handleDragUpdate(double delta) {
+    if (_dismissing || !mounted) return;
+    setState(() {
+      _dragOffset = (_dragOffset + delta).clamp(0.0, 640.0);
+    });
+  }
+
+  void _handleDragEnd(double velocity) {
+    if (_dismissing || !mounted) return;
+    if (_dragOffset > 34.0 || velocity > 180.0) {
+      _dismissing = true;
+      HapticFeedback.lightImpact();
+      final close = widget.onClose;
+      if (close != null) {
+        close();
+      } else {
+        Navigator.of(context).maybePop();
+      }
+    } else if (_dragOffset != 0.0) {
+      setState(() => _dragOffset = 0.0);
+    }
+  }
+
+  void _handleDragCancel() {
+    if (_dismissing || !mounted) return;
+    if (_dragOffset != 0.0) {
+      setState(() => _dragOffset = 0.0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _FinoraDraggableSheetScope(
+      onDragUpdate: _handleDragUpdate,
+      onDragEnd: _handleDragEnd,
+      onDragCancel: _handleDragCancel,
+      child: Transform.translate(
+        offset: Offset(0, _dragOffset),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Interactive top horizontal drag handle bar ("thanh ngang ở đầu") for all
+/// Finora modal bottom sheets. Always wins the vertical drag gesture arena over
+/// inner ScrollViews so swiping down reliably pushes the sheet down to close.
+class FinoraSheetDragHandle extends StatefulWidget {
+  final VoidCallback? onClose;
+  final EdgeInsetsGeometry padding;
+  final double width;
+  final double height;
+  final double minHeight;
+  final Widget? child;
+
+  const FinoraSheetDragHandle({
+    super.key,
+    this.onClose,
+    this.padding = const EdgeInsets.only(top: 8, bottom: 6),
+    this.width = 42.0,
+    this.height = 4.5,
+    this.minHeight = 20.0,
+    this.child,
+  });
+
+  @override
+  State<FinoraSheetDragHandle> createState() => _FinoraSheetDragHandleState();
+}
+
+class _FinoraSheetDragHandleState extends State<FinoraSheetDragHandle> {
+  double _localDragDy = 0.0;
+  bool _popped = false;
+
+  void _onDragStart(DragStartDetails details) {
+    _localDragDy = 0.0;
+    _popped = false;
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    final dy = details.primaryDelta ?? details.delta.dy;
+    final scope = _FinoraDraggableSheetScope.maybeOf(context);
+    if (scope != null) {
+      scope.onDragUpdate(dy);
+      return;
+    }
+    _localDragDy += dy;
+    if (!_popped && _localDragDy > 36.0) {
+      _popped = true;
+      HapticFeedback.lightImpact();
+      final close = widget.onClose;
+      if (close != null) {
+        close();
+      } else {
+        Navigator.of(context).maybePop();
+      }
+    }
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0.0;
+    final scope = _FinoraDraggableSheetScope.maybeOf(context);
+    if (scope != null) {
+      scope.onDragEnd(velocity);
+      return;
+    }
+    if (!_popped && (_localDragDy > 24.0 || velocity > 180.0)) {
+      _popped = true;
+      HapticFeedback.lightImpact();
+      final close = widget.onClose;
+      if (close != null) {
+        close();
+      } else {
+        Navigator.of(context).maybePop();
+      }
+    }
+    _localDragDy = 0.0;
+  }
+
+  void _onDragCancel() {
+    _localDragDy = 0.0;
+    _FinoraDraggableSheetScope.maybeOf(context)?.onDragCancel();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pill = Padding(
+      padding: widget.padding,
+      child: Center(
+        child: Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.28)
+                : const Color(0xFFCBD5E1),
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+      ),
+    );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragStart: _onDragStart,
+      onVerticalDragUpdate: _onDragUpdate,
+      onVerticalDragEnd: _onDragEnd,
+      onVerticalDragCancel: _onDragCancel,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: widget.child != null ? 44.0 : widget.minHeight,
+          minWidth: double.infinity,
+        ),
+        child: widget.child != null
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  pill,
+                  widget.child!,
+                ],
+              )
+            : pill,
+      ),
+    );
+  }
+}
+
 /// Modern Apple-inspired glass header for bottom sheet modals
 class FinoraSheetHeader extends StatelessWidget {
   final String title;
@@ -556,96 +781,109 @@ class FinoraSheetHeader extends StatelessWidget {
     final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
     const subColor = Color(0xFF64748B);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (showHandle) ...[
-          const SizedBox(height: 10),
-          Center(
-            child: Container(
-              width: 38,
-              height: 4.5,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white24 : Colors.black12,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 16, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Container(
-                  width: 38,
-                  height: 38,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragUpdate: (details) {
+        final dy = details.primaryDelta ?? details.delta.dy;
+        _FinoraDraggableSheetScope.maybeOf(context)?.onDragUpdate(dy);
+      },
+      onVerticalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0.0;
+        final scope = _FinoraDraggableSheetScope.maybeOf(context);
+        if (scope != null) {
+          scope.onDragEnd(velocity);
+        } else if (velocity > 180.0) {
+          HapticFeedback.lightImpact();
+          final close = onClose;
+          if (close != null) {
+            close();
+          } else {
+            Navigator.of(context).maybePop();
+          }
+        }
+      },
+      onVerticalDragCancel: () {
+        _FinoraDraggableSheetScope.maybeOf(context)?.onDragCancel();
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (showHandle) FinoraSheetDragHandle(onClose: onClose),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Container(
+                    width: 38,
+                    height: 38,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
                       color:
-                          primaryColor.withValues(alpha: isDark ? 0.35 : 0.25),
-                      width: 1.0,
-                    ),
-                  ),
-                  child: Icon(icon, color: primaryColor, size: 20),
-                ),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: titleColor,
-                        letterSpacing: -0.3,
+                          primaryColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: primaryColor.withValues(
+                            alpha: isDark ? 0.35 : 0.25),
+                        width: 1.0,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 2),
+                    child: Icon(icon, color: primaryColor, size: 20),
+                  ),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        subtitle!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: subColor,
-                          fontWeight: FontWeight.w500,
+                        title,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: titleColor,
+                          letterSpacing: -0.3,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: subColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              trailing ??
-                  FinoraIconAction(
-                    icon: Icons.close_rounded,
-                    label: 'Đóng',
-                    size: 38,
-                    onPressed: onClose ?? () => Navigator.of(context).pop(),
                   ),
-            ],
+                ),
+                const SizedBox(width: 8),
+                trailing ??
+                    FinoraIconAction(
+                      icon: Icons.close_rounded,
+                      label: 'Đóng',
+                      size: 38,
+                      onPressed: onClose ?? () => Navigator.of(context).pop(),
+                    ),
+              ],
+            ),
           ),
-        ),
-        Container(
-          height: 1,
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.08)
-              : Colors.black.withValues(alpha: 0.06),
-        ),
-      ],
+          Container(
+            height: 1,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.06),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -835,7 +1073,8 @@ class GlassBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Clean, 100% opaque Apple iOS 18 sheet surface
+
+    // Modals & bottom sheets always stay opaque — card glass opacity never applies to modals/sheets.
     final effectiveFill = isDark ? const Color(0xFF111827) : Colors.white;
     final effectiveRadius = radius;
 
@@ -878,18 +1117,7 @@ class GlassBottomSheet extends StatelessWidget {
                         showHandle: showHandle,
                       ),
                     ] else if (showHandle) ...[
-                      const SizedBox(height: 10),
-                      Center(
-                        child: Container(
-                          width: 38,
-                          height: 4.5,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white24 : Colors.black12,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      FinoraSheetDragHandle(onClose: onClose),
                     ],
                     Expanded(
                       child: padding != null
@@ -913,18 +1141,7 @@ class GlassBottomSheet extends StatelessWidget {
                         showHandle: showHandle,
                       ),
                     ] else if (showHandle) ...[
-                      const SizedBox(height: 10),
-                      Center(
-                        child: Container(
-                          width: 38,
-                          height: 4.5,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white24 : Colors.black12,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      FinoraSheetDragHandle(onClose: onClose),
                     ],
                     Flexible(
                       child: padding != null
@@ -937,10 +1154,18 @@ class GlassBottomSheet extends StatelessWidget {
       ),
     );
 
-    return ClipRRect(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(effectiveRadius)),
-      child: sheetContent,
+    final wrapped = Theme(
+      data: FinoraModalScope.opaqueModalTheme(context),
+      child: FinoraModalScope(child: sheetContent),
+    );
+
+    return FinoraDraggableSheetWrapper(
+      onClose: onClose,
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(effectiveRadius)),
+        child: wrapped,
+      ),
     );
   }
 }
@@ -1105,6 +1330,7 @@ class LiquidFilterPill extends StatelessWidget {
   final VoidCallback onTap;
   final Color color;
   final IconData? icon;
+  final int? count;
   final EdgeInsetsGeometry padding;
 
   const LiquidFilterPill({
@@ -1114,6 +1340,7 @@ class LiquidFilterPill extends StatelessWidget {
     required this.onTap,
     required this.color,
     this.icon,
+    this.count,
     this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
   });
 
@@ -1124,6 +1351,7 @@ class LiquidFilterPill extends StatelessWidget {
         onTap: onTap,
         color: color,
         icon: icon,
+        count: count,
       );
 }
 

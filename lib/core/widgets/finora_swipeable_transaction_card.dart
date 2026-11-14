@@ -251,7 +251,7 @@ void showFinoraTransactionQuickSheet(
               // 4. Action: Sao chép / Nhân bản giao dịch
               _buildActionRow(
                 icon: Icons.copy_rounded,
-                iconColor: const Color(0xFF8B5CF6),
+                iconColor: const Color(0xFF0D9488),
                 title: 'Sao chép / Tạo tương tự',
                 subtitle: 'Mở form thêm giao dịch với thông tin điền sẵn',
                 isDark: isDark,

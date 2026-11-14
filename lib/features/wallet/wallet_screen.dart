@@ -625,21 +625,24 @@ class _WalletScreenState extends State<WalletScreen> {
     final options = [
       (
         'all',
-        'Tất cả (${wallets.length})',
+        'Tất cả',
         Icons.people_alt_rounded,
-        const Color(0xFF007AFF)
+        const Color(0xFF007AFF),
+        wallets.length,
       ),
       (
         'husband',
-        'Chồng ($husbandCount)',
+        'Chồng',
         Icons.male_rounded,
-        const Color(0xFF007AFF)
+        const Color(0xFF007AFF),
+        husbandCount,
       ),
       (
         'wife',
-        'Vợ ($wifeCount)',
+        'Vợ',
         Icons.female_rounded,
-        const Color(0xFFFF2D55)
+        const Color(0xFFFF2D55),
+        wifeCount,
       ),
     ];
 
@@ -665,6 +668,23 @@ class _WalletScreenState extends State<WalletScreen> {
                       fontWeight: _ownerFilter == option.$1
                           ? FontWeight.bold
                           : FontWeight.normal,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: option.$4.withValues(alpha: isDark ? 0.22 : 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '${option.$5}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: option.$4,
+                      ),
                     ),
                   ),
                   if (_ownerFilter == option.$1) ...[

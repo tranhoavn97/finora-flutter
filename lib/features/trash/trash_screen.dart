@@ -218,26 +218,35 @@ class _TrashScreenState extends State<TrashScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
-                  _filterChip('all', 'Tất cả (${_items.length})', isDark),
+                  _filterChip('all', 'Tất cả', _items.length, isDark),
                   _filterChip(
                       'transactions',
-                      'Giao dịch (${_items.where((i) => i.collectionName == 'transactions').length})',
+                      'Giao dịch',
+                      _items
+                          .where((i) => i.collectionName == 'transactions')
+                          .length,
                       isDark),
                   _filterChip(
                       'wallets',
-                      'Ví (${_items.where((i) => i.collectionName == 'wallets').length})',
+                      'Ví',
+                      _items
+                          .where((i) => i.collectionName == 'wallets')
+                          .length,
                       isDark),
                   _filterChip(
                       'assets',
-                      'Tài sản (${_items.where((i) => i.collectionName == 'assets').length})',
+                      'Tài sản',
+                      _items.where((i) => i.collectionName == 'assets').length,
                       isDark),
                   _filterChip(
                       'loans',
-                      'Khoản nợ (${_items.where((i) => i.collectionName == 'loans').length})',
+                      'Khoản nợ',
+                      _items.where((i) => i.collectionName == 'loans').length,
                       isDark),
                   _filterChip(
                       'goals',
-                      'Mục tiêu (${_items.where((i) => i.collectionName == 'goals').length})',
+                      'Mục tiêu',
+                      _items.where((i) => i.collectionName == 'goals').length,
                       isDark),
                 ],
               ),
@@ -437,12 +446,15 @@ class _TrashScreenState extends State<TrashScreen> {
     );
   }
 
-  Widget _filterChip(String key, String label, bool isDark) {
+  Widget _filterChip(String key, String label, int count, bool isDark) {
     final isSelected = _filter == key;
     final color = switch (key) {
       'transactions' => const Color(0xFFEF4444),
       'wallets' => const Color(0xFF8B5CF6),
       'budgets' => const Color(0xFFF59E0B),
+      'assets' => const Color(0xFF0EA5E9),
+      'loans' => const Color(0xFFF43F5E),
+      'goals' => const Color(0xFF06B6D4),
       _ => AppColors.primary,
     };
     return Padding(
@@ -450,6 +462,7 @@ class _TrashScreenState extends State<TrashScreen> {
       child: LiquidFilterPill(
         selected: isSelected,
         label: label,
+        count: count,
         color: color,
         onTap: () => setState(() => _filter = key),
       ),

@@ -1,5 +1,22 @@
-import 'fresh_design.dart';
+import 'dart:io' show Platform;
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../state/theme_studio_controller.dart';
+import 'fresh_design.dart';
+import 'finora_interactive_mascot.dart';
+
+export 'finora_interactive_mascot.dart';
+
+bool _isWatermarkTestEnv() {
+  if (kIsWeb) return false;
+  try {
+    return Platform.environment.containsKey('FLUTTER_TEST');
+  } catch (_) {
+    return false;
+  }
+}
 
 /// Các tư thế & biểu cảm của linh thú Rồng ngọc Finora 3D
 enum FinoraMascotPose {
@@ -114,13 +131,15 @@ class FinoraBrandPalette {
   ];
 }
 
-/// Widget hiển thị linh thú Rồng ngọc Finora 3D với hiệu ứng bóng đổ mềm tự nhiên
+/// Widget hiển thị linh thú Finora đồng bộ toàn hệ thống theo ThemeStudioController
 class FinoraMascotImage extends StatelessWidget {
   final FinoraMascotPose pose;
   final double size;
   final BoxFit fit;
   final bool showGlow;
   final bool? withGlow;
+  final AppMascotCharacter? characterOverride;
+  final bool forceShow;
 
   const FinoraMascotImage({
     super.key,
@@ -129,24 +148,102 @@ class FinoraMascotImage extends StatelessWidget {
     this.fit = BoxFit.contain,
     this.showGlow = false,
     this.withGlow,
+    this.characterOverride,
+    this.forceShow = false,
   });
+
+  static FinoraMascotPose resolvePoseByName(
+    String? name, [
+    FinoraMascotPose fallback = FinoraMascotPose.hero,
+  ]) {
+    if (name == null || name.isEmpty) return fallback;
+    for (final p in FinoraMascotPose.values) {
+      if (p.name == name) return p;
+    }
+    return fallback;
+  }
+
+  String _chibiAssetForPose(FinoraMascotPose p) {
+    switch (p) {
+      case FinoraMascotPose.happy:
+      case FinoraMascotPose.loving:
+        return 'assets/mascot/mascot_happy.png';
+      case FinoraMascotPose.confident:
+      case FinoraMascotPose.card:
+      case FinoraMascotPose.goal:
+        return 'assets/mascot/mascot_confident.png';
+      case FinoraMascotPose.focused:
+      case FinoraMascotPose.thinking:
+      case FinoraMascotPose.budget:
+      case FinoraMascotPose.saving:
+        return 'assets/mascot/mascot_focused.png';
+      case FinoraMascotPose.celebrate:
+      case FinoraMascotPose.excited:
+        return 'assets/mascot/mascot_celebrate.png';
+      case FinoraMascotPose.relaxed:
+        return 'assets/mascot/mascot_relaxed.png';
+      default:
+        return 'assets/mascot/mascot_hero.png';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    ThemeStudioController? studio;
+    try {
+      studio = Provider.of<ThemeStudioController?>(context);
+    } catch (_) {
+      studio = null;
+    }
+    final character =
+        characterOverride ?? studio?.mascotCharacter ?? AppMascotCharacter.jadeDragon3D;
+    if (character == AppMascotCharacter.hidden && !forceShow) {
+      return const SizedBox.shrink();
+    }
+
+    final effectivePose = (pose == FinoraMascotPose.hero &&
+            characterOverride == null &&
+            studio?.mascotDefaultPose != null)
+        ? resolvePoseByName(studio!.mascotDefaultPose, pose)
+        : pose;
+
     final effectiveGlow = withGlow ?? showGlow;
-    final img = Image.asset(
-      pose.assetPath,
-      width: size,
-      height: size,
-      fit: fit,
-      filterQuality: FilterQuality.medium,
-      errorBuilder: (_, __, ___) => FioMascot(
-        size: size,
-        celebrate: pose == FinoraMascotPose.celebrate ||
-            pose == FinoraMascotPose.happy ||
-            pose == FinoraMascotPose.excited,
-      ),
-    );
+    final brandColor = studio?.resolvedPrimary ?? FinoraBrandPalette.mintLight;
+
+    Widget img;
+    switch (character) {
+      case AppMascotCharacter.chibiClassic:
+        img = Image.asset(
+          _chibiAssetForPose(effectivePose),
+          width: size,
+          height: size,
+          fit: fit,
+          filterQuality: FilterQuality.medium,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => FioMascot(size: size),
+        );
+        break;
+      case AppMascotCharacter.fioMinimalOrb:
+      case AppMascotCharacter.luckyCat:
+      case AppMascotCharacter.finoraLeaf:
+      case AppMascotCharacter.jadeDragon3D:
+      case AppMascotCharacter.hidden:
+        img = Image.asset(
+          effectivePose.assetPath,
+          width: size,
+          height: size,
+          fit: fit,
+          filterQuality: FilterQuality.medium,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => FioMascot(
+            size: size,
+            celebrate: effectivePose == FinoraMascotPose.celebrate ||
+                effectivePose == FinoraMascotPose.happy ||
+                effectivePose == FinoraMascotPose.excited,
+          ),
+        );
+        break;
+    }
 
     if (!effectiveGlow) return img;
 
@@ -157,7 +254,7 @@ class FinoraMascotImage extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: FinoraBrandPalette.mintLight.withValues(alpha: 0.22),
+            color: brandColor.withValues(alpha: 0.24),
             blurRadius: size * 0.35,
             spreadRadius: -4,
           ),
@@ -215,6 +312,17 @@ class FinoraCompanionBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    ThemeStudioController? studio;
+    try {
+      studio = Provider.of<ThemeStudioController?>(context);
+    } catch (_) {
+      studio = null;
+    }
+    if (studio?.mascotCharacter == AppMascotCharacter.hidden) {
+      return const SizedBox.shrink();
+    }
+    final brandPrimary =
+        studio?.resolvedPrimary ?? FinoraBrandPalette.forestEmerald;
 
     return Material(
       color: Colors.transparent,
@@ -224,7 +332,7 @@ class FinoraCompanionBanner extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF121A17) : Colors.white,
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: isDark
@@ -245,17 +353,16 @@ class FinoraCompanionBanner extends StatelessWidget {
               Container(
                 width: 64,
                 height: 64,
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F6E56).withValues(alpha: 0.18)
-                      : const Color(0xFFEFF7F4),
+                  color: brandPrimary.withValues(alpha: isDark ? 0.18 : 0.10),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: FinoraMascotImage(
+                child: FinoraInteractive3DMascot(
                   pose: pose,
-                  size: 56,
-                  showGlow: false,
+                  size: 58,
+                  enableFloatingAnimation: true,
+                  enableTouch3DRotation: true,
                 ),
               ),
               const SizedBox(width: 14),
@@ -281,10 +388,10 @@ class FinoraCompanionBanner extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: isDark
-                            ? const Color(0xFFA7F3D0)
-                            : FinoraBrandPalette.forestEmerald,
+                            ? Color.lerp(brandPrimary, Colors.white, 0.45)
+                            : brandPrimary,
                       ),
                     ),
                     if (progress != null) ...[
@@ -296,10 +403,9 @@ class FinoraCompanionBanner extends StatelessWidget {
                           minHeight: 6,
                           backgroundColor: isDark
                               ? Colors.white.withValues(alpha: 0.12)
-                              : FinoraBrandPalette.forestEmerald
-                                  .withValues(alpha: 0.12),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFF10B981),
+                              : brandPrimary.withValues(alpha: 0.12),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            brandPrimary,
                           ),
                         ),
                       ),
@@ -315,9 +421,9 @@ class FinoraCompanionBanner extends StatelessWidget {
   }
 }
 
-/// Hình linh thú Rồng ngọc Finora chìm (Ambient Watermark) dùng để trang trí tinh tế
-/// bên trong các Widget lớn (Hero Card Trang chủ, Tài sản, Kế hoạch, Gia đình, AI...).
-class FinoraAmbientMascotWatermark extends StatelessWidget {
+/// Hình linh thú Rồng ngọc Finora 3D chìm sống động (Ambient 3D Watermark)
+/// Tự động lơ lửng và thở 3D nhẹ nhàng trên thiết bị thật, tự tắt lặp trong môi trường test.
+class FinoraAmbientMascotWatermark extends StatefulWidget {
   final FinoraMascotPose pose;
   final double size;
   final double opacity;
@@ -340,25 +446,101 @@ class FinoraAmbientMascotWatermark extends StatelessWidget {
   });
 
   @override
+  State<FinoraAmbientMascotWatermark> createState() =>
+      _FinoraAmbientMascotWatermarkState();
+}
+
+class _FinoraAmbientMascotWatermarkState
+    extends State<FinoraAmbientMascotWatermark>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _animating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 6000),
+    );
+    _syncAnimation(disableAnimations: false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disable = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    _syncAnimation(disableAnimations: disable);
+  }
+
+  void _syncAnimation({required bool disableAnimations}) {
+    final shouldAnimate = !disableAnimations && !_isWatermarkTestEnv();
+    if (shouldAnimate && !_animating) {
+      _animating = true;
+      _controller.repeat(reverse: true);
+    } else if (!shouldAnimate && _animating) {
+      _animating = false;
+      _controller.stop();
+      _controller.value = 0.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final effectiveOffset = (right != null || bottom != null)
-        ? Offset(-(right ?? -14), -(bottom ?? -12))
-        : offset;
+    ThemeStudioController? studio;
+    try {
+      studio = Provider.of<ThemeStudioController?>(context);
+    } catch (_) {
+      studio = null;
+    }
+    if (studio?.mascotCharacter == AppMascotCharacter.hidden ||
+        studio?.showMascotWatermark == false) {
+      return const SizedBox.shrink();
+    }
+
+    final effectiveOffset = (widget.right != null || widget.bottom != null)
+        ? Offset(-(widget.right ?? -14), -(widget.bottom ?? -12))
+        : widget.offset;
+
     return IgnorePointer(
       child: Align(
-        alignment: alignment,
-        child: Transform.translate(
-          offset: effectiveOffset,
-          child: Transform.rotate(
-            angle: rotation,
-            child: Opacity(
-              opacity: opacity.clamp(0.03, 0.45),
-              child: FinoraMascotImage(
-                pose: pose,
-                size: size,
-                showGlow: false,
+        alignment: widget.alignment,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final t = _controller.value;
+            final hoverY = _animating ? math.sin(t * math.pi) * 3.0 : 0.0;
+            final rotY = _animating ? (t - 0.5) * 0.08 : 0.0;
+
+            final matrix = Matrix4.identity()
+              ..setEntry(3, 2, 0.0018)
+              ..multiply(Matrix4.translationValues(
+                effectiveOffset.dx,
+                effectiveOffset.dy - hoverY,
+                0.0,
+              ))
+              ..rotateY(rotY)
+              ..rotateZ(widget.rotation);
+
+            return Transform(
+              alignment: Alignment.center,
+              transform: matrix,
+              child: Opacity(
+                opacity: widget.opacity.clamp(0.03, 0.45),
+                child: RepaintBoundary(child: child),
               ),
-            ),
+            );
+          },
+          child: FinoraMascotImage(
+            pose: widget.pose,
+            size: widget.size,
+            showGlow: false,
           ),
         ),
       ),

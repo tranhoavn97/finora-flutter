@@ -151,11 +151,12 @@ class SupabaseBridge {
   }
 
   /// Share one fetch per user/collection across all providers. Local writes and
-  /// returning to the app refresh immediately; foreground polling is a fallback.
+  /// returning to the app refresh immediately; foreground polling (15s) keeps
+  /// Web and mobile synchronized without manual reload.
   static Stream<List<Map<String, dynamic>>> watchUserCollection({
     required String userId,
     required String collection,
-    Duration interval = const Duration(minutes: 5),
+    Duration interval = const Duration(seconds: 15),
   }) {
     return Stream.multi((listener) {
       _observeLifecycle();
@@ -179,6 +180,22 @@ class SupabaseBridge {
         }
       };
     });
+  }
+
+  /// Force immediate remote refresh for active streams of [userId].
+  static Future<void> refreshUserCollections({
+    required String userId,
+    Set<String>? collections,
+  }) async {
+    if (userId.trim().isEmpty || userId == 'demo') return;
+    final watches = _activeWatches.values
+        .where((w) =>
+            w.userId == userId &&
+            (collections == null || collections.contains(w.collection)))
+        .toList();
+    if (watches.isNotEmpty) {
+      await Future.wait(watches.map((w) => w.refresh(afterCurrent: true)));
+    }
   }
 
   /// Save or update a document in Supabase `finora_documents`.

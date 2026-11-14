@@ -840,7 +840,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ),
         showBack: canPop,
         onBack: canPop ? () => Navigator.of(context).pop() : null,
-        height: 52,
+        height: 44,
       ),
       body: PageView(
         controller: _tabContentPageController,
@@ -982,7 +982,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ),
         slivers: [
           SliverToBoxAdapter(
-            child: SizedBox(height: GlassScaffold.topInset(context, 6, 52)),
+            child: SizedBox(height: GlassScaffold.topInset(context, 4, 44)),
           ),
           SliverToBoxAdapter(
             child: Column(
@@ -1062,14 +1062,23 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ),
         slivers: [
           SliverToBoxAdapter(
-            child: SizedBox(height: GlassScaffold.topInset(context, 6, 52)),
+            child: SizedBox(height: GlassScaffold.topInset(context, 4, 44)),
+          ),
+          SliverToBoxAdapter(
+            child: _buildCompactWalletHeroCard(
+              context: context,
+              wallets: wallets,
+              totalWalletCash: totalWalletCash,
+              isDark: isDark,
+              studio: studio,
+            ),
           ),
           if (wallets.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                padding: const EdgeInsets.only(top: 6, bottom: 4),
                 child: SizedBox(
-                  height: 235,
+                  height: 204,
                   child: _buildTopWalletCardDeckHero(
                     context: context,
                     wallets: wallets,
@@ -1118,7 +1127,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ),
         slivers: [
           SliverToBoxAdapter(
-            child: SizedBox(height: GlassScaffold.topInset(context, 6, 52)),
+            child: SizedBox(height: GlassScaffold.topInset(context, 4, 44)),
           ),
           SliverToBoxAdapter(
             child: _buildCompactInvestmentHeroCard(
@@ -1169,7 +1178,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ),
         slivers: [
           SliverToBoxAdapter(
-            child: SizedBox(height: GlassScaffold.topInset(context, 6, 52)),
+            child: SizedBox(height: GlassScaffold.topInset(context, 4, 44)),
           ),
           SliverToBoxAdapter(
             child: Column(
@@ -1179,6 +1188,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 _buildCompactLoanHeroCard(
                   context: context,
                   txProv: txProv,
+                  loans: loans,
                   totalLent: totalLent,
                   totalBorrowed: totalBorrowed,
                   isDark: isDark,
@@ -1186,6 +1196,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 ),
                 _buildPinnedLoanToolbar(
                   context: context,
+                  loans: loans,
                   isDark: isDark,
                 ),
               ],
@@ -1215,6 +1226,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     required ThemeStudioController? studio,
   }) {
     final cardRadius = studio?.cardCornerRadius ?? 20.0;
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+    final brandSecondary =
+        studio?.resolvedSecondary ?? const Color(0xFF10B981);
 
     final netCashflow = txIncome - txExpense;
 
@@ -1224,16 +1238,19 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       margin: const EdgeInsets.fromLTRB(10, 8, 10, 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B4F3E), Color(0xFF0F6E56), Color(0xFF10B981)],
+        gradient: LinearGradient(
+          colors: [
+            Color.lerp(brandPrimary, Colors.black, 0.25)!,
+            brandPrimary,
+            brandSecondary,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(cardRadius),
         boxShadow: [
           BoxShadow(
-            color:
-                const Color(0xFF0F6E56).withValues(alpha: isDark ? 0.35 : 0.20),
+            color: brandPrimary.withValues(alpha: isDark ? 0.35 : 0.20),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1260,8 +1277,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                       Container(
                         width: 7,
                         height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF34D399),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.90),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1447,12 +1464,14 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     final cardRadius = studio?.cardCornerRadius ?? 20.0;
 
     final netGain = totalInvestments - totalCostBasis;
+    final roiPct =
+        totalCostBasis > 0 ? (netGain / totalCostBasis * 100.0) : 0.0;
 
     final isGain = netGain >= 0;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF78350F), Color(0xFFB45309), Color(0xFFD97706)],
@@ -1480,29 +1499,62 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFDE68A),
-                      shape: BoxShape.circle,
-                    ),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFDE68A),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'TỔNG GIÁ TRỊ ĐẦU TƯ',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      if (totalCostBasis > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (isGain
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFF43F5E))
+                                .withValues(alpha: 0.28),
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            '${isGain ? '+' : ''}${roiPct.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: isGain
+                                  ? const Color(0xFF6EE7B7)
+                                  : const Color(0xFFFDA4AF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'TỔNG GIÁ TRỊ ĐẦU TƯ',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
+                ),
               ),
+              const SizedBox(width: 6),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1562,59 +1614,65 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        width: 0.7,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 0.7,
+                          ),
+                        ),
+                        child: Text(
+                          'Vốn ${_formatCompactStat(totalCostBasis)}',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      'Vốn ${_formatCompactStat(totalCostBasis)}',
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: (isGain
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFF43F5E))
+                              .withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: (isGain
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFF43F5E))
+                                .withValues(alpha: 0.4),
+                            width: 0.7,
+                          ),
+                        ),
+                        child: Text(
+                          '${isGain ? 'Lãi +' : 'Lỗ '}${_formatCompactStat(netGain)}',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: isGain
+                                ? const Color(0xFF6EE7B7)
+                                : const Color(0xFFFDA4AF),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: (isGain
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFFF43F5E))
-                          .withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: (isGain
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFF43F5E))
-                            .withValues(alpha: 0.4),
-                        width: 0.7,
-                      ),
-                    ),
-                    child: Text(
-                      '${isGain ? '+' : ''}${_formatCompactStat(netGain)}',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: isGain
-                            ? const Color(0xFF6EE7B7)
-                            : const Color(0xFFFDA4AF),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -1623,24 +1681,32 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     );
   }
 
-  Widget _buildCompactLoanHeroCard({
+  Widget _buildCompactWalletHeroCard({
     required BuildContext context,
-    required TransactionProvider txProv,
-    required int totalLent,
-    required int totalBorrowed,
+    required List<Wallet> wallets,
+    required int totalWalletCash,
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
     final cardRadius = studio?.cardCornerRadius ?? 20.0;
-
-    final netLoan = totalLent - totalBorrowed;
+    final safeIndex =
+        wallets.isEmpty ? 0 : _activeWalletIndex.clamp(0, wallets.length - 1);
+    final totalLiquidity = wallets
+        .where((w) => !w.isCreditCard && w.balance > 0)
+        .fold<int>(0, (s, w) => s + w.balance);
+    final cashTotal = wallets
+        .where((w) =>
+            !w.isCreditCard &&
+            (w.type == 'cash' || w.name.toLowerCase().contains('tiền mặt')))
+        .fold<int>(0, (s, w) => s + (w.balance > 0 ? w.balance : 0));
+    final bankTotal = (totalLiquidity - cashTotal).clamp(0, totalLiquidity);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+      margin: const EdgeInsets.fromLTRB(10, 8, 10, 2),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF881337), Color(0xFF9F1239), Color(0xFFE11D48)],
+          colors: [Color(0xFF0C4A6E), Color(0xFF0369A1), Color(0xFF0284C7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1648,7 +1714,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         boxShadow: [
           BoxShadow(
             color:
-                const Color(0xFFE11D48).withValues(alpha: isDark ? 0.35 : 0.20),
+                const Color(0xFF0284C7).withValues(alpha: isDark ? 0.35 : 0.20),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1665,52 +1731,87 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFDA4AF),
-                      shape: BoxShape.circle,
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF38BDF8),
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'SỔ NỢ RÒNG',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                      color: Colors.white70,
+                    const SizedBox(width: 6),
+                    const Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'SỐ DƯ VÍ & TÀI KHOẢN',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    if (wallets.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          '${safeIndex + 1}/${wallets.length}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildMemberFilterPill(
-                      context: context, txProv: txProv, isDark: isDark),
-                  const SizedBox(width: 6),
                   InkWell(
                     onTap: () {
                       HapticFeedback.selectionClick();
-
                       setState(() => _obscureBalances = !_obscureBalances);
                     },
                     borderRadius: BorderRadius.circular(100),
                     child: Padding(
-                      padding: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(4),
                       child: Icon(
                         _obscureBalances
                             ? Icons.visibility_off_rounded
                             : Icons.visibility_rounded,
-                        size: 14,
+                        size: 15,
                         color: Colors.white70,
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 6),
+                  FinoraAddButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        fullscreenDialog: true,
+                        builder: (_) => AddWalletPage(userId: widget.userId),
+                      ),
+                    ),
+                    tooltip: 'Thêm ví mới',
+                    size: 28,
+                    color: const Color(0xFF10B981),
                   ),
                 ],
               ),
@@ -1729,12 +1830,13 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${netLoan >= 0 ? '+' : ''}${formatVND(netLoan)}',
+                      formatVND(totalWalletCash),
                       style: const TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
                         letterSpacing: -0.5,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                   ),
@@ -1748,19 +1850,19 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                      color: Colors.white.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                        color: Colors.white.withValues(alpha: 0.22),
                         width: 0.7,
                       ),
                     ),
                     child: Text(
-                      'Cho vay ${_formatCompactStat(totalLent)}',
+                      'NH: ${_obscureBalances ? '••••' : _formatCompactStat(bankTotal)}',
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 10.2,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF6EE7B7),
+                        color: Color(0xFFBAE6FD),
                       ),
                     ),
                   ),
@@ -1769,19 +1871,19 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF43F5E).withValues(alpha: 0.25),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFFF43F5E).withValues(alpha: 0.4),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.4),
                         width: 0.7,
                       ),
                     ),
                     child: Text(
-                      'Nợ vay ${_formatCompactStat(totalBorrowed)}',
+                      'TM: ${_obscureBalances ? '••••' : _formatCompactStat(cashTotal)}',
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 10.2,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFFFDA4AF),
+                        color: Color(0xFF6EE7B7),
                       ),
                     ),
                   ),
@@ -1790,6 +1892,427 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCompactLoanHeroCard({
+    required BuildContext context,
+    required TransactionProvider txProv,
+    required List<Loan> loans,
+    required int totalLent,
+    required int totalBorrowed,
+    required bool isDark,
+    required ThemeStudioController? studio,
+  }) {
+    final cardRadius = studio?.cardCornerRadius ?? 22.0;
+    final netLoan = totalLent - totalBorrowed;
+    final totalExposure = totalLent + totalBorrowed;
+    final lentPct = totalExposure > 0
+        ? ((totalLent / totalExposure) * 100).round().clamp(8, 92)
+        : 50;
+    final lentCount = loans.where((l) => l.type == 'lent').length;
+    final borrowedCount = loans.where((l) => l.type != 'lent').length;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF064E3B), Color(0xFF0F766E), Color(0xFF0F172A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(cardRadius),
+        boxShadow: [
+          BoxShadow(
+            color:
+                const Color(0xFF0F766E).withValues(alpha: isDark ? 0.34 : 0.22),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.20),
+          width: 1.0,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(cardRadius),
+        child: CustomPaint(
+          painter: _ZenvestWealthBloomPainter(
+            themeColor: const Color(0xFF10B981),
+            isDark: isDark,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Header Row: Badge + Net Status + Member Filter + Eye
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7.5,
+                            height: 7.5,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF34D399),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Flexible(
+                            child: Text(
+                              'SỔ CÔNG NỢ & CHO VAY',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.6,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (netLoan >= 0
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFF43F5E))
+                                  .withValues(alpha: 0.24),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: (netLoan >= 0
+                                        ? const Color(0xFF6EE7B7)
+                                        : const Color(0xFFFDA4AF))
+                                    .withValues(alpha: 0.40),
+                                width: 0.7,
+                              ),
+                            ),
+                            child: Text(
+                              netLoan > 0
+                                  ? 'Chủ nợ ròng'
+                                  : netLoan < 0
+                                      ? 'Đang vay ròng'
+                                      : 'Cân bằng',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: netLoan >= 0
+                                    ? const Color(0xFF6EE7B7)
+                                    : const Color(0xFFFDA4AF),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildMemberFilterPill(
+                            context: context, txProv: txProv, isDark: isDark),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(
+                                () => _obscureBalances = !_obscureBalances);
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: Padding(
+                            padding: const EdgeInsets.all(3),
+                            child: Icon(
+                              _obscureBalances
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded,
+                              size: 15,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // 2. Main Net Position Number + Active Contracts Count
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Vị thế công nợ ròng (Phải thu - Phải trả)',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white60,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FinoraPrivacyMask(
+                            isMasked: _obscureBalances,
+                            fallbackDots: '•••••••• đ',
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '${netLoan > 0 ? '+' : ''}${formatVND(netLoan)}',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: -0.5,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        '${loans.length} hợp đồng',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 11),
+                // 3. 2 Interactive Bento KPI Pods (Cho vay vs Đi vay)
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _loanSubTab = 'lent');
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 11, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(
+                                alpha: _loanSubTab == 'lent' ? 0.28 : 0.16),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFF34D399).withValues(
+                                  alpha: _loanSubTab == 'lent' ? 0.65 : 0.30),
+                              width: _loanSubTab == 'lent' ? 1.2 : 0.8,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(3.5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.30),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      LucideIcons.arrow_up_right,
+                                      size: 11,
+                                      color: Color(0xFF6EE7B7),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  const Expanded(
+                                    child: Text(
+                                      'CHO VAY (PHẢI THU)',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.3,
+                                        color: Color(0xFFA7F3D0),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '$lentCount',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF6EE7B7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              FinoraPrivacyMask(
+                                isMasked: _obscureBalances,
+                                fallbackDots: '••••••',
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    formatVND(totalLent),
+                                    style: const TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures()
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _loanSubTab = 'borrowed');
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 11, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF43F5E).withValues(
+                                alpha: _loanSubTab == 'borrowed' ? 0.28 : 0.16),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFFDA4AF).withValues(
+                                  alpha:
+                                      _loanSubTab == 'borrowed' ? 0.65 : 0.30),
+                              width: _loanSubTab == 'borrowed' ? 1.2 : 0.8,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(3.5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF43F5E)
+                                          .withValues(alpha: 0.30),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      LucideIcons.arrow_down_left,
+                                      size: 11,
+                                      color: Color(0xFFFDA4AF),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  const Expanded(
+                                    child: Text(
+                                      'ĐI VAY (PHẢI TRẢ)',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.3,
+                                        color: Color(0xFFFECDD3),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '$borrowedCount',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFFFDA4AF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              FinoraPrivacyMask(
+                                isMasked: _obscureBalances,
+                                fallbackDots: '••••••',
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    formatVND(totalBorrowed),
+                                    style: const TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures()
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (totalExposure > 0) ...[
+                  const SizedBox(height: 9),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: SizedBox(
+                      height: 5.5,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: lentPct,
+                            child: Container(color: const Color(0xFF34D399)),
+                          ),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            flex: 100 - lentPct,
+                            child: Container(color: const Color(0xFFFB7185)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2400,43 +2923,106 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
 
   Widget _buildPinnedLoanToolbar({
     required BuildContext context,
+    required List<Loan> loans,
     required bool isDark,
   }) {
-    final isLent = _loanSubTab == 'lent';
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+    final lentCount = loans.where((l) => l.type == 'lent').length;
+    final borrowedCount = loans.where((l) => l.type != 'lent').length;
+    final selectedIdx = _loanSubTab == 'all'
+        ? 0
+        : (_loanSubTab == 'lent' ? 1 : 2);
+    final activeAddType =
+        _loanSubTab == 'borrowed' ? 'borrowed' : 'lent';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
       child: Row(
         children: [
           Expanded(
             child: BouncyPillTabs(
-              labels: const ['Cho vay', 'Vay nợ'],
-              selectedIndex: isLent ? 0 : 1,
-              colors: const [Color(0xFF059669), Color(0xFFDC2626)],
-              height: 42,
-              fontSize: 13,
-              onChanged: (i) =>
-                  setState(() => _loanSubTab = i == 0 ? 'lent' : 'borrowed'),
+              labels: const [
+                'Tất cả',
+                'Cho vay',
+                'Đi vay',
+              ],
+              counts: [
+                loans.length,
+                lentCount,
+                borrowedCount,
+              ],
+              selectedIndex: selectedIdx,
+              colors: [
+                brandPrimary,
+                brandPrimary,
+                const Color(0xFFE11D48),
+              ],
+              height: 40,
+              fontSize: 12.2,
+              onChanged: (i) => setState(() {
+                _loanSubTab = i == 0
+                    ? 'all'
+                    : (i == 1 ? 'lent' : 'borrowed');
+              }),
             ),
           ),
           const SizedBox(width: 8),
-          FinoraAddButton(
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => GlassBottomSheet(
-                radius: 30,
-                showHandle: false,
-                child: AddLoanSheet(
-                    userId: widget.userId, initialType: _loanSubTab),
+          InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => GlassBottomSheet(
+                  radius: 30,
+                  showHandle: false,
+                  child: AddLoanSheet(
+                    userId: widget.userId,
+                    initialType: activeAddType,
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 13),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _loanSubTab == 'borrowed'
+                      ? const [Color(0xFFF43F5E), Color(0xFFE11D48)]
+                      : [brandPrimary, Color.lerp(brandPrimary, Colors.black, 0.15)!],
+                ),
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_loanSubTab == 'borrowed'
+                            ? const Color(0xFFE11D48)
+                            : brandPrimary)
+                        .withValues(alpha: 0.28),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, size: 17, color: Colors.white),
+                  SizedBox(width: 4),
+                  Text(
+                    'Ghi sổ',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
-            tooltip: 'Thêm khoản nợ',
-            size: 38,
-            color: _loanSubTab == 'lent'
-                ? const Color(0xFF059669)
-                : const Color(0xFFDC2626),
           ),
         ],
       ),
@@ -2445,6 +3031,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
 
   void _showTransactionStyleModal(BuildContext context, bool isDark) {
     final studio = context.read<ThemeStudioController?>();
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
     final currentStyle = studio?.transactionListStyle ??
         AppTransactionListStyle.modernStreamlined;
 
@@ -2455,7 +3042,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         subtitle:
             'Thẻ kính bo 20px, avatar Vợ/Chồng lồng góc & chip ví rút gọn',
         icon: Icons.auto_awesome_mosaic_rounded,
-        accent: const Color(0xFF00866A),
+        accent: brandPrimary,
       ),
       (
         style: AppTransactionListStyle.bentoCards,
@@ -2754,13 +3341,12 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                       height: 38,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF059669), Color(0xFF0D9488)],
+                        gradient: LinearGradient(
+                          colors: [brandPrimary, Color.lerp(brandPrimary, const Color(0xFF0D9488), 0.5)!],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color:
-                                const Color(0xFF059669).withValues(alpha: 0.28),
+                            color: brandPrimary.withValues(alpha: 0.28),
                             blurRadius: 10,
                             offset: const Offset(0, 3),
                           ),
@@ -2838,16 +3424,15 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? (isDark
-                                          ? const Color(0xFF064E3B)
-                                              .withValues(alpha: 0.35)
-                                          : const Color(0xFFECFDF5))
+                                          ? brandPrimary.withValues(alpha: 0.25)
+                                          : brandPrimary.withValues(alpha: 0.10))
                                       : (isDark
                                           ? const Color(0xFF162032)
                                           : const Color(0xFFF8FAFC)),
                                   borderRadius: BorderRadius.circular(18),
                                   border: Border.all(
                                     color: isSelected
-                                        ? const Color(0xFF059669)
+                                        ? brandPrimary
                                         : (isDark
                                             ? const Color(0xFF283548)
                                             : const Color(0xFFE2E8F0)),
@@ -2865,7 +3450,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             color: isSelected
-                                                ? const Color(0xFF059669)
+                                                ? brandPrimary
                                                 : item.accent
                                                     .withValues(alpha: 0.14),
                                           ),
@@ -2915,7 +3500,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                                               vertical: 3.5,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF059669),
+                                              color: brandPrimary,
                                               borderRadius:
                                                   BorderRadius.circular(999),
                                             ),
@@ -2972,12 +3557,15 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     required bool isDark,
   }) {
     if (_isSearchOpen) {
+      final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+      final searchAlpha = (studio?.glassOpacity ?? (isDark ? 0.90 : 0.96))
+          .clamp(0.18, 0.98);
       return Container(
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-              .withValues(alpha: isDark ? 0.90 : 0.96),
+              .withValues(alpha: searchAlpha),
           borderRadius: BorderRadius.circular(100),
           border: Border.all(
             color:
@@ -3100,6 +3688,11 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       );
     }
 
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+    final brandSecondary =
+        studio?.resolvedSecondary ?? const Color(0xFF10B981);
+
     return Row(
       children: [
         // 1. Month Filter Pill (Bộ lọc tháng - chiều cao chuẩn 38px)
@@ -3134,7 +3727,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+                    .withValues(
+                        alpha: (studio?.glassOpacity ?? 0.92).clamp(0.18, 0.98)),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isDark
@@ -3153,8 +3748,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               child: Icon(
                 Icons.style_rounded,
                 size: 18,
-                color:
-                    isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                color: isDark
+                    ? Color.lerp(brandPrimary, Colors.white, 0.28)!
+                    : brandPrimary,
               ),
             ),
           ),
@@ -3172,7 +3768,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+                    .withValues(
+                        alpha: (studio?.glassOpacity ?? 0.92).clamp(0.18, 0.98)),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isDark
@@ -3191,8 +3789,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               child: Icon(
                 Icons.search_rounded,
                 size: 18,
-                color:
-                    isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56),
+                color: isDark
+                    ? Color.lerp(brandPrimary, Colors.white, 0.28)!
+                    : brandPrimary,
               ),
             ),
           ),
@@ -3215,8 +3814,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
+                gradient: LinearGradient(
+                  colors: [brandSecondary, brandPrimary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -3227,7 +3826,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF059669).withValues(alpha: 0.35),
+                    color: brandPrimary.withValues(alpha: 0.35),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -3252,15 +3851,18 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
   }) {
     const types = <String?>[null, 'expense', 'income', 'transfer'];
 
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+
     return Row(
       children: [
         Expanded(
           child: FinoraSegmentedTabs(
             labels: const ['Tất cả', 'Chi tiêu', 'Thu nhập', 'Chuyển khoản'],
-            colors: const [
-              Color(0xFF475569),
-              Color(0xFFE11D48),
-              Color(0xFF059669),
+            colors: [
+              brandPrimary,
+              const Color(0xFFE11D48),
+              const Color(0xFF059669),
               Color(0xFF0284C7)
             ],
             selectedIndex: types.indexOf(txProv.selectedType),
@@ -4374,13 +4976,16 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     required bool isDark,
     bool onHeroCard = false,
   }) {
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final baseSurface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final primary = studio?.resolvedPrimary ?? const Color(0xFF10B981);
+    final pillAlpha = (studio?.glassOpacity ?? 0.92).clamp(0.18, 0.98);
     final fill = onHeroCard
         ? Colors.white.withValues(alpha: 0.18)
         : Color.alphaBlend(
-            const Color(0xFF10B981).withValues(alpha: isDark ? 0.16 : 0.08),
+            primary.withValues(alpha: isDark ? 0.16 : 0.08),
             baseSurface,
-          );
+          ).withValues(alpha: pillAlpha);
 
     return InkWell(
       onTap: () => _openDateFilterSheet(context, txProv, isDark),
@@ -4480,10 +5085,20 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
 
   void _openDateFilterSheet(
       BuildContext context, TransactionProvider txProv, bool isDark) async {
+    final currentRange =
+        txProv.customStartDate != null && txProv.customEndDate != null
+            ? DateTimeRange(
+                start: txProv.customStartDate!,
+                end: txProv.customEndDate!,
+              )
+            : null;
     final result = await showDateFilterModal(
       context,
       currentOption: txProv.selectedDateFilter,
       currentCustomDate: txProv.customDate,
+      currentCustomRange: currentRange,
+      currentCustomYear: txProv.customYear,
+      currentCustomMonth: txProv.customMonth,
       showAllTime: true,
     );
 
@@ -4491,6 +5106,14 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       if (result.option == DateFilterOption.customDate &&
           result.customDate != null) {
         txProv.setCustomDate(result.customDate!);
+      } else if (result.option == DateFilterOption.customRange &&
+          result.customRange != null) {
+        txProv.setCustomRange(
+            result.customRange!.start, result.customRange!.end);
+      } else if (result.option == DateFilterOption.customMonth &&
+          result.customYear != null &&
+          result.customMonth != null) {
+        txProv.setCustomMonth(result.customYear!, result.customMonth!);
       } else {
         txProv.setSelectedDateFilter(result.option);
       }
@@ -4526,6 +5149,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       ],
       selectedIndex: _selectedTab,
       height: 40,
+      fontSize: 12.5,
       transparentBackground: true,
       onChanged: _switchTab,
     );
@@ -4541,116 +5165,10 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
   }) {
     final safeIndex = _activeWalletIndex.clamp(0, wallets.length - 1);
 
-    final totalWalletCash = wallets
-        .where((w) => !w.isCreditCard)
-        .fold<int>(0, (s, w) => s + w.balance);
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 7.5,
-                    height: 7.5,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              const Color(0xFF0284C7).withValues(alpha: 0.55),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'SỐ DƯ VÍ & TÀI KHOẢN',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                          color: isDark
-                              ? const Color(0xFF7DD3FC)
-                              : const Color(0xFF0284C7),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7)
-                          .withValues(alpha: isDark ? 0.20 : 0.10),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: FinoraPrivacyMask(
-                      isMasked: isMasked,
-                      fallbackDots: '••••••',
-                      child: Text(
-                        formatVND(totalWalletCash),
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? const Color(0xFF38BDF8)
-                              : const Color(0xFF0284C7),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.black)
-                          .withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      '${safeIndex + 1}/${wallets.length}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              FinoraAddButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    fullscreenDialog: true,
-                    builder: (_) => AddWalletPage(userId: widget.userId),
-                  ),
-                ),
-                tooltip: 'Thêm ví mới',
-                size: 26,
-                color: const Color(0xFF00866A),
-              ),
-            ],
-          ),
-        ),
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
@@ -4806,9 +5324,12 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ? '•••• •••• •••• ${accountNumber.substring(accountNumber.length > 4 ? accountNumber.length - 4 : 0)}'
         : (isCash ? 'TIỀN MẶT' : 'CHƯA CÓ STK');
 
-    final owner = wallet.ownerName.isNotEmpty
-        ? wallet.ownerName
-        : (wallet.owner == 'wife' ? 'Vợ' : 'Chồng');
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final owner = wallet.owner == 'wife'
+        ? (studio?.wifeDisplayLabel ?? 'Vợ')
+        : (wallet.owner == 'husband'
+            ? (studio?.husbandDisplayLabel ?? 'Chồng')
+            : (wallet.ownerName.isNotEmpty ? wallet.ownerName : 'Chồng'));
 
     return AnimatedScale(
       scale: isSelected ? 1.0 : 0.96,
@@ -5430,10 +5951,10 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     final isCredit = wallet.isCreditCard;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: (isDark ? const Color(0xFF1E293B) : Colors.white)
-            .withValues(alpha: isDark ? 0.72 : 0.92),
+            .withValues(alpha: isDark ? 0.78 : 0.94),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color:
@@ -5449,22 +5970,12 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          Expanded(
-            child: _buildWalletActionButton(
-              icon: Icons.receipt_long_rounded,
-              label: 'Lịch sử',
-              color: const Color(0xFF0284C7),
-              isDark: isDark,
-              onTap: () => _openWalletHistory(context, wallet),
-            ),
-          ),
           Expanded(
             child: _buildWalletActionButton(
               icon: Icons.add_circle_outline_rounded,
               label: 'Ghi thu chi',
-              color: const Color(0xFF0F6E56),
+              color: const Color(0xFF10B981),
               isDark: isDark,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -5477,9 +5988,55 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: isCredit
+                ? _buildWalletActionButton(
+                    icon: Icons.credit_card_rounded,
+                    label: 'Trả nợ',
+                    color: const Color(0xFFE11D48),
+                    isDark: isDark,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => AddTransactionPage(
+                          userId: widget.userId,
+                          initialType: 'credit_card_payment',
+                          initialWalletId: wallet.id,
+                        ),
+                      ),
+                    ),
+                  )
+                : _buildWalletActionButton(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Chuyển tiền',
+                    color: const Color(0xFF0284C7),
+                    isDark: isDark,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        fullscreenDialog: true,
+                        builder: (_) => AddTransactionPage(
+                          userId: widget.userId,
+                          initialType: 'transfer',
+                          initialWalletId: wallet.id,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 6),
           Expanded(
             child: _buildWalletActionButton(
-              icon: Icons.edit_note_rounded,
+              icon: Icons.receipt_long_rounded,
+              label: 'Lịch sử',
+              color: const Color(0xFF0EA5E9),
+              isDark: isDark,
+              onTap: () => _openWalletHistory(context, wallet),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildWalletActionButton(
+              icon: Icons.tune_rounded,
               label: 'Sửa ví',
               color: const Color(0xFFD97706),
               isDark: isDark,
@@ -5494,24 +6051,6 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               ),
             ),
           ),
-          if (isCredit)
-            Expanded(
-              child: _buildWalletActionButton(
-                icon: Icons.credit_card_rounded,
-                label: 'Trả nợ',
-                color: const Color(0xFFE11D48),
-                isDark: isDark,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AddTransactionPage(
-                      userId: widget.userId,
-                      initialType: 'credit_card_payment',
-                      initialWalletId: wallet.id,
-                    ),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -5524,45 +6063,71 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: isDark ? 0.20 : 0.12),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: color.withValues(alpha: 0.28),
-                  width: 0.8,
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final pillAlpha = (studio?.glassOpacity ?? 0.90).clamp(0.18, 0.98);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(
+              color.withValues(alpha: isDark ? 0.14 : 0.08),
+              isDark ? const Color(0xFF1E293B) : Colors.white,
+            ).withValues(alpha: pillAlpha),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: color.withValues(alpha: isDark ? 0.24 : 0.14),
+              width: 0.8,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color,
+                      color.withValues(alpha: 0.78),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.26),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 16),
+              ),
+              const SizedBox(height: 5),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  ),
                 ),
               ),
-              child: Icon(icon, color: color, size: 17),
-            ),
-            const SizedBox(height: 4),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white70 : const Color(0xFF334155),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -5575,7 +6140,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
   ) {
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final glassOpacity = studio?.glassOpacity ?? 0.88;
-    final blur = studio?.glassBlur ?? 16.0;
+
     final container = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -5659,6 +6224,15 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                   ? (w.creditLimit - w.currentDebt)
                   : w.balance;
 
+              final ownerText = w.owner == 'wife'
+                  ? (studio?.wifeDisplayLabel ?? 'Vợ')
+                  : (w.owner == 'husband'
+                      ? (studio?.husbandDisplayLabel ?? 'Chồng')
+                      : 'Chung');
+              final ownerColor = w.owner == 'wife'
+                  ? const Color(0xFFEC4899)
+                  : const Color(0xFF0EA5E9);
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: InkWell(
@@ -5687,8 +6261,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                     child: Row(
                       children: [
                         Container(
-                          width: 28,
-                          height: 28,
+                          width: 30,
+                          height: 30,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color:
@@ -5712,8 +6286,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                                   ? ClipOval(
                                       child: Image.asset(
                                         brand.assetPath!,
-                                        width: 28,
-                                        height: 28,
+                                        width: 30,
+                                        height: 30,
                                         fit: BoxFit.cover,
                                         errorBuilder: (_, __, ___) => Center(
                                           child: Text(
@@ -5736,25 +6310,52 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                                       ),
                                     )),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 9),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                w.name,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: isCurrent
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF0F172A),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      w.name,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: isCurrent
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: ownerColor.withValues(
+                                        alpha: isDark ? 0.18 : 0.10,
+                                      ),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      ownerText,
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w800,
+                                        color: ownerColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               Text(
                                 w.accountNumber != null &&
@@ -5840,15 +6441,6 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ],
       ),
     );
-    if (blur > 0.5) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: container,
-        ),
-      );
-    }
     return container;
   }
 
@@ -6097,15 +6689,6 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ],
       ),
     );
-    if (blur > 0.5) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: container,
-        ),
-      );
-    }
     return container;
   }
 
@@ -6733,10 +7316,10 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               const SizedBox(height: 2.5),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 5.5, vertical: 1.5),
+                    const EdgeInsets.symmetric(horizontal: 6.5, vertical: 1.5),
                 decoration: BoxDecoration(
                   color: amountColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   statusLabel,
@@ -6774,8 +7357,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         ) ??
         'all';
     final ownerLabel = switch (ownerRole) {
-      'husband' => 'Chồng',
-      'wife' => 'Vợ',
+      'husband' => studio?.husbandDisplayLabel ?? 'Chồng',
+      'wife' => studio?.wifeDisplayLabel ?? 'Vợ',
       _ => 'Chung',
     };
     final bankCode = tx.bankTransactionCode?.trim();
@@ -6796,8 +7379,26 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             merchantName: tx.merchantName,
             bankBrand: brand,
             showBankBadge: false,
-            showBorder: false,
+            showBorder: true,
             size: size,
+          ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              ),
+              padding: const EdgeInsets.all(1.2),
+              child: FinoraMemberAvatar(
+                role: ownerRole,
+                size: avatarSize - 2.4,
+                studio: studio,
+              ),
+            ),
           ),
         ],
       );
@@ -6849,8 +7450,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     }
 
     Widget buildOwnerPill({bool compact = false}) {
-      final isWife = ownerLabel == 'Vợ';
-      final isHusband = ownerLabel == 'Chồng';
+      final isWife = ownerRole == 'wife';
+      final isHusband = ownerRole == 'husband';
       final pillColor = isWife
           ? const Color(0xFFEC4899)
           : isHusband
@@ -6978,8 +7579,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       // STYLE 6: Lụa Phẳng Tinh Khiết (Pure Silk Hairline)
       case AppTransactionListStyle.minimalDivided:
         cardBody = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
           decoration: BoxDecoration(
+            color: baseCardColor,
             border: Border(
               bottom: BorderSide(
                 color: isDark
@@ -7008,7 +7610,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             gradient: LinearGradient(
               colors: [
                 Color.alphaBlend(
-                  amountColor.withValues(alpha: isDark ? 0.12 : 0.06),
+                  amountColor.withValues(alpha: isDark ? 0.14 : 0.07),
                   baseCardColor,
                 ),
                 baseCardColor,
@@ -7018,7 +7620,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: amountColor.withValues(alpha: isDark ? 0.28 : 0.18),
+              color: amountColor.withValues(alpha: isDark ? 0.30 : 0.20),
             ),
             boxShadow: [
               BoxShadow(
@@ -7050,11 +7652,49 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 11, 14, 11),
+                      padding: const EdgeInsets.fromLTRB(11, 10, 13, 10),
                       child: Row(
                         children: [
-                          buildIconWithSpenderBadge(size: 40, avatarSize: 15),
-                          const SizedBox(width: 12),
+                          Container(
+                            width: 36,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.black.withValues(alpha: 0.28)
+                                  : Colors.white.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(
+                                color: amountColor.withValues(alpha: 0.28),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  txDate.day.toString().padLeft(2, '0'),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.05,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                Text(
+                                  'T${txDate.month}',
+                                  style: TextStyle(
+                                    fontSize: 8.8,
+                                    fontWeight: FontWeight.w800,
+                                    color: amountColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          buildIconWithSpenderBadge(size: 38, avatarSize: 14),
+                          const SizedBox(width: 10),
                           buildRedesignedDetails(showOwnerChip: true),
                           const SizedBox(width: 8),
                           buildAmountBlock(monospace: true),
@@ -7078,14 +7718,14 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: (isDark ? Colors.white : Colors.black)
-                  .withValues(alpha: isDark ? 0.07 : 0.05),
+                  .withValues(alpha: isDark ? 0.08 : 0.06),
               width: 0.8,
             ),
           ),
           child: Row(
             children: [
               buildIconWithSpenderBadge(size: 30, avatarSize: 12.5),
-              const SizedBox(width: 10),
+              const SizedBox(width: 9),
               Expanded(
                 child: Row(
                   children: [
@@ -7095,7 +7735,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12.8,
                           fontWeight: FontWeight.w800,
                           color: isDark
                               ? const Color(0xFFF1F5F9)
@@ -7103,8 +7743,10 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    buildShortWalletPill(compact: true),
+                    const SizedBox(width: 5),
+                    Flexible(child: buildOwnerPill(compact: true)),
+                    const SizedBox(width: 4),
+                    Flexible(child: buildShortWalletPill(compact: true)),
                   ],
                 ),
               ),
@@ -7118,68 +7760,98 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       // STYLE 2: Hộp Ngọc Bento (Luxury Bento Box)
       case AppTransactionListStyle.bentoCards:
         cardBody = Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
           decoration: BoxDecoration(
             color: baseCardColor,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: amountColor.withValues(alpha: isDark ? 0.38 : 0.24),
-              width: 1.3,
+              width: 1.25,
             ),
             boxShadow: [
               BoxShadow(
                 color: amountColor.withValues(
                     alpha: (isDark ? 0.14 : 0.06) * cardAlpha),
-                blurRadius: 16,
+                blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              buildIconWithSpenderBadge(size: 42, avatarSize: 16),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14.8,
-                        fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFFF1F5F9)
-                            : const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 3,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+              Row(
+                children: [
+                  buildIconWithSpenderBadge(size: 40, avatarSize: 15),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        buildOwnerPill(compact: true),
-                        buildShortWalletPill(compact: true),
                         Text(
-                          dateStr,
+                          displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
                             color: isDark
-                                ? const Color(0xFF64748B)
-                                : const Color(0xFF94A3B8),
+                                ? const Color(0xFFF1F5F9)
+                                : const Color(0xFF0F172A),
                           ),
                         ),
+                        if (resolvedCategoryName != null &&
+                            resolvedCategoryName.isNotEmpty &&
+                            resolvedCategoryName != displayTitle) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            resolvedCategoryName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
                       ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  buildAmountBlock(),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.white : Colors.black)
+                      .withValues(alpha: isDark ? 0.05 : 0.03),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 3,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    buildOwnerPill(compact: true),
+                    buildShortWalletPill(compact: true),
+                    Text(
+                      '• $dateStr',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFF94A3B8),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              buildAmountBlock(),
             ],
           ),
         );
@@ -7196,6 +7868,13 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               color: amountColor.withValues(alpha: isDark ? 0.22 : 0.14),
               width: 1.0,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: amountColor.withValues(alpha: isDark ? 0.08 : 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -7208,53 +7887,90 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
           ),
         );
 
-        cardBody = Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 38,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    dateStr,
-                    style: TextStyle(
-                      fontSize: 9.8,
-                      fontWeight: FontWeight.w800,
-                      color: isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: amountColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: amountColor.withValues(alpha: 0.45),
-                          blurRadius: 5,
-                          spreadRadius: 1,
+        cardBody = IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 46,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (isDark ? Colors.white : Colors.black)
+                            .withValues(alpha: isDark ? 0.08 : 0.05),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        dateStr,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF475569),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    Expanded(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 2.2,
+                            decoration: BoxDecoration(
+                              color: amountColor.withValues(alpha: isDark ? 0.30 : 0.22),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          Container(
+                            width: 13,
+                            height: 13,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              border: Border.all(
+                                color: amountColor,
+                                width: 2.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: amountColor.withValues(alpha: 0.40),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: amountColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 5),
-            Expanded(child: bentoBox),
-          ],
+              const SizedBox(width: 8),
+              Expanded(child: bentoBox),
+            ],
+          ),
         );
         break;
 
       // STYLE 1: Pha lê Zenvest (Crystal Pill Deck)
       case AppTransactionListStyle.modernStreamlined:
         cardBody = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11.5),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
             color: baseCardColor,
             borderRadius: BorderRadius.circular(20),
@@ -7276,7 +7992,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             children: [
               buildIconWithSpenderBadge(size: 40, avatarSize: 15),
               const SizedBox(width: 12),
-              buildRedesignedDetails(showOwnerChip: false),
+              buildRedesignedDetails(showOwnerChip: true),
               const SizedBox(width: 8),
               buildAmountBlock(),
             ],
@@ -7335,10 +8051,15 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
+    final totalPortfolioVal = assets.fold<int>(
+      0,
+      (s, a) => s + (a.marketValue > 0 ? a.marketValue : a.costBasis),
+    );
+
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -7346,7 +8067,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 'DANH MỤC ĐẦU TƯ (${assets.length})',
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   color: isDark
                       ? const Color(0xFFA3B4D4)
                       : const Color(0xFF64748B),
@@ -7405,7 +8126,12 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildAssetTile(context, asset, isDark),
+                  child: _buildAssetTile(
+                    context,
+                    asset,
+                    isDark,
+                    totalPortfolioVal: totalPortfolioVal,
+                  ),
                 );
               },
               childCount: assets.length,
@@ -7415,7 +8141,12 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     ];
   }
 
-  Widget _buildAssetTile(BuildContext context, Asset asset, bool isDark) {
+  Widget _buildAssetTile(
+    BuildContext context,
+    Asset asset,
+    bool isDark, {
+    int totalPortfolioVal = 0,
+  }) {
     final value = asset.marketValue > 0 ? asset.marketValue : asset.costBasis;
 
     final diff = asset.marketValue > 0 && asset.costBasis > 0
@@ -7428,13 +8159,15 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     final isProfitable = diff >= 0;
 
     final visual = _resolveAssetVisual(asset.type);
+    final weightPct =
+        totalPortfolioVal > 0 ? (value / totalPortfolioVal * 100) : 0.0;
 
     return AdaptiveGlassSurface(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          color: visual.gradient.first.withValues(alpha: isDark ? 0.28 : 0.18),
           width: 1.0,
         ),
         boxShadow: [
@@ -7459,259 +8192,364 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               ),
             );
           },
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Modern squircle asset badge with dual-tone gradient
-
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: [
-                        visual.gradient[0]
-                            .withValues(alpha: isDark ? 0.25 : 0.15),
-                        visual.gradient[1]
-                            .withValues(alpha: isDark ? 0.35 : 0.25),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    border: Border.all(
-                      color: visual.gradient[0]
-                          .withValues(alpha: isDark ? 0.40 : 0.25),
-                      width: 1.0,
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      visual.icon,
-                      color: visual.gradient[0],
-                      size: 22,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                // Asset Info
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        asset.name,
-                        style: TextStyle(
-                          fontFamily: 'BeVietnamPro',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Giá vốn: ${formatVND(asset.costBasis)}',
-                        style: TextStyle(
-                          fontFamily: 'BeVietnamPro',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Market Value & Profit Pill
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
+                Row(
                   children: [
-                    FinoraPrivacyMask(
-                      child: Text(
-                        formatVND(value),
-                        style: TextStyle(
-                          fontFamily: 'BeVietnamPro',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
-                    if (diff != 0) ...[
-                      const SizedBox(height: 3),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: (isProfitable
-                                  ? const Color(0xFF00866A)
-                                  : const Color(0xFFE11D48))
-                              .withValues(alpha: isDark ? 0.22 : 0.12),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
-                            color: (isProfitable
-                                    ? const Color(0xFF00866A)
-                                    : const Color(0xFFE11D48))
-                                .withValues(alpha: 0.3),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isProfitable
-                                  ? Icons.arrow_drop_up_rounded
-                                  : Icons.arrow_drop_down_rounded,
-                              size: 14,
-                              color: isProfitable
-                                  ? const Color(0xFF00866A)
-                                  : const Color(0xFFE11D48),
-                            ),
-                            Text(
-                              (isProfitable ? '+' : '') +
-                                  diffPercent.toStringAsFixed(1) +
-                                  '%',
-                              style: TextStyle(
-                                fontFamily: 'BeVietnamPro',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: isProfitable
-                                    ? const Color(0xFF00866A)
-                                    : const Color(0xFFE11D48),
-                              ),
-                            ),
+                    // Circular asset badge with dual-tone gradient & ring
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            visual.gradient[0],
+                            visual.gradient[1],
                           ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(
+                          color: Colors.white
+                              .withValues(alpha: isDark ? 0.25 : 0.55),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: visual.gradient[0]
+                                .withValues(alpha: isDark ? 0.35 : 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(
+                          visual.icon,
+                          color: Colors.white,
+                          size: 21,
                         ),
                       ),
-                    ],
-                  ],
-                ),
+                    ),
 
-                const SizedBox(width: 4),
+                    const SizedBox(width: 11),
 
-                PopupMenuButton<String>(
-                  padding: EdgeInsets.zero,
-                  elevation: 10,
-                  shadowColor:
-                      Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  surfaceTintColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0),
-                      width: 1.2,
-                    ),
-                  ),
-                  icon: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.black.withValues(alpha: 0.04),
-                    ),
-                    child: Icon(
-                      Icons.more_vert_rounded,
-                      size: 17,
-                      color: isDark ? Colors.white70 : const Color(0xFF475569),
-                    ),
-                  ),
-                  onSelected: (val) {
-                    if (val == 'edit') {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          fullscreenDialog: true,
-                          builder: (_) =>
-                              AddAssetPage(userId: widget.userId, asset: asset),
-                        ),
-                      );
-                    } else if (val == 'delete') {
-                      _confirmDeleteAsset(context, asset);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      height: 42,
-                      child: Row(
+                    // Asset Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0284C7)
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.edit_rounded,
-                                size: 15, color: Color(0xFF0284C7)),
-                          ),
-                          const SizedBox(width: 10),
                           Text(
-                            'Chỉnh sửa',
+                            asset.name,
                             style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
                               color: isDark
                                   ? Colors.white
                                   : const Color(0xFF0F172A),
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 5,
+                            runSpacing: 3,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6.5,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: visual.gradient[0].withValues(
+                                    alpha: isDark ? 0.18 : 0.10,
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  visual.categoryName,
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: visual.gradient[0],
+                                  ),
+                                ),
+                              ),
+                              if (weightPct > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: (isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A))
+                                        .withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    '${weightPct.toStringAsFixed(0)}% danh mục',
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 9.8,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    const PopupMenuDivider(height: 1),
-                    PopupMenuItem(
-                      value: 'delete',
-                      height: 42,
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE11D48)
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.delete_outline_rounded,
-                                size: 16, color: Color(0xFFE11D48)),
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'Xóa',
+
+                    const SizedBox(width: 8),
+
+                    // Market Value & Profit Pill
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FinoraPrivacyMask(
+                          isMasked: _obscureBalances,
+                          fallbackDots: '••••••',
+                          child: Text(
+                            formatVND(value),
                             style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFE11D48),
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
                             ),
                           ),
-                        ],
+                        ),
+                        const SizedBox(height: 3),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (isProfitable
+                                    ? const Color(0xFF00866A)
+                                    : const Color(0xFFE11D48))
+                                .withValues(alpha: isDark ? 0.22 : 0.12),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: (isProfitable
+                                      ? const Color(0xFF00866A)
+                                      : const Color(0xFFE11D48))
+                                  .withValues(alpha: 0.3),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isProfitable
+                                    ? Icons.arrow_drop_up_rounded
+                                    : Icons.arrow_drop_down_rounded,
+                                size: 14,
+                                color: isProfitable
+                                    ? const Color(0xFF00866A)
+                                    : const Color(0xFFE11D48),
+                              ),
+                              Text(
+                                '${isProfitable ? '+' : ''}${diffPercent.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  fontFamily: 'BeVietnamPro',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: isProfitable
+                                      ? const Color(0xFF00866A)
+                                      : const Color(0xFFE11D48),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 4),
+                    PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      elevation: 10,
+                      shadowColor:
+                          Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      surfaceTintColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
+                          width: 1.2,
+                        ),
                       ),
+                      icon: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.04),
+                        ),
+                        child: Icon(
+                          Icons.more_vert_rounded,
+                          size: 17,
+                          color:
+                              isDark ? Colors.white70 : const Color(0xFF475569),
+                        ),
+                      ),
+                      onSelected: (val) {
+                        if (val == 'edit') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              fullscreenDialog: true,
+                              builder: (_) => AddAssetPage(
+                                  userId: widget.userId, asset: asset),
+                            ),
+                          );
+                        } else if (val == 'delete') {
+                          _confirmDeleteAsset(context, asset);
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          height: 42,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.edit_rounded,
+                                    size: 15, color: Color(0xFF0284C7)),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Chỉnh sửa',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuDivider(height: 1),
+                        PopupMenuItem(
+                          value: 'delete',
+                          height: 42,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE11D48)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.delete_outline_rounded,
+                                    size: 16, color: Color(0xFFE11D48)),
+                              ),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Xóa',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFE11D48),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC))
+                        .withValues(alpha: isDark ? 0.55 : 0.90),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Giá vốn: ${_obscureBalances ? '••••••' : formatVND(asset.costBasis)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11.2,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          diff == 0
+                              ? 'Hoà vốn'
+                              : '${isProfitable ? 'Lãi +' : 'Lỗ '}${_obscureBalances ? '••••' : formatVND(diff)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11.2,
+                            fontWeight: FontWeight.w800,
+                            color: diff == 0
+                                ? (isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B))
+                                : (isProfitable
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFE11D48)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -7829,28 +8667,49 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
-    final filtered = loans.where((l) => l.type == _loanSubTab).toList();
+    final filtered = _loanSubTab == 'all'
+        ? loans
+        : loans
+            .where((l) =>
+                _loanSubTab == 'lent' ? l.type == 'lent' : l.type != 'lent')
+            .toList();
 
-    final isLent = _loanSubTab == 'lent';
+    final isLent = _loanSubTab != 'borrowed';
+    final sectionTitle = _loanSubTab == 'all'
+        ? 'TẤT CẢ HỢP ĐỒNG CÔNG NỢ (${filtered.length})'
+        : (_loanSubTab == 'lent'
+            ? 'DANH SÁCH KHOẢN CHO VAY (${filtered.length})'
+            : 'DANH SÁCH KHOẢN VAY NỢ (${filtered.length})');
 
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${isLent ? "DANH SÁCH CHO VAY" : "DANH SÁCH VAY NỢ"} (${filtered.length})',
+                sectionTitle,
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
                   color: isDark
                       ? const Color(0xFFA3B4D4)
                       : const Color(0xFF64748B),
                   letterSpacing: 0.5,
                 ),
               ),
+              if (filtered.isNotEmpty)
+                Text(
+                  'Vuốt hoặc bấm để thu/trả',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
+                  ),
+                ),
             ],
           ),
         ),
@@ -7858,29 +8717,222 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       if (filtered.isEmpty)
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-            child: _buildEmptySectionCard(
-              icon: Icons.handshake_outlined,
-              title: isLent
-                  ? 'Chưa có khoản cho vay'
-                  : 'Bạn không có khoản nợ nào',
-              subtitle: isLent
-                  ? 'Ghi nhận các khoản bạn cho người thân, bạn bè vay để nhắc nhở thu hồi.'
-                  : 'Ghi nhận các khoản vay ngân hàng hoặc cá nhân để lên kế hoạch trả nợ.',
-              buttonLabel: isLent ? 'Thêm khoản cho vay' : 'Thêm khoản vay nợ',
-              onTap: () => showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => GlassBottomSheet(
-                  radius: 30,
-                  child: AddLoanSheet(
-                      userId: widget.userId, initialType: _loanSubTab),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFF1E293B) : Colors.white)
+                    .withValues(alpha: 0.90),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black)
+                      .withValues(alpha: isDark ? 0.10 : 0.06),
+                  width: 1.0,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              isDark: isDark,
-              accentColor:
-                  isLent ? const Color(0xFF059669) : const Color(0xFFDC2626),
+              child: Column(
+                children: [
+                  const FinoraMascotImage(
+                    pose: FinoraMascotPose.happy,
+                    size: 74,
+                    withGlow: true,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _loanSubTab == 'borrowed'
+                        ? 'Bạn không có khoản vay nợ nào'
+                        : 'Sổ công nợ & cho vay đang trống',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    isLent
+                        ? 'Ghi nhận các khoản cho vay hoặc đi vay để tự động đồng bộ số dư ví, theo dõi tiến độ thu hồi và nhắc lịch đến hạn.'
+                        : 'Ghi nhận các khoản vay ngân hàng hoặc cá nhân để quản lý lịch trả nợ minh bạch.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 3 Feature Mini Badges
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      for (final feat in const [
+                        (Icons.sync_alt_rounded, 'Đồng bộ số dư ví'),
+                        (Icons.pie_chart_outline_rounded, 'Tiến độ thu/trả %'),
+                        (Icons.notifications_active_outlined, 'Nhắc hạn trả nợ'),
+                      ])
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: (isDark ? Colors.white : Colors.black)
+                                .withValues(alpha: isDark ? 0.06 : 0.04),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                feat.$1,
+                                size: 12.5,
+                                color: const Color(0xFF10B981),
+                              ),
+                              const SizedBox(width: 4.5),
+                              Text(
+                                feat.$2,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  // Dual Stadium Pill CTAs
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => GlassBottomSheet(
+                              radius: 30,
+                              showHandle: false,
+                              child: AddLoanSheet(
+                                userId: widget.userId,
+                                initialType: 'lent',
+                              ),
+                            ),
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF10B981), Color(0xFF059669)],
+                              ),
+                              borderRadius: BorderRadius.circular(999),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF059669)
+                                      .withValues(alpha: 0.28),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  LucideIcons.arrow_up_right,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Cho vay mới',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => GlassBottomSheet(
+                              radius: 30,
+                              showHandle: false,
+                              child: AddLoanSheet(
+                                userId: widget.userId,
+                                initialType: 'borrowed',
+                              ),
+                            ),
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE11D48)
+                                  .withValues(alpha: isDark ? 0.18 : 0.10),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFFE11D48)
+                                    .withValues(alpha: 0.45),
+                                width: 1.1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  LucideIcons.arrow_down_left,
+                                  size: 16,
+                                  color: isDark
+                                      ? const Color(0xFFFDA4AF)
+                                      : const Color(0xFFE11D48),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Ghi khoản vay',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? const Color(0xFFFDA4AF)
+                                        : const Color(0xFFE11D48),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         )
@@ -7906,431 +8958,631 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
 
   Widget _buildLoanTile(BuildContext context, Loan loan, bool isDark) {
     final lent = loan.type == 'lent';
-
     final progress = loan.principalAmount > 0
         ? (loan.paidAmount / loan.principalAmount).clamp(0.0, 1.0)
         : 0.0;
-
+    final progressPct = (progress * 100).round();
     final accent = lent ? const Color(0xFF059669) : const Color(0xFFE11D48);
-
+    final accentLight =
+        lent ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
     final primaryText = isDark ? Colors.white : const Color(0xFF0F172A);
-
     final secondaryText =
         isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     DateTime? dueDt;
-
     if (loan.dueDate != null && loan.dueDate! > 0) {
       final dVal = loan.dueDate!;
-
       dueDt = DateTime.fromMillisecondsSinceEpoch(
         dVal > 100000000000 ? dVal : dVal * 1000,
       );
     }
+    final nowDay = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    final int? daysUntilDue = dueDt != null
+        ? DateTime(dueDt.year, dueDt.month, dueDt.day)
+            .difference(nowDay)
+            .inDays
+        : null;
+    final bool isOverdue =
+        daysUntilDue != null && daysUntilDue < 0 && loan.remainingPrincipal > 0;
+    final bool isDueSoon = daysUntilDue != null &&
+        daysUntilDue >= 0 &&
+        daysUntilDue <= 7 &&
+        loan.remainingPrincipal > 0;
 
     final rawNote = (loan.note ?? '').trim();
-
     final walletLabel = (loan.walletName ?? '').trim();
-
-    String bottomSummary = '';
-
-    if (dueDt != null && rawNote.isNotEmpty) {
-      bottomSummary =
-          'Hạn: ${DateFormat('dd/MM/yyyy').format(dueDt)} • $rawNote';
-    } else if (dueDt != null) {
-      bottomSummary =
-          'Hạn trả dự kiến: ${DateFormat('dd/MM/yyyy').format(dueDt)}';
-    } else if (rawNote.isNotEmpty) {
-      bottomSummary = rawNote;
-    } else {
-      bottomSummary =
-          lent ? 'Khoản cho vay đang theo dõi' : 'Khoản nợ đang theo dõi';
-    }
+    final String initials = loan.personName.trim().isNotEmpty
+        ? loan.personName
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase()
+        : '?';
 
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final glassOpacity = studio?.glassOpacity ?? 0.88;
     return AdaptiveGlassSurface(
-      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: (isDark ? const Color(0xFF1E293B) : Colors.white).withValues(
             alpha: isDark
-                ? (0.65 * glassOpacity).clamp(0.2, 0.95)
-                : (0.88 * glassOpacity).clamp(0.2, 0.95)),
+                ? (0.68 * glassOpacity).clamp(0.2, 0.95)
+                : (0.92 * glassOpacity).clamp(0.2, 0.95)),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: accent.withValues(alpha: isDark ? 0.22 : 0.14),
+          color: accent.withValues(alpha: isDark ? 0.28 : 0.16),
           width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Top Row: Avatar + Full Person Name & Badges + Right-Pinned Remaining Principal + Menu
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Left directional color spine
               Container(
-                width: 44,
-                height: 44,
+                width: 4.5,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withValues(alpha: isDark ? 0.20 : 0.10),
-                  border: Border.all(
-                    color: accent.withValues(alpha: isDark ? 0.38 : 0.25),
-                    width: 1.2,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    lent
-                        ? LucideIcons.arrow_up_right
-                        : LucideIcons.arrow_down_left,
-                    color: accent,
-                    size: 21,
+                  gradient: LinearGradient(
+                    colors: [accentLight, accent],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
                 ),
               ),
-
-              const SizedBox(width: 12),
-
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      loan.personName,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: primaryText,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(13, 13, 12, 13),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Header: Circular Initials Avatar + Name/Badges + Menu
+                      Row(
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    colors: [accentLight, accent],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: accent.withValues(alpha: 0.28),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    initials,
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: Container(
+                                  width: 17,
+                                  height: 17,
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: accent.withValues(alpha: 0.4),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    lent
+                                        ? LucideIcons.arrow_up_right
+                                        : LucideIcons.arrow_down_left,
+                                    color: accent,
+                                    size: 10.5,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            lent ? 'Cho vay' : 'Vay nợ',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: accent,
+                          const SizedBox(width: 11),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  loan.personName,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                    color: primaryText,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 5,
+                                  runSpacing: 3,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 1.8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: accent.withValues(alpha: 0.12),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        lent ? 'Cho vay' : 'Vay nợ',
+                                        style: TextStyle(
+                                          fontSize: 9.8,
+                                          fontWeight: FontWeight.w800,
+                                          color: accent,
+                                        ),
+                                      ),
+                                    ),
+                                    if (dueDt != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6.5,
+                                          vertical: 1.8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isOverdue
+                                              ? const Color(0xFFE11D48)
+                                                  .withValues(alpha: 0.14)
+                                              : isDueSoon
+                                                  ? const Color(0xFFD97706)
+                                                      .withValues(alpha: 0.14)
+                                                  : (isDark
+                                                          ? Colors.white
+                                                          : Colors.black)
+                                                      .withValues(alpha: 0.06),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              isOverdue
+                                                  ? Icons.warning_amber_rounded
+                                                  : Icons.event_rounded,
+                                              size: 10,
+                                              color: isOverdue
+                                                  ? const Color(0xFFE11D48)
+                                                  : isDueSoon
+                                                      ? const Color(0xFFD97706)
+                                                      : secondaryText,
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              isOverdue
+                                                  ? 'Quá hạn ${daysUntilDue.abs()} ngày'
+                                                  : (daysUntilDue == 0
+                                                      ? 'Đến hạn hôm nay'
+                                                      : DateFormat('dd/MM/yyyy')
+                                                          .format(dueDt)),
+                                              style: TextStyle(
+                                                fontSize: 9.8,
+                                                fontWeight: FontWeight.w800,
+                                                color: isOverdue
+                                                    ? const Color(0xFFE11D48)
+                                                    : isDueSoon
+                                                        ? const Color(
+                                                            0xFFD97706)
+                                                        : secondaryText,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    if (walletLabel.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6.5,
+                                          vertical: 1.8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: (isDark
+                                                  ? Colors.white
+                                                  : Colors.black)
+                                              .withValues(alpha: 0.06),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          walletLabel,
+                                          style: TextStyle(
+                                            fontSize: 9.8,
+                                            fontWeight: FontWeight.w700,
+                                            color: secondaryText,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
                             ),
+                          ),
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            elevation: 10,
+                            shadowColor: Colors.black
+                                .withValues(alpha: isDark ? 0.45 : 0.12),
+                            color:
+                                isDark ? const Color(0xFF1E293B) : Colors.white,
+                            surfaceTintColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
+                                width: 1.2,
+                              ),
+                            ),
+                            constraints: const BoxConstraints(
+                                minWidth: 28, minHeight: 28),
+                            icon: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.black.withValues(alpha: 0.04),
+                              ),
+                              child: Icon(
+                                Icons.more_vert_rounded,
+                                size: 16,
+                                color: isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF475569),
+                              ),
+                            ),
+                            onSelected: (val) {
+                              if (val == 'repay') {
+                                _showRepayDialog(context, loan);
+                              } else if (val == 'delete') {
+                                _confirmDeleteLoan(context, loan);
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: 'repay',
+                                height: 42,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 28,
+                                      height: 28,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF059669)
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        lent
+                                            ? Icons.arrow_downward_rounded
+                                            : Icons.arrow_upward_rounded,
+                                        size: 15,
+                                        color: const Color(0xFF059669),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      lent ? 'Thu nợ' : 'Trả nợ',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuDivider(height: 1),
+                              PopupMenuItem(
+                                value: 'delete',
+                                height: 42,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 28,
+                                      height: 28,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE11D48)
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 16,
+                                          color: Color(0xFFE11D48)),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Text(
+                                      'Xóa khoản nợ',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFE11D48),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 11),
+
+                      // 2. 3-Column Contract Ledger Box (Gốc | Đã thu/trả | Còn lại) + Progress Bar
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF0F172A).withValues(alpha: 0.58)
+                              : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: (isDark ? Colors.white : Colors.black)
+                                .withValues(alpha: 0.06),
+                            width: 0.8,
                           ),
                         ),
-                        if (walletLabel.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Khoản gốc',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: secondaryText,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: FinoraPrivacyMask(
+                                          isMasked: _obscureBalances,
+                                          fallbackDots: '••••••',
+                                          child: Text(
+                                            formatVND(loan.principalAmount),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: primaryText,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 24,
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 8),
+                                  color: (isDark ? Colors.white : Colors.black)
+                                      .withValues(alpha: 0.08),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Đã ${lent ? "thu" : "trả"} ($progressPct%)',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: secondaryText,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: FinoraPrivacyMask(
+                                          isMasked: _obscureBalances,
+                                          fallbackDots: '••••••',
+                                          child: Text(
+                                            formatVND(loan.paidAmount),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: primaryText,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 24,
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 8),
+                                  color: (isDark ? Colors.white : Colors.black)
+                                      .withValues(alpha: 0.08),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        lent ? 'Cần thu về' : 'Cần phải trả',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: accent,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerRight,
+                                        child: FinoraPrivacyMask(
+                                          isMasked: _obscureBalances,
+                                          fallbackDots: '••••••',
+                                          child: Text(
+                                            formatVND(loan.remainingPrincipal),
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w900,
+                                              color: accent,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures()
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            decoration: BoxDecoration(
-                              color: (isDark ? Colors.white : Colors.black)
-                                  .withValues(alpha: 0.06),
-                              borderRadius: BorderRadius.circular(6),
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                value: progress.clamp(0.0, 1.0),
+                                minHeight: 5.5,
+                                backgroundColor: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(accent),
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // 3. Footer Row: Note/Status + Action Pill
+                      Row(
+                        children: [
+                          Icon(
+                            rawNote.isNotEmpty
+                                ? Icons.notes_rounded
+                                : Icons.verified_user_outlined,
+                            size: 13.5,
+                            color: secondaryText,
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
                             child: Text(
-                              walletLabel,
+                              rawNote.isNotEmpty
+                                  ? rawNote
+                                  : (lent
+                                      ? 'Đang theo dõi khoản cho vay'
+                                      : 'Đang theo dõi khoản vay nợ'),
                               style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 11.2,
+                                fontWeight: FontWeight.w600,
                                 color: secondaryText,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => _showRepayDialog(context, loan),
+                            borderRadius: BorderRadius.circular(100),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [accentLight, accent],
+                                ),
+                                borderRadius: BorderRadius.circular(100),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: accent.withValues(alpha: 0.25),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.add_rounded,
+                                    size: 13.5,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    lent ? 'Thu nợ' : 'Trả nợ',
+                                    style: const TextStyle(
+                                      fontSize: 11.2,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // Right-pinned remaining principal
-
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 112),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: FinoraPrivacyMask(
-                        isMasked: _obscureBalances,
-                        fallbackDots: '•••••••• đ',
-                        child: Text(
-                          formatVND(loan.remainingPrincipal),
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w900,
-                            color: accent,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        lent ? 'Cần thu về' : 'Cần phải trả',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: secondaryText,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                elevation: 10,
-                shadowColor:
-                    Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                surfaceTintColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0),
-                    width: 1.2,
-                  ),
-                ),
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                icon: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.black.withValues(alpha: 0.04),
-                  ),
-                  child: Icon(
-                    Icons.more_vert_rounded,
-                    size: 17,
-                    color: isDark ? Colors.white70 : const Color(0xFF475569),
-                  ),
-                ),
-                onSelected: (val) {
-                  if (val == 'repay') {
-                    _showRepayDialog(context, loan);
-                  } else if (val == 'delete') {
-                    _confirmDeleteLoan(context, loan);
-                  }
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'repay',
-                    height: 42,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF059669).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            lent
-                                ? Icons.arrow_downward_rounded
-                                : Icons.arrow_upward_rounded,
-                            size: 15,
-                            color: const Color(0xFF059669),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          lent ? 'Thu nợ' : 'Trả nợ',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(height: 1),
-                  PopupMenuItem(
-                    value: 'delete',
-                    height: 42,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFFE11D48).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.delete_outline_rounded,
-                              size: 16, color: Color(0xFFE11D48)),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Xóa khoản nợ',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFE11D48),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // 2. Clean 2-Column Metric Box (Tiền gốc | Đã thu/trả %)
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF0F172A).withValues(alpha: 0.55)
-                  : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: (isDark ? Colors.white : Colors.black)
-                    .withValues(alpha: 0.06),
-                width: 0.8,
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tiền gốc',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                          color: secondaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          formatVND(loan.principalAmount),
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: primaryText,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 26,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  color: (isDark ? Colors.white : Colors.black)
-                      .withValues(alpha: 0.10),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Tiến độ hoàn trả',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                          color: secondaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          'Đã ${lent ? "thu" : "trả"}: ${formatVND(loan.paidAmount)} (${(progress * 100).round()}%)',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: accent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // 3. Smooth 7px Rounded Progress Bar
-
-          Stack(
-            children: [
-              Container(
-                height: 7,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-              ),
-              FractionallySizedBox(
-                widthFactor: progress.clamp(0.0, 1.0),
-                child: Container(
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.35),
-                        blurRadius: 4,
+                        ],
                       ),
                     ],
                   ),
@@ -8338,78 +9590,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               ),
             ],
           ),
-
-          const SizedBox(height: 10),
-
-          // 4. Bottom Row: Full Note & Due Date (maxLines: 2) + Solid Stadium-Pill Action Button
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(
-                dueDt != null ? Icons.event_note_rounded : Icons.notes_rounded,
-                size: 14,
-                color: secondaryText,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  bottomSummary,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? const Color(0xFFCBD5E1)
-                        : const Color(0xFF475569),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 10),
-              InkWell(
-                onTap: () => _showRepayDialog(context, loan),
-                borderRadius: BorderRadius.circular(100),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.28),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.add_rounded,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        lent ? 'Thu nợ' : 'Trả nợ',
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

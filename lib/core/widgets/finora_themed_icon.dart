@@ -29,11 +29,10 @@ class FinoraThemedIcon extends StatelessWidget {
     final studio = Provider.of<ThemeStudioController?>(context);
 
     final scale = studio?.iconScale ?? 1.0;
-    final cornerRadius = studio?.iconCornerRadius ?? 18.0;
     final effectiveSize = (baseSize * scale).clamp(28.0, 72.0);
     final iconSize = effectiveSize * 0.52;
 
-    final shapeStyle = studio?.categoryIconStyle ?? AppCategoryIconStyle.modernSquircle;
+    final shapeStyle = studio?.categoryIconStyle ?? AppCategoryIconStyle.glassSphere;
     final decoration = studio?.getPreviewDecorationForCategoryStyle(
           shapeStyle,
           color: color,
@@ -42,20 +41,15 @@ class FinoraThemedIcon extends StatelessWidget {
         ) ??
         BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(cornerRadius),
+          shape: BoxShape.circle,
         );
 
-    // Dynamic Squircle / Rounded container
+    // Mọi icon đều đồng nhất hình tròn
     Widget iconBox = Container(
       width: effectiveSize,
       height: effectiveSize,
       decoration: decoration is BoxDecoration
-          ? decoration.copyWith(
-              borderRadius: shapeStyle == AppCategoryIconStyle.minimalCircle ||
-                      shapeStyle == AppCategoryIconStyle.glassSphere
-                  ? null
-                  : BorderRadius.circular(cornerRadius),
-            )
+          ? decoration.copyWith(shape: BoxShape.circle, borderRadius: null)
           : decoration,
       child: Center(
         child: Icon(
@@ -74,7 +68,7 @@ class FinoraThemedIcon extends StatelessWidget {
             HapticFeedback.selectionClick();
             onTap!();
           },
-          borderRadius: BorderRadius.circular(cornerRadius),
+          borderRadius: BorderRadius.circular(effectiveSize / 2),
           child: iconBox,
         ),
       );

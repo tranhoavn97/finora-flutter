@@ -403,9 +403,9 @@ void main() {
       final studio = ThemeStudioController();
       await studio.load();
 
-      // Check defaults (v27 defaults to false for optimal performance)
-      expect(studio.systemWideLiquidGlass, isFalse);
-      expect(studio.isSystemWideLiquidGlass, isFalse);
+      // Check defaults
+      expect(studio.systemWideLiquidGlass, isTrue);
+      expect(studio.isSystemWideLiquidGlass, isTrue);
 
       // Mutate optical parameters
       await studio.setSystemWideLiquidGlass(true);

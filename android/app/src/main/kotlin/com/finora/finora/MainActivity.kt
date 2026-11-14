@@ -40,15 +40,35 @@ class MainActivity : FlutterActivity() {
             if (call.method != "openBank") {
                 result.notImplemented()
             } else {
-                val pkg = call.argument<String>("package")
-                if (pkg !in setOf("com.mbmobile", "vn.com.techcombank.bb.app")) {
-                    result.error("UNSUPPORTED_BANK", "Unsupported banking package", null)
+                val pkg = call.argument<String>("package")?.trim()
+                val deepLink = call.argument<String>("deepLink")?.trim()
+                if (pkg.isNullOrEmpty()) {
+                    result.error("INVALID_PACKAGE", "Missing banking package", null)
                 } else {
-                    try {
-                        val intent = packageManager.getLaunchIntentForPackage(pkg!!)
-                        if (intent == null) result.success(false)
-                        else { startActivity(intent); result.success(true) }
-                    } catch (_: Exception) { result.success(false) }
+                    var launched = false
+                    if (!deepLink.isNullOrEmpty()) {
+                        try {
+                            val dlIntent = Intent(Intent.ACTION_VIEW, Uri.parse(deepLink)).apply {
+                                setPackage(pkg)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            if (dlIntent.resolveActivity(packageManager) != null) {
+                                startActivity(dlIntent)
+                                launched = true
+                            }
+                        } catch (_: Exception) {}
+                    }
+                    if (!launched) {
+                        try {
+                            val intent = packageManager.getLaunchIntentForPackage(pkg)
+                            if (intent != null) {
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(intent)
+                                launched = true
+                            }
+                        } catch (_: Exception) {}
+                    }
+                    result.success(launched)
                 }
             }
         }

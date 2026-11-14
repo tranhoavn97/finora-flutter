@@ -163,7 +163,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
         decoration: BoxDecoration(
           color: isSelected
               ? primary.withValues(alpha: isDark ? 0.22 : 0.12)
-              : (studio?.getCardFillColor(isDark) ??
+              : (studio?.getCardFillColor(isDark, forceOpaque: true) ??
                   (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC))),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -648,8 +648,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
             decoration: BoxDecoration(
               color: hasSearch
                   ? primary.withValues(alpha: isDark ? 0.28 : 0.15)
-                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
-                      .withValues(alpha: studio?.glassOpacity ?? 0.85),
+                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
               borderRadius: BorderRadius.circular(cardRadius),
               border: Border.all(
                 color: hasSearch
@@ -707,8 +706,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
             decoration: BoxDecoration(
               color: hasDate
                   ? primary.withValues(alpha: isDark ? 0.28 : 0.15)
-                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
-                      .withValues(alpha: studio?.glassOpacity ?? 0.85),
+                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
               borderRadius: BorderRadius.circular(cardRadius),
               border: Border.all(
                 color: hasDate
@@ -862,8 +860,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color:
-                  (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
-                      .withValues(alpha: studio?.glassOpacity ?? 0.85),
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(cardRadius),
               border: Border.all(
                 color: isDark
@@ -1144,10 +1141,12 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                               decoration: studio?.getWidgetCardDecoration(
                                     isDark: isDark,
                                     customRadius: cardRadius,
+                                    forceOpaque: true,
                                   ) ??
                                   studio?.getCardDecoration(
                                     isDark: isDark,
                                     radius: cardRadius,
+                                    forceOpaque: true,
                                   ) ??
                                   BoxDecoration(
                                     color: isDark
@@ -1186,6 +1185,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                               decoration: studio?.getCardDecoration(
                                     isDark: isDark,
                                     radius: 14,
+                                    forceOpaque: true,
                                   ) ??
                                   BoxDecoration(
                                     color: isDark
@@ -1234,6 +1234,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                     decoration: studio?.getCardDecoration(
                           isDark: isDark,
                           radius: cardRadius,
+                          forceOpaque: true,
                         ) ??
                         BoxDecoration(
                           color:
@@ -1534,6 +1535,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
       decoration: studio?.getCardDecoration(
             isDark: isDark,
             radius: cardRadius,
+            forceOpaque: true,
           ) ??
           BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,

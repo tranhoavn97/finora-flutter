@@ -388,6 +388,13 @@ class TransactionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void syncFamilyScope(String userId, String? familyId) {
+    _userId ??= userId;
+    if (familyId != null && familyId.isNotEmpty) {
+      _familyId = familyId;
+    }
+  }
+
   Future<void> createTransaction(String userId, TransactionModel tx) async {
     try {
       await _txRepo.createTransaction(userId, tx, familyId: _familyId);

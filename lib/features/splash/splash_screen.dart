@@ -99,10 +99,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       const FinoraBrandLogo(width: 180, height: 60),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'AI Personal Finance Advisor',
+                        'FINORA 2.0 · AI Personal Finance Advisor',
                         textAlign: TextAlign.center,
                         style: AppTypography.footnote.copyWith(
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                           color: secondaryTextColor,
                         ),
                       ),

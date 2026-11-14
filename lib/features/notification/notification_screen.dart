@@ -216,6 +216,10 @@ class _NotificationScreenState extends State<NotificationScreen>
     required List<AppNotification> items,
   }) {
     final isPendingTab = _tabController.index == 0;
+    final studio = Provider.of<ThemeStudioController?>(context);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF059669);
+    final brandSecondary =
+        studio?.resolvedSecondary ?? const Color(0xFF047857);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -236,13 +240,13 @@ class _NotificationScreenState extends State<NotificationScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Thông báo',
+                    'Thông báo & Số dư',
                     maxLines: 1,
                     softWrap: false,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'BeVietnamPro',
-                      fontSize: 18,
+                      fontSize: 17.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -251,8 +255,8 @@ class _NotificationScreenState extends State<NotificationScreen>
                   const SizedBox(height: 1),
                   Text(
                     pending + unread > 0
-                        ? '$pending giao dịch chờ · $unread chưa đọc'
-                        : 'Tất cả thông báo đã cập nhật',
+                        ? '$pending biến động chờ · $unread chưa đọc'
+                        : 'Thông báo & tự động đọc biến động (BETA)',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -268,13 +272,48 @@ class _NotificationScreenState extends State<NotificationScreen>
               ),
             ),
             const SizedBox(width: 6),
-            FinoraCircleIconButton(
-              icon: Icons.tune_rounded,
-              tooltip: 'Cài đặt đọc biến động (Beta)',
-              size: 36,
-              iconSize: 18,
-              onPressed: () =>
-                  BankSyncSettingsSheet.show(context, userId: widget.userId),
+            Tooltip(
+              message: 'Cài đặt đọc biến động số dư (BETA)',
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  BankSyncSettingsSheet.show(context, userId: widget.userId);
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: brandPrimary.withValues(alpha: isDark ? 0.22 : 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color:
+                          brandPrimary.withValues(alpha: isDark ? 0.45 : 0.28),
+                      width: 0.9,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.tune_rounded,
+                        size: 15,
+                        color: brandPrimary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Đọc số dư',
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: brandPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -301,15 +340,15 @@ class _NotificationScreenState extends State<NotificationScreen>
             indicatorSize: TabBarIndicatorSize.tab,
             splashBorderRadius: BorderRadius.circular(999),
             indicator: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF059669), Color(0xFF047857)],
+              gradient: LinearGradient(
+                colors: [brandPrimary, brandSecondary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(999),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF059669).withValues(alpha: 0.30),
+                  color: brandPrimary.withValues(alpha: 0.30),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -329,8 +368,24 @@ class _NotificationScreenState extends State<NotificationScreen>
               fontWeight: FontWeight.w600,
             ),
             tabs: [
-              Tab(text: 'Giao dịch chờ ($pending)'),
-              Tab(text: 'Hoạt động ($unread)'),
+              Tab(
+                child: _buildTabWithCount(
+                  label: 'Giao dịch chờ',
+                  count: pending,
+                  selected: isPendingTab,
+                  brandPrimary: brandPrimary,
+                  isDark: isDark,
+                ),
+              ),
+              Tab(
+                child: _buildTabWithCount(
+                  label: 'Hoạt động',
+                  count: unread,
+                  selected: !isPendingTab,
+                  brandPrimary: brandPrimary,
+                  isDark: isDark,
+                ),
+              ),
             ],
           ),
         ),
@@ -364,7 +419,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                     ? Icons.auto_awesome_rounded
                     : Icons.notifications_active_rounded,
                 size: 14,
-                color: const Color(0xFF059669),
+                color: brandPrimary,
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -404,7 +459,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                               Text('Đã duyệt và dọn dẹp hàng đợi giao dịch chờ.'),
                             ],
                           ),
-                          backgroundColor: const Color(0xFF059669),
+                          backgroundColor: brandPrimary,
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
@@ -425,7 +480,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                                 Text('Đã đánh dấu đọc tất cả thông báo.'),
                               ],
                             ),
-                            backgroundColor: const Color(0xFF059669),
+                            backgroundColor: brandPrimary,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
@@ -440,23 +495,22 @@ class _NotificationScreenState extends State<NotificationScreen>
                   height: 26,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF059669)
-                        .withValues(alpha: isDark ? 0.20 : 0.10),
+                    color: brandPrimary.withValues(alpha: isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: const Color(0xFF059669)
-                          .withValues(alpha: isDark ? 0.35 : 0.25),
+                      color:
+                          brandPrimary.withValues(alpha: isDark ? 0.35 : 0.25),
                       width: 0.8,
                     ),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       'Đọc hết',
                       style: TextStyle(
                         fontFamily: 'BeVietnamPro',
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF059669),
+                        color: brandPrimary,
                       ),
                     ),
                   ),
@@ -506,7 +560,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                                 Text('Đã dọn dẹp sạch toàn bộ giao dịch chờ.'),
                               ],
                             ),
-                            backgroundColor: const Color(0xFF059669),
+                            backgroundColor: brandPrimary,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
@@ -548,6 +602,50 @@ class _NotificationScreenState extends State<NotificationScreen>
                 ),
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabWithCount({
+    required String label,
+    required int count,
+    required bool selected,
+    required Color brandPrimary,
+    required bool isDark,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.24)
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : brandPrimary.withValues(alpha: 0.12)),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontFamily: 'BeVietnamPro',
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              height: 1.0,
+              color: selected ? Colors.white : brandPrimary,
+            ),
           ),
         ),
       ],
@@ -662,6 +760,8 @@ class _ActivityTab extends StatelessWidget {
 
     final itemsList = more.notifications;
     final unreadCount = itemsList.where((n) => !n.isRead).length;
+    final studio = Provider.of<ThemeStudioController?>(context);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF059669);
 
     return ListView(
       padding: EdgeInsets.fromLTRB(16, topPadding ?? 16, 16, 32),
@@ -685,12 +785,30 @@ class _ActivityTab extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                'Hoạt động (${itemsList.length})',
+                'Hoạt động',
                 style: TextStyle(
                   fontFamily: 'BeVietnamPro',
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: brandPrimary.withValues(alpha: isDark ? 0.22 : 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${itemsList.length}',
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: brandPrimary,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -709,11 +827,11 @@ class _ActivityTab extends StatelessWidget {
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF059669)
+                      color: brandPrimary
                           .withValues(alpha: isDark ? 0.22 : 0.10),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: const Color(0xFF059669).withValues(alpha: 0.35),
+                        color: brandPrimary.withValues(alpha: 0.35),
                       ),
                     ),
                     child: Row(
@@ -867,19 +985,15 @@ class _ActivityTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: meta.color.withValues(alpha: isDark ? 0.20 : 0.12),
-                      border: Border.all(
-                        color:
-                            meta.color.withValues(alpha: isDark ? 0.35 : 0.22),
-                      ),
+                      color: meta.color.withValues(alpha: isDark ? 0.24 : 0.14),
                     ),
                     child: Icon(
                       meta.icon,
-                      size: 20,
+                      size: 22,
                       color: meta.color,
                     ),
                   ),

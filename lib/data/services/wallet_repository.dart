@@ -40,6 +40,8 @@ class WalletRepository {
         'bankName': wallet.bankName,
         'accountNumber': wallet.accountNumber,
         'themeColor': wallet.themeColor,
+        'iconUrl': wallet.iconUrl,
+        'logoUrl': wallet.iconUrl,
         'creditLimit': wallet.creditLimit,
         'initialDebt': wallet.initialDebt,
         'currentDebt': wallet.initialDebt,
@@ -62,6 +64,8 @@ class WalletRepository {
         'bankName': wallet.bankName,
         'accountNumber': wallet.accountNumber,
         'themeColor': wallet.themeColor,
+        'iconUrl': wallet.iconUrl,
+        'logoUrl': wallet.iconUrl,
         'initialBalance': wallet.initialBalance,
         'balance': wallet.initialBalance,
         'createdAt': ts,
@@ -89,8 +93,18 @@ class WalletRepository {
       'bankCode': wallet.bankCode,
       'bankName': wallet.bankName,
       'accountNumber': wallet.accountNumber,
+      'themeColor': wallet.themeColor,
+      'iconUrl': wallet.iconUrl,
+      'logoUrl': wallet.iconUrl,
       'updatedAt': DateTime.now().toUtc().toIso8601String(),
     };
+    final rows = await SupabaseBridge.loadUserCollection(
+        userId: userId, collection: 'wallets');
+    final raw = rows.where((row) => row['id'] == walletId).firstOrNull;
+    final old = raw == null ? null : Wallet.fromMap(walletId, raw);
+    if (old == null) {
+      throw StateError('Ví không còn tồn tại. Vui lòng tải lại.');
+    }
     if (wallet.isCreditCard) {
       await SupabaseBridge.saveUserDocument(
         userId: userId,
@@ -103,16 +117,11 @@ class WalletRepository {
           'paymentDueDay': wallet.paymentDueDay,
           'minimumPaymentPercent': wallet.minimumPaymentPercent,
           'themeColor': wallet.themeColor,
+          ...creditDebtUpdate(old, wallet,
+              hasRawInitialDebt: raw!.containsKey('rawInitialDebt')),
         }),
       );
     } else {
-      final rows = await SupabaseBridge.loadUserCollection(
-          userId: userId, collection: 'wallets');
-      final raw = rows.where((row) => row['id'] == walletId).firstOrNull;
-      final old = raw == null ? null : Wallet.fromMap(walletId, raw);
-      if (old == null) {
-        throw StateError('Ví không còn tồn tại. Vui lòng tải lại.');
-      }
       await SupabaseBridge.saveUserDocument(
         userId: userId,
         collection: 'wallets',
@@ -139,6 +148,12 @@ class WalletRepository {
   /// opening balance of zero and replay its entire history on the next read.
   static Map<String, dynamic> cashBalanceUpdate(Wallet old, Wallet edited,
       {bool hasRawInitialBalance = false}) {
+    if (!old.hasInitialBalance && !edited.hasInitialBalance) {
+      if (edited.balance != old.balance) {
+        return {'balance': edited.balance};
+      }
+      return {};
+    }
     if (!old.hasInitialBalance ||
         !edited.hasInitialBalance ||
         old.initialBalance == edited.initialBalance) {
@@ -149,6 +164,28 @@ class WalletRepository {
       'initialBalance': edited.initialBalance,
       if (hasRawInitialBalance) 'rawInitialBalance': edited.initialBalance,
       'balance': old.balance + difference,
+    };
+  }
+
+  /// Syncs explicit credit-card debt adjustments with `initialDebt` and `rawInitialDebt`.
+  static Map<String, dynamic> creditDebtUpdate(Wallet old, Wallet edited,
+      {bool hasRawInitialDebt = false}) {
+    if (!old.hasInitialDebt && !edited.hasInitialDebt) {
+      if (edited.currentDebt != old.currentDebt) {
+        return {'currentDebt': edited.currentDebt};
+      }
+      return {};
+    }
+    if (!old.hasInitialDebt ||
+        !edited.hasInitialDebt ||
+        old.initialDebt == edited.initialDebt) {
+      return {};
+    }
+    final difference = edited.initialDebt - old.initialDebt;
+    return {
+      'initialDebt': edited.initialDebt,
+      if (hasRawInitialDebt) 'rawInitialDebt': edited.initialDebt,
+      'currentDebt': (old.currentDebt + difference).clamp(0, 1 << 62),
     };
   }
 

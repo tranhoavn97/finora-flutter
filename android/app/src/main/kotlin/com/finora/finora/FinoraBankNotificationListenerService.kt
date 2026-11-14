@@ -241,6 +241,75 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             "com.vnpay.abbank",
             "com.vnpay.baca",
             "com.vnpay.namabank",
+            // NCB (Ngân hàng Quốc Dân) - iziMobile & iziBiz
+            "com.ncb.bank",
+            "com.ncb.izimobile",
+            "vn.com.ncb.izimobile",
+            "com.vnpay.ncb",
+            "com.ncb.izibiz",
+            "vn.com.ncb.izibiz",
+            // Additional Vietnamese Banks & Digital Banks
+            "vn.com.techcombank.bb.app",
+            "com.mbmobile",
+            "com.VCB",
+            "com.vietinbank.ipay",
+            "vn.com.bidv.smartbanking",
+            "com.vnpay.bidv",
+            "com.agribank.agribankplus",
+            "com.vnpay.agribank",
+            "vn.tpb.mb.g0sales",
+            "com.tpb.mb.g0sales",
+            "com.vnpay.vpbankonline",
+            "vn.com.vpbank.neo",
+            "com.scb.mobile",
+            "com.hdbank.hdbank",
+            "com.vnpay.hdbank",
+            "com.vnpay.PvcomBank",
+            "com.pvcombank.pvc",
+            "vn.com.seabank.mb1",
+            "com.seabank.seabankmobile",
+            "vn.shb.mb",
+            "com.shb.mb",
+            "com.vnpay.shb",
+            "vn.com.eximbank.edigi",
+            "com.vnpay.eximbank",
+            "com.oceanbank.easyocean",
+            "com.vnpay.oceanbank",
+            "com.kienlongbank.plus",
+            "com.klb.mobile",
+            "com.vnpay.klb",
+            "com.vietabank.vietabank",
+            "com.vnpay.vietabank",
+            "com.baovietbank.baovietbank",
+            "com.vnpay.baoviet",
+            "com.pgbank.flex",
+            "com.vnpay.pgbank",
+            "com.saigonbank.saigonbankmobile",
+            "com.vnpay.saigonbank",
+            "vn.com.vietbank.digital",
+            "com.vnpay.vietbank",
+            "com.wooribank.smart.vn",
+            "com.shinhan.global.vn.bank",
+            "com.hsbc.hsbcvietnam",
+            "scb.mobile.vn",
+            "vn.uob.tmrw.app",
+            "com.cimb.octovn",
+            "vn.com.banviet.timo",
+            "io.timo.app",
+            "vn.cake.app",
+            "vn.tnex.consumer",
+            "vn.lio.bank",
+            "com.kbank.kplusvn",
+            "timo.vn.bank",
+            "xyz.be.cake",
+            "com.tpb.mb.gprsandroid",
+            "mobile.acb.com.vn",
+            "vn.shb.mbanking",
+            "com.vib.vibmobile",
+            "com.vnpay.sacombank",
+            "com.vnpay.msb",
+            "com.ocb.omni",
+            "com.airpay.merchants",
             "com.shopeepay.vn",
             // E-Wallets
             "com.mservice.momotransfer",
@@ -426,11 +495,41 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 combined.contains("msb") -> "MSB"
                 combined.contains("shb") -> "SHB"
                 combined.contains("hdbank") -> "HDBank"
+                combined.contains("ncb") || combined.contains("izimobile") || combined.contains("izibiz") || combined.contains("quốc dân") || combined.contains("quoc dan") -> "NCB"
+                combined.contains("msb") -> "MSB"
+                combined.contains("ocb") -> "OCB"
+                combined.contains("lpbank") || combined.contains("lienviet") -> "LPBank"
+                combined.contains("abbank") -> "ABBANK"
+                combined.contains("baca") -> "Bac A Bank"
+                combined.contains("namabank") -> "Nam A Bank"
+                combined.contains("seabank") -> "SeABank"
+                combined.contains("eximbank") -> "Eximbank"
+                combined.contains("pvcombank") -> "PVcomBank"
+                combined.contains("kienlong") || combined.contains("klb") -> "KienlongBank"
+                combined.contains("vietabank") -> "VietABank"
+                combined.contains("vietbank") -> "VietBank"
+                combined.contains("baoviet") -> "BaoViet Bank"
+                combined.contains("pgbank") -> "PGBank"
+                combined.contains("saigonbank") -> "SAIGONBANK"
+                combined.contains("oceanbank") -> "OceanBank"
+                combined.contains("timo") -> "Timo"
+                combined.contains("cake") -> "CAKE"
+                combined.contains("tnex") -> "TNEX"
+                combined.contains("lio") -> "Liobank"
+                combined.contains("shinhan") -> "Shinhan Bank"
+                combined.contains("woori") -> "Woori Bank"
+                combined.contains("hsbc") -> "HSBC"
+                combined.contains("uob") -> "UOB"
+                combined.contains("cimb") -> "CIMB"
+                combined.contains("kbank") || combined.contains("kplus") -> "KBank"
                 combined.contains("momo") -> "Ví MoMo"
                 combined.contains("zalopay") -> "Ví ZaloPay"
                 combined.contains("viettel") -> "Viettel Money"
                 combined.contains("vnpay") -> "Ví VNPay"
                 combined.contains("shopee") -> "ShopeePay"
+                combined.contains("vnpt") -> "VNPT Money"
+                combined.contains("payoo") -> "Payoo"
+                combined.contains("foxpay") -> "Foxpay"
                 title.isNotBlank() -> title.trim()
                 else -> "Ngân hàng"
             }
@@ -489,11 +588,16 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
+        val summaryText = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString() ?: ""
+        val infoText = extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString() ?: ""
         val lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n") ?: ""
         val messages = Notification.MessagingStyle.Message.getMessagesFromBundleArray(
             extras.getParcelableArray(Notification.EXTRA_MESSAGES)
         ).joinToString("\n") { it.text?.toString() ?: "" }
-        val parts = listOf(bigText, lines, messages, text).filter { it.isNotBlank() }.distinct()
+        val parts = listOf(bigText, lines, messages, text, subText, summaryText, infoText)
+            .filter { it.isNotBlank() }
+            .distinct()
         val combinedText = parts.filter { part -> parts.none { other -> other.length > part.length && other.contains(part) } }.joinToString("\n")
 
         if (title.isEmpty() && combinedText.isEmpty()) return
@@ -521,14 +625,22 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val walletsEnabled = prefs.getBoolean("finora_scan_ewallets", true)
         val walletPackages = setOf(
-            "com.mservice.momotransfer", "com.mservice.momopay", "vn.com.vng.zalopay",
-            "com.vng.zalopay", "com.b2c.bankplus", "com.bplus.vtpay",
-            "com.viettel.viettelpay", "vn.vnpay.vnpay", "com.airpay"
+            "com.mservice.momotransfer", "com.mservice.momopay", "vn.momo.app",
+            "vn.com.vng.zalopay", "com.vng.zalopay",
+            "com.b2c.bankplus", "com.bplus.vtpay", "com.viettel.viettelpay",
+            "vn.vnpay.vnpay", "vn.vnpay.ewallet",
+            "com.airpay", "com.shopeepay.vn",
+            "vn.payoo.app", "com.vnpt.epay", "vn.vnptpay.app",
+            "vn.foxpay.app", "com.fpt.foxpay", "vn.moca.app"
         )
         val normalizedPackage = pkg.lowercase()
-        val directBank = BANK_PACKAGES.any { it.lowercase() == normalizedPackage } &&
-            pkg !in ECOMMERCE_PACKAGES && pkg !in walletPackages
-        val directWallet = walletsEnabled && pkg in walletPackages
+        val ncbPackageFallback = (normalizedPackage.startsWith("com.ncb.") ||
+            normalizedPackage.startsWith("vn.com.ncb.")) &&
+            !normalizedPackage.contains("otp")
+        val directBank = (BANK_PACKAGES.any { it.lowercase() == normalizedPackage } || ncbPackageFallback) &&
+            normalizedPackage !in ECOMMERCE_PACKAGES.map { it.lowercase() } &&
+            normalizedPackage !in walletPackages.map { it.lowercase() }
+        val directWallet = walletsEnabled && normalizedPackage in walletPackages.map { it.lowercase() }
         val walletSenders = setOf("momo", "zalopay", "viettelmoney", "viettel money", "viettelpay", "vnpay", "shopeepay")
         val trustedSmsSender = pkg in SMS_PACKAGES && BANK_KEYWORDS.any {
             it !in setOf("shopee", "tiktok", "tiktok shop", "lazada") &&

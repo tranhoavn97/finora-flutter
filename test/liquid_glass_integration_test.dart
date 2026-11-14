@@ -12,6 +12,7 @@ import 'package:finora/core/theme/app_theme.dart';
 import 'package:finora/core/design_system/app_typography.dart';
 import 'package:finora/core/design_system/v8/finora_v8_buttons.dart';
 import 'package:finora/core/design_system/v8/finora_v8_controls.dart';
+import 'package:finora/core/widgets/finora_mascot.dart';
 import 'package:finora/core/widgets/finora_navigation.dart';
 import 'package:finora/core/widgets/finora_search_bar.dart';
 import 'package:finora/core/widgets/glass_widgets.dart';
@@ -262,4 +263,58 @@ void main() {
       }
     });
   }
+
+  testWidgets(
+      'Smooth Glass v2 skips per-card BackdropFilter by default and Living 3D Mascot settles cleanly',
+      (tester) async {
+    final studio = ThemeStudioController();
+    await studio.load();
+    expect(studio.cardBackdropBlur, isFalse);
+
+    await tester.pumpWidget(host(
+      studio,
+      const Column(
+        children: [
+          FloatingGlassCard(
+            child: Text('Smooth Card 60fps'),
+          ),
+          FinoraInteractive3DMascot(
+            pose: FinoraMascotPose.hero,
+            size: 88,
+            enableFloatingAnimation: true,
+            enableTouch3DRotation: true,
+            showSpeechBubbleOnTap: true,
+          ),
+        ],
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Smooth Card 60fps'), findsOneWidget);
+    expect(find.byType(FinoraInteractive3DMascot), findsOneWidget);
+    // By default, FloatingGlassCard does not spawn a BackdropFilter
+    expect(
+      find.descendant(
+        of: find.byType(FloatingGlassCard),
+        matching: find.byType(BackdropFilter),
+      ),
+      findsNothing,
+    );
+
+    // Opt-in real per-card blur
+    await studio.setCardBackdropBlur(true);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(FloatingGlassCard),
+        matching: find.byType(BackdropFilter),
+      ),
+      findsOneWidget,
+    );
+
+    // Tap 3D mascot to open speech bubble
+    await tester.tap(find.byType(FinoraInteractive3DMascot));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
 }

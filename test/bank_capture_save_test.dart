@@ -73,7 +73,7 @@ void main() {
       (tester) async {
     final ledger = BankLedger(empty: true);
     await mount(tester, ledger);
-    await tester.tap(find.text('Xác nhận ghi vào sổ'));
+    await tester.tap(find.text('Ghi vào sổ'));
     await tester.pump();
     expect(ledger.writes, isEmpty);
     expect(
@@ -107,7 +107,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chi khác').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Xác nhận ghi vào sổ'));
+    await tester.tap(find.text('Ghi vào sổ'));
     await tester.pump();
     expect(acks, 0);
     expect(ledger.writes.single.owner, 'wife');

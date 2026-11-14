@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/theme_studio_controller.dart';
 import 'finora_member_filter.dart';
+import 'finora_modal_scope.dart';
 
 
 
@@ -57,15 +58,7 @@ class FinoraIconAction extends StatelessWidget {
 
         size == 44 && studio != null ? studio.getIconButtonSize() : size;
 
-    final radius = switch (studio?.iconStyle) {
-
-      AppIconStyle.softSquare => 12.0,
-
-      AppIconStyle.dimensional => 18.0,
-
-      _ => effectiveSize / 2,
-
-    };
+    final radius = effectiveSize / 2;
 
     return FinoraCircleIconButton(
 
@@ -130,8 +123,6 @@ class FinoraBackButton extends StatelessWidget {
   Widget build(BuildContext context) => FinoraCircleIconButton(
 
         icon: Icons.arrow_back_ios_new_rounded,
-
-        tooltip: 'Quay lại',
 
         size: size,
 
@@ -213,9 +204,7 @@ class FinoraCircleIconButton extends StatelessWidget {
 
     final accent = studio?.resolvedPrimary ?? scheme.primary;
 
-    final radius = cornerRadius ??
-
-        (studio?.iconStyle == AppIconStyle.softSquare ? 12.0 : size / 2);
+    final radius = cornerRadius ?? (size / 2);
 
     final shape =
 
@@ -433,11 +422,21 @@ class FinoraSeeAllButton extends StatelessWidget {
 
   Widget build(BuildContext context) {
 
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+
     final dark = Theme.of(context).brightness == Brightness.dark;
+
+    final insideModal = FinoraModalScope.isInsideModal(context);
+
+    final bgAlpha = insideModal
+
+        ? 1.0
+
+        : (studio?.glassOpacity ?? (dark ? 0.72 : 0.88)).clamp(0.18, 1.0);
 
     final bg = (dark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
 
-        .withValues(alpha: dark ? 0.72 : 0.88);
+        .withValues(alpha: bgAlpha);
 
     return DecoratedBox(
 
@@ -553,6 +552,8 @@ class FinoraPillButton extends StatelessWidget {
 
   final bool compact;
 
+  final Color? color;
+
 
 
   const FinoraPillButton({
@@ -570,6 +571,8 @@ class FinoraPillButton extends StatelessWidget {
     this.primary = false,
 
     this.compact = false,
+
+    this.color,
 
   });
 
@@ -589,6 +592,8 @@ class FinoraPillButton extends StatelessWidget {
 
     final effectiveCallback = onTap ?? onPressed;
 
+    final resolvedAccent = color ?? studio?.resolvedPrimary ?? scheme.primary;
+
 
 
     final shape = RoundedRectangleBorder(
@@ -599,7 +604,7 @@ class FinoraPillButton extends StatelessWidget {
 
     final bg = primary
 
-        ? scheme.primary
+        ? resolvedAccent
 
         : (dark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
 
@@ -623,7 +628,7 @@ class FinoraPillButton extends StatelessWidget {
 
                 BoxShadow(
 
-                  color: scheme.primary.withValues(alpha: dark ? 0.32 : 0.18),
+                  color: resolvedAccent.withValues(alpha: dark ? 0.32 : 0.18),
 
                   blurRadius: 8,
 
@@ -762,8 +767,15 @@ class FinoraDateFilterPill extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark || onHeroCard;
 
     final primary =
+        studio?.resolvedPrimary ?? Theme.of(context).colorScheme.primary;
 
-        studio?.primaryColor ?? Theme.of(context).colorScheme.primary;
+    final insideModal = FinoraModalScope.isInsideModal(context);
+
+    final pillAlpha = insideModal
+
+        ? 1.0
+
+        : (studio?.glassOpacity ?? (dark ? 0.78 : 0.88)).clamp(0.18, 0.98);
 
 
 
@@ -773,13 +785,17 @@ class FinoraDateFilterPill extends StatelessWidget {
 
         : (isCustom
 
-            ? primary.withValues(alpha: dark ? 0.22 : 0.12)
+            ? Color.alphaBlend(
 
-            : (dark
+                primary.withValues(alpha: dark ? 0.22 : 0.12),
 
-                ? Colors.white.withValues(alpha: 0.10)
+                dark ? const Color(0xFF1E293B) : Colors.white,
 
-                : Colors.white.withValues(alpha: 0.85)));
+              ).withValues(alpha: pillAlpha)
+
+            : (dark ? const Color(0xFF1E293B) : Colors.white)
+
+                .withValues(alpha: pillAlpha));
 
 
 
@@ -980,6 +996,9 @@ class FinoraMemberSegmentedFilter extends StatelessWidget {
   Widget build(BuildContext context) {
 
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final primary =
+        studio?.resolvedPrimary ?? (dark ? const Color(0xFF334155) : const Color(0xFF475569));
 
     final index = _values.indexOf(selectedValue).clamp(0, 2);
 
@@ -991,11 +1010,23 @@ class FinoraMemberSegmentedFilter extends StatelessWidget {
 
             ? const Color(0xFFEC4899) // Vợ: Hồng ngọt ngào (Rose Pink)
 
-            : (dark ? const Color(0xFF334155) : const Color(0xFF475569)));
+            : primary);
 
     final x = -1.0 + (index * (2.0 / 2));
 
 
+
+    final trackAlpha = FinoraModalScope.isInsideModal(context)
+
+        ? 1.0
+
+        : (Provider.of<ThemeStudioController?>(context, listen: true)
+
+                    ?.glassOpacity ??
+
+                0.92)
+
+            .clamp(0.18, 0.98);
 
     return Container(
 
@@ -1005,17 +1036,19 @@ class FinoraMemberSegmentedFilter extends StatelessWidget {
 
       decoration: BoxDecoration(
 
-        color: dark ? const Color(0xFF202D39) : const Color(0xFFEDF3F1),
+        color: Color.alphaBlend(
+
+          primary.withValues(alpha: dark ? 0.10 : 0.06),
+
+          dark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+
+        ).withValues(alpha: trackAlpha),
 
         borderRadius: BorderRadius.circular(100),
 
         border: Border.all(
 
-          color: dark
-
-              ? Colors.white.withValues(alpha: 0.12)
-
-              : Colors.white.withValues(alpha: 0.90),
+          color: primary.withValues(alpha: dark ? 0.18 : 0.14),
 
           width: 0.8,
 

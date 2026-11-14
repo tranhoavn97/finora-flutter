@@ -196,7 +196,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                     border: isApplied
                         ? Border.all(
                             color:
-                                const Color(0xFF059669).withValues(alpha: 0.3),
+                                studio.resolvedPrimary.withValues(alpha: 0.35),
                           )
                         : studio.getCardBorder(isDark),
                   ),
@@ -243,8 +243,8 @@ class _BudgetScreenState extends State<BudgetScreen>
                         child: FilledButton.icon(
                           style: FilledButton.styleFrom(
                             backgroundColor: isApplied
-                                ? const Color(0xFF059669)
-                                : const Color(0xFF005FEA),
+                                ? studio.resolvedPrimary
+                                : studio.resolvedSecondary,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
                                   studio.getButtonRadius()),
@@ -385,7 +385,7 @@ class _BudgetScreenState extends State<BudgetScreen>
         if (FinanceSummary.isExpense(t) &&
             matchCategory &&
             matchMember &&
-            monthKeyOf(t.date) == currentMonthKey()) {
+            monthKeyOf(t.date) == provider.selectedMonthKey) {
           spent += t.amount;
         }
       }
@@ -430,6 +430,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                               decoration: FinoraTokens.emeraldCardDecoration(
                                 isDark: isDark,
                                 radius: 24,
+                                primaryColor: studio?.resolvedPrimary,
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,17 +440,65 @@ class _BudgetScreenState extends State<BudgetScreen>
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
-                                        child: Text(
-                                          'NGÂN SÁCH THÁNG ${DateTime.now().month}/${DateTime.now().year}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontFamily: 'BeVietnamPro',
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 0.8,
-                                            color: Color(0xFFE6F7F0),
-                                          ),
+                                        child: Row(
+                                          children: [
+                                            GestureDetector(
+                                              onTap: () {
+                                                HapticFeedback.selectionClick();
+                                                provider.prevMonth();
+                                              },
+                                              child: Container(
+                                                width: 24,
+                                                height: 24,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.16),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.chevron_left_rounded,
+                                                  size: 16,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'NGÂN SÁCH THÁNG ${provider.selectedMonth}/${provider.selectedYear}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontFamily: 'BeVietnamPro',
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 0.6,
+                                                  color: Color(0xFFE6F7F0),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            GestureDetector(
+                                              onTap: () {
+                                                HapticFeedback.selectionClick();
+                                                provider.nextMonth();
+                                              },
+                                              child: Container(
+                                                width: 24,
+                                                height: 24,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.16),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.chevron_right_rounded,
+                                                  size: 16,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                       const SizedBox(width: 8),
@@ -689,7 +738,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Hãy cùng mèo thần tài Finora thiết lập hạn mức chi tiêu thông minh!',
+                              'Hãy cùng Rồng Ngọc Finora thiết lập hạn mức chi tiêu thông minh!',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: isDark
@@ -706,10 +755,12 @@ class _BudgetScreenState extends State<BudgetScreen>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 18, vertical: 9),
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
+                                  gradient: LinearGradient(
                                     colors: [
-                                      Color(0xFF0F6E56),
-                                      Color(0xFF10B981)
+                                      studio?.resolvedPrimary ??
+                                          const Color(0xFF0F6E56),
+                                      studio?.resolvedSecondary ??
+                                          const Color(0xFF10B981),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -717,7 +768,8 @@ class _BudgetScreenState extends State<BudgetScreen>
                                   borderRadius: BorderRadius.circular(100),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF10B981)
+                                      color: (studio?.resolvedPrimary ??
+                                              const Color(0xFF10B981))
                                           .withValues(alpha: 0.30),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
@@ -725,7 +777,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                                   ],
                                 ),
                                 child: const Text(
-                                  '+ Thêm ngân sách danh mục',
+                                  '+ Thêm ngân sách',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 12.5,
@@ -781,26 +833,33 @@ class _BudgetScreenState extends State<BudgetScreen>
   }
 
   Widget _buildAiAnalyzeButton({required bool isDark}) {
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0D9488);
+    final brandSecondary =
+        studio?.resolvedSecondary ?? const Color(0xFF14B8A6);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: _isAnalyzingAi ? null : _analyzeBudgetsWithAi,
         borderRadius: BorderRadius.circular(100),
         child: Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? const [Color(0xFF0F766E), Color(0xFF14B8A6)]
-                  : const [Color(0xFF0D9488), Color(0xFF2DD4BF)],
+                  ? [
+                      Color.lerp(brandPrimary, Colors.black, 0.14)!,
+                      brandSecondary,
+                    ]
+                  : [brandPrimary, brandSecondary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(100),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0D9488).withValues(alpha: 0.30),
+                color: brandPrimary.withValues(alpha: 0.30),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -811,8 +870,8 @@ class _BudgetScreenState extends State<BudgetScreen>
             children: [
               if (_isAnalyzingAi)
                 const SizedBox(
-                  width: 13,
-                  height: 13,
+                  width: 14,
+                  height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: Colors.white,
@@ -821,7 +880,7 @@ class _BudgetScreenState extends State<BudgetScreen>
               else
                 const Icon(
                   Icons.auto_awesome_rounded,
-                  size: 14,
+                  size: 15,
                   color: Colors.white,
                 ),
               const SizedBox(width: 5),
@@ -829,7 +888,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                 'AI gợi ý',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.2,
                 ),
@@ -845,7 +904,7 @@ class _BudgetScreenState extends State<BudgetScreen>
     return FinoraAddButton(
       onPressed: _openAdd,
       tooltip: 'Thêm ngân sách',
-      size: 34.0,
+      size: 40.0,
     );
   }
 
@@ -877,6 +936,8 @@ class _BudgetScreenState extends State<BudgetScreen>
     // < 75%: Emerald #10B981
     // 75–99%: Amber #F59E0B
     // >= 100%: Rose #E11D48
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF10B981);
     final Color statusColor;
     final String statusLabel;
     if (isExceeded || percent >= 100) {
@@ -886,11 +947,9 @@ class _BudgetScreenState extends State<BudgetScreen>
       statusColor = const Color(0xFFF59E0B);
       statusLabel = 'Sắp vượt';
     } else {
-      statusColor = const Color(0xFF10B981);
+      statusColor = brandPrimary;
       statusLabel = 'An toàn';
     }
-
-    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
     final cardFill = studio?.getCardFillColor(isDark) ??
         (isDark
             ? const Color(0xFF142033).withValues(alpha: 0.88)
@@ -1176,8 +1235,9 @@ class _BudgetScreenState extends State<BudgetScreen>
                                   color: isExceeded
                                       ? const Color(0xFFE11D48)
                                       : (isDark
-                                          ? const Color(0xFF34D399)
-                                          : const Color(0xFF059669)),
+                                          ? (studio?.resolvedSecondary ??
+                                              const Color(0xFF34D399))
+                                          : brandPrimary),
                                 ),
                               ),
                             ),
@@ -1250,130 +1310,66 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
       }
     }
 
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+    final brandSecondary =
+        studio?.resolvedSecondary ?? const Color(0xFF10B981);
     final isEdit = widget.existingBudget != null;
+
+    const quickBudgetAmounts = <(String, int)>[
+      ('500k', 500000),
+      ('1tr', 1000000),
+      ('2tr', 2000000),
+      ('3tr', 3000000),
+      ('5tr', 5000000),
+      ('10tr', 10000000),
+    ];
 
     return GlassBottomSheet(
       radius: 28,
       showHandle: true,
       title: isEdit ? 'Chỉnh sửa ngân sách' : 'Thêm ngân sách danh mục',
-      subtitle: 'Thiết lập hạn mức chi tiêu định kỳ',
+      subtitle: 'Thiết lập hạn mức chi tiêu theo tháng',
       icon: Icons.pie_chart_rounded,
-      iconColor: const Color(0xFFEA580C),
+      iconColor: brandPrimary,
       onClose: () => Navigator.pop(context),
       padding: EdgeInsets.fromLTRB(
-          20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+          20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Chọn danh mục chi tiêu',
+            'Danh mục áp dụng',
             style: TextStyle(
               color: secondaryTextColor,
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           InkWell(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (ctx) => Container(
-                  height: MediaQuery.of(ctx).size.height * 0.65,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(top: 10, bottom: 8),
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white24 : Colors.black12,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Text(
-                              'Chọn danh mục',
-                              style: TextStyle(
-                                fontFamily: 'BeVietnamPro',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () => Navigator.pop(ctx),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          itemCount: categories.length,
-                          separatorBuilder: (_, __) => Divider(
-                            height: 1,
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                          ),
-                          itemBuilder: (ctx, i) {
-                            final c = categories[i];
-                            final isSel = _selectedCategory?.id == c.id;
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              leading: CategoryIconBadge(
-                                icon: c.icon,
-                                categoryName: c.name,
-                                colorHex: c.color,
-                                size: 36,
-                                isDark: isDark,
-                              ),
-                              title: Text(
-                                c.name,
-                                style: TextStyle(
-                                  fontFamily: 'BeVietnamPro',
-                                  fontSize: 14,
-                                  fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              trailing: isSel
-                                  ? const Icon(Icons.check_circle_rounded, color: Color(0xFF00866A), size: 20)
-                                  : null,
-                              onTap: () {
-                                setState(() => _selectedCategory = c);
-                                Navigator.pop(ctx);
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(16),
+            onTap: () => _openCategoryPickerSheet(
+              context: context,
+              categories: categories,
+              isDark: isDark,
+              brandPrimary: brandPrimary,
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+            ),
+            borderRadius: BorderRadius.circular(18),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                  width: 1.0,
+                  color: _selectedCategory != null
+                      ? brandPrimary.withValues(alpha: isDark ? 0.50 : 0.35)
+                      : (isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
+                  width: _selectedCategory != null ? 1.3 : 1.0,
                 ),
               ),
               child: Row(
@@ -1383,64 +1379,105 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                       icon: _selectedCategory!.icon,
                       categoryName: _selectedCategory!.name,
                       colorHex: _selectedCategory!.color,
-                      size: 34,
+                      size: 40,
                       isDark: isDark,
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        _selectedCategory!.name,
-                        style: TextStyle(
-                          fontFamily: 'BeVietnamPro',
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _selectedCategory!.name,
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: primaryTextColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Chạm để đổi danh mục khác',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? brandSecondary : brandPrimary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ] else ...[
                     Container(
-                      width: 34,
-                      height: 34,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: brandPrimary.withValues(alpha: isDark ? 0.20 : 0.10),
+                        border: Border.all(
+                          color: brandPrimary.withValues(alpha: 0.30),
+                          width: 1.0,
+                        ),
                       ),
                       child: Icon(
-                        Icons.category_outlined,
-                        size: 18,
-                        color: secondaryTextColor,
+                        Icons.category_rounded,
+                        size: 20,
+                        color: isDark ? brandSecondary : brandPrimary,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Chạm để chọn danh mục...',
-                        style: TextStyle(
-                          fontFamily: 'BeVietnamPro',
-                          fontSize: 14,
-                          color: secondaryTextColor,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Chạm để chọn danh mục',
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          Text(
+                            'Đồng bộ icon tròn & màu danh mục',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: secondaryTextColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00866A).withValues(alpha: isDark ? 0.20 : 0.08),
-                      borderRadius: BorderRadius.circular(8),
+                      color: brandPrimary.withValues(alpha: isDark ? 0.22 : 0.10),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Đổi ▾',
+                          _selectedCategory != null ? 'Đổi' : 'Chọn',
                           style: TextStyle(
                             fontFamily: 'BeVietnamPro',
                             fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF00866A),
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? brandSecondary : brandPrimary,
                           ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 15,
+                          color: isDark ? brandSecondary : brandPrimary,
                         ),
                       ],
                     ),
@@ -1449,7 +1486,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Text(
             'Hạn mức định mức (VNĐ)',
             style: TextStyle(
@@ -1465,16 +1502,22 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
             inputFormatters: const [DotSeparatorTextInputFormatter()],
             style: TextStyle(
               color: primaryTextColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
             ),
             decoration: InputDecoration(
               filled: true,
               fillColor:
                   isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              hintText: 'Ví dụ: 3.000.000 ₫',
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              hintText: 'Ví dụ: 3.000.000',
+              suffixText: '₫',
+              suffixStyle: TextStyle(
+                color: isDark ? brandSecondary : brandPrimary,
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
@@ -1491,12 +1534,62 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                       : const Color(0xFFE2E8F0),
                 ),
               ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: brandPrimary, width: 1.5),
+              ),
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: quickBudgetAmounts.map((qa) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      _amountController.text =
+                          DotSeparatorTextInputFormatter.formatDigits(
+                        qa.$2.toString(),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            brandPrimary.withValues(alpha: isDark ? 0.18 : 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: brandPrimary.withValues(alpha: 0.25),
+                          width: 0.9,
+                        ),
+                      ),
+                      child: Text(
+                        qa.$1,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? brandSecondary : brandPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
           FinoraPillButton(
             label: isEdit ? 'Lưu thay đổi' : 'Lưu ngân sách',
             primary: true,
+            color: brandPrimary,
             icon: Icons.check_rounded,
             onPressed: () async {
               final digits =
@@ -1547,5 +1640,357 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
         ],
       ),
     );
+  }
+
+  Future<void> _openCategoryPickerSheet({
+    required BuildContext context,
+    required List<Category> categories,
+    required bool isDark,
+    required Color brandPrimary,
+    required Color primaryTextColor,
+    required Color secondaryTextColor,
+  }) async {
+    HapticFeedback.selectionClick();
+    final searchCtrl = TextEditingController();
+    bool isGridMode = true;
+
+    try {
+      await showFinoraGlassModalBottomSheet<void>(
+        context: context,
+        showHandle: true,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final q = searchCtrl.text.trim().toLowerCase();
+            final filtered = q.isEmpty
+                ? categories
+                : categories
+                    .where((c) => c.name.toLowerCase().contains(q))
+                    .toList();
+
+            return Container(
+              height: MediaQuery.sizeOf(ctx).height * 0.72,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                4,
+                16,
+                MediaQuery.paddingOf(ctx).bottom + 14,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: brandPrimary.withValues(alpha: 0.14),
+                        ),
+                        child: Icon(
+                          Icons.category_rounded,
+                          size: 18,
+                          color: brandPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Chọn danh mục ngân sách',
+                              style: TextStyle(
+                                fontFamily: 'BeVietnamPro',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                            Text(
+                              '${filtered.length} danh mục chi tiêu khả dụng',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: secondaryTextColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      FinoraCircleIconButton(
+                        icon: isGridMode
+                            ? Icons.view_list_rounded
+                            : Icons.grid_view_rounded,
+                        size: 34,
+                        iconSize: 17,
+                        tooltip: isGridMode ? 'Dạng danh sách' : 'Dạng lưới',
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setModalState(() => isGridMode = !isGridMode);
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      FinoraCircleIconButton(
+                        icon: Icons.close_rounded,
+                        size: 34,
+                        iconSize: 17,
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: searchCtrl,
+                    onChanged: (_) => setModalState(() {}),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: primaryTextColor,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Tìm nhanh danh mục...',
+                      hintStyle: TextStyle(color: secondaryTextColor),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        size: 19,
+                        color: secondaryTextColor,
+                      ),
+                      suffixIcon: searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: 17,
+                                color: secondaryTextColor,
+                              ),
+                              onPressed: () {
+                                searchCtrl.clear();
+                                setModalState(() {});
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF1F5F9),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(999),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Không tìm thấy danh mục phù hợp',
+                              style: TextStyle(
+                                color: secondaryTextColor,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        : isGridMode
+                            ? GridView.builder(
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: filtered.length,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  mainAxisSpacing: 10,
+                                  crossAxisSpacing: 10,
+                                  childAspectRatio: 0.96,
+                                ),
+                                itemBuilder: (ctx, i) {
+                                  final c = filtered[i];
+                                  final isSel = _selectedCategory?.id == c.id;
+                                  final catTint =
+                                      BankIconRegistry.parseThemeColor(c.color);
+                                  return InkWell(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() => _selectedCategory = c);
+                                      Navigator.pop(ctx);
+                                    },
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 160),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: isSel
+                                            ? brandPrimary.withValues(
+                                                alpha: isDark ? 0.24 : 0.12)
+                                            : (isDark
+                                                ? const Color(0xFF1E293B)
+                                                    .withValues(alpha: 0.72)
+                                                : Colors.white),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isSel
+                                              ? brandPrimary
+                                              : (isDark
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.08)
+                                                  : const Color(0xFFE2E8F0)),
+                                          width: isSel ? 1.6 : 1.0,
+                                        ),
+                                      ),
+                                      child: Stack(
+                                        children: [
+                                          Center(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                CategoryIconBadge(
+                                                  icon: c.icon,
+                                                  categoryName: c.name,
+                                                  colorHex: c.color,
+                                                  color: catTint,
+                                                  size: 46,
+                                                  isDark: isDark,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  c.name,
+                                                  textAlign: TextAlign.center,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    fontWeight: isSel
+                                                        ? FontWeight.w800
+                                                        : FontWeight.w700,
+                                                    color: primaryTextColor,
+                                                    height: 1.2,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (isSel)
+                                            Positioned(
+                                              top: 0,
+                                              right: 0,
+                                              child: Container(
+                                                width: 18,
+                                                height: 18,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: brandPrimary,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.check_rounded,
+                                                  size: 12,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : ListView.separated(
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 8),
+                                itemBuilder: (ctx, i) {
+                                  final c = filtered[i];
+                                  final isSel = _selectedCategory?.id == c.id;
+                                  return InkWell(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() => _selectedCategory = c);
+                                      Navigator.pop(ctx);
+                                    },
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSel
+                                            ? brandPrimary.withValues(
+                                                alpha: isDark ? 0.22 : 0.10)
+                                            : (isDark
+                                                ? const Color(0xFF1E293B)
+                                                    .withValues(alpha: 0.72)
+                                                : Colors.white),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: isSel
+                                              ? brandPrimary
+                                              : (isDark
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.08)
+                                                  : const Color(0xFFE2E8F0)),
+                                          width: isSel ? 1.5 : 1.0,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          CategoryIconBadge(
+                                            icon: c.icon,
+                                            categoryName: c.name,
+                                            colorHex: c.color,
+                                            size: 40,
+                                            isDark: isDark,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              c.name,
+                                              style: TextStyle(
+                                                fontFamily: 'BeVietnamPro',
+                                                fontSize: 14,
+                                                fontWeight: isSel
+                                                    ? FontWeight.w800
+                                                    : FontWeight.w600,
+                                                color: primaryTextColor,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isSel)
+                                            Container(
+                                              width: 22,
+                                              height: 22,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: brandPrimary,
+                                              ),
+                                              child: const Icon(
+                                                Icons.check_rounded,
+                                                size: 14,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    } finally {
+      searchCtrl.dispose();
+    }
   }
 }

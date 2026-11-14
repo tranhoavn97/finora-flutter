@@ -14,6 +14,7 @@ class Wallet {
   final String? bankName;
   final String? accountNumber;
   final String? themeColor;
+  final String? iconUrl;
   final int initialBalance;
   final bool hasInitialBalance;
   final int balance;
@@ -39,6 +40,7 @@ class Wallet {
     this.bankName,
     this.accountNumber,
     this.themeColor,
+    this.iconUrl,
     this.initialBalance = 0,
     this.hasInitialBalance = true,
     this.balance = 0,
@@ -76,6 +78,7 @@ class Wallet {
       bankName: toStringOrNull(d['bankName']),
       accountNumber: toStringOrNull(d['accountNumber']),
       themeColor: toStringOrNull(d['themeColor']),
+      iconUrl: toStringOrNull(d['iconUrl'] ?? d['logoUrl'] ?? d['customLogo']),
       initialBalance: openingBalance ?? 0,
       hasInitialBalance: openingBalance != null,
       balance: toMoneyValue(d['balance']),
@@ -95,7 +98,7 @@ class Wallet {
     );
   }
 
-  Wallet copyWith({int? balance, int? currentDebt}) => Wallet(
+  Wallet copyWith({int? balance, int? currentDebt, String? iconUrl}) => Wallet(
         id: id,
         name: name,
         type: type,
@@ -107,6 +110,7 @@ class Wallet {
         bankName: bankName,
         accountNumber: accountNumber,
         themeColor: themeColor,
+        iconUrl: iconUrl ?? this.iconUrl,
         initialBalance: initialBalance,
         hasInitialBalance: hasInitialBalance,
         balance: balance ?? this.balance,

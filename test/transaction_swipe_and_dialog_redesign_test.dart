@@ -89,11 +89,11 @@ void main() {
 
       // Check bottom sheet options
       expect(find.text('Phân loại theo thành viên'), findsOneWidget);
-      expect(find.text('Chỉ riêng Chồng'), findsOneWidget);
-      expect(find.text('Chỉ riêng Vợ'), findsOneWidget);
+      expect(find.text('Chồng'), findsOneWidget);
+      expect(find.text('Vợ'), findsOneWidget);
 
       // Select 'wife'
-      await tester.tap(find.text('Chỉ riêng Vợ'));
+      await tester.tap(find.text('Vợ'));
       await tester.pumpAndSettle();
 
       expect(selectedMember, 'wife');
@@ -163,8 +163,10 @@ void main() {
 
       expect(find.text('Chỉnh sửa giao dịch'), findsNothing);
 
-      // 2. Perform full swipe right (which triggers onEdit)
-      await tester.drag(find.text('Cà phê sáng 50k'), const Offset(350, 0));
+      // 2. Re-open quick action sheet via long press and trigger edit
+      await tester.longPress(find.text('Cà phê sáng 50k'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chỉnh sửa giao dịch'));
       await tester.pumpAndSettle();
 
       expect(editCalled, isTrue);

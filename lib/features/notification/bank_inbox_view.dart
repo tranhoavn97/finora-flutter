@@ -1,14 +1,18 @@
 import '../../core/widgets/adaptive_glass_surface.dart';
+import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/services/bank_notification_parser.dart';
 import '../../core/services/bank_sync_service.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/bank_transaction_prompt_sheet.dart';
+import '../../data/models/transaction.dart';
+import '../../state/transaction_provider.dart';
 
 class BankInboxView extends StatefulWidget {
   final String userId;
@@ -41,6 +45,68 @@ class _BankInboxViewState extends State<BankInboxView> {
       transaction: tx,
       userId: widget.userId,
     );
+  }
+
+  Future<void> _quickSave(ParsedBankTransaction tx) async {
+    final txProv = Provider.of<TransactionProvider?>(context, listen: false);
+    if (txProv == null) {
+      await _review(tx);
+      return;
+    }
+    final wallets = txProv.wallets;
+    if (wallets.isEmpty) {
+      await _review(tx);
+      return;
+    }
+    final bankNorm = tx.bankName.toLowerCase();
+    final matchedWallet = wallets.firstWhere(
+      (w) =>
+          w.name.toLowerCase().contains(bankNorm) ||
+          bankNorm.contains(w.name.toLowerCase()),
+      orElse: () => wallets.first,
+    );
+    final isIncome = tx.type == 'income';
+    final categories = txProv.categories
+        .where((c) =>
+            !c.isArchived &&
+            c.categoryGroup == (isIncome ? 'income' : 'expense'))
+        .toList();
+    final matchedCat = categories.isNotEmpty ? categories.first : null;
+    final cleanCode = tx.transactionCode.trim();
+    final newTx = TransactionModel(
+      id: 'bank_quick_${DateTime.now().microsecondsSinceEpoch}',
+      userId: widget.userId,
+      amount: tx.amount.round(),
+      type: tx.isTransfer ? 'transfer' : (isIncome ? 'income' : 'expense'),
+      categoryId: matchedCat?.id ?? (isIncome ? 'cat_salary' : 'cat_food'),
+      categoryName: matchedCat?.name ?? (isIncome ? 'Thu nhập' : 'Ăn uống'),
+      categoryIcon: matchedCat?.icon ?? (isIncome ? '💰' : '🍜'),
+      categoryColor: matchedCat?.color ?? (isIncome ? '#10B981' : '#F43F5E'),
+      categoryGroup: isIncome ? 'income' : 'expense',
+      walletId: matchedWallet.id,
+      walletName: matchedWallet.name,
+      date: tx.timestamp.millisecondsSinceEpoch,
+      note: tx.note.trim().isNotEmpty ? tx.note.trim() : tx.bankName,
+      bankTransactionCode: cleanCode.isNotEmpty ? cleanCode : null,
+      owner: matchedWallet.owner,
+      ownerName: matchedWallet.ownerName,
+    );
+    try {
+      await txProv.createTransaction(widget.userId, newTx);
+      await _bank.acknowledge(tx.rawId);
+      if (mounted) {
+        FinoraNotice.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã ghi nhanh giao dịch vào sổ.'),
+            backgroundColor: Color(0xFF059669),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        await _review(tx);
+      }
+    }
   }
 
   @override
@@ -222,6 +288,7 @@ class _BankInboxViewState extends State<BankInboxView> {
               ...pending.map(
                 (tx) => _PendingTile(
                   tx: tx,
+                  onQuickSave: () => _quickSave(tx),
                   onReview: () => _review(tx),
                   onDismiss: () => _bank.acknowledge(tx.rawId),
                 ),
@@ -821,10 +888,12 @@ class _StatusCard extends StatelessWidget {
 
 class _PendingTile extends StatelessWidget {
   final ParsedBankTransaction tx;
+  final VoidCallback? onQuickSave;
   final VoidCallback onReview;
   final VoidCallback onDismiss;
   const _PendingTile({
     required this.tx,
+    this.onQuickSave,
     required this.onReview,
     required this.onDismiss,
   });
@@ -875,25 +944,15 @@ class _PendingTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark
-                            ? const Color(0xFF0F172A)
-                            : const Color(0xFFF8FAFC),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.10)
-                              : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: Center(
+                    SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: ClipOval(
                         child: BankIcon(
                           bankCode: tx.bankCode,
                           bankName: tx.bankName,
-                          size: 28,
+                          size: 44,
+                          fullBleed: true,
                         ),
                       ),
                     ),
@@ -1076,40 +1135,97 @@ class _PendingTile extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        onDismiss();
-                      },
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        height: 38,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF0F172A)
-                              : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onDismiss();
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
                             color: isDark
-                                ? Colors.white.withValues(alpha: 0.10)
-                                : const Color(0xFFCBD5E1),
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : const Color(0xFFCBD5E1),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          'Bỏ qua',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF475569),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Bỏ qua',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF475569),
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    if (onQuickSave != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            onQuickSave!();
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F6E56)
+                                  .withValues(alpha: isDark ? 0.24 : 0.10),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFF0F6E56)
+                                    .withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.bolt_rounded,
+                                    size: 15,
+                                    color: isDark
+                                        ? const Color(0xFF34D399)
+                                        : const Color(0xFF0F6E56),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Ghi nhanh',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? const Color(0xFF34D399)
+                                          : const Color(0xFF0F6E56),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
                     Expanded(
                       child: InkWell(
                         onTap: () {
@@ -1118,7 +1234,7 @@ class _PendingTile extends StatelessWidget {
                         },
                         borderRadius: BorderRadius.circular(999),
                         child: Container(
-                          height: 38,
+                          height: 40,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -1145,24 +1261,30 @@ class _PendingTile extends StatelessWidget {
                               ),
                             ],
                           ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.check_circle_outline_rounded,
-                                size: 16,
-                                color: Colors.white,
+                          child: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_outline_rounded,
+                                    size: 15,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: 5),
+                                  Text(
+                                    'Kiểm tra',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Kiểm tra & ghi vào sổ',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -1220,25 +1342,23 @@ class _UnrecognizedTile extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark
-                            ? const Color(0xFF0F172A)
-                            : const Color(0xFFF8FAFC),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.10)
-                              : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: Center(
+                    SizedBox(
+                      width: 42,
+                      height: 42,
+                      child: ClipOval(
                         child: BankIcon(
-                          bankCode: BankNotificationParser.resolveBank(rawId, title, text).code,
-                          bankName: BankNotificationParser.resolveBank(rawId, title, text).name,
-                          size: 26,
+                          bankCode: BankNotificationParser.resolveBank(
+                            rawId,
+                            title,
+                            text,
+                          ).code,
+                          bankName: BankNotificationParser.resolveBank(
+                            rawId,
+                            title,
+                            text,
+                          ).name,
+                          size: 42,
+                          fullBleed: true,
                         ),
                       ),
                     ),
@@ -1278,35 +1398,37 @@ class _UnrecognizedTile extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        onAcknowledge();
-                      },
-                      child: Container(
-                        height: 34,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF0F172A)
-                              : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onAcknowledge();
+                        },
+                        child: Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
                             color: isDark
-                                ? Colors.white.withValues(alpha: 0.10)
-                                : const Color(0xFFCBD5E1),
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : const Color(0xFFCBD5E1),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          'Bỏ qua',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF475569),
+                          child: Text(
+                            'Bỏ qua',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF475569),
+                            ),
                           ),
                         ),
                       ),
@@ -1320,7 +1442,7 @@ class _UnrecognizedTile extends StatelessWidget {
                           onReview();
                         },
                         child: Container(
-                          height: 34,
+                          height: 40,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
@@ -1328,24 +1450,30 @@ class _UnrecognizedTile extends StatelessWidget {
                             ),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.category_rounded,
-                                size: 15,
-                                color: Colors.white,
+                          child: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.category_rounded,
+                                    size: 15,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Phân loại',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Chọn danh mục & Lưu',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),

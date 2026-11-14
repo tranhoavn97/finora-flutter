@@ -23,13 +23,14 @@ class FinoraDateQuickBar extends StatelessWidget {
       (DateFilterOption.today, 'Hôm nay'),
       (DateFilterOption.thisWeek, 'Tuần này'),
       (DateFilterOption.thisMonth, 'Tháng này'),
+      (DateFilterOption.lastMonth, 'Tháng trước'),
       (DateFilterOption.thisYear, 'Năm nay'),
     ];
 
     final isCustom = selected.option == DateFilterOption.customDate ||
         selected.option == DateFilterOption.customMonth ||
         selected.option == DateFilterOption.yesterday ||
-        selected.option == DateFilterOption.lastMonth;
+        selected.option == DateFilterOption.customRange;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

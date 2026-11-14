@@ -1,3 +1,4 @@
+import '../../core/widgets/finora_modal_scope.dart';
 import '../../core/widgets/finora_notice.dart';
 import 'fresh_goal_detail.dart';
 import '../../core/widgets/finora/financial_components.dart' show MoneyText;
@@ -230,20 +231,27 @@ class _GoalScreenState extends State<GoalScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _goalFilter == 'completed'
-                              ? 'Đã hoàn thành'
-                              : (_goalFilter == 'near'
-                                  ? 'Sắp đạt mục tiêu'
-                                  : 'Danh sách mục tiêu'),
-                          style: TextStyle(
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                        Expanded(
+                          child: Text(
+                            _goalFilter == 'completed'
+                                ? 'Đã hoàn thành'
+                                : (_goalFilter == 'near'
+                                    ? 'Sắp đạt mục tiêu'
+                                    : 'Danh sách mục tiêu'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               '${displayGoals.length} mục tiêu',
@@ -324,10 +332,11 @@ class _GoalScreenState extends State<GoalScreen>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const FinoraMascotImage(
-                              pose: FinoraMascotPose.celebrate,
-                              size: 76,
-                              withGlow: true,
+                            const FinoraInteractive3DMascot(
+                              pose: FinoraMascotPose.goal,
+                              size: 84,
+                              enableFloatingAnimation: true,
+                              enableTouch3DRotation: true,
                             ),
                             const SizedBox(height: 10),
                             Text(
@@ -378,7 +387,7 @@ class _GoalScreenState extends State<GoalScreen>
                                   ],
                                 ),
                                 child: const Text(
-                                  '+ Tạo mục tiêu mới',
+                                  '+ Tạo mục tiêu',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 12.5,
@@ -1293,6 +1302,15 @@ class _AddGoalPageState extends State<AddGoalPage> {
 
   @override
   Widget build(BuildContext context) {
+    return FinoraModalScope(
+      child: Theme(
+        data: FinoraModalScope.opaqueModalTheme(context),
+        child: Builder(builder: _buildScopedContent),
+      ),
+    );
+  }
+
+  Widget _buildScopedContent(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final secondaryTextColor =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;

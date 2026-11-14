@@ -286,14 +286,14 @@ class _AuthScreenState extends State<AuthScreen>
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Hero Bento Brand Card
                       _buildHeroBrandBanner(isDark, primary, secondary),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Main Glassmorphic Auth Card
                       FadeTransition(
@@ -306,12 +306,12 @@ class _AuthScreenState extends State<AuthScreen>
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Feature Highlight Pills
                       _buildFeatureHighlights(isDark, primary),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
                       // Security Footer
                       _buildSecurityFooter(isDark, primary),
@@ -337,10 +337,10 @@ class _AuthScreenState extends State<AuthScreen>
 
     switch (_mode) {
       case AuthMode.login:
-        badgeText = 'CHÀO MỪNG TRỞ LẠI';
+        badgeText = 'FINORA CLOUD LEDGER • 256-BIT';
         title = 'Đăng nhập Finora';
         subtitle =
-            'Đồng bộ sổ thu chi gia đình, ngân hàng & kế hoạch tài chính thông minh';
+            'Đồng bộ sổ thu chi Vợ & Chồng, quét mã VietQR & trợ lý AI tài chính';
         break;
       case AuthMode.signup:
         badgeText = 'KHỞI ĐẦU THỊNH VƯỢNG';
@@ -357,7 +357,7 @@ class _AuthScreenState extends State<AuthScreen>
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -370,23 +370,23 @@ class _AuthScreenState extends State<AuthScreen>
                       const Color(0xFF111E24)),
                 ]
               : [
-                  Colors.white.withValues(alpha: 0.94),
+                  Colors.white.withValues(alpha: 0.96),
                   Color.alphaBlend(
-                      primary.withValues(alpha: 0.07), Colors.white),
+                      primary.withValues(alpha: 0.08), Colors.white),
                 ],
         ),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isDark
-              ? Colors.white.withValues(alpha: 0.12)
-              : primary.withValues(alpha: 0.16),
+              ? Colors.white.withValues(alpha: 0.14)
+              : primary.withValues(alpha: 0.18),
           width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
             color: primary.withValues(alpha: isDark ? 0.18 : 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -396,11 +396,11 @@ class _AuthScreenState extends State<AuthScreen>
             children: [
               // Mascot App Icon with subtle quartz ring
               Container(
-                width: 60,
-                height: 60,
+                width: 56,
+                height: 56,
                 padding: const EdgeInsets.all(2.5),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(17),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -412,29 +412,29 @@ class _AuthScreenState extends State<AuthScreen>
                   boxShadow: [
                     BoxShadow(
                       color: primary.withValues(alpha: isDark ? 0.45 : 0.24),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15.5),
+                  borderRadius: BorderRadius.circular(14.5),
                   child: Image.asset(
                     'assets/mascot/app-icon.png',
-                    width: 55,
-                    height: 55,
+                    width: 51,
+                    height: 51,
                     fit: BoxFit.cover,
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 3.5),
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: primary.withValues(alpha: isDark ? 0.22 : 0.10),
                         borderRadius: BorderRadius.circular(999),
@@ -460,9 +460,9 @@ class _AuthScreenState extends State<AuthScreen>
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontFamily: _font,
-                                fontSize: 10,
+                                fontSize: 9.8,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 0.6,
+                                letterSpacing: 0.55,
                                 color:
                                     isDark ? const Color(0xFF34D399) : primary,
                               ),
@@ -471,12 +471,12 @@ class _AuthScreenState extends State<AuthScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Text(
                       title,
                       style: TextStyle(
                         fontFamily: _font,
-                        fontSize: 21,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
                         height: 1.18,
@@ -488,15 +488,15 @@ class _AuthScreenState extends State<AuthScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             subtitle,
             style: TextStyle(
               fontFamily: _font,
-              fontSize: 12.8,
+              fontSize: 12.5,
               fontWeight: FontWeight.w500,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
-              height: 1.4,
+              height: 1.38,
             ),
           ),
         ],
@@ -514,27 +514,27 @@ class _AuthScreenState extends State<AuthScreen>
     final passwordStrength = _computePasswordStrength(_passwordController.text);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
+      borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
           decoration: BoxDecoration(
             color: isDark
-                ? const Color(0xFF111C1A).withValues(alpha: 0.92)
-                : Colors.white.withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(26),
+                ? const Color(0xFF111C1A).withValues(alpha: 0.94)
+                : Colors.white.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.10)
+                  ? Colors.white.withValues(alpha: 0.12)
                   : const Color(0xFFE2ECE8),
               width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.38 : 0.05),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -544,7 +544,7 @@ class _AuthScreenState extends State<AuthScreen>
               // 1. Segmented Pill Mode Switcher (Đăng nhập | Đăng ký)
               if (_mode != AuthMode.forgotPassword) ...[
                 _buildSeamlessModeTabs(isDark, primary),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
               ],
 
               // 2. Full Name (Signup only)

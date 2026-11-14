@@ -20,6 +20,7 @@ import '../../state/transaction_provider.dart';
 import '../../state/budget_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../../core/theme/finora_tokens.dart';
+import '../transaction/add_transaction_page.dart';
 
 /// Free on-device assistant for ledger reports and confirmed income/expense drafts.
 class AiAdvisorScreen extends StatefulWidget {
@@ -50,12 +51,14 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
   final Map<SmartTransactionParsed, String> _draftCategoryIds = {};
 
   final List<String> _quickSuggestions = const [
+    '👫 So sánh chi tiêu Vợ & Chồng',
+    '🎯 Đánh giá sức khỏe tài chính tháng này',
     '🍽️ Ăn uống tháng này đã chi bao nhiêu?',
     '💰 Gợi ý tiết kiệm từ chi tiêu thực tế',
     '💳 Kiểm tra hạn mức thẻ tín dụng',
-    'Hướng dẫn ghi giao dịch bằng trò chuyện',
     '📈 So sánh chi tiêu với tháng trước',
     '📊 Cơ cấu thu chi tháng này thế nào?',
+    'Hướng dẫn ghi giao dịch bằng trò chuyện',
   ];
 
   @override
@@ -223,6 +226,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
             : owner == 'joint'
                 ? 'Chung'
                 : 'Chồng';
+        provider.syncFamilyScope(widget.userId, widget.familyId);
         await provider.createTransaction(
           widget.userId,
           TransactionModel(
@@ -326,9 +330,9 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                   controller: _scroll,
                   physics: const BouncingScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
-                    16,
+                    studio?.pageHorizontalMargin ?? 12,
                     GlassScaffold.topInset(context, 6, 52),
-                    16,
+                    studio?.pageHorizontalMargin ?? 12,
                     16,
                   ),
                             children: [
@@ -382,8 +386,10 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                           child: Wrap(spacing: 8, runSpacing: 6, children: [
                             for (final suggestion in [
                               'Liệt kê từng khoản',
+                              'So sánh Vợ & Chồng',
                               'So sánh với tháng trước',
-                              'Gợi ý cắt giảm'
+                              'Gợi ý cắt giảm',
+                              'Đánh giá sức khỏe tài chính',
                             ])
                               ActionChip(
                                   label: Text(suggestion,
@@ -545,41 +551,12 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
           ),
           Column(
             children: [
-              Center(
-                child: Container(
-                  width: 82,
-                  height: 82,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: (isDark
-                            ? const Color(0xFF0F6E56)
-                            : const Color(0xFFE8F5F0))
-                        .withValues(alpha: isDark ? 0.35 : 0.65),
-                    border: Border.all(
-                      color: const Color(0xFF10B981)
-                          .withValues(alpha: isDark ? 0.40 : 0.30),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF10B981)
-                            .withValues(alpha: isDark ? 0.25 : 0.15),
-                        blurRadius: 18,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/mascot/animation-keypose-01-idle.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Image.asset(
-                        'assets/mascot/expression-01-happy.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
+              const Center(
+                child: FinoraInteractive3DMascot(
+                  pose: FinoraMascotPose.hero,
+                  size: 88,
+                  enableFloatingAnimation: true,
+                  enableTouch3DRotation: true,
                 ),
               ),
               const SizedBox(height: 12),
@@ -1293,6 +1270,41 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
               ),
             ],
           ),
+          if (_pendingTransactions.length == 1) ...[
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: _savingDrafts
+                    ? null
+                    : () {
+                        final draft = _pendingTransactions.first;
+                        final cat =
+                            _resolveCategory(draft, provider.categories);
+                        final wal = _resolveWallet(draft, provider.wallets);
+                        setState(() => _pendingTransactions = []);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            fullscreenDialog: true,
+                            builder: (_) => AddTransactionPage(
+                              userId: widget.userId,
+                              initialType: draft.type,
+                              initialAmount: draft.amount,
+                              initialNote: draft.note,
+                              initialCategoryId: cat?.id,
+                              initialWalletId: wal?.id,
+                            ),
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                label: const Text(
+                  'Mở form Tạo giao dịch chi tiết',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

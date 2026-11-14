@@ -164,6 +164,74 @@ class AssistantLedgerAnswers {
     final source =
         '> Số liệu sổ FINORA · ${period.label} (chuyển khoản nội bộ không tính thu/chi).';
 
+    if (has(q, 'vo va chong|vo chong|chong va vo|ai chi nhieu')) {
+      final activePeriod = period!;
+      final allInPeriod = transactions
+          .where((t) =>
+              FinanceScope(
+                      start: activePeriod.start,
+                      end: activePeriod.end,
+                      walletId: wallet?.id)
+                  .contains(t) &&
+              (category == null ||
+                  norm(t.categoryName ?? '') == norm(category)))
+          .toList();
+      final husbandExp = allInPeriod
+          .where((t) =>
+              FinanceSummary.isExpense(t) &&
+              (t.owner == 'husband' ||
+                  norm(t.creatorTag ?? '').contains('chong')))
+          .fold<int>(0, (s, t) => s + t.amount);
+      final wifeExp = allInPeriod
+          .where((t) =>
+              FinanceSummary.isExpense(t) &&
+              (t.owner == 'wife' || norm(t.creatorTag ?? '').contains('vo')))
+          .fold<int>(0, (s, t) => s + t.amount);
+      final jointExp = (FinanceSummary.from(allInPeriod).expense -
+              husbandExp -
+              wifeExp)
+          .clamp(0, 1 << 60);
+      final totalFamExp = husbandExp + wifeExp + jointExp;
+      final hPct = totalFamExp > 0
+          ? (husbandExp / totalFamExp * 100).toStringAsFixed(1)
+          : '0.0';
+      final wPct = totalFamExp > 0
+          ? (wifeExp / totalFamExp * 100).toStringAsFixed(1)
+          : '0.0';
+      return LedgerAnswer(
+          '## So sánh chi tiêu Vợ & Chồng · ${period.label}\n'
+          '${metric('Tổng chi gia đình', totalFamExp)}\n'
+          '${metric('Chi tiêu Chồng', husbandExp)}\n'
+          '${metric('Chi tiêu Vợ', wifeExp)}\n'
+          '${jointExp > 0 ? '${metric('Khoản chung', jointExp)}\n' : ''}\n'
+          '• **Tỷ trọng Chồng:** $hPct% tổng chi (${money(husbandExp)})\n'
+          '• **Tỷ trọng Vợ:** $wPct% tổng chi (${money(wifeExp)})\n\n'
+          '${totalFamExp == 0 ? 'Chưa có khoản chi nào được ghi nhận trong kỳ này.' : husbandExp == wifeExp ? 'Hai vợ chồng có mức chi tiêu ngang nhau trong kỳ này.' : '**${husbandExp > wifeExp ? 'Chồng' : 'Vợ'}** đang chi nhiều hơn **${money((husbandExp - wifeExp).abs())}**.'}\n\n'
+          '$source',
+          context);
+    }
+
+    if (has(q, 'suc khoe tai chinh|danh gia tai chinh|50/30/20')) {
+      final net = summary.income - summary.expense;
+      final saveRate = summary.income > 0
+          ? ((net / summary.income) * 100).clamp(-999.0, 100.0)
+          : 0.0;
+      final daysElapsed =
+          (now.difference(period.start).inDays + 1).clamp(1, 31);
+      final avgDaily = (summary.expense / daysElapsed).round();
+      return LedgerAnswer(
+          '## Đánh giá sức khỏe tài chính · $titleScope\n'
+          '${metric('Tổng thu', summary.income)}\n'
+          '${metric('Tổng chi', summary.expense)}\n'
+          '${metric(net >= 0 ? 'Thặng dư ròng' : 'Thâm hụt', net.abs())}\n\n'
+          '• **Tốc độ chi trung bình:** **${money(avgDaily)}/ngày** ($daysElapsed ngày)\n'
+          '• **Tỷ lệ tiết kiệm thực tế:** **${summary.income > 0 ? '${saveRate.toStringAsFixed(1)}%' : 'Chưa có thu nhập'}**\n'
+          '${summary.income > 0 ? '• **Mục tiêu 20% tiết kiệm chuẩn:** **${money((summary.income * 0.2).round())}**\n' : ''}\n'
+          '${sorted.isNotEmpty ? '### Danh mục chiếm tỷ trọng cao nhất\n• **${sorted.first.key}:** ${money(sorted.first.value)} · ${summary.expense > 0 ? (sorted.first.value / summary.expense * 100).toStringAsFixed(1) : '0'}% · ${expenses.where((t) => (t.categoryName ?? 'Chưa có danh mục') == sorted.first.key).length} khoản\n\n' : ''}'
+          '$source',
+          context);
+    }
+
     if (has(q, 'ngan sach|vuot han muc')) {
       if (!budgetsReady)
         return LedgerAnswer(

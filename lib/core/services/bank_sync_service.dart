@@ -290,13 +290,19 @@ class BankSyncService extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    try {
-      if (supported && !kIsWeb) {
-        await _channel.invokeMethod<bool>('acknowledgeNotifications', {
+    if (!kIsWeb) {
+      bool? ok;
+      try {
+        ok = await _channel.invokeMethod<bool>('acknowledgeNotifications', {
           'ids': idsToAck,
         });
+      } on MissingPluginException {
+        if (supported) rethrow;
       }
-    } catch (_) {}
+      if (ok == false || (supported && ok != true)) {
+        throw StateError('acknowledge_failed');
+      }
+    }
     for (final ackId in idsToAck) {
       _pending.remove(ackId);
       _unrecognized.remove(ackId);

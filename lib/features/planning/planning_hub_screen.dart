@@ -458,6 +458,7 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
+    final primary = studio?.resolvedPrimary ?? FinoraTokens.appleMint;
     final (List<Color> heroGradient, Color accentShadowColor) =
         switch (selectedTab) {
       1 => (
@@ -469,8 +470,12 @@ class _PlanningHubScreenState extends State<PlanningHubScreen> {
           FinoraTokens.appleCobalt,
         ),
       _ => (
-          const [Color(0xFF062319), Color(0xFF093627), Color(0xFF0D4532)],
-          FinoraTokens.appleMint,
+          [
+            Color.lerp(primary, const Color(0xFF030712), 0.72)!,
+            Color.lerp(primary, const Color(0xFF030712), 0.48)!,
+            Color.lerp(primary, const Color(0xFF030712), 0.22)!,
+          ],
+          primary,
         ),
     };
 

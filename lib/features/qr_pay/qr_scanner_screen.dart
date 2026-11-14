@@ -274,6 +274,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     VietQrData data, {
     QrPaymentDraft? resumeDraft,
   }) async {
+    if (widget.userId.isEmpty || widget.userId == 'guest') {
+      QrPaymentDraftStore.pendingAutoResumeInSession = true;
+    }
     try {
       await _controller.stop();
     } catch (_) {}

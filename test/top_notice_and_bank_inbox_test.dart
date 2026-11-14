@@ -130,7 +130,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
     expect(find.text('Giao dịch chờ (1)'), findsOneWidget);
-    expect(find.text('Kiểm tra & ghi vào sổ'), findsOneWidget);
+    expect(find.text('Kiểm tra'), findsOneWidget);
     expect(more.isRefreshing, isTrue);
     // Opening the inbox must not consume the native event or write the ledger.
     expect(bank.pending, hasLength(1));

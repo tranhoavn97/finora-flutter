@@ -78,7 +78,8 @@ void main() {
 
     // 3. Verify Real Settings & Utilities
     expect(find.text('Danh mục thu chi'), findsOneWidget);
-    expect(find.text('Thông báo'), findsOneWidget);
+    expect(find.text('Thông báo & Biến động số dư'), findsOneWidget);
+    expect(find.text('Đọc biến động ngân hàng (BETA)'), findsNothing);
     expect(find.text('Chế độ hiển thị & Giao diện'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Lịch sử thay đổi'), 150);
     expect(find.text('Lịch sử thay đổi'), findsOneWidget);

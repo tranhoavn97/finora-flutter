@@ -9,8 +9,9 @@ import '../services/bank_notification_parser.dart';
 import '../services/bank_sync_service.dart';
 import '../utils/formatters.dart';
 import 'bank_icon.dart';
+import 'finora_modal_scope.dart';
 import 'finora_notice.dart';
-import 'finora_transaction_success_modal.dart';
+import 'glass_widgets.dart';
 import 'premium_widgets.dart';
 import '../../data/models/category.dart';
 import '../../data/models/transaction.dart';
@@ -42,7 +43,7 @@ class BankTransactionPromptSheet extends StatefulWidget {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SizedBox(
-        height: screenH * 0.95,
+        height: screenH,
         child: Container(
           decoration: const BoxDecoration(
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -76,6 +77,7 @@ class _BankTransactionPromptSheetState
   bool _savedAwaitingAck = false;
   String? _validationError;
   bool _showRawText = true;
+  bool _syncBalanceToBank = false;
 
   Wallet? _findBestWallet(List<Wallet> wallets, ParsedBankTransaction tx) {
     if (wallets.isEmpty) return null;
@@ -92,12 +94,50 @@ class _BankTransactionPromptSheetState
       if (acctMatch != null) return acctMatch;
     }
 
-    // 2. Lọc các ví khớp tên ngân hàng hoặc mã ngân hàng (MB, Techcombank, VCB, ACB, VPBank,...)
+    // 2. Khớp chuẩn mã thương hiệu ngân hàng thông qua BankIconRegistry (hỗ trợ 38+ ngân hàng & ví điện tử)
+    final resolvedTxBrand =
+        BankIconRegistry.resolve(tx.bankCode, bankName: tx.bankName);
+    if (resolvedTxBrand.code != 'cash') {
+      final brandMatches = wallets.where((w) {
+        final wBrand = BankIconRegistry.resolve(
+          w.bankCode,
+          bankName: w.bankName ?? w.name,
+        );
+        return wBrand.code == resolvedTxBrand.code;
+      }).toList();
+      if (brandMatches.length == 1) return brandMatches.first;
+      if (brandMatches.length > 1) {
+        final notifBal = tx.balanceAfter;
+        if (notifBal != null) {
+          Wallet? closest;
+          double minDiff = double.infinity;
+          for (final w in brandMatches) {
+            final wBal = w.balance.toDouble();
+            final diffDirect = (wBal - notifBal).abs();
+            final diffPreTx = tx.isExpense
+                ? (wBal - (notifBal + tx.amount)).abs()
+                : (wBal - (notifBal - tx.amount)).abs();
+            final diff = math.min(diffDirect, diffPreTx);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closest = w;
+            }
+          }
+          if (closest != null) return closest;
+        }
+        return brandMatches.first;
+      }
+    }
+
+    // 3. Lọc các ví khớp tên ngân hàng hoặc mã ngân hàng (bao gồm NCB Quốc Dân và toàn bộ 66+ ngân hàng / ví điện tử)
     final bankKeywords = <String>{
       tx.bankCode.toLowerCase(),
       tx.bankName.toLowerCase(),
     };
     final bLower = '${tx.bankName} ${tx.bankCode}'.toLowerCase();
+    if (bLower.contains('ncb') || bLower.contains('quốc dân') || bLower.contains('quoc dan') || bLower.contains('izimobile')) {
+      bankKeywords.addAll(['ncb', 'quốc dân', 'quoc dan', 'izimobile']);
+    }
     if (bLower.contains('mb') || bLower.contains('mbbank')) {
       bankKeywords.addAll(['mb', 'mbbank', 'quân đội', 'quan doi']);
     }
@@ -136,6 +176,10 @@ class _BankTransactionPromptSheetState
     }
     if (bLower.contains('viettel')) {
       bankKeywords.addAll(['viettel', 'viettel money', 'vtpay']);
+    }
+    if (resolvedTxBrand.code != 'cash') {
+      bankKeywords.add(resolvedTxBrand.code.toLowerCase());
+      bankKeywords.add(resolvedTxBrand.name.toLowerCase());
     }
 
     final bankMatches = wallets.where((w) {
@@ -425,158 +469,336 @@ class _BankTransactionPromptSheetState
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return AdaptiveGlassSurface(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(ctx).size.height * 0.65,
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (ctx, setStateSheet) {
+            final q = searchQuery.trim().toLowerCase();
+            final filteredWallets = q.isEmpty
+                ? wallets
+                : wallets
+                    .where((w) =>
+                        w.name.toLowerCase().contains(q) ||
+                        (w.bankName?.toLowerCase().contains(q) ?? false) ||
+                        (w.bankCode?.toLowerCase().contains(q) ?? false))
+                    .toList();
+
+            return AnimatedPadding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutQuad,
+              child: GlassBottomSheet(
+                radius: 32,
+                child: SafeArea(
+                  top: false,
                   child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black12,
-                      borderRadius: BorderRadius.circular(999),
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx).size.height * 0.78,
+                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF059669)
+                                    .withValues(alpha: isDark ? 0.22 : 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                size: 18,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isDestination
+                                        ? 'Chọn ví nhận tiền'
+                                        : 'Chọn ví giao dịch',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Số dư ví được đồng bộ tự động theo thông báo ngân hàng',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => Navigator.pop(ctx),
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : const Color(0xFFF1F5F9),
+                                ),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          height: 42,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.search_rounded,
+                                size: 18,
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  onChanged: (val) =>
+                                      setStateSheet(() => searchQuery = val),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Tìm nhanh ví hoặc ngân hàng...',
+                                    hintStyle: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark
+                                          ? const Color(0xFF64748B)
+                                          : const Color(0xFF94A3B8),
+                                    ),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: filteredWallets.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (_, index) {
+                              final w = filteredWallets[index];
+                              final selected = w.id == currentId;
+                              final ownerIsWife =
+                                  w.owner.toLowerCase() == 'wife' ||
+                                      w.ownerName.toLowerCase().contains('vợ');
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () => Navigator.pop(ctx, w.id),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: selected
+                                          ? const Color(0xFF059669).withValues(
+                                              alpha: isDark ? 0.22 : 0.10)
+                                          : (isDark
+                                              ? const Color(0xFF0F172A)
+                                              : const Color(0xFFF8FAFC)),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: selected
+                                            ? const Color(0xFF059669)
+                                            : (isDark
+                                                ? Colors.white
+                                                    .withValues(alpha: 0.08)
+                                                : const Color(0xFFE2E8F0)),
+                                        width: selected ? 1.4 : 1.0,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        BankIcon(
+                                          bankCode: w.bankCode ?? w.type,
+                                          bankName: w.bankName ?? w.name,
+                                          customIconUrl: w.iconUrl,
+                                          size: 40,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                w.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 14.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : const Color(0xFF0F172A),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    w.isCreditCard
+                                                        ? 'Thẻ tín dụng'
+                                                        : (w.type == 'bank'
+                                                            ? 'Ngân hàng'
+                                                            : 'Tiền mặt'),
+                                                    style: TextStyle(
+                                                      fontSize: 11.5,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: isDark
+                                                          ? const Color(
+                                                              0xFF94A3B8)
+                                                          : const Color(
+                                                              0xFF64748B),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 1.5,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: ownerIsWife
+                                                          ? (isDark
+                                                              ? const Color(
+                                                                  0xFF500724)
+                                                              : const Color(
+                                                                  0xFFFCE7F3))
+                                                          : (isDark
+                                                              ? const Color(
+                                                                  0xFF082F49)
+                                                              : const Color(
+                                                                  0xFFE0F2FE)),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              999),
+                                                    ),
+                                                    child: Text(
+                                                      ownerIsWife
+                                                          ? 'Vợ'
+                                                          : 'Chồng',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: ownerIsWife
+                                                            ? const Color(
+                                                                0xFFDB2777)
+                                                            : const Color(
+                                                                0xFF0284C7),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              formatVND(w.balance),
+                                              style: const TextStyle(
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF059669),
+                                              ),
+                                            ),
+                                            Text(
+                                              'Số dư',
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (selected) ...[
+                                          const SizedBox(width: 8),
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Color(0xFF059669),
+                                            size: 20,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  isDestination ? 'Chọn ví nhận tiền' : 'Chọn ví giao dịch',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Số dư ví sẽ được tự động cập nhật theo giao dịch này',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: wallets.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, index) {
-                      final w = wallets[index];
-                      final selected = w.id == currentId;
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () => Navigator.pop(ctx, w.id),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? const Color(0xFF059669)
-                                      .withValues(alpha: isDark ? 0.22 : 0.10)
-                                  : (isDark
-                                      ? const Color(0xFF0F172A)
-                                      : const Color(0xFFF8FAFC)),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: selected
-                                    ? const Color(0xFF059669)
-                                    : (isDark
-                                        ? Colors.white.withValues(alpha: 0.08)
-                                        : const Color(0xFFE2E8F0)),
-                                width: selected ? 1.4 : 1.0,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                AdaptiveGlassSurface(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isDark
-                                        ? const Color(0xFF1E293B)
-                                        : Colors.white,
-                                    border: Border.all(
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: 0.10)
-                                          : const Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: BankIcon(
-                                      bankCode: w.bankCode ?? w.type,
-                                      bankName: w.bankName ?? w.name,
-                                      size: 26,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        w.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w800,
-                                          color: isDark
-                                              ? Colors.white
-                                              : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        formatVND(w.balance),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? const Color(0xFF94A3B8)
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (selected)
-                                  const Icon(
-                                    Icons.check_circle_rounded,
-                                    color: Color(0xFF059669),
-                                    size: 20,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -602,130 +824,381 @@ class _BankTransactionPromptSheetState
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return AdaptiveGlassSurface(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(ctx).size.height * 0.68,
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
+        String searchQuery = '';
+        bool isListView = false;
+        return StatefulBuilder(
+          builder: (ctx, setStateSheet) {
+            final q = searchQuery.trim().toLowerCase();
+            final filtered = q.isEmpty
+                ? categories
+                : categories
+                    .where((c) => c.name.toLowerCase().contains(q))
+                    .toList();
+
+            return AnimatedPadding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutQuad,
+              child: GlassBottomSheet(
+                radius: 32,
+                child: SafeArea(
+                  top: false,
                   child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black12,
-                      borderRadius: BorderRadius.circular(999),
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx).size.height * 0.78,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  isIncome
-                      ? 'Chọn danh mục Thu nhập'
-                      : 'Chọn danh mục Chi tiêu',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Chọn đúng danh mục giúp báo cáo phân tích chính xác hơn',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Flexible(
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 2.65,
-                    ),
-                    itemCount: categories.length,
-                    itemBuilder: (_, index) {
-                      final c = categories[index];
-                      final key = _catKey(c);
-                      final selected = key == _selectedCategoryId;
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: () => Navigator.pop(ctx, key),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? accent.withValues(
-                                      alpha: isDark ? 0.22 : 0.10)
-                                  : (isDark
-                                      ? const Color(0xFF0F172A)
-                                      : const Color(0xFFF8FAFC)),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: selected
-                                    ? accent
-                                    : (isDark
-                                        ? Colors.white.withValues(alpha: 0.08)
-                                        : const Color(0xFFE2E8F0)),
-                                width: selected ? 1.4 : 1.0,
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: accent.withValues(
+                                    alpha: isDark ? 0.22 : 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.category_rounded,
+                                size: 18,
+                                color: accent,
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                CategoryIconBadge(
-                                  icon: c.icon,
-                                  categoryName: c.name,
-                                  colorHex: c.color,
-                                  size: 34,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    c.name,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          isIncome
+                                              ? 'Chọn danh mục Thu nhập'
+                                              : 'Chọn danh mục Chi tiêu',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w800,
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: accent.withValues(
+                                              alpha: isDark ? 0.22 : 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          '${filtered.length}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: accent,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Đồng bộ 100% biểu tượng & màu sắc danh mục',
                                     style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: selected
-                                          ? FontWeight.w800
-                                          : FontWeight.w600,
+                                      fontSize: 11.5,
                                       color: isDark
-                                          ? Colors.white
-                                          : const Color(0xFF0F172A),
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () =>
+                                  setStateSheet(() => isListView = !isListView),
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : const Color(0xFFF1F5F9),
                                 ),
-                              ],
+                                child: Icon(
+                                  isListView
+                                      ? Icons.grid_view_rounded
+                                      : Icons.view_list_rounded,
+                                  size: 16,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: () => Navigator.pop(ctx),
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : const Color(0xFFF1F5F9),
+                                ),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          height: 42,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : const Color(0xFFE2E8F0),
                             ),
                           ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.search_rounded,
+                                size: 18,
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  onChanged: (val) =>
+                                      setStateSheet(() => searchQuery = val),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Tìm nhanh danh mục...',
+                                    hintStyle: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark
+                                          ? const Color(0xFF64748B)
+                                          : const Color(0xFF94A3B8),
+                                    ),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 12),
+                        Flexible(
+                          child: isListView
+                              ? ListView.separated(
+                                  shrinkWrap: true,
+                                  physics: const BouncingScrollPhysics(),
+                                  itemCount: filtered.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 6),
+                                  itemBuilder: (_, index) {
+                                    final c = filtered[index];
+                                    final key = _catKey(c);
+                                    final selected = key == _selectedCategoryId;
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(18),
+                                        onTap: () => Navigator.pop(ctx, key),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: selected
+                                                ? accent.withValues(
+                                                    alpha: isDark ? 0.22 : 0.10)
+                                                : (isDark
+                                                    ? const Color(0xFF0F172A)
+                                                    : const Color(0xFFF8FAFC)),
+                                            borderRadius:
+                                                BorderRadius.circular(18),
+                                            border: Border.all(
+                                              color: selected
+                                                  ? accent
+                                                  : (isDark
+                                                      ? Colors.white.withValues(
+                                                          alpha: 0.08)
+                                                      : const Color(
+                                                          0xFFE2E8F0)),
+                                              width: selected ? 1.4 : 1.0,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              CategoryIconBadge(
+                                                icon: c.icon,
+                                                categoryName: c.name,
+                                                colorHex: c.color,
+                                                size: 40,
+                                                isDark: isDark,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  c.name,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: selected
+                                                        ? FontWeight.w800
+                                                        : FontWeight.w600,
+                                                    color: isDark
+                                                        ? Colors.white
+                                                        : const Color(
+                                                            0xFF0F172A),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (selected)
+                                                Icon(
+                                                  Icons.check_circle_rounded,
+                                                  color: accent,
+                                                  size: 20,
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const BouncingScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 4,
+                                    mainAxisSpacing: 10,
+                                    crossAxisSpacing: 8,
+                                    childAspectRatio: 0.85,
+                                  ),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (_, index) {
+                                    final c = filtered[index];
+                                    final key = _catKey(c);
+                                    final selected = key == _selectedCategoryId;
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(18),
+                                        onTap: () => Navigator.pop(ctx, key),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 4, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: selected
+                                                ? accent.withValues(
+                                                    alpha: isDark ? 0.24 : 0.14)
+                                                : (isDark
+                                                    ? Colors.white.withValues(
+                                                        alpha: 0.06)
+                                                    : const Color(0xFFF8FAFC)),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: selected
+                                                  ? accent
+                                                  : (isDark
+                                                      ? Colors.white12
+                                                      : const Color(
+                                                          0xFFE2E8F0)),
+                                              width: selected ? 1.8 : 1.0,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              CategoryIconBadge(
+                                                icon: c.icon,
+                                                categoryName: c.name,
+                                                colorHex: c.color,
+                                                size: 38,
+                                                isDark: isDark,
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 2),
+                                                child: Text(
+                                                  c.name,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    fontWeight: selected
+                                                        ? FontWeight.w800
+                                                        : FontWeight.w600,
+                                                    color: isDark
+                                                        ? Colors.white
+                                                        : const Color(
+                                                            0xFF0F172A),
+                                                    height: 1.15,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -740,6 +1213,9 @@ class _BankTransactionPromptSheetState
     final accent = _selectedType == 'income'
         ? const Color(0xFF059669)
         : const Color(0xFFE11D48);
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final secondaryTextColor =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     await showModalBottomSheet<void>(
       context: context,
@@ -761,124 +1237,141 @@ class _BankTransactionPromptSheetState
             final bool hasExactMatch =
                 filtered.any((m) => m.name.toLowerCase() == query);
 
-            return AdaptiveGlassSurface(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+            return AnimatedPadding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
               ),
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white24 : Colors.black12,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutQuad,
+              child: GlassBottomSheet(
+                radius: 32,
+                child: SafeArea(
+                  top: false,
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx).size.height * 0.78,
                     ),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            Text(
-                              'Chọn nơi mua sắm',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF0F172A),
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: accent.withValues(
+                                    alpha: isDark ? 0.22 : 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.storefront_rounded,
+                                size: 18,
+                                color: accent,
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'Đồng bộ từ danh mục Nơi mua của bạn',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark
-                                    ? const Color(0xFF94A3B8)
-                                    : const Color(0xFF64748B),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Chọn nơi mua sắm',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: primaryTextColor,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Đồng bộ thương hiệu, sàn TMĐT & gợi ý ví thông minh',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: secondaryTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => Navigator.pop(ctx),
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : const Color(0xFFF1F5F9),
+                                ),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: secondaryTextColor,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
+                        const SizedBox(height: 12),
+                        // Search bar
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
                             color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B),
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : const Color(0xFFE2E8F0),
+                            ),
                           ),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Search bar
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF0F172A)
-                            : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.10)
-                              : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: TextField(
-                        autofocus: false,
-                        onChanged: (val) {
-                          setStateSheet(() {
-                            searchQuery = val;
-                          });
-                        },
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                        decoration: InputDecoration(
-                          icon: Icon(
-                            Icons.search_rounded,
-                            size: 20,
-                            color: isDark
-                                ? const Color(0xFF64748B)
-                                : const Color(0xFF94A3B8),
-                          ),
-                          border: InputBorder.none,
-                          hintText: 'Tìm kiếm hoặc nhập nơi mua mới...',
-                          hintStyle: TextStyle(
-                            fontSize: 13,
-                            color: isDark
-                                ? const Color(0xFF64748B)
-                                : const Color(0xFF94A3B8),
+                          child: TextField(
+                            autofocus: false,
+                            onChanged: (val) {
+                              setStateSheet(() {
+                                searchQuery = val;
+                              });
+                            },
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            decoration: InputDecoration(
+                              icon: Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                              border: InputBorder.none,
+                              hintText: 'Tìm kiếm hoặc nhập tên nơi mua mới...',
+                              hintStyle: TextStyle(
+                                fontSize: 13,
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Flexible(
-                      child: ListView(
-                        physics: const BouncingScrollPhysics(),
-                        children: [
+                        const SizedBox(height: 10),
+                        Flexible(
+                          child: ListView(
+                            shrinkWrap: true,
+                            physics: const BouncingScrollPhysics(),
+                            children: [
                           // 1. Option: Custom input from search query if not matching existing
                           if (query.isNotEmpty && !hasExactMatch)
                             Container(
@@ -1074,7 +1567,33 @@ class _BankTransactionPromptSheetState
                         ],
                       ),
                     ),
-                  ],
+                    const SizedBox(height: 10),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(ctx),
+                        borderRadius: BorderRadius.circular(100),
+                        child: Container(
+                          height: 46,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: accent,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: const Text(
+                            'Xong',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             );
@@ -1158,8 +1677,14 @@ class _BankTransactionPromptSheetState
             _selectedType == 'transfer' ? '#0284C7' : category!.color,
         walletId: wallet.id,
         walletName: wallet.name,
+        fromWalletId: _selectedType == 'transfer' ? wallet.id : null,
+        fromWalletName: _selectedType == 'transfer' ? wallet.name : null,
         toWalletId: destWallet?.id,
         toWalletName: destWallet?.name ?? widget.tx.matchedTransferBankName,
+        creditCardId: widget.tx.isCreditCardPayment ? destWallet?.id : null,
+        creditCardName: widget.tx.isCreditCardPayment
+            ? (destWallet?.name ?? widget.tx.matchedTransferBankName)
+            : null,
         owner: (wallet.owner.isEmpty || wallet.owner == 'joint')
             ? ((wallet.name.toLowerCase().contains('chồng') || wallet.name.toLowerCase().contains('chong'))
                 ? 'husband'
@@ -1170,6 +1695,7 @@ class _BankTransactionPromptSheetState
                 ? 'Chồng'
                 : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'Vợ' : wallet.ownerName))
             : wallet.ownerName,
+        fromOwner: _selectedType == 'transfer' ? wallet.owner : null,
         toOwner: destWallet?.owner,
         merchantId: _selectedMerchantId,
         merchantName: _selectedMerchantName?.trim(),
@@ -1184,22 +1710,54 @@ class _BankTransactionPromptSheetState
         createdAt: widget.tx.timestamp.millisecondsSinceEpoch,
       );
 
-      await txProv.createTransaction(widget.userId, newTx);
-      setState(() => _savedAwaitingAck = true);
+      if (!_savedAwaitingAck) {
+        await txProv.createTransaction(widget.userId, newTx);
+        if (_syncBalanceToBank &&
+            widget.tx.balanceAfter != null &&
+            walletProv != null &&
+            !wallet.isCreditCard) {
+          final targetEndBalance = widget.tx.balanceAfter!.round();
+          final txDelta = _selectedType == 'income' ? rawAmount : -rawAmount;
+          final expectedAfter = wallet.balance + txDelta;
+          final diff = targetEndBalance - expectedAfter;
+          if (diff != 0) {
+            final updatedWallet = Wallet(
+              id: wallet.id,
+              name: wallet.name,
+              type: wallet.type,
+              owner: wallet.owner,
+              ownerName: wallet.ownerName,
+              hasExplicitOwner: wallet.hasExplicitOwner,
+              hasExplicitOwnerName: wallet.hasExplicitOwnerName,
+              bankCode: wallet.bankCode,
+              bankName: wallet.bankName,
+              accountNumber: wallet.accountNumber,
+              themeColor: wallet.themeColor,
+              initialBalance: wallet.initialBalance + diff,
+              hasInitialBalance: true,
+              balance: targetEndBalance,
+              creditLimit: wallet.creditLimit,
+              initialDebt: wallet.initialDebt,
+              currentDebt: wallet.currentDebt,
+              statementDay: wallet.statementDay,
+              paymentDueDay: wallet.paymentDueDay,
+              minimumPaymentPercent: wallet.minimumPaymentPercent,
+              createdAt: wallet.createdAt,
+            );
+            try {
+              await walletProv.updateWallet(
+                  widget.userId, wallet.id, updatedWallet);
+            } catch (_) {}
+          }
+        }
+        if (mounted) {
+          setState(() => _savedAwaitingAck = true);
+        }
+      }
       try {
         await BankSyncService().acknowledge(widget.tx.rawId);
         if (!mounted) return;
-        final inferredSpender = (wallet.name.toLowerCase().contains('chồng') || wallet.name.toLowerCase().contains('chong'))
-            ? 'husband'
-            : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'wife' : wallet.owner);
-        await FinoraTransactionSuccessModal.show(
-          context,
-          transaction: newTx,
-          walletName: wallet.name,
-          destinationWalletName: destWallet?.name,
-          spenderTag: inferredSpender,
-        );
-        if (!mounted) return;
+        setState(() => _saving = false);
         Navigator.of(context).pop(true);
       } catch (_) {
         // Keep _savedAwaitingAck = true so user can tap 'Hoàn tất' to retry acknowledge
@@ -1221,6 +1779,15 @@ class _BankTransactionPromptSheetState
 
   @override
   Widget build(BuildContext context) {
+    return FinoraModalScope(
+      child: Theme(
+        data: FinoraModalScope.opaqueModalTheme(context),
+        child: Builder(builder: _buildScopedContent),
+      ),
+    );
+  }
+
+  Widget _buildScopedContent(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final walletProv = context.watch<WalletProvider?>();
     final txProv = context.watch<TransactionProvider?>();
@@ -1270,51 +1837,50 @@ class _BankTransactionPromptSheetState
         DateFormat('HH:mm    -    dd/MM/yyyy').format(widget.tx.timestamp);
     final acct = widget.tx.accountNumber?.trim() ?? '';
 
-    return AdaptiveGlassSurface(
-      margin: EdgeInsets.zero,
-      padding: EdgeInsets.only(
-        left: 18,
-        right: 18,
-        top: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom +
-            math.max(MediaQuery.paddingOf(context).bottom, 14.0) +
-            8.0,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF111827) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(
-          color: accentColor.withValues(alpha: isDark ? 0.38 : 0.22),
-          width: 1.2,
+    return FinoraDraggableSheetWrapper(
+      onClose: () => Navigator.of(context).maybePop(false),
+      child: AdaptiveGlassSurface(
+        margin: EdgeInsets.zero,
+        padding: EdgeInsets.only(
+          left: 18,
+          right: 18,
+          top: 8,
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              math.max(MediaQuery.paddingOf(context).bottom, 14.0) +
+              8.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.30),
-            blurRadius: 28,
-            offset: const Offset(0, -6),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF111827) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          border: Border.all(
+            color: accentColor.withValues(alpha: isDark ? 0.38 : 0.22),
+            width: 1.2,
           ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.30),
+              blurRadius: 28,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Drag Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
+            // Interactive Drag Handle outside ScrollView
+            FinoraSheetDragHandle(
+              padding: const EdgeInsets.only(top: 6, bottom: 10),
+              onClose: () => Navigator.of(context).maybePop(false),
             ),
-            const SizedBox(height: 14),
-
-            // 1. Bank Source Header Row
+            Flexible(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Bank Source Header Row
             Row(
               children: [
                 Container(
@@ -1543,85 +2109,219 @@ class _BankTransactionPromptSheetState
 
             const SizedBox(height: 12),
 
-            // 3. Amount Display & Editor Box
+            // 3. Amount Display & Recognized Bank Balance Box
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: accentColor.withValues(alpha: isDark ? 0.14 : 0.07),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                  color: accentColor.withValues(alpha: isDark ? 0.35 : 0.22),
+                  color: accentColor.withValues(alpha: isDark ? 0.38 : 0.24),
+                  width: 1.2,
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: accentColor.withValues(alpha: 0.18),
-                    ),
-                    child: Center(
-                      child: Text(
-                        isTransfer ? '⇄' : (isIncome ? '+' : '-'),
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w900,
-                          color: accentColor,
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accentColor.withValues(alpha: 0.18),
+                          border: Border.all(
+                            color: accentColor.withValues(alpha: 0.35),
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            isTransfer ? '⇄' : (isIncome ? '+' : '-'),
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                              color: accentColor,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isTransfer
-                              ? 'Số tiền chuyển khoản / trả thẻ'
-                              : (isIncome
-                                  ? 'Số tiền thu vào'
-                                  : 'Số tiền chi ra'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B),
-                          ),
-                        ),
-                        TextField(
-                          controller: _amountCtrl,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: const [
-                            DotSeparatorTextInputFormatter(),
-                          ],
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: accentColor,
-                            letterSpacing: -0.4,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Nhập số tiền...',
-                            hintStyle: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: accentColor.withValues(alpha: 0.45),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isTransfer
+                                  ? 'Số tiền chuyển khoản / trả thẻ'
+                                  : (isIncome
+                                      ? 'Số tiền thu vào nhận diện'
+                                      : 'Số tiền chi ra nhận diện'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
+                              ),
                             ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.only(top: 2),
-                            suffixText: 'đ',
-                          ),
+                            TextField(
+                              controller: _amountCtrl,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: const [
+                                DotSeparatorTextInputFormatter(),
+                              ],
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: accentColor,
+                                letterSpacing: -0.4,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Nhập số tiền...',
+                                hintStyle: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: accentColor.withValues(alpha: 0.45),
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.only(top: 2),
+                                suffixText: 'đ',
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                  if (widget.tx.balanceAfter != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.72)
+                            : Colors.white.withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFF059669)
+                              .withValues(alpha: isDark ? 0.35 : 0.25),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF059669)
+                                  .withValues(alpha: 0.16),
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              size: 14,
+                              color: Color(0xFF059669),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Số dư cuối nhận diện từ ${widget.tx.bankName}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10.2,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                                Text(
+                                  formatVND(widget.tx.balanceAfter!.round()),
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF059669),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(
+                                () => _syncBalanceToBank = !_syncBalanceToBank,
+                              );
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _syncBalanceToBank
+                                    ? const Color(0xFF059669)
+                                    : (isDark
+                                        ? const Color(0xFF1E293B)
+                                        : const Color(0xFFF1F5F9)),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: _syncBalanceToBank
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFF059669)
+                                          .withValues(alpha: 0.35),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _syncBalanceToBank
+                                        ? Icons.check_circle_rounded
+                                        : Icons.sync_rounded,
+                                    size: 13,
+                                    color: _syncBalanceToBank
+                                        ? Colors.white
+                                        : const Color(0xFF059669),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _syncBalanceToBank
+                                        ? 'Đã đồng bộ'
+                                        : 'Đồng bộ số dư',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: _syncBalanceToBank
+                                          ? Colors.white
+                                          : const Color(0xFF059669),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1694,7 +2394,8 @@ class _BankTransactionPromptSheetState
                                       bankName: selectedWallet?.bankName ??
                                           selectedWallet?.name ??
                                           widget.tx.bankName,
-                                      size: 22,
+                                      customIconUrl: selectedWallet?.iconUrl,
+                                      size: 32,
                                     ),
                                   ),
                                 ),
@@ -1829,7 +2530,9 @@ class _BankTransactionPromptSheetState
                                                 (widget.tx
                                                         .matchedTransferBankName ??
                                                     'Ví nhận'),
-                                            size: 22,
+                                            customIconUrl:
+                                                selectedDestWallet?.iconUrl,
+                                            size: 32,
                                           ),
                                         ),
                                       ),
@@ -1936,6 +2639,7 @@ class _BankTransactionPromptSheetState
                                         colorHex: selectedCategory?.color ??
                                             (isIncome ? '#10B981' : '#EF4444'),
                                         size: 36,
+                                        isDark: isDark,
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
@@ -2383,7 +3087,7 @@ class _BankTransactionPromptSheetState
 
             const SizedBox(height: 16),
 
-            // 7. Action Buttons Row (Standardized Pill Shape)
+            // 7. Action Buttons Row (Standardized Equal-Width Pill Shape, Height 48px)
             Row(
               children: [
                 Expanded(
@@ -2409,7 +3113,9 @@ class _BankTransactionPromptSheetState
                             }
                           },
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size.fromHeight(48),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 13),
                       side: BorderSide(
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.14)
@@ -2419,7 +3125,10 @@ class _BankTransactionPromptSheetState
                     ),
                     child: Text(
                       'Bỏ qua',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: isDark
                             ? const Color(0xFFCBD5E1)
@@ -2428,9 +3137,8 @@ class _BankTransactionPromptSheetState
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
-                  flex: 2,
                   child: FilledButton.icon(
                     onPressed: _saving ? null : _saveTransaction,
                     icon: _saving
@@ -2442,27 +3150,37 @@ class _BankTransactionPromptSheetState
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.check_circle_rounded, size: 18),
-                    label: Text(
-                      _saving
-                          ? 'Đang lưu...'
-                          : (_savedAwaitingAck
-                              ? 'Hoàn tất'
-                              : 'Xác nhận ghi vào sổ'),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
+                        : const Icon(Icons.check_circle_rounded, size: 17),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _saving
+                            ? 'Đang lưu...'
+                            : (_savedAwaitingAck
+                                ? 'Hoàn tất'
+                                : 'Ghi vào sổ'),
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                        ),
                       ),
                     ),
                     style: FilledButton.styleFrom(
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size.fromHeight(48),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 13),
                       shape: const StadiumBorder(),
                     ),
                   ),
                 ),
               ],
+            ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

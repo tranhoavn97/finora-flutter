@@ -161,31 +161,88 @@ class AssistantResponseBody extends StatelessWidget {
                     height: 1.5,
                     color: colors.onSurfaceVariant))));
       } else if (!code && RegExp(r'^#{1,6}\s+').hasMatch(raw)) {
+        final isSub = raw.startsWith('###');
+        final headingText = raw.replaceFirst(RegExp(r'^#{1,6}\s+'), '');
         blocks.add(Padding(
             padding: EdgeInsets.only(top: blocks.isEmpty ? 0 : 10, bottom: 2),
-            child: rich(
-                raw.replaceFirst(RegExp(r'^#{1,6}\s+'), ''),
-                style.copyWith(
-                    fontSize: 15, fontWeight: FontWeight.w700, height: 1.4))));
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 3.5,
+                  height: isSub ? 13 : 16,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: positive,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                Expanded(
+                  child: rich(
+                      headingText,
+                      style.copyWith(
+                          fontSize: isSub ? 13.5 : 15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                          height: 1.4)),
+                ),
+              ],
+            )));
       } else {
         final bullet =
             !code ? RegExp(r'^(?:[-*•]|\d+[.)])\s+').firstMatch(raw) : null;
+        final pctMatch = !code && bullet != null
+            ? RegExp(r'·\s*(\d+(?:[.,]\d+)?)%\s*·').firstMatch(plain)
+            : null;
+        final pctVal = pctMatch != null
+            ? (double.tryParse(pctMatch.group(1)!.replaceAll(',', '.')) ?? 0.0)
+            : null;
         Widget body = rich(
             bullet == null ? raw : raw.substring(bullet.end),
             code
                 ? style.copyWith(fontFamily: 'monospace', fontSize: 12)
                 : null);
-        if (bullet != null)
-          body = Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(
-                padding: const EdgeInsets.only(top: 8, right: 8),
-                child: Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: positive, shape: BoxShape.circle))),
-            Expanded(child: body)
-          ]);
+        if (bullet != null) {
+          body = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Padding(
+                    padding: const EdgeInsets.only(top: 7, right: 8),
+                    child: Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                            color: positive, shape: BoxShape.circle))),
+                Expanded(child: body)
+              ]),
+              if (pctVal != null && pctVal > 0) ...[
+                const SizedBox(height: 5),
+                Padding(
+                  padding: const EdgeInsets.only(left: 13),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: SizedBox(
+                      height: 4,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: (pctVal / 100.0).clamp(0.04, 1.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: positive.withValues(alpha: 0.78),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
         if (code)
           body = Container(
               width: double.infinity,

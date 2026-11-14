@@ -1,4 +1,3 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -7,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/finora_member_filter.dart';
-import '../../core/widgets/finora_quick_action_icon.dart';
 import '../../core/theme/finora_tokens.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/transaction.dart';
@@ -20,7 +18,6 @@ import '../transaction/add_transaction_page.dart';
 import '../transaction/transaction_detail_sheet.dart';
 import '../transaction/transaction_theme_sheet.dart';
 import '../wallet/wealth_hub_screen.dart';
-import '../qr_pay/qr_scanner_screen.dart';
 
 /// Zenvest Glass Deck Card
 /// Thiết kế chuẩn giao diện quản lý tài chính quốc tế theo phong cách Zenvest:
@@ -130,22 +127,20 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         // 2. 3 Mini Widgets: Thu nhập, Chi tiêu, Số dư (Tiền mặt)
         _buildExpenseIncomeBalanceStats(isDark),
 
-        // 3. Filter Bar (Tất cả & Hôm nay) - Placed directly below the 3 mini widgets!
+        // 3. Filter Bar (Tất cả & Hôm nay - 35/65) - Placed directly below the 3 mini widgets!
         if (widget.filterBar != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           widget.filterBar!,
         ],
 
-        const SizedBox(height: 14),
-        _buildFinora3DCompanionLounge(isDark),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-        // 5. Khối AI Thông Minh (Nhập nhanh AI, Sức khoẻ tài chính, Cho vay & Vay nợ)
+        // 4. Khối Finora AI Copilot Hợp Nhất (3D Mascot + Nhập nhanh AI + Sức khoẻ tài chính + Sổ nợ)
         _buildZenvestAiSection(isDark),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
 
-        // 6. Zenvest Transactions Surface Container
+        // 5. Zenvest Transactions Surface Container
         _buildTransactionsSurface(isDark),
       ],
     );
@@ -183,6 +178,14 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     final dateFilterLabel = widget.provider.customDate != null
         ? DateFormat('dd/MM/yyyy').format(widget.provider.customDate!)
         : widget.provider.selectedDateFilter.label;
+    final primary = widget.studio.resolvedPrimary;
+    final secondary = widget.studio.resolvedSecondary;
+    final heroGrad = widget.studio.getHeroCardGradient(isDark);
+    final deep1 = Color.lerp(primary, const Color(0xFF020617), 0.72)!;
+    final deep2 = Color.lerp(primary, const Color(0xFF020617), 0.44)!;
+    final midColor = heroGrad.isNotEmpty ? heroGrad.first : primary;
+    final endColor = heroGrad.length > 1 ? heroGrad.last : secondary;
+    final lightTint = Color.lerp(secondary, Colors.white, 0.45)!;
 
     return Container(
       key: const ValueKey('compact-total-assets'),
@@ -190,8 +193,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF047857)
-                .withValues(alpha: isDark ? 0.45 : 0.28),
+            color: primary.withValues(alpha: isDark ? 0.45 : 0.28),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),
@@ -207,16 +209,16 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0xFF022C22),
-                Color(0xFF064E3B),
-                Color(0xFF047857),
-                Color(0xFF0D9488),
+                deep1,
+                deep2,
+                midColor,
+                endColor,
               ],
-              stops: [0.0, 0.35, 0.72, 1.0],
+              stops: const [0.0, 0.35, 0.72, 1.0],
             ),
             border: Border.all(
               color: Colors.white.withValues(alpha: isDark ? 0.26 : 0.22),
@@ -236,8 +238,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFF34D399).withValues(alpha: 0.36),
-                        const Color(0xFF10B981).withValues(alpha: 0.0),
+                        lightTint.withValues(alpha: 0.36),
+                        primary.withValues(alpha: 0.0),
                       ],
                     ),
                   ),
@@ -253,8 +255,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFF2DD4BF).withValues(alpha: 0.22),
-                        const Color(0xFF064E3B).withValues(alpha: 0.0),
+                        secondary.withValues(alpha: 0.24),
+                        deep2.withValues(alpha: 0.0),
                       ],
                     ),
                   ),
@@ -278,13 +280,13 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   ),
                 ),
               ),
-              // Ambient Mascot Watermark
+              // Ambient 3D Mascot Watermark
               const FinoraAmbientMascotWatermark(
-                pose: FinoraMascotPose.happy,
-                size: 132,
-                opacity: 0.10,
+                pose: FinoraMascotPose.hero,
+                size: 138,
+                opacity: 0.16,
                 alignment: Alignment.bottomRight,
-                offset: Offset(18, 18),
+                offset: Offset(16, 16),
               ),
               // Content
               Padding(
@@ -340,18 +342,17 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                               color: Colors.black.withValues(alpha: 0.20),
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                color: const Color(0xFF6EE7B7)
-                                    .withValues(alpha: 0.35),
+                                color: lightTint.withValues(alpha: 0.35),
                                 width: 0.9,
                               ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.account_balance_rounded,
                                   size: 13.5,
-                                  color: Color(0xFF6EE7B7),
+                                  color: lightTint,
                                 ),
                                 const SizedBox(width: 6),
                                 Flexible(
@@ -565,152 +566,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     );
   }
 
-  // 3. Zenvest Action Row: 4 nút tác vụ tròn chuẩn Emerald Fintech (Chuyển tiền ↗, Nhận tiền ✓, Quét QR, Thêm)
-  // 3. Zenvest Action Row: 4 nút tác vụ tròn chuẩn Emerald Fintech (Chuyển tiền, Nhận tiền, Quét QR, Mục tiêu)
-  Widget _buildActionRow(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: FinoraTokens.calmCardDecoration(
-        isDark: isDark,
-        radius: 20,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildCircularActionItem(
-            label: 'Chuyển tiền',
-            icon: LucideIcons.arrow_up_right,
-            themeColor: const Color(0xFF0284C7),
-            isDark: isDark,
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => AddTransactionPage(
-                    userId: widget.userId,
-                    initialType: 'transfer',
-                  ),
-                ),
-              );
-            },
-          ),
-          _buildCircularActionItem(
-            label: 'Nhận tiền',
-            icon: LucideIcons.arrow_down_left,
-            themeColor: const Color(0xFF00875A),
-            isDark: isDark,
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => AddTransactionPage(
-                    userId: widget.userId,
-                    initialType: 'income',
-                  ),
-                ),
-              );
-            },
-          ),
-          _buildCircularActionItem(
-            label: 'Quét QR',
-            icon: LucideIcons.qr_code,
-            themeColor: const Color(0xFFD97706),
-            isDark: isDark,
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => QrScannerScreen(
-                    userId: widget.userId,
-                  ),
-                ),
-              );
-            },
-          ),
-          _buildCircularActionItem(
-            label: 'Mục tiêu',
-            icon: LucideIcons.target,
-            themeColor: const Color(0xFF0D9488),
-            isDark: isDark,
-            onTap: () {
-              HapticFeedback.lightImpact();
-              if (widget.onViewPlanning != null) {
-                widget.onViewPlanning!();
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCircularActionItem({
-    required String label,
-    required IconData icon,
-    required Color themeColor,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    final podBg = themeColor.withValues(alpha: isDark ? 0.20 : 0.12);
-    final borderColor = themeColor.withValues(alpha: isDark ? 0.40 : 0.25);
-
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: podBg,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: borderColor,
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: themeColor.withValues(alpha: isDark ? 0.22 : 0.10),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: FinoraMascotActionIcon(
-                  action: switch (label) {
-                    'Chuyển tiền' => FinoraQuickAction.send,
-                    'Nhận tiền' => FinoraQuickAction.receive,
-                    'Quét QR' => FinoraQuickAction.scan,
-                    _ => FinoraQuickAction.goal,
-                  },
-                  color: themeColor,
-                ),
-              ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'BeVietnamPro',
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // 2. Widget Chi tiêu, Thu nhập, Số dư (Phong cách UI/UX Apple Glass Bento Mới, Bỏ "Tháng này")
   Widget _buildExpenseIncomeBalanceStats(bool isDark) {
     final wallets = widget.provider.data.wallets;
@@ -775,41 +630,47 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         ? '••••••'
         : (amount == 0 ? '0 ₫' : '$prefix$amountStr ₫');
 
-    // 100% Solid Opaque Colors - Modern, Bright & Fresh (ko trong suốt, màu sắc tươi sáng)
-    final Color solidBg;
+    // Adaptive Quiet Luxury Surface: Neutral card surface + studio glass opacity
+    final double cardAlpha = widget.studio.glassOpacity;
+    final Color solidBg = (isDark ? const Color(0xFF111827) : Colors.white)
+        .withValues(alpha: cardAlpha);
     final Color solidBorder;
     final Color solidIconBg;
     final Color solidIconColor;
-    final Color labelColor;
+    final Color labelColor =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
     final Color valueColor;
 
     if (label == 'Thu nhập') {
-      solidBg = isDark ? const Color(0xFF0D281E) : const Color(0xFFEDFCF2);
-      solidBorder = isDark ? const Color(0xFF10B981) : const Color(0xFF86EFAC);
-      solidIconBg = const Color(0xFF10B981);
-      solidIconColor = Colors.white;
-      labelColor = isDark ? const Color(0xFFD1FAE5) : const Color(0xFF065F46);
+      solidBorder = isDark
+          ? const Color(0xFF10B981).withValues(alpha: 0.28)
+          : const Color(0xFFD1FAE5);
+      solidIconBg = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
+      solidIconColor =
+          isDark ? const Color(0xFF34D399) : const Color(0xFF059669);
       valueColor = widget.masked
-          ? (isDark ? Colors.white : const Color(0xFF065F46))
-          : (isDark ? const Color(0xFF34D399) : const Color(0xFF047857));
+          ? (isDark ? Colors.white : const Color(0xFF0F172A))
+          : (isDark ? const Color(0xFF34D399) : const Color(0xFF059669));
     } else if (label == 'Chi tiêu') {
-      solidBg = isDark ? const Color(0xFF2D1217) : const Color(0xFFFFF1F2);
-      solidBorder = isDark ? const Color(0xFFF43F5E) : const Color(0xFFFDA4AF);
-      solidIconBg = const Color(0xFFF43F5E);
-      solidIconColor = Colors.white;
-      labelColor = isDark ? const Color(0xFFFFE4E6) : const Color(0xFF9F1239);
+      solidBorder = isDark
+          ? const Color(0xFFF43F5E).withValues(alpha: 0.28)
+          : const Color(0xFFFFE4E6);
+      solidIconBg = isDark ? const Color(0xFF881337) : const Color(0xFFFFF1F2);
+      solidIconColor =
+          isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48);
       valueColor = widget.masked
-          ? (isDark ? Colors.white : const Color(0xFF9F1239))
-          : (isDark ? const Color(0xFFFB7185) : const Color(0xFFBE123C));
+          ? (isDark ? Colors.white : const Color(0xFF0F172A))
+          : (isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48));
     } else {
-      solidBg = isDark ? const Color(0xFF0B2436) : const Color(0xFFF0F9FF);
-      solidBorder = isDark ? const Color(0xFF0284C7) : const Color(0xFF7DD3FC);
-      solidIconBg = const Color(0xFF0284C7);
-      solidIconColor = Colors.white;
-      labelColor = isDark ? const Color(0xFFE0F2FE) : const Color(0xFF075985);
+      solidBorder = isDark
+          ? const Color(0xFF0284C7).withValues(alpha: 0.28)
+          : const Color(0xFFE0F2FE);
+      solidIconBg = isDark ? const Color(0xFF0C4A6E) : const Color(0xFFF0F9FF);
+      solidIconColor =
+          isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7);
       valueColor = widget.masked
-          ? (isDark ? Colors.white : const Color(0xFF075985))
-          : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1));
+          ? (isDark ? Colors.white : const Color(0xFF0F172A))
+          : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7));
     }
 
     return Material(
@@ -821,24 +682,26 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 12),
+          constraints: const BoxConstraints(minHeight: 78),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 11),
           decoration: BoxDecoration(
             color: solidBg,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: solidBorder,
-              width: 1.4,
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: (isDark ? Colors.black : solidBorder).withValues(alpha: isDark ? 0.35 : 0.20),
-                blurRadius: 10,
+                color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.04),
+                blurRadius: 12,
                 offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
@@ -849,13 +712,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     decoration: BoxDecoration(
                       color: solidIconBg,
                       borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: solidIconBg.withValues(alpha: 0.35),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1.5),
-                        ),
-                      ],
                     ),
                     child: Center(
                       child: Icon(icon, color: solidIconColor, size: 14),
@@ -881,7 +737,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -890,9 +746,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                   maxLines: 1,
                   style: TextStyle(
                     fontFamily: 'BeVietnamPro',
-                    fontSize: 16.5,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.4,
+                    letterSpacing: -0.3,
                     color: valueColor,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
@@ -905,13 +761,13 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     );
   }
 
-    // 4. Khối AI Thông Minh Tích Hợp (Nhập Nhanh AI + Sức Khỏe AI + Cho Vay / Vay Nợ + Companion Banner)
+    // 4. Khối AI Thông Minh Tích Hợp (Hợp nhất Companion + Nhập Nhanh AI, Sức Khỏe AI, Cho Vay / Vay Nợ)
   Widget _buildZenvestAiSection(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 4.1. Thanh Nhập Nhanh Với AI (Thiết kế Clean Minimal Finora Emerald)
-        _buildZenvestAiQuickInputBar(isDark),
+        // 4.1. Thẻ Hợp Nhất Trợ Lý Finora AI & Nhập Nhanh Giao Dịch (Unified Copilot Strip)
+        _buildFinora3DCompanionLounge(isDark),
 
         const SizedBox(height: 12),
 
@@ -926,7 +782,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     );
   }
 
-  // 2. Finora AI Smart Ambient Island (Apple Intelligence Inspired Companion)
+  // 4.1. Thẻ Hợp Nhất Trợ Lý Finora AI & Nhập Nhanh Giao Dịch (Apple Intelligence + 1-Tap Quick Input)
   Widget _buildFinora3DCompanionLounge(bool isDark) {
     return Builder(
       builder: (context) {
@@ -954,308 +810,261 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           speechText = 'Mình giúp bạn ghi chép nhanh và hiểu rõ thu chi.';
         }
 
-        final statusColor =
-            isOver ? FinoraTokens.appleCoral : const Color(0xFF00866A);
+        final primary = widget.studio.resolvedPrimary;
+        final secondary = widget.studio.resolvedSecondary;
+        final statusColor = isOver ? FinoraTokens.appleCoral : primary;
+        final fill = widget.studio
+            .getCardFillColor(isDark)
+            .withValues(alpha: 0.96);
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: isOver
-                ? widget.onViewPlanning
-                : (widget.onAiAdvisorTap ?? widget.onViewPlanning),
-            borderRadius: BorderRadius.circular(18),
-            child: Builder(
-              builder: (ctx) {
-                final blur = widget.studio?.glassBlur ?? 16.0;
-                final fill = (widget.studio?.getCardFillColor(isDark) ??
-                        (isDark ? const Color(0xFF13221E) : Colors.white))
-                    .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
-                final card = Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: fill,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF34D399).withValues(alpha: 0.24)
-                      : const Color(0xFF34D399).withValues(alpha: 0.35),
-                  width: 1.0,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF003D35)
-                        .withValues(alpha: isDark ? 0.32 : 0.05),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // 1. Linh thú Rồng ngọc Finora 3D chính thức (Đồng hành tài chính)
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: isDark
-                          ? const Color(0xFF1D332B)
-                          : const Color(0xFFE8F7F0),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              const Color(0xFF34D399).withValues(alpha: 0.22),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: Image.asset(
-                      isOver
-                          ? 'assets/mascot/expression-03-focused.png'
-                          : 'assets/mascot/expression-01-happy.png',
-                      width: 44,
-                      height: 44,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // 2. Cột thông tin Ambient AI
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: statusColor.withValues(alpha: 0.6),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                isOver
-                                    ? 'CẢNH BÁO HẠN MỨC'
-                                    : 'TRỢ LÝ FINORA AI',
-                                style: TextStyle(
-                                  fontFamily: 'BeVietnamPro',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                  color: statusColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 15,
-                                color: statusColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          speechText,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'BeVietnamPro',
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
-                            height: 1.3,
-                          ),
-                        ),
-                        if (totalBudgetLimit > 0) ...[
-                          const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: budgetProgress.clamp(0.0, 1.0),
-                              minHeight: 5.0,
-                              backgroundColor: isDark
-                                  ? Colors.white.withValues(alpha: 0.10)
-                                  : Colors.black.withValues(alpha: 0.06),
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(statusColor),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-            if (blur > 0.5) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-                  child: card,
-                ),
-              );
-            }
-            return card;
-          }),
-        ),
-      );
-    },
-  );
-  }
-
-  Widget _buildZenvestAiQuickInputBar(bool isDark) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          widget.onAiQuickLogTap?.call();
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Builder(
-          builder: (ctx) {
-            final blur = widget.studio?.glassBlur ?? 16.0;
-            final fill = (widget.studio?.getCardFillColor(isDark) ??
-                    (isDark ? const Color(0xFF121A17) : Colors.white))
-                .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
-            final card = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: fill,
+        return Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: fill,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : const Color(0xFFE3EBE7),
+              color: primary.withValues(alpha: isDark ? 0.28 : 0.25),
               width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
+                color: primary.withValues(alpha: isDark ? 0.22 : 0.05),
                 blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // 3D Finora Cat AI Mascot Badge
-              Container(
-                width: 44,
-                height: 44,
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F6E56).withValues(alpha: 0.20)
-                      : const Color(0xFFEFF7F4),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(Icons.auto_awesome_rounded,
-                    color: isDark
-                        ? const Color(0xFF6EE7B7)
-                        : const Color(0xFF00866A),
-                    size: 24),
-              ),
-              const SizedBox(width: 12),
-
-              // Placeholder Hint
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+              InkWell(
+                onTap: isOver
+                    ? widget.onViewPlanning
+                    : (widget.onAiAdvisorTap ?? widget.onViewPlanning),
+                borderRadius: BorderRadius.circular(14),
+                child: Row(
                   children: [
-                    Text(
-                      'Finora AI',
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: isDark
-                            ? const Color(0xFF34D399)
-                            : const Color(0xFF00866A),
+                    // 1. Linh thú Rồng ngọc Finora 3D sống động (Hô hấp, chớp mắt, lơ lửng & xoay 3D)
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                      ),
+                      alignment: Alignment.center,
+                      child: FinoraInteractive3DMascot(
+                        pose: isOver
+                            ? FinoraMascotPose.focused
+                            : FinoraMascotPose.hero,
+                        size: 48,
+                        enableFloatingAnimation: true,
+                        enableTouch3DRotation: true,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Nhập nhanh giao dịch',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : const Color(0xFF0D1F1A),
+                    const SizedBox(width: 12),
+                    // 2. Cột thông tin Ambient AI
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: statusColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  isOver
+                                      ? 'CẢNH BÁO HẠN MỨC'
+                                      : 'TRỢ LÝ FINORA AI',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                    color: statusColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 15,
+                                color: statusColor,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            speechText,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF11221E),
+                              height: 1.3,
+                            ),
+                          ),
+                          if (totalBudgetLimit > 0) ...[
+                            const SizedBox(height: 5),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: budgetProgress.clamp(0.0, 1.0),
+                                minHeight: 4.5,
+                                backgroundColor: isDark
+                                    ? Colors.white.withValues(alpha: 0.10)
+                                    : Colors.black.withValues(alpha: 0.06),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(statusColor),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-
-              // Mic / Record action pill (Pure icon only)
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F6E56).withValues(alpha: 0.24)
-                      : const Color(0xFFE8F5F0),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.mic_none_rounded,
-                    size: 16,
-                    color: isDark
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFF0F6E56),
+              const SizedBox(height: 10),
+              // Thanh Hành Động AI Cân Đối 2 Cột (50% Nhập nhanh giao dịch | 50% Phân tích AI - Chiều cao 40px)
+              Row(
+                children: [
+                  Expanded(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          widget.onAiQuickLogTap?.call();
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1B2430)
+                                : const Color(0xFFF6F8F7),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF25303E)
+                                  : const Color(0xFFE2EAE6),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                color: primary,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'Nhập nhanh AI',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          (widget.onAiAdvisorTap ?? widget.onViewPlanning)?.call();
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [primary, secondary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primary.withValues(
+                                    alpha: isDark ? 0.28 : 0.18),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.insights_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              SizedBox(width: 6),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'Phân tích AI',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         );
-        if (blur > 0.5) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: card,
-            ),
-          );
-        }
-        return card;
-          },
-        ),
-      ),
+      },
     );
   }
 
@@ -1282,10 +1091,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         borderRadius: BorderRadius.circular(22),
         child: Builder(
           builder: (ctx) {
-            final blur = widget.studio?.glassBlur ?? 16.0;
-            final fill = (widget.studio?.getCardFillColor(isDark) ??
-                    (isDark ? const Color(0xFF121A17) : Colors.white))
-                .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
+            final fill = widget.studio
+                .getCardFillColor(isDark)
+                .withValues(alpha: widget.studio.glassOpacity);
             final card = Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1325,17 +1133,14 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF0F6E56).withValues(alpha: 0.24)
-                          : const Color(0xFFE8F5F0),
+                      color: widget.studio.resolvedPrimary
+                          .withValues(alpha: isDark ? 0.22 : 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.shield_outlined,
                       size: 15,
-                      color: isDark
-                          ? const Color(0xFF34D399)
-                          : const Color(0xFF0F6E56),
+                      color: widget.studio.resolvedPrimary,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1354,26 +1159,25 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF0F6E56).withValues(alpha: 0.22)
-                          : const Color(0xFFE8F5F0),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      tier,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'BeVietnamPro',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFF34D399)
-                            : const Color(0xFF0F6E56),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: widget.studio.resolvedPrimary
+                            .withValues(alpha: isDark ? 0.22 : 0.12),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Text(
+                        tier,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'BeVietnamPro',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: widget.studio.resolvedPrimary,
+                        ),
                       ),
                     ),
                   ),
@@ -1401,8 +1205,8 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                             backgroundColor: isDark
                                 ? Colors.white.withValues(alpha: 0.08)
                                 : const Color(0xFFE2E8F0),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFF10B981)),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                widget.studio.resolvedPrimary),
                             strokeCap: StrokeCap.round,
                           ),
                         ),
@@ -1411,11 +1215,11 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                           children: [
                             Text(
                               '$score',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.5,
-                                color: Color(0xFF10B981),
+                                color: widget.studio.resolvedPrimary,
                               ),
                             ),
                             const Text(
@@ -1461,15 +1265,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
           ],
           ),
         );
-        if (blur > 0.5) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: card,
-            ),
-          );
-        }
         return card;
       }),
     ),
@@ -1562,10 +1357,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         borderRadius: BorderRadius.circular(22),
         child: Builder(
           builder: (ctx) {
-            final blur = widget.studio?.glassBlur ?? 16.0;
-            final fill = (widget.studio?.getCardFillColor(isDark) ??
-                    (isDark ? const Color(0xFF121A17) : Colors.white))
-                .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
+            final fill = widget.studio
+                .getCardFillColor(isDark)
+                .withValues(alpha: widget.studio.glassOpacity);
             final card = Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1830,15 +1624,6 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
             ],
           ),
         );
-        if (blur > 0.5) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: card,
-            ),
-          );
-        }
         return card;
       }),
     ),
@@ -1849,10 +1634,9 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
   Widget _buildTransactionsSurface(bool isDark) {
     final txList = widget.txList;
 
-    final cardFill = widget.studio?.getCardFillColor(isDark) ??
-        (isDark ? const Color(0xFF121A17) : Colors.white)
-            .withValues(alpha: widget.studio?.glassOpacity ?? 0.88);
-    final blur = widget.studio?.glassBlur ?? 0.0;
+    final cardFill = widget.studio
+        .getCardFillColor(isDark)
+        .withValues(alpha: widget.studio.glassOpacity);
 
     final surfaceContainer = Container(
       decoration: BoxDecoration(
@@ -2042,12 +1826,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
-      child: blur > 0.5
-          ? BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: surfaceContainer,
-            )
-          : surfaceContainer,
+      child: surfaceContainer,
     );
   }
 
@@ -2056,9 +1835,11 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Column(
         children: [
-          const FinoraMascotImage(
+          const FinoraInteractive3DMascot(
             pose: FinoraMascotPose.relaxed,
-            size: 68,
+            size: 76,
+            enableFloatingAnimation: true,
+            enableTouch3DRotation: true,
           ),
           const SizedBox(height: 10),
           Text(
@@ -2150,9 +1931,14 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     final fullWallet = (tx.walletName != null && tx.walletName!.trim().isNotEmpty)
         ? tx.walletName!.trim()
         : 'Ví chính';
-    final ownerRole = (tx.owner ?? tx.creatorTag ?? 'all').trim();
-    final bankCode = tx.bankTransactionCode?.trim();
-    final subtitle = '$catDisplayName • $fullWallet • ${_formatRelativeDate(txDate)}';
+    final ownerNorm = FinoraMemberAvatar.normalizeMember(
+        tx.owner ?? tx.creatorTag ?? 'all');
+    final ownerLabel = ownerNorm == 'husband'
+        ? widget.studio.husbandDisplayLabel
+        : (ownerNorm == 'wife' ? widget.studio.wifeDisplayLabel : null);
+    final ownerColor = FinoraMemberAvatar.colorFor(ownerNorm);
+    final relDate = _formatRelativeDate(txDate);
+    final subtitle = '$catDisplayName • $fullWallet • $relDate';
 
     final statusColor = TransactionVisuals.colorFor(tx.type);
     final statusLabel = switch (tx.type.toLowerCase()) {
@@ -2171,6 +1957,11 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
     final amountPrefix = isTransfer ? '' : (isFlowIn ? '+' : '-');
     final amountText =
         isMasked ? '••••••' : '$amountPrefix${_formatAmount(tx.amount)} ₫';
+    final amountColor = isTransfer
+        ? (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7))
+        : (isFlowIn
+            ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+            : (isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48)));
 
     final isPhoto = CategoryIconHelper.isPhoto(
             resolvedIconStr, catDisplayName) ||
@@ -2182,88 +1973,278 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                 null);
 
     final listStyle = widget.studio.transactionListStyle;
-    final isCompact = listStyle == AppTransactionListStyle.compactTable;
-    final isBento = listStyle == AppTransactionListStyle.bentoCards;
-    final isTimeline = listStyle == AppTransactionListStyle.timelineRail;
-    final isMagazine = listStyle == AppTransactionListStyle.magazineLedger;
-    final isMinimal = listStyle == AppTransactionListStyle.minimalDivided;
 
-    final rowContent = Row(
-      children: [
-        if (isTimeline) ...[
+    Widget buildIconPod({
+      required double size,
+      required double iconSize,
+      BoxShape shape = BoxShape.circle,
+      BorderRadius? borderRadius,
+      bool outlined = false,
+    }) {
+      final effectiveRadius = shape == BoxShape.rectangle
+          ? (borderRadius ?? BorderRadius.circular(size * 0.32))
+          : null;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
           Container(
-            width: 3.5,
-            height: 40,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(999),
+              color: isPhoto
+                  ? Color.alphaBlend(
+                      catColor.withValues(alpha: isDark ? 0.22 : 0.14),
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                    )
+                  : (outlined
+                      ? catColor.withValues(alpha: isDark ? 0.12 : 0.08)
+                      : catColor.withValues(alpha: isDark ? 0.22 : 0.14)),
+              shape: shape,
+              borderRadius: effectiveRadius,
+              border: Border.all(
+                color: isPhoto
+                    ? catColor.withValues(alpha: isDark ? 0.62 : 0.45)
+                    : (outlined
+                        ? catColor.withValues(alpha: isDark ? 0.48 : 0.36)
+                        : catColor.withValues(alpha: isDark ? 0.28 : 0.20)),
+                width: isPhoto ? 1.5 : (outlined ? 1.2 : 1.0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: catColor.withValues(alpha: isDark ? 0.16 : 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: isPhoto
+                  ? Container(
+                      width: size * 0.76,
+                      height: size * 0.76,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        shape: shape,
+                        borderRadius: shape == BoxShape.rectangle
+                            ? BorderRadius.circular(size * 0.22)
+                            : null,
+                      ),
+                      child: CategoryIconWidget(
+                        icon: resolvedIconStr,
+                        categoryName: catDisplayName,
+                        size: size * 0.76,
+                        color: effectiveIconColor,
+                      ),
+                    )
+                  : CategoryIconWidget(
+                      icon: resolvedIconStr,
+                      categoryName: catDisplayName,
+                      size: iconSize,
+                      color: effectiveIconColor,
+                    ),
             ),
           ),
-          const SizedBox(width: 8),
+          if (ownerNorm != null)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                ),
+                padding: const EdgeInsets.all(1.2),
+                child: FinoraMemberAvatar(
+                  member: ownerNorm,
+                  size: 11.6,
+                  isDark: isDark,
+                ),
+              ),
+            ),
         ],
-        // Circular Avatar Icon
-        Container(
-          width: isCompact ? 34 : (isMagazine ? 46 : 42),
-          height: isCompact ? 34 : (isMagazine ? 46 : 42),
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: isPhoto
-                ? Colors.transparent
-                : catColor.withValues(alpha: isDark ? 0.22 : 0.14),
-            shape: isBento ? BoxShape.rectangle : BoxShape.circle,
-            borderRadius: isBento ? BorderRadius.circular(14) : null,
+      );
+    }
+
+    Widget itemBody;
+    BoxDecoration? itemDecoration;
+    EdgeInsetsGeometry itemPadding;
+    EdgeInsetsGeometry itemMargin;
+
+    switch (listStyle) {
+      case AppTransactionListStyle.bentoCards:
+        // 2. BENTO CARDS: Khối thẻ Bento nổi 2 tầng (Header strip + Nội dung chính)
+        itemMargin = const EdgeInsets.symmetric(vertical: 4.5);
+        itemPadding = const EdgeInsets.fromLTRB(12, 9, 12, 10);
+        itemDecoration = BoxDecoration(
+          color: isDark ? const Color(0xFF1A2232) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: catColor.withValues(alpha: isDark ? 0.28 : 0.20),
+            width: 1.0,
           ),
-          child: Center(
-            child: CategoryIconWidget(
-              icon: resolvedIconStr,
-              categoryName: catDisplayName,
-              size: isPhoto
-                  ? (isCompact ? 34 : (isMagazine ? 46 : 42))
-                  : (isCompact ? 18 : 22),
-              color: effectiveIconColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ),
-
-        const SizedBox(width: 12),
-
-        // Title & Subtitle + Short Wallet + Bank Code
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
+          ],
+        );
+        itemBody = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: catColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: catColor.withValues(alpha: isDark ? 0.35 : 0.22),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    catDisplayName,
+                    style: TextStyle(
+                      fontSize: 9.8,
+                      fontWeight: FontWeight.w800,
+                      color: effectiveIconColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 1.8),
+                    decoration: BoxDecoration(
+                      color: (isDark ? Colors.white : const Color(0xFF0F172A))
+                          .withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                     child: Text(
-                      title,
+                      fullWallet,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: isCompact ? 13.5 : (isMagazine ? 15 : 14.5),
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
+                        fontSize: 9.8,
+                        fontWeight: FontWeight.w700,
                         color: isDark
-                            ? const Color(0xFFF1F5F9)
-                            : const Color(0xFF0F172A),
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF475569),
                       ),
                     ),
                   ),
+                ),
+                if (ownerLabel != null) ...[
                   const SizedBox(width: 6),
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: ownerColor.withValues(alpha: isDark ? 0.20 : 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      ownerLabel,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        color: ownerColor,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                Text(
+                  relDate,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                buildIconPod(
+                  size: 38,
+                  iconSize: 20,
+                  shape: BoxShape.rectangle,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: isDark
+                          ? const Color(0xFFF8FAFC)
+                          : const Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 122),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      amountText,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: amountColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+        break;
+
+      case AppTransactionListStyle.timelineRail:
+        // 3. TIMELINE RAIL: Trục thời gian dọc với nút đèn báo dòng tiền
+        itemMargin = const EdgeInsets.symmetric(vertical: 3);
+        itemPadding = const EdgeInsets.symmetric(vertical: 8, horizontal: 4);
+        itemDecoration = null;
+        itemBody = IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 44,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
-                        color: (isDark ? Colors.white : const Color(0xFF0F172A))
-                            .withValues(alpha: 0.07),
-                        borderRadius: BorderRadius.circular(999),
+                        color: (isDark ? Colors.white : Colors.black)
+                            .withValues(alpha: isDark ? 0.08 : 0.05),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        fullWallet,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        DateFormat('HH:mm').format(txDate),
                         style: TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 9.2,
                           fontWeight: FontWeight.w800,
                           color: isDark
                               ? const Color(0xFFCBD5E1)
@@ -2271,94 +2252,587 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              if (!isCompact) ...[
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.2,
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
-                        ),
+                    const SizedBox(height: 3),
+                    Expanded(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 2.2,
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: isDark ? 0.30 : 0.22),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          Container(
+                            width: 13,
+                            height: 13,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark ? const Color(0xFF131A26) : Colors.white,
+                              border: Border.all(
+                                color: statusColor,
+                                width: 2.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: statusColor.withValues(alpha: 0.40),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A2232) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: (isDark ? Colors.white : Colors.black)
+                          .withValues(alpha: isDark ? 0.08 : 0.05),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      buildIconPod(size: 38, iconSize: 19),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13.8,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.2,
+                                      color: isDark
+                                          ? const Color(0xFFF1F5F9)
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5.5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (isDark ? Colors.white : const Color(0xFF0F172A))
+                                              .withValues(alpha: 0.07),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      fullWallet,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark
+                                            ? const Color(0xFFCBD5E1)
+                                            : const Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2.5),
+                            Text(
+                              ownerLabel != null ? '$subtitle • $ownerLabel' : subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 96),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                amountText,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                  color: amountColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                statusLabel,
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w800,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+        );
+        break;
 
-        const SizedBox(width: 10),
+      case AppTransactionListStyle.magazineLedger:
+        // 4. MAGAZINE LEDGER: Phong cách Tạp chí Tài chính với Lịch Ngày bên trái
+        itemMargin = const EdgeInsets.symmetric(vertical: 4);
+        itemPadding = const EdgeInsets.symmetric(vertical: 10, horizontal: 11);
+        itemDecoration = BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              catColor.withValues(alpha: isDark ? 0.14 : 0.08),
+              (isDark ? const Color(0xFF1A2232) : const Color(0xFFF8FAFC))
+                  .withValues(alpha: 0.65),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: catColor.withValues(alpha: isDark ? 0.24 : 0.16),
+          ),
+        );
+        itemBody = Row(
+          children: [
+            Container(
+              width: 42,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.26)
+                    : Colors.white.withValues(alpha: 0.90),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: catColor.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    txDate.day.toString().padLeft(2, '0'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      height: 1.05,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  Text(
+                    'T${txDate.month}',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      color: effectiveIconColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            buildIconPod(size: 36, iconSize: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.2,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: isDark
+                          ? const Color(0xFFF8FAFC)
+                          : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    ownerLabel != null
+                        ? '$catDisplayName · $fullWallet · $ownerLabel'
+                        : '$catDisplayName · $fullWallet',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.8,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 96),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      amountText,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: amountColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    statusLabel.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+        break;
 
-        // Amount & Status Badge (Always pinned flush right)
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 116),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FittedBox(
+      case AppTransactionListStyle.compactTable:
+        // 5. COMPACT TABLE: Bảng kế toán mật độ cao 1 dòng
+        itemMargin = const EdgeInsets.symmetric(vertical: 1);
+        itemPadding = const EdgeInsets.symmetric(vertical: 6.5, horizontal: 8);
+        itemDecoration = BoxDecoration(
+          color: (isDark ? Colors.white : const Color(0xFF0F172A))
+              .withValues(alpha: 0.025),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: (isDark ? Colors.white : Colors.black)
+                .withValues(alpha: 0.05),
+            width: 0.6,
+          ),
+        );
+        itemBody = Row(
+          children: [
+            buildIconPod(
+              size: 28,
+              iconSize: 15,
+              shape: BoxShape.rectangle,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? const Color(0xFFF1F5F9)
+                      : const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.white : const Color(0xFF0F172A))
+                      .withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  fullWallet,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 96),
+              child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerRight,
                 child: Text(
                   amountText,
-                  textAlign: TextAlign.right,
                   style: TextStyle(
-                    fontSize: isCompact ? 13.5 : (isMagazine ? 15.5 : 14.5),
+                    fontSize: 13,
                     fontWeight: FontWeight.w900,
                     fontFeatures: const [FontFeature.tabularFigures()],
-                    color: isTransfer
-                        ? (isDark
-                            ? const Color(0xFF38BDF8)
-                            : const Color(0xFF0284C7))
-                        : (isFlowIn
-                            ? (isDark
-                                ? const Color(0xFF34D399)
-                                : const Color(0xFF059669))
-                            : (isDark
-                                ? const Color(0xFFF87171)
-                                : const Color(0xFFE11D48))),
+                    color: amountColor,
                   ),
                 ),
               ),
-              if (!isCompact) ...[
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            ),
+          ],
+        );
+        break;
+
+      case AppTransactionListStyle.minimalDivided:
+        // 6. MINIMAL DIVIDED: Tối giản phân cách mảnh chuẩn Swiss Ledger
+        itemMargin = EdgeInsets.zero;
+        itemPadding = const EdgeInsets.symmetric(vertical: 9.5, horizontal: 4);
+        itemDecoration = BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: (isDark ? Colors.white : Colors.black)
+                  .withValues(alpha: 0.07),
+              width: 0.7,
+            ),
+          ),
+        );
+        itemBody = Row(
+          children: [
+            buildIconPod(size: 36, iconSize: 18, outlined: true),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13.8,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    ownerLabel != null ? '$subtitle • $ownerLabel' : subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 96),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  amountText,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: amountColor,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+        break;
+
+      case AppTransactionListStyle.modernStreamlined:
+        // 1. MODERN STREAMLINED: Viên thuốc hiện đại tinh gọn chuẩn Apple/Revolut
+        itemMargin = const EdgeInsets.symmetric(vertical: 3);
+        itemPadding = const EdgeInsets.symmetric(vertical: 8.5, horizontal: 10);
+        itemDecoration = BoxDecoration(
+          color: (isDark ? Colors.white : const Color(0xFF0F172A))
+              .withValues(alpha: isDark ? 0.035 : 0.025),
+          borderRadius: BorderRadius.circular(16),
+        );
+        itemBody = Row(
+          children: [
+            buildIconPod(size: 40, iconSize: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                            color: isDark
+                                ? const Color(0xFFF1F5F9)
+                                : const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color:
+                                (isDark ? Colors.white : const Color(0xFF0F172A))
+                                    .withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            fullWallet,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: isDark
+                                  ? const Color(0xFFCBD5E1)
+                                  : const Color(0xFF475569),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2.5),
+                  Text(
+                    ownerLabel != null ? '$subtitle • $ownerLabel' : subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 96),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      amountText,
+                      style: TextStyle(
+                        fontSize: 14.2,
+                        fontWeight: FontWeight.w900,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: amountColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 1.2),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       statusLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w700,
                         color: statusColor,
                       ),
                     ),
                   ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
+                ],
+              ),
+            ),
+          ],
+        );
+        break;
+    }
 
     return InkWell(
       onTap: () {
@@ -2371,46 +2845,32 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
       },
       borderRadius: BorderRadius.circular(18),
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: (isBento || isMagazine) ? 4 : 1.5),
-        padding: EdgeInsets.symmetric(
-          vertical: isCompact ? 6 : (isMagazine ? 11 : 9),
-          horizontal: (isBento || isMagazine) ? 12 : 4,
-        ),
-        decoration: isBento
-            ? BoxDecoration(
-                color: (isDark ? Colors.white : const Color(0xFF0F172A))
-                    .withValues(alpha: 0.045),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: catColor.withValues(alpha: 0.22),
-                ),
-              )
-            : isMagazine
-                ? BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        catColor.withValues(alpha: isDark ? 0.14 : 0.08),
-                        (isDark ? Colors.white : const Color(0xFF0F172A))
-                            .withValues(alpha: 0.02),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: catColor.withValues(alpha: 0.18),
-                    ),
-                  )
-                : isMinimal
-                    ? BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: (isDark ? Colors.white : Colors.black)
-                                .withValues(alpha: 0.06),
-                            width: 0.7,
-                          ),
-                        ),
-                      )
-                    : null,
-        child: rowContent,
+        margin: itemMargin,
+        padding: itemPadding,
+        decoration: itemDecoration,
+        child: itemBody,
+      ),
+    );
+  }
+}
+
+class VietnamCurrencyFlag extends StatelessWidget {
+  const VietnamCurrencyFlag({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 16,
+      height: 12,
+      decoration: BoxDecoration(
+        color: const Color(0xFFDA251D),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.star_rounded,
+        size: 8.5,
+        color: Color(0xFFFFCD00),
       ),
     );
   }

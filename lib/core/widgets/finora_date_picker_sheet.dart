@@ -138,6 +138,8 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
     HapticFeedback.selectionClick();
     int tempYear = _displayedMonth.year;
     int tempMonth = _displayedMonth.month;
+    final studio = context.mounted ? context.read<ThemeStudioController?>() : null;
+    final brandColor = studio?.resolvedPrimary ?? Theme.of(context).colorScheme.primary;
 
     final picked = await showModalBottomSheet<DateTime>(
       context: context,
@@ -181,9 +183,20 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(sheetCtx),
-                    icon: const Icon(Icons.close_rounded, size: 20),
+                  InkWell(
+                    onTap: () => Navigator.pop(sheetCtx),
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : const Color(0xFFF1F5F9),
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 18),
+                    ),
                   ),
                 ],
               ),
@@ -192,33 +205,57 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton(
-                    onPressed: () =>
+                  InkWell(
+                    onTap: () =>
                         setSheetState(() => tempYear = tempYear - 1),
-                    icon: const Icon(Icons.chevron_left_rounded),
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : const Color(0xFFF1F5F9),
+                      ),
+                      child: const Icon(Icons.chevron_left_rounded),
+                    ),
                   ),
+                  const SizedBox(width: 10),
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF059669)
+                      color: brandColor
                           .withValues(alpha: isDark ? 0.22 : 0.12),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       'Năm $tempYear',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'BeVietnamPro',
-                        fontSize: 16,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF059669),
+                        color: brandColor,
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () =>
+                  const SizedBox(width: 10),
+                  InkWell(
+                    onTap: () =>
                         setSheetState(() => tempYear = tempYear + 1),
-                    icon: const Icon(Icons.chevron_right_rounded),
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : const Color(0xFFF1F5F9),
+                      ),
+                      child: const Icon(Icons.chevron_right_rounded),
+                    ),
                   ),
                 ],
               ),
@@ -232,7 +269,7 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                   crossAxisCount: 4,
                   mainAxisSpacing: 8,
                   crossAxisSpacing: 8,
-                  childAspectRatio: 1.8,
+                  childAspectRatio: 2.1,
                 ),
                 itemCount: 12,
                 itemBuilder: (_, mIdx) {
@@ -242,15 +279,15 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                     onTap: () {
                       Navigator.pop(sheetCtx, DateTime(tempYear, m, 1));
                     },
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(999),
                     child: Container(
                       decoration: BoxDecoration(
                         color: isSel
-                            ? const Color(0xFF059669)
+                            ? brandColor
                             : (isDark
                                 ? Colors.white.withValues(alpha: 0.06)
                                 : const Color(0xFFF1F5F9)),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -321,6 +358,16 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
           final first = DateTime(today.year, today.month, 1);
           _selectedDate = first;
           _displayedMonth = first;
+        } else if (preset == 'lastMonth') {
+          final lastMonthEnd = DateTime(today.year, today.month, 0);
+          final targetDay = today.day.clamp(1, lastMonthEnd.day);
+          final prevDate = DateTime(lastMonthEnd.year, lastMonthEnd.month, targetDay);
+          _selectedDate = prevDate;
+          _displayedMonth = DateTime(lastMonthEnd.year, lastMonthEnd.month, 1);
+        } else if (preset == 'lastMonthStart') {
+          final prevFirst = DateTime(today.year, today.month - 1, 1);
+          _selectedDate = prevFirst;
+          _displayedMonth = prevFirst;
         }
       } else {
         if (preset == 'today') {
@@ -514,7 +561,7 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                   color: isDark
                       ? const Color(0xFF1E293B)
                       : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                     color: isDark
                         ? const Color(0xFF334155)
@@ -533,7 +580,7 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                             color: !_isRangeMode
                                 ? brandPrimary
                                 : Colors.transparent,
-                            borderRadius: BorderRadius.circular(11),
+                            borderRadius: BorderRadius.circular(999),
                             boxShadow: !_isRangeMode
                                 ? [
                                     BoxShadow(
@@ -569,7 +616,7 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                             color: _isRangeMode
                                 ? brandPrimary
                                 : Colors.transparent,
-                            borderRadius: BorderRadius.circular(11),
+                            borderRadius: BorderRadius.circular(999),
                             boxShadow: _isRangeMode
                                 ? [
                                     BoxShadow(
@@ -629,6 +676,23 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                       'Đầu tháng',
                       () => _selectPreset('monthStart'),
                       _isSameDay(_selectedDate, DateTime(today.year, today.month, 1)),
+                      brandPrimary,
+                      isDark,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPresetChip(
+                      'Tháng trước',
+                      () => _selectPreset('lastMonth'),
+                      _selectedDate.year == DateTime(today.year, today.month - 1, 1).year &&
+                          _selectedDate.month == DateTime(today.year, today.month - 1, 1).month,
+                      brandPrimary,
+                      isDark,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPresetChip(
+                      'Đầu tháng trước',
+                      () => _selectPreset('lastMonthStart'),
+                      _isSameDay(_selectedDate, DateTime(today.year, today.month - 1, 1)),
                       brandPrimary,
                       isDark,
                     ),
@@ -785,7 +849,7 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
+                          shape: BoxShape.circle,
                           color: isSelected
                               ? brandPrimary
                               : (isTodayCell
@@ -877,12 +941,12 @@ class _FinoraDatePickerSheetState extends State<FinoraDatePickerSheet> {
                             ),
                           ),
 
-                        // Day rounded cell
+                        // Day circular cell
                         Container(
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
+                            shape: BoxShape.circle,
                             color: isSelectedEndpoint
                                 ? brandPrimary
                                 : (isTodayCell && !isInRange

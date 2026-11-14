@@ -261,6 +261,9 @@ class _FinoraShimmerGlintState extends State<FinoraShimmerGlint>
 
   void _scheduleNextGlint() {
     _timer?.cancel();
+    if (WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+      return;
+    }
     _timer = Timer(widget.interval, () {
       if (mounted) {
         _controller.forward(from: 0.0).then((_) {

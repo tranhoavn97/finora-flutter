@@ -498,7 +498,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                 ? 'Thêm nơi mua'
                                 : 'Thêm danh mục'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF007AFF),
+                              backgroundColor: Provider.of<ThemeStudioController?>(
+                                          context,
+                                          listen: false)
+                                      ?.resolvedPrimary ??
+                                  const Color(0xFF0F6E56),
                               foregroundColor: Colors.white,
                               shape: const StadiumBorder(),
                               padding: const EdgeInsets.symmetric(
@@ -538,18 +542,20 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   /// 1. Liquid Glass Tab Bar [Tất cả | Chi tiêu | Thu nhập | Đầu tư | Nơi mua]
   Widget _buildLiquidGlassTabBar(bool isDark) {
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
     const groups = ['all', 'expense', 'income', 'investment', 'merchant'];
     final idx = groups.indexOf(_group);
     return BouncyPillTabs(
         height: 38,
         labels: const ['Tất cả', 'Chi tiêu', 'Thu nhập', 'Đầu tư', 'Nơi mua'],
         selectedIndex: idx < 0 ? 0 : idx,
-        colors: const [
-          Color(0xFF475569), // Tất cả - Slate
-          Color(0xFFE11D48), // Chi tiêu - Rose Red
-          Color(0xFF059669), // Thu nhập - Emerald Green
-          Color(0xFFD97706), // Đầu tư - Amber
-          Color(0xFF3861FB), // Nơi mua - Electric Blue
+        colors: [
+          brandPrimary, // Tất cả - đồng bộ màu hệ thống
+          const Color(0xFFE11D48), // Chi tiêu - Rose Red
+          const Color(0xFF059669), // Thu nhập - Emerald Green
+          const Color(0xFFD97706), // Đầu tư - Amber
+          const Color(0xFF3861FB), // Nơi mua - Electric Blue
         ],
         onChanged: (index) {
           setState(() => _group = groups[index]);
@@ -560,6 +566,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
   /// 2. Single-row compact toolbar: Month picker, Status filter, Search, Grid/List view, and '+ Thêm' button.
   Widget _buildUnifiedControlBar(
       bool isDark, Color primaryTextColor, Color secondaryTextColor) {
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
@@ -601,19 +609,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
               height: 32,
               decoration: BoxDecoration(
                 color: _isSearching || _searchController.text.isNotEmpty
-                    ? const Color(0xFF005FEA).withValues(alpha: 0.15)
+                    ? brandPrimary.withValues(alpha: 0.15)
                     : (isDark ? const Color(0xFF1E293B) : Colors.white),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: _isSearching || _searchController.text.isNotEmpty
-                      ? const Color(0xFF005FEA)
+                      ? brandPrimary
                       : (isDark
                           ? const Color(0xFF334155)
                           : const Color(0xFFE2E8F0)),
                 ),
               ),
-              child: const Icon(Icons.search_rounded,
-                  size: 16, color: Color(0xFF005FEA)),
+              child: Icon(Icons.search_rounded, size: 16, color: brandPrimary),
             ),
           ),
           const SizedBox(width: 6),
@@ -650,7 +657,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
             onPressed: _openAdd,
             tooltip: _group == 'merchant' ? 'Thêm nơi mua' : 'Thêm danh mục',
             size: 34,
-            color: _group == 'expense' ? const Color(0xFFE11D48) : const Color(0xFF00866A),
+            color: _group == 'expense' ? const Color(0xFFE11D48) : brandPrimary,
           ),
         ],
       ),
@@ -872,18 +879,24 @@ class _CategoryListTile extends StatelessWidget {
             IconButton(
               tooltip: 'Chỉnh sửa danh mục',
               onPressed: onEdit,
-              icon: Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF007AFF).withValues(alpha: 0.12),
-                ),
-                child: const Icon(
-                  Icons.edit_rounded,
-                  size: 15,
-                  color: Color(0xFF007AFF),
-                ),
-              ),
+              icon: Builder(builder: (ctx) {
+                final primary = Provider.of<ThemeStudioController?>(ctx,
+                            listen: false)
+                        ?.resolvedPrimary ??
+                    const Color(0xFF0F6E56);
+                return Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primary.withValues(alpha: 0.12),
+                  ),
+                  child: Icon(
+                    Icons.edit_rounded,
+                    size: 15,
+                    color: primary,
+                  ),
+                );
+              }),
             ),
           ],
         ),
@@ -1059,18 +1072,24 @@ class _CategoryTile extends StatelessWidget {
                 child: IconButton(
                   tooltip: 'Chỉnh sửa danh mục',
                   onPressed: onEdit,
-                  icon: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF007AFF).withValues(alpha: 0.12),
-                    ),
-                    child: const Icon(
-                      Icons.edit_rounded,
-                      size: 14,
-                      color: Color(0xFF007AFF),
-                    ),
-                  ),
+                  icon: Builder(builder: (ctx) {
+                    final primary = Provider.of<ThemeStudioController?>(ctx,
+                                listen: false)
+                            ?.resolvedPrimary ??
+                        const Color(0xFF0F6E56);
+                    return Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: primary.withValues(alpha: 0.12),
+                      ),
+                      child: Icon(
+                        Icons.edit_rounded,
+                        size: 14,
+                        color: primary,
+                      ),
+                    );
+                  }),
                 ),
               ),
             ],
@@ -1181,10 +1200,14 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
       _emojiController.text = widget.existing!.icon;
       _color = widget.existing!.color ??
           (_group == 'merchant' ? '#3861FB' : '#007AFF');
-      if (categoryLucideIconKeys
+      if (CategoryIconHelper.popular24Icons
+          .any((p) => p.id == widget.existing!.icon.toLowerCase())) {
+        _iconType = 'popular24';
+      } else if (categoryLucideIconKeys
           .contains(widget.existing!.icon.toLowerCase())) {
         _iconType = 'lucide';
-      } else if (widget.existing!.icon.startsWith('http')) {
+      } else if (widget.existing!.icon.startsWith('http') ||
+          widget.existing!.icon.startsWith('data:image')) {
         _iconType = 'image';
       } else {
         _iconType = 'emoji';
@@ -1194,6 +1217,9 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
         _emojiController.text = 'store';
         _iconType = 'lucide';
         _color = '#3861FB';
+      } else {
+        _emojiController.text = '02-an-uong';
+        _iconType = 'popular24';
       }
     }
     _nameController.addListener(() => setState(() {}));
@@ -1664,7 +1690,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Chọn Biểu tượng (Web Icons / Emoji)
+                    // Chọn Biểu tượng (24 Icon Phổ Biến / Web Icons / Emoji)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -1689,13 +1715,37 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                             children: [
                               GestureDetector(
                                 onTap: () =>
+                                    setState(() => _iconType = 'popular24'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _iconType == 'popular24'
+                                        ? previewTint
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(100),
+                                  ),
+                                  child: Text(
+                                    '24 Icon Nổi bật',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: _iconType == 'popular24'
+                                          ? Colors.white
+                                          : secondaryTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
                                     setState(() => _iconType = 'lucide'),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: _iconType == 'lucide'
-                                        ? const Color(0xFF005FEA)
+                                        ? previewTint
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(100),
                                   ),
@@ -1719,7 +1769,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                                       horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: _iconType == 'emoji'
-                                        ? const Color(0xFF005FEA)
+                                        ? previewTint
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(100),
                                   ),
@@ -1748,25 +1798,25 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(44),
                           shape: const StadiumBorder(),
-                          foregroundColor: const Color(0xFF059669),
-                          side: const BorderSide(color: Color(0xFF10B981)),
+                          foregroundColor: previewTint,
+                          side: BorderSide(color: previewTint),
                         ),
                         onPressed: _isUploadingIcon ? null : _pickImageIcon,
                         icon: _isUploadingIcon
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 17,
                                 height: 17,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Color(0xFF059669),
+                                  color: previewTint,
                                 ),
                               )
                             : const Icon(Icons.add_photo_alternate_rounded),
                         label: Text(_isUploadingIcon
                             ? 'Đang tải ảnh...'
                             : _iconType == 'image'
-                                ? 'Đổi ảnh icon'
-                                : 'Chọn ảnh làm icon'),
+                                ? 'Đổi ảnh icon từ máy'
+                                : 'Chọn ảnh làm icon từ máy'),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -1774,6 +1824,10 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(42),
+                          shape: const StadiumBorder(),
+                        ),
                         onPressed:
                             _isLoadingSavedIcons ? null : _showSavedIcons,
                         icon: const Icon(Icons.photo_library_outlined),
@@ -1794,15 +1848,16 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                         ),
                         child: Row(
                           children: [
-                            CategoryIconWidget(
+                            CategoryIconBadge(
                               icon: previewEmoji,
+                              colorHex: _color,
                               size: 52,
-                              color: previewTint,
+                              isDark: isDark,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Ảnh được cắt tròn và đồng bộ trên web lẫn ứng dụng.',
+                                'Ảnh được lồng khung viền tròn chuẩn và đồng bộ trên web lẫn ứng dụng.',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: secondaryTextColor,
@@ -1810,6 +1865,82 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                               ),
                             ),
                           ],
+                        ),
+                      )
+                    else if (_iconType == 'popular24')
+                      SizedBox(
+                        height: 240,
+                        child: GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 0.90,
+                          ),
+                          itemCount: CategoryIconHelper.popular24Icons.length,
+                          itemBuilder: (context, idx) {
+                            final item = CategoryIconHelper.popular24Icons[idx];
+                            final isSelected = previewEmoji.toLowerCase() ==
+                                    item.id.toLowerCase() ||
+                                previewEmoji.contains(item.id);
+                            return GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _emojiController.text = item.id;
+                                  if (_nameController.text.trim().isEmpty) {
+                                    _nameController.text = item.label;
+                                  }
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? previewTint.withValues(alpha: 0.16)
+                                      : surfaceColor,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color:
+                                        isSelected ? previewTint : borderColor,
+                                    width: isSelected ? 1.6 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    CategoryIconBadge(
+                                      icon: item.id,
+                                      categoryName: item.label,
+                                      colorHex: _color,
+                                      size: 38,
+                                      isDark: isDark,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      item.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: isSelected
+                                            ? previewTint
+                                            : textColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       )
                     else if (_iconType == 'lucide')

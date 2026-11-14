@@ -8,49 +8,54 @@ class FinoraTokens {
   FinoraTokens._();
 
   // --- 1. Apple Minimalist & Deep Titanium OLED (v27 Design System) ---
-  static const Color oledBlack = Color(0xFF0B0D11);
-  static const Color titaniumBg = Color(0xFF10131A);
-  static const Color titaniumSurface = Color(0xFF161B24);
-  static const Color titaniumCard = Color(0xFF1D232F);
-  static const Color titaniumElevated = Color(0xFF252D3D);
+  static const Color oledBlack = Color(0xFF0B1014);
+  static const Color titaniumBg = Color(0xFF0B1014);
+  static const Color titaniumSurface = Color(0xFF131A22);
+  static const Color titaniumCard = Color(0xFF1B2430);
+  static const Color titaniumElevated = Color(0xFF25303E);
 
   // Brand & Actions
-  static const Color brandBlueLight = Color(0xFF00866A);
+  static const Color brandBlueLight = Color(0xFF0F6E56);
   static const Color brandBlueDark = Color(0xFF10B981);
-  static const Color primaryActionLight = Color(0xFF00866A);
+  static const Color primaryActionLight = Color(0xFF0F6E56);
   static const Color primaryActionDark = Color(0xFF10B981);
   static const Color onPrimaryLight = Color(0xFFFFFFFF);
   static const Color onPrimaryDark = Color(0xFFFFFFFF);
 
   // Soft Accents
-  static const Color accentMintLight = Color(0xFF30D158);
-  static const Color accentMintDark = Color(0xFF30D158);
-  static const Color accentButterLight = Color(0xFFFF9F0A);
-  static const Color accentButterDark = Color(0xFFFF9F0A);
+  static const Color accentMintLight = Color(0xFF10B981);
+  static const Color accentMintDark = Color(0xFF34D399);
+  static const Color accentButterLight = Color(0xFFD97706);
+  static const Color accentButterDark = Color(0xFFFBBF24);
 
   // Financial Status Semantics (Apple HIG)
-  static const Color incomeLight = Color(0xFF00835F);
-  static const Color incomeDark = Color(0xFF30D158);
-  static const Color expenseLight = Color(0xFFDA6263);
-  static const Color expenseDark = Color(0xFFFF453A);
-  static const Color expenseAccentLight = Color(0xFFFF3B46);
-  static const Color expenseAccentDark = Color(0xFFF5253E);
-  static const Color warningLight = Color(0xFFFF9F0A);
-  static const Color warningDark = Color(0xFFFF9F0A);
+  static const Color incomeLight = Color(0xFF059669);
+  static const Color incomeDark = Color(0xFF10B981);
+  static const Color expenseLight = Color(0xFFE11D48);
+  static const Color expenseDark = Color(0xFFFB7185);
+  static const Color expenseAccentLight = Color(0xFFE11D48);
+  static const Color expenseAccentDark = Color(0xFFF43F5E);
+  static const Color warningLight = Color(0xFFD97706);
+  static const Color warningDark = Color(0xFFFBBF24);
   static const Color infoTransferLight = Color(0xFF0284C7);
   static const Color infoTransferDark = Color(0xFF38BDF8);
 
+  // Couple & Family Member Semantics
+  static const Color husbandBlue = Color(0xFF0066CC);
+  static const Color wifePink = Color(0xFFDB2777);
+  static const Color jointTeal = Color(0xFF0D9488);
+
   // Surface & Borders
-  static const Color borderLight = Color(0xFFE6EEEA);
-  static const Color borderDark = Color(0xFF252D3D);
-  static const Color surfaceSubtleLight = Color(0xFFF1F5F9);
-  static const Color surfaceSubtleDark = Color(0xFF1D232F);
+  static const Color borderLight = Color(0xFFE2EAE6);
+  static const Color borderDark = Color(0xFF25303E);
+  static const Color surfaceSubtleLight = Color(0xFFEEF3F1);
+  static const Color surfaceSubtleDark = Color(0xFF1B2430);
 
   // Apple Semantics (v27 System Colors)
-  static const Color appleMint = Color(0xFF30D158);
-  static const Color appleCoral = Color(0xFFFF453A);
+  static const Color appleMint = Color(0xFF10B981);
+  static const Color appleCoral = Color(0xFFE11D48);
   static const Color appleCobalt = Color(0xFF0284C7);
-  static const Color appleAmber = Color(0xFFFF9F0A);
+  static const Color appleAmber = Color(0xFFD97706);
   static const Color applePurple = Color(0xFF0D9488);
 
   // Core Palette aliases & semantics
@@ -62,16 +67,16 @@ class FinoraTokens {
   static const Color warnAmber = appleAmber;
   static const Color warnAmberDark = appleAmber;
   static const Color trackLight = borderLight;
-  static const Color trackDark = Color(0xFF252D3D);
+  static const Color trackDark = Color(0xFF25303E);
 
   // Paper/Sunken compatibility aliases
-  static const Color paperBgLight = Color(0xFFF9FBFA);
+  static const Color paperBgLight = Color(0xFFF6F8F7);
   static const Color paperSurfaceLight = Color(0xFFFFFFFF);
   static const Color paperSurface2Light = surfaceSubtleLight;
   static const Color paperLineLight = borderLight;
   static const Color paperLine2Light = Color(0xFFCBD5E1);
-  static const Color inkPrimaryLight = Color(0xFF152B29);
-  static const Color inkSecondaryLight = Color(0xFF566B63);
+  static const Color inkPrimaryLight = Color(0xFF11221E);
+  static const Color inkSecondaryLight = Color(0xFF556862);
   static const Color inkTertiaryLight = Color(0xFF86928C);
 
   static const Color paperBgDark = oledBlack;
@@ -79,8 +84,8 @@ class FinoraTokens {
   static const Color paperSurface2Dark = surfaceSubtleDark;
   static const Color paperLineDark = borderDark;
   static const Color paperLine2Dark = Color(0xFF334155);
-  static const Color inkPrimaryDark = Color(0xFFEEF2F5);
-  static const Color inkSecondaryDark = Color(0xFFB4C0CC);
+  static const Color inkPrimaryDark = Color(0xFFF1F5F9);
+  static const Color inkSecondaryDark = Color(0xFF94A3B8);
   static const Color inkTertiaryDark = Color(0xFF64748B);
 
   static const Color sunkenLight = paperSurface2Light;
@@ -311,13 +316,22 @@ class FinoraTokens {
   static BoxDecoration emeraldCardDecoration({
     bool isDark = false,
     double radius = radiusCard,
+    Color? primaryColor,
   }) {
+    final base = primaryColor ?? const Color(0xFF0B6645);
+    final deep = primaryColor != null
+        ? Color.lerp(primaryColor, const Color(0xFF040B14), 0.52)!
+        : const Color(0xFF043927);
     return BoxDecoration(
-      gradient: emeraldHeroGradient,
+      gradient: LinearGradient(
+        colors: [deep, base],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
       borderRadius: BorderRadius.circular(radius),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF0B6645).withValues(alpha: isDark ? 0.35 : 0.18),
+          color: base.withValues(alpha: isDark ? 0.35 : 0.18),
           blurRadius: 18,
           offset: const Offset(0, 4),
         ),

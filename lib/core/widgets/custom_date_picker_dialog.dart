@@ -71,6 +71,17 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
     });
   }
 
+  void _selectLastMonth() {
+    final now = DateTime.now();
+    final lastMonthEnd = DateTime(now.year, now.month, 0);
+    final targetDay = now.day.clamp(1, lastMonthEnd.day);
+    final prevDate = DateTime(lastMonthEnd.year, lastMonthEnd.month, targetDay);
+    setState(() {
+      _selectedDate = prevDate;
+      _displayedMonth = DateTime(lastMonthEnd.year, lastMonthEnd.month, 1);
+    });
+  }
+
   void _prevMonth() {
     setState(() {
       _displayedMonth =
@@ -253,15 +264,26 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
                     child: _buildQuickButton(
                         'Hôm nay', isTodaySelected, _selectToday, isDark, primary),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: _buildQuickButton('Hôm qua', isYesterdaySelected,
                         _selectYesterday, isDark, primary),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: _buildQuickButton('Đầu tháng',
                         isStartOfMonthSelected, _selectStartOfMonth, isDark, primary),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _buildQuickButton(
+                      'Tháng trước',
+                      _selectedDate.year == DateTime(now.year, now.month - 1, 1).year &&
+                          _selectedDate.month == DateTime(now.year, now.month - 1, 1).month,
+                      _selectLastMonth,
+                      isDark,
+                      primary,
+                    ),
                   ),
                 ],
               ),

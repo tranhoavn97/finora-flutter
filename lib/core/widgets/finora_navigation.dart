@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -51,11 +52,25 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
   /// - Tab 1 (`Tài sản`): Ocean Sapphire `#0284C7` (Light) / `#38BDF8` (Dark)
   /// - Tab 2 (`Kế hoạch`): Royal Teal/Indigo `#0D9488` (Light) / `#2DD4BF` (Dark)
   /// - Tab 3 (`Cá nhân`): Royal Violet `#4F46E5` (Light) / `#818CF8` (Dark)
-  static Color tabAccentColor(int tabIndex, bool dark) =>
-      dark ? const Color(0xFF10B981) : const Color(0xFF007859);
+  static Color tabAccentColor(
+    int tabIndex,
+    bool dark, [
+    ThemeStudioController? studio,
+  ]) =>
+      studio?.resolvedDockActiveColor ??
+      studio?.resolvedPrimary ??
+      (dark ? const Color(0xFF10B981) : const Color(0xFF007859));
 
   double? _dragStartX;
   bool _isScrubbing = false;
+  bool _isPressHolding = false;
+  Timer? _holdTimer;
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
 
   void _handlePointerDown(
     double localDx,
@@ -64,6 +79,25 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
   ) {
     _dragStartX = localDx;
     _isScrubbing = false;
+    _holdTimer?.cancel();
+    _holdTimer = Timer(const Duration(milliseconds: 150), () {
+      if (!mounted || totalWidth <= 0) return;
+      final double normalized = (localDx / totalWidth).clamp(0.0, 0.9999);
+      final double fraction = (normalized * 4.0 - 0.5).clamp(0.0, 3.0);
+      final int targetIndex = (normalized * 4.0).floor().clamp(0, 3);
+      setState(() {
+        _isPressHolding = true;
+        _isScrubbing = true;
+        _dragFraction = fraction;
+        _dragTabIndex = targetIndex;
+      });
+      studio?.performHaptic();
+      HapticFeedback.mediumImpact();
+      if (targetIndex != _lastEmittedIndex) {
+        _lastEmittedIndex = targetIndex;
+        widget.onTap(targetIndex);
+      }
+    });
   }
 
   void _handlePointerMove(
@@ -72,11 +106,16 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
     ThemeStudioController? studio,
   ) {
     if (totalWidth <= 0) return;
-    if (_dragStartX != null && (localDx - _dragStartX!).abs() > 5.0) {
-      _isScrubbing = true;
+    if (_dragStartX != null && (localDx - _dragStartX!).abs() > 4.0) {
+      _holdTimer?.cancel();
+      if (!_isScrubbing) {
+        _isScrubbing = true;
+        _isPressHolding = true;
+        HapticFeedback.lightImpact();
+      }
     }
 
-    if (_isScrubbing) {
+    if (_isScrubbing || _isPressHolding) {
       final double normalized = (localDx / totalWidth).clamp(0.0, 0.9999);
       final double fraction = (normalized * 4.0 - 0.5).clamp(0.0, 3.0);
       final int targetIndex = (normalized * 4.0).floor().clamp(0, 3);
@@ -98,10 +137,12 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
   }
 
   void _handlePointerUp() {
+    _holdTimer?.cancel();
     _dragStartX = null;
     _isScrubbing = false;
-    if (_dragFraction != null || _dragTabIndex != null) {
+    if (_dragFraction != null || _dragTabIndex != null || _isPressHolding) {
       setState(() {
+        _isPressHolding = false;
         _dragFraction = null;
         _dragTabIndex = null;
       });
@@ -253,7 +294,7 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
       );
     } else if (isGlowTray) {
       borderStyle = Border.all(
-        color: (studio?.resolvedPrimary ?? const Color(0xFF6366F1))
+        color: (studio?.resolvedPrimary ?? const Color(0xFF0F6E56))
             .withValues(alpha: dark ? 0.50 : 0.60),
         width: borderWidth,
       );
@@ -1070,12 +1111,6 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
             color: primaryColor,
             width: 1.2,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: primaryColor.withValues(alpha: 0.35),
-              blurRadius: 8,
-            ),
-          ],
         );
       }
       if (tabSelectStyle == AppTabSelectStyle.filledIcon) {
@@ -1136,10 +1171,7 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: isStealthWire ? 38 : 46),
               child: Center(
-                child: AnimatedContainer(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 220),
+                child: Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: isPillTabs && selected ? 10 : 8,
                     vertical: showLabel ? 4 : (isStealthWire ? 4 : 8),
@@ -1347,15 +1379,15 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
   ) {
     const double maxWidth = 428;
     final int activeIndex = (_dragTabIndex ?? widget.index).clamp(0, 3);
-    final bool isDragging = _dragFraction != null;
-    final Color activeAccent = tabAccentColor(activeIndex, dark);
-    final double dockBlur = (studio?.dockBlur ?? 18.0).clamp(0.0, 32.0);
+    final bool isDragging = _dragFraction != null || _isPressHolding;
+    final Color activeAccent = tabAccentColor(activeIndex, dark, studio);
+    final double dockBlur = (studio?.dockBlur ?? 18.0).clamp(0.0, 18.0);
     final double dockAlpha =
         (studio?.dockOpacity ?? (dark ? 0.82 : 0.78)).clamp(0.15, 1.0);
 
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: Center(
         heightFactor: 1,
         child: ConstrainedBox(
@@ -1363,88 +1395,87 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 1. Interactive Dock Chassis (Image 4 Design: Pill Dock with Floating Active Capsule)
+              // 1. Interactive iOS 27 Liquid Glass Dock Chassis with Press-Hold-Slide Magnification
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(100),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: dockBlur, sigmaY: dockBlur),
-                    child: Container(
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: (dark
-                                ? const Color(0xFF0F172A)
-                                : Colors.white)
-                            .withValues(alpha: dockAlpha),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(
-                          color: isDragging
-                              ? activeAccent.withValues(
-                                  alpha: dark ? 0.55 : 0.40)
-                              : (dark
-                                  ? Colors.white.withValues(alpha: 0.14)
-                                  : const Color(0xFFCBD5E1)
-                                      .withValues(alpha: 0.85)),
-                          width: isDragging ? 1.25 : 1.0,
+                child: AnimatedScale(
+                  scale: isDragging ? 1.032 : 1.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutBack,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(100),
+                    child: BackdropFilter(
+                      filter:
+                          ImageFilter.blur(sigmaX: dockBlur, sigmaY: dockBlur),
+                      child: Container(
+                        height: 58,
+                        decoration: BoxDecoration(
+                          color: (dark
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white)
+                              .withValues(alpha: dockAlpha),
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: isDragging
+                                ? activeAccent.withValues(
+                                    alpha: dark ? 0.68 : 0.52)
+                                : (dark
+                                    ? Colors.white.withValues(alpha: 0.14)
+                                    : const Color(0xFFCBD5E1)
+                                        .withValues(alpha: 0.85)),
+                            width: isDragging ? 1.4 : 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (dark
+                                      ? Colors.black
+                                      : const Color(0xFF0F172A))
+                                  .withValues(alpha: dark ? 0.36 : 0.07),
+                              blurRadius: 20,
+                              offset: const Offset(0, 7),
+                              spreadRadius: -2,
+                            ),
+                          ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                (dark ? Colors.black : const Color(0xFF0F172A))
-                                    .withValues(alpha: dark ? 0.40 : 0.08),
-                            blurRadius: 22,
-                            offset: const Offset(0, 8),
-                            spreadRadius: -2,
-                          ),
-                          BoxShadow(
-                            color: activeAccent.withValues(
-                                alpha: isDragging
-                                    ? (dark ? 0.24 : 0.12)
-                                    : (dark ? 0.10 : 0.04)),
-                            blurRadius: isDragging ? 18 : 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 5),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final double innerWidth = constraints.maxWidth;
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 5),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final double innerWidth = constraints.maxWidth;
 
-                          return Listener(
-                            behavior: HitTestBehavior.translucent,
-                            onPointerDown: (e) => _handlePointerDown(
-                              e.localPosition.dx,
-                              innerWidth,
-                              studio,
-                            ),
-                            onPointerMove: (e) => _handlePointerMove(
-                              e.localPosition.dx,
-                              innerWidth,
-                              studio,
-                            ),
-                            onPointerUp: (_) => _handlePointerUp(),
-                            onPointerCancel: (_) => _handlePointerUp(),
-                            child: Row(
-                              children: List.generate(tabs.length, (i) {
-                                final tab = tabs[i];
-                                final bool isSelected = activeIndex == i;
-                                return _buildInteractiveAppleDockTab(
-                                  context: context,
-                                  tabIndex: i,
-                                  unselectedIcon: tab.unselected,
-                                  selectedIcon: tab.selected,
-                                  label: tab.label,
-                                  isSelected: isSelected,
-                                  isDragging: isDragging && isSelected,
-                                  dark: dark,
-                                  studio: studio,
-                                );
-                              }),
-                            ),
-                          );
-                        },
+                            return Listener(
+                              behavior: HitTestBehavior.translucent,
+                              onPointerDown: (e) => _handlePointerDown(
+                                e.localPosition.dx,
+                                innerWidth,
+                                studio,
+                              ),
+                              onPointerMove: (e) => _handlePointerMove(
+                                e.localPosition.dx,
+                                innerWidth,
+                                studio,
+                              ),
+                              onPointerUp: (_) => _handlePointerUp(),
+                              onPointerCancel: (_) => _handlePointerUp(),
+                              child: Row(
+                                children: List.generate(tabs.length, (i) {
+                                  final tab = tabs[i];
+                                  final bool isSelected = activeIndex == i;
+                                  return _buildInteractiveAppleDockTab(
+                                    context: context,
+                                    tabIndex: i,
+                                    unselectedIcon: tab.unselected,
+                                    selectedIcon: tab.selected,
+                                    label: tab.label,
+                                    isSelected: isSelected,
+                                    isDragging: isDragging && isSelected,
+                                    dark: dark,
+                                    studio: studio,
+                                  );
+                                }),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -1456,8 +1487,9 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
               // 2. Separate Floating CTA (+) Button with Customizable Color & Press Bounce
               _FloatingCtaButton(
                 onTap: widget.onAddTap,
-                accentColor:
-                    studio?.dockPlusColor ?? const Color(0xFF10B981),
+                accentColor: studio?.resolvedDockPlusColor ??
+                    studio?.resolvedPrimary ??
+                    const Color(0xFF10B981),
               ),
             ],
           ),
@@ -1478,7 +1510,7 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
     required ThemeStudioController? studio,
   }) {
     final Color activeAccent =
-        studio?.dockActiveColor ?? tabAccentColor(tabIndex, dark);
+        studio?.resolvedDockActiveColor ?? tabAccentColor(tabIndex, dark, studio);
     final Color activeFg = dark ? Colors.white : Colors.white;
     final Color inactiveFg =
         dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
@@ -1500,46 +1532,38 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
               splashFactory: NoSplash.splashFactory,
               splashColor: Colors.transparent,
               highlightColor: Colors.transparent,
-              child: AnimatedContainer(
-                duration: Duration(milliseconds: isSelected ? 160 : 70),
-                curve: Curves.easeOutCubic,
+              child: Container(
                 height: double.infinity,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: isSelected
-                      ? LinearGradient(
+                decoration: isSelected
+                    ? BoxDecoration(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Color.lerp(activeAccent, Colors.white, 0.10)!,
+                            Color.lerp(
+                              activeAccent,
+                              Colors.white,
+                              isDragging ? 0.22 : 0.12,
+                            )!,
                             activeAccent,
-                            Color.lerp(activeAccent, Colors.black, 0.14)!,
+                            Color.lerp(activeAccent, Colors.black, 0.12)!,
                           ],
-                        )
-                      : null,
-                  color: isSelected ? null : Colors.transparent,
-                  borderRadius: BorderRadius.circular(100),
-                  border: isSelected
-                      ? Border.all(
+                        ),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
                           color: Colors.white.withValues(
-                              alpha: dark ? 0.32 : 0.45),
-                          width: 1.0,
-                        )
-                      : null,
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: activeAccent.withValues(
-                                alpha: dark ? 0.42 : 0.30),
-                            blurRadius: 12,
-                            offset: const Offset(0, 3),
+                            alpha: isDragging
+                                ? 0.72
+                                : (dark ? 0.34 : 0.48),
                           ),
-                        ]
-                      : null,
-                ),
+                          width: isDragging ? 1.35 : 1.0,
+                        ),
+                      )
+                    : null,
                 child: isSelected
                     ? AnimatedScale(
-                        scale: isDragging ? 1.06 : 1.0,
+                        scale: isDragging ? 1.07 : 1.0,
                         duration: const Duration(milliseconds: 160),
                         curve: Curves.easeOutBack,
                         child: FittedBox(

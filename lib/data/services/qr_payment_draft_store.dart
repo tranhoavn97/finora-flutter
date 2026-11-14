@@ -49,6 +49,12 @@ class QrPaymentDraft {
 
 class QrPaymentDraftStore {
   static Future<void> _queue = Future.value();
+
+  /// Only true when the user actively initiated a QR bank handoff or guest QR scan
+  /// during the current running app session. Prevents stale drafts from auto-popping
+  /// up on cold start when the user simply opens the app.
+  static bool pendingAutoResumeInSession = false;
+
   static String _key(String uid) => 'finora_pending_qr_v1_$uid';
   static Future<List<QrPaymentDraft>> list(String uid) async {
     final prefs = await SharedPreferences.getInstance();
@@ -82,4 +88,6 @@ class QrPaymentDraftStore {
       });
   static Future<void> remove(String uid, String id) =>
       _mutate(uid, (items) => items.removeWhere((d) => d.id == id));
+  static Future<void> clear(String uid) =>
+      _mutate(uid, (items) => items.clear());
 }

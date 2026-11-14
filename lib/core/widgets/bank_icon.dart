@@ -3,10 +3,119 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:provider/provider.dart';
 import '../../state/theme_studio_controller.dart';
+import '../../state/more_provider.dart';
 import 'premium_widgets.dart';
 import '../utils/formatters.dart';
 import '../../domain/finance/transaction_member.dart';
 import '../../state/transaction_provider.dart';
+
+/// Custom sleek dual-flow transfer emblem for Chuyển tiền / Chuyển khoản
+class FinoraTransferEmblem extends StatelessWidget {
+  final double size;
+  final Color color;
+  final bool isDark;
+
+  const FinoraTransferEmblem({
+    super.key,
+    required this.size,
+    this.color = const Color(0xFF0284C7),
+    this.isDark = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _FinoraTransferGlyphPainter(
+          color: color,
+          isDark: isDark,
+        ),
+      ),
+    );
+  }
+}
+
+class _FinoraTransferGlyphPainter extends CustomPainter {
+  final Color color;
+  final bool isDark;
+
+  const _FinoraTransferGlyphPainter({
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = (w * 0.115).clamp(1.7, 3.0);
+
+    // Subtle orbit ring
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (stroke * 0.55).clamp(1.0, 1.6)
+      ..color = color.withValues(alpha: isDark ? 0.28 : 0.22);
+    canvas.drawCircle(Offset(w * 0.5, h * 0.5), w * 0.42, ringPaint);
+
+    final topPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..shader = LinearGradient(
+        colors: [
+          color,
+          Color.lerp(color, const Color(0xFF38BDF8), 0.45)!,
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    final bottomPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..shader = LinearGradient(
+        colors: [
+          Color.lerp(color, const Color(0xFF6366F1), 0.35)!,
+          color,
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    // Top right-pointing flow arrow with slight curve/hook
+    final topPath = Path()
+      ..moveTo(w * 0.22, h * 0.42)
+      ..lineTo(w * 0.22, h * 0.36)
+      ..quadraticBezierTo(w * 0.22, h * 0.30, w * 0.28, h * 0.30)
+      ..lineTo(w * 0.76, h * 0.30);
+    canvas.drawPath(topPath, topPaint);
+
+    final topHead = Path()
+      ..moveTo(w * 0.63, h * 0.18)
+      ..lineTo(w * 0.78, h * 0.30)
+      ..lineTo(w * 0.63, h * 0.42);
+    canvas.drawPath(topHead, topPaint);
+
+    // Bottom left-pointing flow arrow with slight curve/hook
+    final bottomPath = Path()
+      ..moveTo(w * 0.78, h * 0.58)
+      ..lineTo(w * 0.78, h * 0.64)
+      ..quadraticBezierTo(w * 0.78, h * 0.70, w * 0.72, h * 0.70)
+      ..lineTo(w * 0.24, h * 0.70);
+    canvas.drawPath(bottomPath, bottomPaint);
+
+    final bottomHead = Path()
+      ..moveTo(w * 0.37, h * 0.58)
+      ..lineTo(w * 0.22, h * 0.70)
+      ..lineTo(w * 0.37, h * 0.82);
+    canvas.drawPath(bottomHead, bottomPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FinoraTransferGlyphPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.isDark != isDark;
+}
 
 class BankBrand {
   final String code;
@@ -50,6 +159,11 @@ class BankIconRegistry {
         name: 'VietinBank',
         color: Color(0xFF00558F),
         assetPath: 'assets/banks/vtb.jpg'),
+    BankBrand(
+        code: 'agri',
+        name: 'Agribank',
+        color: Color(0xFFB3292C),
+        assetPath: 'assets/banks/agri.jpg'),
     BankBrand(
         code: 'acb',
         name: 'ACB',
@@ -106,20 +220,185 @@ class BankIconRegistry {
         color: Color(0xFF005C9C),
         assetPath: 'assets/banks/eib.jpg'),
     BankBrand(
-        code: 'agri',
-        name: 'Agribank',
-        color: Color(0xFFB3292C),
-        assetPath: 'assets/banks/agri.jpg'),
+        code: 'ncb',
+        name: 'NCB (Quốc Dân)',
+        color: Color(0xFF1D4ED8),
+        assetPath: 'assets/banks/ncb.png'),
+    BankBrand(
+        code: 'lpbank',
+        name: 'LPBank',
+        color: Color(0xFF8B4513),
+        assetPath: 'assets/banks/lpbank.png'),
+    BankBrand(
+        code: 'namabank',
+        name: 'Nam A Bank',
+        color: Color(0xFFEAB308),
+        assetPath: 'assets/banks/namabank.png'),
+    BankBrand(
+        code: 'abbank',
+        name: 'ABBank',
+        color: Color(0xFF009DA5),
+        assetPath: 'assets/banks/abbank.png'),
+    BankBrand(
+        code: 'pvcombank',
+        name: 'PVcomBank',
+        color: Color(0xFFF59E0B),
+        assetPath: 'assets/banks/pvcombank.png'),
+    BankBrand(
+        code: 'bacabank',
+        name: 'Bac A Bank',
+        color: Color(0xFF15803D),
+        assetPath: 'assets/banks/bacabank.png'),
+    BankBrand(
+        code: 'bvbank',
+        name: 'BVBank (Bản Việt)',
+        color: Color(0xFF004B8D),
+        assetPath: 'assets/banks/bvbank.png'),
+    BankBrand(
+        code: 'vietabank',
+        name: 'VietABank',
+        color: Color(0xFF2563EB),
+        assetPath: 'assets/banks/vietabank.png'),
+    BankBrand(
+        code: 'vietbank',
+        name: 'VietBank',
+        color: Color(0xFF0284C7),
+        assetPath: 'assets/banks/vietbank.png'),
+    BankBrand(
+        code: 'kienlongbank',
+        name: 'KienlongBank',
+        color: Color(0xFF0D9488),
+        assetPath: 'assets/banks/kienlongbank.png'),
+    BankBrand(
+        code: 'pgbank',
+        name: 'PGBank',
+        color: Color(0xFFEA580C),
+        assetPath: 'assets/banks/pgbank.png'),
+    BankBrand(
+        code: 'saigonbank',
+        name: 'Saigonbank',
+        color: Color(0xFF0369A1),
+        assetPath: 'assets/banks/saigonbank.png'),
+    BankBrand(
+        code: 'baovietbank',
+        name: 'BaoViet Bank',
+        color: Color(0xFF0284C7),
+        assetPath: 'assets/banks/baovietbank.png'),
+    BankBrand(
+        code: 'gpbank',
+        name: 'GPBank',
+        color: Color(0xFF0369A1),
+        assetPath: 'assets/banks/gpbank.png'),
+    BankBrand(
+        code: 'oceanbank',
+        name: 'MBV (OceanBank)',
+        color: Color(0xFF0284C7),
+        assetPath: 'assets/banks/oceanbank.png'),
+    BankBrand(
+        code: 'cbbank',
+        name: 'CB (CBBank)',
+        color: Color(0xFF1D4ED8),
+        assetPath: 'assets/banks/cbbank.png'),
+    BankBrand(
+        code: 'scb',
+        name: 'SCB',
+        color: Color(0xFF1E40AF),
+        assetPath: 'assets/banks/scb.png'),
+    BankBrand(
+        code: 'coopbank',
+        name: 'Co-opBank',
+        color: Color(0xFF0284C7),
+        assetPath: 'assets/banks/coopbank.png'),
+    BankBrand(
+        code: 'vbsp',
+        name: 'VBSP (Chính sách Xã hội)',
+        color: Color(0xFF16A34A),
+        assetPath: 'assets/banks/vbsp.png'),
+    BankBrand(
+        code: 'vrb',
+        name: 'VRB (Việt Nga)',
+        color: Color(0xFF1D4ED8),
+        assetPath: 'assets/banks/vrb.png'),
+    BankBrand(
+        code: 'ivb',
+        name: 'Indovina Bank (IVB)',
+        color: Color(0xFF0F766E),
+        assetPath: 'assets/banks/ivb.png'),
     BankBrand(
         code: 'cake',
-        name: 'Cake',
+        name: 'Cake by VPBank',
         color: Color(0xFFF61F6E),
         assetPath: 'assets/banks/cake.jpg'),
     BankBrand(
         code: 'timo',
-        name: 'Timo',
+        name: 'Timo Digital Bank',
         color: Color(0xFF5F2C82),
         assetPath: 'assets/banks/timo.jpg'),
+    BankBrand(
+        code: 'tnex',
+        name: 'TNEX',
+        color: Color(0xFF2563EB),
+        assetPath: 'assets/banks/tnex.png'),
+    BankBrand(
+        code: 'ubank',
+        name: 'Ubank by VPBank',
+        color: Color(0xFF059669),
+        assetPath: 'assets/banks/ubank.png'),
+    BankBrand(
+        code: 'liobank',
+        name: 'Liobank',
+        color: Color(0xFF7C3AED),
+        assetPath: 'assets/banks/liobank.png'),
+    BankBrand(
+        code: 'vikki',
+        name: 'Vikki Digital Bank',
+        color: Color(0xFF6366F1),
+        assetPath: 'assets/banks/vikki.png'),
+    BankBrand(
+        code: 'woori',
+        name: 'Woori Bank',
+        color: Color(0xFF0067AC),
+        assetPath: 'assets/banks/wooribank.png'),
+    BankBrand(
+        code: 'shinhan',
+        name: 'Shinhan Bank',
+        color: Color(0xFF0046FF),
+        assetPath: 'assets/banks/shinhan.png'),
+    BankBrand(
+        code: 'hsbc',
+        name: 'HSBC',
+        color: Color(0xFFDB0011),
+        assetPath: 'assets/banks/hsbc.png'),
+    BankBrand(
+        code: 'standardchartered',
+        name: 'Standard Chartered',
+        color: Color(0xFF0072CE),
+        assetPath: 'assets/banks/standardchartered.png'),
+    BankBrand(
+        code: 'uob',
+        name: 'UOB',
+        color: Color(0xFF0033A0),
+        assetPath: 'assets/banks/uob.png'),
+    BankBrand(
+        code: 'publicbank',
+        name: 'Public Bank',
+        color: Color(0xFFD91E18),
+        assetPath: 'assets/banks/publicbank.png'),
+    BankBrand(
+        code: 'hongleong',
+        name: 'Hong Leong Bank',
+        color: Color(0xFF1E3A8A),
+        assetPath: 'assets/banks/hongleong.png'),
+    BankBrand(
+        code: 'cimb',
+        name: 'CIMB',
+        color: Color(0xFFEC1D25),
+        assetPath: 'assets/banks/cimb.png'),
+    BankBrand(
+        code: 'kbank',
+        name: 'KBank',
+        color: Color(0xFF00A950),
+        assetPath: 'assets/banks/kbank.png'),
     BankBrand(
         code: 'momo',
         name: 'MoMo',
@@ -150,20 +429,85 @@ class BankIconRegistry {
         name: 'VNPT Money',
         color: Color(0xFF0066B3),
         assetPath: 'assets/banks/vnptmoney.jpg'),
+    BankBrand(
+        code: 'payoo',
+        name: 'Ví Payoo',
+        color: Color(0xFF0284C7),
+        assetPath: 'assets/banks/payoo.png'),
+    BankBrand(
+        code: 'vtcpay',
+        name: 'VTC Pay',
+        color: Color(0xFF0369A1),
+        assetPath: 'assets/banks/vtcpay.png'),
+    BankBrand(
+        code: 'foxpay',
+        name: 'FPT Pay (Foxpay)',
+        color: Color(0xFFF97316),
+        assetPath: 'assets/banks/foxpay.png'),
+    BankBrand(
+        code: 'mobifonemoney',
+        name: 'MobiFone Money',
+        color: Color(0xFF1D4ED8),
+        assetPath: 'assets/banks/mobifonemoney.png'),
+    BankBrand(
+        code: 'smartpay',
+        name: 'SmartPay',
+        color: Color(0xFF2563EB),
+        assetPath: 'assets/banks/smartpay.png'),
+    BankBrand(
+        code: '9pay',
+        name: 'Ví 9Pay',
+        color: Color(0xFF16A34A),
+        assetPath: 'assets/banks/9pay.png'),
+    BankBrand(
+        code: 'appotapay',
+        name: 'AppotaPay',
+        color: Color(0xFF059669),
+        assetPath: 'assets/banks/appotapay.png'),
+    BankBrand(
+        code: 'vinid',
+        name: 'VinID / OneU',
+        color: Color(0xFFDC2626),
+        assetPath: 'assets/banks/vinid.png'),
+    BankBrand(
+        code: 'homecredit',
+        name: 'Home Credit',
+        color: Color(0xFFDC2626),
+        assetPath: 'assets/banks/homecredit.png'),
+    BankBrand(
+        code: 'fecredit',
+        name: 'FE CREDIT',
+        color: Color(0xFF16A34A),
+        assetPath: 'assets/banks/fecredit.png'),
+    BankBrand(
+        code: 'hdsaison',
+        name: 'HD SAISON',
+        color: Color(0xFFEA580C),
+        assetPath: 'assets/banks/hdsaison.png'),
+    BankBrand(
+        code: 'miraeasset',
+        name: 'Mirae Asset Finance',
+        color: Color(0xFF0369A1),
+        assetPath: 'assets/banks/miraeasset.png'),
     BankBrand(code: 'cash', name: 'Tiền mặt', color: Color(0xFF10B981)),
   ];
 
   static BankBrand resolve(String? code, {String? bankName}) {
-    final source = (code?.trim().isNotEmpty == true ? code : bankName);
-    if (source == null || source.trim().isEmpty) {
+    final combined = '${code ?? ''} ${bankName ?? ''}'.trim();
+    if (combined.isEmpty) {
       return brands.firstWhere((b) => b.code == 'cash');
     }
-    final rawLower = source.trim().toLowerCase();
+    final rawLower = combined.toLowerCase();
     if (rawLower.contains('tiền mặt') ||
         rawLower.contains('tien mat') ||
-        rawLower.contains('tiền') ||
-        rawLower.contains('cash')) {
+        rawLower == 'cash' ||
+        rawLower == 'tiền') {
       return brands.firstWhere((b) => b.code == 'cash');
+    }
+    if (rawLower.contains('quốc dân') ||
+        rawLower.contains('quoc dan') ||
+        rawLower.contains('izimobile')) {
+      return brands.firstWhere((b) => b.code == 'ncb');
     }
     if (rawLower.contains('kỹ thương') || rawLower.contains('ky thuong')) {
       return brands.firstWhere((b) => b.code == 'tcb');
@@ -183,98 +527,137 @@ class BankIconRegistry {
     if (rawLower.contains('tiên phong') || rawLower.contains('tien phong')) {
       return brands.firstWhere((b) => b.code == 'tpb');
     }
+    if (rawLower.contains('lộc phát') || rawLower.contains('loc phat')) {
+      return brands.firstWhere((b) => b.code == 'lpbank');
+    }
+    if (rawLower.contains('bản việt') || rawLower.contains('ban viet')) {
+      return brands.firstWhere((b) => b.code == 'bvbank');
+    }
+    if (rawLower.contains('bắc á') || rawLower.contains('bac a')) {
+      return brands.firstWhere((b) => b.code == 'bacabank');
+    }
+    if (rawLower.contains('nam á') || rawLower.contains('nam a')) {
+      return brands.firstWhere((b) => b.code == 'namabank');
+    }
+    if (rawLower.contains('an bình') || rawLower.contains('an binh')) {
+      return brands.firstWhere((b) => b.code == 'abbank');
+    }
+    if (rawLower.contains('đại chúng') || rawLower.contains('dai chung')) {
+      return brands.firstWhere((b) => b.code == 'pvcombank');
+    }
+    if (rawLower.contains('kiên long') || rawLower.contains('kien long')) {
+      return brands.firstWhere((b) => b.code == 'kienlongbank');
+    }
+    if (rawLower.contains('xăng dầu') || rawLower.contains('xang dau')) {
+      return brands.firstWhere((b) => b.code == 'pgbank');
+    }
+    if (rawLower.contains('sài gòn công thương')) {
+      return brands.firstWhere((b) => b.code == 'saigonbank');
+    }
+    if (rawLower.contains('bảo việt') || rawLower.contains('bao viet')) {
+      return brands.firstWhere((b) => b.code == 'baovietbank');
+    }
+    if (rawLower.contains('dầu khí') || rawLower.contains('dau khi')) {
+      return brands.firstWhere((b) => b.code == 'gpbank');
+    }
+    if (rawLower.contains('đại dương') || rawLower.contains('dai duong')) {
+      return brands.firstWhere((b) => b.code == 'oceanbank');
+    }
+    if (rawLower.contains('xây dựng') || rawLower.contains('xay dung')) {
+      return brands.firstWhere((b) => b.code == 'cbbank');
+    }
+    if (rawLower.contains('chính sách xã hội')) {
+      return brands.firstWhere((b) => b.code == 'vbsp');
+    }
+    if (rawLower.contains('hợp tác xã')) {
+      return brands.firstWhere((b) => b.code == 'coopbank');
+    }
+    if (rawLower.contains('liên doanh việt nga')) {
+      return brands.firstWhere((b) => b.code == 'vrb');
+    }
 
+    final primarySource = (code?.trim().isNotEmpty == true ? code! : bankName!);
     var clean =
-        source.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+        primarySource.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     if (clean.startsWith('bank')) clean = clean.substring(4);
     if (clean.startsWith('brand')) clean = clean.substring(5);
+    final allClean = combined.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-    if (clean.contains('momo')) {
-      return brands.firstWhere((b) => b.code == 'momo');
-    }
-    if (clean.contains('zalo')) {
-      return brands.firstWhere((b) => b.code == 'zalo');
-    }
-    if (clean.contains('shopee')) {
-      return brands.firstWhere((b) => b.code == 'shopeepay');
-    }
-    if (clean.contains('viettel')) {
-      return brands.firstWhere((b) => b.code == 'viettelmoney');
-    }
-    if (clean.contains('vnpt')) {
-      return brands.firstWhere((b) => b.code == 'vnptmoney');
-    }
-    if (clean.contains('vnpay')) {
-      return brands.firstWhere((b) => b.code == 'vnpay');
-    }
-    if (clean.contains('tienmat') || clean.contains('cash')) {
-      return brands.firstWhere((b) => b.code == 'cash');
-    }
+    bool has(String token) => clean == token || clean.contains(token) || allClean.contains(token);
 
-    if (clean == 'mb' || clean == 'mbbank' || clean.contains('mbbank')) {
-      return brands.firstWhere((b) => b.code == 'mbbank');
-    }
-    if (clean == 'techcombank' ||
-        clean == 'tcb' ||
-        clean.contains('techcombank')) {
-      return brands.firstWhere((b) => b.code == 'tcb');
-    }
-    if (clean == 'vietcombank' ||
-        clean == 'vcb' ||
-        clean.contains('vietcombank')) {
-      return brands.firstWhere((b) => b.code == 'vcb');
-    }
-    if (clean == 'vietinbank' ||
-        clean == 'ctg' ||
-        clean == 'vtb' ||
-        clean.contains('vietinbank')) {
-      return brands.firstWhere((b) => b.code == 'vtb');
-    }
-    if (clean == 'vpbank' || clean == 'vpb' || clean.contains('vpbank')) {
-      return brands.firstWhere((b) => b.code == 'vpb');
-    }
-    if (clean == 'tpbank' || clean == 'tpb' || clean.contains('tpbank')) {
-      return brands.firstWhere((b) => b.code == 'tpb');
-    }
-    if (clean == 'sacombank' || clean == 'stb' || clean.contains('sacombank')) {
-      return brands.firstWhere((b) => b.code == 'stb');
-    }
-    if (clean == 'bidv' || clean.contains('bidv')) {
-      return brands.firstWhere((b) => b.code == 'bidv');
-    }
-    if (clean == 'acb' || clean.contains('acb')) {
-      return brands.firstWhere((b) => b.code == 'acb');
-    }
-    if (clean == 'agribank' || clean.contains('agribank') || clean == 'agri') {
-      return brands.firstWhere((b) => b.code == 'agri');
-    }
-    if (clean == 'shb' || clean.contains('shb')) {
-      return brands.firstWhere((b) => b.code == 'shb');
-    }
-    if (clean == 'hdb' || clean == 'hdbank' || clean.contains('hdbank')) {
-      return brands.firstWhere((b) => b.code == 'hdb');
-    }
-    if (clean == 'vib' || clean.contains('vib')) {
-      return brands.firstWhere((b) => b.code == 'vib');
-    }
-    if (clean == 'msb' || clean.contains('msb')) {
-      return brands.firstWhere((b) => b.code == 'msb');
-    }
-    if (clean == 'ocb' || clean.contains('ocb')) {
-      return brands.firstWhere((b) => b.code == 'ocb');
-    }
-    if (clean == 'sea' || clean == 'seabank' || clean.contains('seabank')) {
-      return brands.firstWhere((b) => b.code == 'sea');
-    }
-    if (clean == 'eib' || clean == 'eximbank' || clean.contains('eximbank')) {
-      return brands.firstWhere((b) => b.code == 'eib');
-    }
-    if (clean == 'cake' || clean.contains('cake')) {
-      return brands.firstWhere((b) => b.code == 'cake');
-    }
-    if (clean == 'timo' || clean.contains('timo')) {
-      return brands.firstWhere((b) => b.code == 'timo');
-    }
+    if (has('momo')) return brands.firstWhere((b) => b.code == 'momo');
+    if (has('zalo')) return brands.firstWhere((b) => b.code == 'zalo');
+    if (has('shopee') || has('airpay')) return brands.firstWhere((b) => b.code == 'shopeepay');
+    if (has('viettel')) return brands.firstWhere((b) => b.code == 'viettelmoney');
+    if (has('vnpt')) return brands.firstWhere((b) => b.code == 'vnptmoney');
+    if (has('vnpay')) return brands.firstWhere((b) => b.code == 'vnpay');
+    if (has('payoo')) return brands.firstWhere((b) => b.code == 'payoo');
+    if (has('vtcpay')) return brands.firstWhere((b) => b.code == 'vtcpay');
+    if (has('foxpay') || has('fptpay')) return brands.firstWhere((b) => b.code == 'foxpay');
+    if (has('mobifone')) return brands.firstWhere((b) => b.code == 'mobifonemoney');
+    if (has('smartpay')) return brands.firstWhere((b) => b.code == 'smartpay');
+    if (has('9pay')) return brands.firstWhere((b) => b.code == '9pay');
+    if (has('appota')) return brands.firstWhere((b) => b.code == 'appotapay');
+    if (has('vinid') || has('oneu')) return brands.firstWhere((b) => b.code == 'vinid');
+    if (has('homecredit')) return brands.firstWhere((b) => b.code == 'homecredit');
+    if (has('fecredit')) return brands.firstWhere((b) => b.code == 'fecredit');
+    if (has('hdsaison')) return brands.firstWhere((b) => b.code == 'hdsaison');
+    if (has('miraeasset')) return brands.firstWhere((b) => b.code == 'miraeasset');
+    if (has('tienmat') || has('cash')) return brands.firstWhere((b) => b.code == 'cash');
+
+    if (has('ncb') || has('quocdan')) return brands.firstWhere((b) => b.code == 'ncb');
+    if (clean == 'mb' || has('mbbank')) return brands.firstWhere((b) => b.code == 'mbbank');
+    if (clean == 'tcb' || has('techcombank')) return brands.firstWhere((b) => b.code == 'tcb');
+    if (clean == 'vcb' || has('vietcombank')) return brands.firstWhere((b) => b.code == 'vcb');
+    if (clean == 'ctg' || clean == 'vtb' || has('vietinbank')) return brands.firstWhere((b) => b.code == 'vtb');
+    if (has('ubank')) return brands.firstWhere((b) => b.code == 'ubank');
+    if (clean == 'vpb' || has('vpbank')) return brands.firstWhere((b) => b.code == 'vpb');
+    if (clean == 'tpb' || has('tpbank')) return brands.firstWhere((b) => b.code == 'tpb');
+    if (clean == 'stb' || has('sacombank')) return brands.firstWhere((b) => b.code == 'stb');
+    if (has('bidv')) return brands.firstWhere((b) => b.code == 'bidv');
+    if (has('acb')) return brands.firstWhere((b) => b.code == 'acb');
+    if (clean == 'agri' || has('agribank')) return brands.firstWhere((b) => b.code == 'agri');
+    if (has('shb')) return brands.firstWhere((b) => b.code == 'shb');
+    if (clean == 'hdb' || has('hdbank')) return brands.firstWhere((b) => b.code == 'hdb');
+    if (has('vib')) return brands.firstWhere((b) => b.code == 'vib');
+    if (has('tnex')) return brands.firstWhere((b) => b.code == 'tnex');
+    if (has('msb')) return brands.firstWhere((b) => b.code == 'msb');
+    if (has('liobank')) return brands.firstWhere((b) => b.code == 'liobank');
+    if (has('ocb')) return brands.firstWhere((b) => b.code == 'ocb');
+    if (clean == 'sea' || has('seabank')) return brands.firstWhere((b) => b.code == 'sea');
+    if (clean == 'eib' || has('eximbank')) return brands.firstWhere((b) => b.code == 'eib');
+    if (has('cake')) return brands.firstWhere((b) => b.code == 'cake');
+    if (has('timo')) return brands.firstWhere((b) => b.code == 'timo');
+    if (clean == 'lpb' || has('lpbank') || has('lienviet')) return brands.firstWhere((b) => b.code == 'lpbank');
+    if (clean == 'bvb' || has('bvbank') || has('vietcapital') || has('banviet')) return brands.firstWhere((b) => b.code == 'bvbank');
+    if (has('vikki') || has('donga')) return brands.firstWhere((b) => b.code == 'vikki');
+    if (has('kbank') || has('kplus') || has('kasikorn')) return brands.firstWhere((b) => b.code == 'kbank');
+    if (has('namabank') || clean == 'nama') return brands.firstWhere((b) => b.code == 'namabank');
+    if (clean == 'abb' || has('abbank')) return brands.firstWhere((b) => b.code == 'abbank');
+    if (clean == 'pvcb' || has('pvcombank')) return brands.firstWhere((b) => b.code == 'pvcombank');
+    if (clean == 'bab' || has('bacabank')) return brands.firstWhere((b) => b.code == 'bacabank');
+    if (clean == 'vab' || has('vietabank')) return brands.firstWhere((b) => b.code == 'vietabank');
+    if (clean == 'vbb' || has('vietbank')) return brands.firstWhere((b) => b.code == 'vietbank');
+    if (clean == 'klb' || has('kienlong')) return brands.firstWhere((b) => b.code == 'kienlongbank');
+    if (clean == 'pgb' || has('pgbank') || has('petrolimex')) return brands.firstWhere((b) => b.code == 'pgbank');
+    if (clean == 'sgb' || has('saigonbank')) return brands.firstWhere((b) => b.code == 'saigonbank');
+    if (has('baoviet')) return brands.firstWhere((b) => b.code == 'baovietbank');
+    if (clean == 'gpb' || has('gpbank')) return brands.firstWhere((b) => b.code == 'gpbank');
+    if (clean == 'mbv' || has('oceanbank')) return brands.firstWhere((b) => b.code == 'oceanbank');
+    if (clean == 'cbb' || has('cbbank')) return brands.firstWhere((b) => b.code == 'cbbank');
+    if (has('scb')) return brands.firstWhere((b) => b.code == 'scb');
+    if (has('coopbank')) return brands.firstWhere((b) => b.code == 'coopbank');
+    if (has('vbsp')) return brands.firstWhere((b) => b.code == 'vbsp');
+    if (has('vrb')) return brands.firstWhere((b) => b.code == 'vrb');
+    if (clean == 'ivb' || has('indovina')) return brands.firstWhere((b) => b.code == 'ivb');
+    if (has('woori')) return brands.firstWhere((b) => b.code == 'woori');
+    if (has('shinhan')) return brands.firstWhere((b) => b.code == 'shinhan');
+    if (has('hsbc')) return brands.firstWhere((b) => b.code == 'hsbc');
+    if (clean == 'scvn' || has('standardchartered')) return brands.firstWhere((b) => b.code == 'standardchartered');
+    if (has('uob')) return brands.firstWhere((b) => b.code == 'uob');
+    if (clean == 'pbvn' || has('publicbank')) return brands.firstWhere((b) => b.code == 'publicbank');
+    if (clean == 'hlbvn' || has('hongleong')) return brands.firstWhere((b) => b.code == 'hongleong');
+    if (has('cimb')) return brands.firstWhere((b) => b.code == 'cimb');
 
     return brands.firstWhere(
       (b) =>
@@ -306,25 +689,95 @@ class BankIconRegistry {
       brands.map((bank) => bank.code).toList();
 }
 
-/// A circular icon for Vietnamese banks, mapping to BankIconAvatar.
+/// A circular icon for Vietnamese banks, mapping to BankIconAvatar or custom image URL/base64.
 class BankIcon extends StatelessWidget {
   final String? bankCode;
   final String? bankName;
+  final String? customIconUrl;
   final double size;
+  final bool fullBleed;
 
   const BankIcon({
     super.key,
     this.bankCode,
     this.bankName,
+    this.customIconUrl,
     this.size = 40.0,
+    this.fullBleed = false,
   });
+
+  static bool isImageSource(String? src) {
+    if (src == null || src.trim().isEmpty) return false;
+    final s = src.trim();
+    return s.startsWith('data:image') ||
+        s.startsWith('http://') ||
+        s.startsWith('https://') ||
+        s.startsWith('//') ||
+        s.startsWith('assets/');
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final brand = BankIconRegistry.resolve(bankCode, bankName: bankName);
+    final rawCustom = (customIconUrl?.trim().isNotEmpty == true)
+        ? customIconUrl!.trim()
+        : (isImageSource(bankCode) ? bankCode!.trim() : null);
+
+    if (rawCustom != null) {
+      if (fullBleed) {
+        return SizedBox(
+          width: size,
+          height: size,
+          child: ClipOval(
+            child: CategoryIconWidget(
+              icon: rawCustom,
+              categoryName: bankName,
+              size: size,
+              color: brand.color,
+            ),
+          ),
+        );
+      }
+      return Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all((size * 0.08).clamp(2.0, 4.5)),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: brand.color.withValues(alpha: isDark ? 0.22 : 0.14),
+          border: Border.all(
+            color: brand.color.withValues(alpha: isDark ? 0.55 : 0.38),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: brand.color.withValues(alpha: isDark ? 0.24 : 0.12),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: CategoryIconWidget(
+            icon: rawCustom,
+            categoryName: bankName,
+            size: size * 0.82,
+            color: brand.color,
+          ),
+        ),
+      );
+    }
+
     return BankIconAvatar(
       bankCode: brand.code,
       size: size,
+      fullBleed: fullBleed,
     );
   }
 }
@@ -346,6 +799,34 @@ class CategoryIconWidget extends StatelessWidget {
     this.color,
   });
 
+  Widget _buildReadableFallback(BuildContext context) {
+    final fallbackTint = (color != null && color != Colors.white)
+        ? color!
+        : const Color(0xFF0F6E56);
+    final labelSource = (categoryName ?? icon ?? 'F').trim();
+    final letter = labelSource.isNotEmpty
+        ? String.fromCharCode(labelSource.runes.first).toUpperCase()
+        : 'F';
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: fallbackTint.withValues(alpha: 0.14),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: (size * 0.46).clamp(11.0, 26.0),
+          fontWeight: FontWeight.w800,
+          color: fallbackTint,
+          height: 1.0,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final raw = icon?.trim() ?? '';
@@ -363,11 +844,7 @@ class CategoryIconWidget extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.image_not_supported_outlined,
-                size: size * 0.56,
-                color: color,
-              ),
+              errorBuilder: (_, __, ___) => _buildReadableFallback(context),
             ),
           ),
         );
@@ -388,11 +865,7 @@ class CategoryIconWidget extends StatelessWidget {
             height: size,
             fit: BoxFit.cover,
             filterQuality: FilterQuality.medium,
-            errorBuilder: (_, __, ___) => Icon(
-              Icons.image_not_supported_outlined,
-              size: size * 0.56,
-              color: color,
-            ),
+            errorBuilder: (_, __, ___) => _buildReadableFallback(context),
           ),
         ),
       );
@@ -428,6 +901,19 @@ class CategoryIconWidget extends StatelessWidget {
 
     final cleanKey =
         raw.toLowerCase().replaceAll('_', '-').replaceAll(' ', '-').trim();
+    if (cleanKey == 'transfer' ||
+        cleanKey == 'repeat' ||
+        cleanKey == 'arrow-left-right' ||
+        cleanKey == 'arrow-right-left' ||
+        raw == '🔄' ||
+        raw == '⇄') {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return FinoraTransferEmblem(
+        size: size * 0.78,
+        color: color ?? const Color(0xFF0284C7),
+        isDark: isDark,
+      );
+    }
     final iconData =
         _categoryLucideIcons[cleanKey] ?? _categoryLucideIcons[raw.toLowerCase()];
     if (iconData != null) {
@@ -498,11 +984,40 @@ class CategoryIconBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = color ?? BankIconRegistry.parseThemeColor(colorHex);
-    final isPhoto = CategoryIconHelper.isPhoto(icon, categoryName) ||
-        (icon != null &&
-            BankIconRegistry.resolve(icon, bankName: categoryName).code != 'cash' &&
-            BankIconRegistry.resolve(icon, bankName: categoryName).assetPath != null) ||
+    final moreProvider = Provider.of<MoreProvider?>(context, listen: false);
+    final txProvider = Provider.of<TransactionProvider?>(context, listen: false);
+    String? liveIcon = icon;
+    String? liveColorHex = colorHex;
+
+    if (categoryName != null && categoryName!.trim().isNotEmpty) {
+      final targetName = categoryName!.trim().toLowerCase();
+      final allCats = [
+        ...?moreProvider?.categories,
+        ...?txProvider?.categories,
+      ];
+      for (final c in allCats) {
+        if (c.name.trim().toLowerCase() == targetName) {
+          if (c.icon.trim().isNotEmpty &&
+              (liveIcon == null ||
+                  liveIcon.trim().isEmpty ||
+                  CategoryIconHelper.isPhoto(c.icon, c.name))) {
+            liveIcon = c.icon;
+          }
+          if ((liveColorHex == null || liveColorHex.trim().isEmpty) &&
+              c.color != null &&
+              c.color!.trim().isNotEmpty) {
+            liveColorHex = c.color;
+          }
+          break;
+        }
+      }
+    }
+
+    final tint = color ?? BankIconRegistry.parseThemeColor(liveColorHex);
+    final isPhoto = CategoryIconHelper.isPhoto(liveIcon, categoryName) ||
+        (liveIcon != null &&
+            BankIconRegistry.resolve(liveIcon, bankName: categoryName).code != 'cash' &&
+            BankIconRegistry.resolve(liveIcon, bankName: categoryName).assetPath != null) ||
         (categoryName != null &&
             BankIconRegistry.resolve(categoryName).code != 'cash' &&
             BankIconRegistry.resolve(categoryName).assetPath != null);
@@ -511,18 +1026,23 @@ class CategoryIconBadge extends StatelessWidget {
     final decoration = isPhoto
         ? BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white,
+            gradient: LinearGradient(
+              colors: [
+                tint.withValues(alpha: isDark ? 0.28 : 0.18),
+                tint.withValues(alpha: isDark ? 0.14 : 0.08),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.18)
-                  : const Color(0xFFE2E8F0),
-              width: 1.0,
+              color: tint.withValues(alpha: isDark ? 0.58 : 0.42),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.08),
-                blurRadius: 6,
-                offset: const Offset(0, 1.5),
+                color: tint.withValues(alpha: isDark ? 0.28 : 0.14),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           )
@@ -545,7 +1065,11 @@ class CategoryIconBadge extends StatelessWidget {
             ));
     final iconColor = studio != null
         ? studio.resolveIconGlyphColor(tint, isDark)
-        : (isDark ? tint : Color.lerp(tint, Colors.black, 0.15)!);
+        : (isDark ? tint : Color.lerp(tint, Colors.black, 0.28)!);
+    final photoFallbackColor = isDark
+        ? Color.lerp(tint, Colors.white, 0.34)!
+        : Color.lerp(tint, const Color(0xFF0F172A),
+            tint.computeLuminance() > 0.50 ? 0.42 : 0.25)!;
 
     return Container(
       width: size,
@@ -553,12 +1077,39 @@ class CategoryIconBadge extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: decoration,
       child: Center(
-        child: CategoryIconWidget(
-          icon: icon,
-          categoryName: categoryName,
-          size: isPhoto ? size : size * 0.65,
-          color: iconColor,
-        ),
+        child: isPhoto
+            ? Container(
+                width: size * 0.78,
+                height: size * 0.78,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : Color.alphaBlend(
+                          tint.withValues(alpha: 0.08),
+                          const Color(0xFFFCFDFF),
+                        ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: isDark ? 0.22 : 0.85),
+                    width: 1.0,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Center(
+                  child: CategoryIconWidget(
+                    icon: liveIcon,
+                    categoryName: categoryName,
+                    size: size * 0.74,
+                    color: photoFallbackColor,
+                  ),
+                ),
+              )
+            : CategoryIconWidget(
+                icon: liveIcon,
+                categoryName: categoryName,
+                size: size * 0.65,
+                color: iconColor,
+              ),
       ),
     );
   }
@@ -907,26 +1458,56 @@ class TransactionIconWidget extends StatelessWidget {
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Tự động tìm kiếm avatar & màu sắc của Nơi Mua trong TransactionProvider
+    // Tự động tìm kiếm avatar & màu sắc của Nơi Mua và Danh Mục trong MoreProvider + TransactionProvider
+    final moreProvider = Provider.of<MoreProvider?>(context, listen: false);
     final txProvider = Provider.of<TransactionProvider?>(context, listen: false);
+    final allCategories = [
+      ...?moreProvider?.categories,
+      ...?txProvider?.categories,
+    ];
     String? resolvedMerchantIcon = merchantIcon;
     Color? resolvedMerchantColor;
+    String? resolvedCatIcon = categoryIcon;
+    String? resolvedCatColor = categoryColor;
 
-    if (txProvider != null &&
-        ((merchantId?.trim().isNotEmpty == true) ||
-            (merchantName?.trim().isNotEmpty == true))) {
-      final mIdLower = merchantId?.trim().toLowerCase();
-      final mNameLower = merchantName?.trim().toLowerCase();
-      for (final c in txProvider.categories) {
-        if (c.categoryGroup == 'merchant') {
-          final idMatch = mIdLower != null && c.id.toLowerCase() == mIdLower;
-          final nameMatch = mNameLower != null && c.name.trim().toLowerCase() == mNameLower;
-          if (idMatch || nameMatch) {
-            if (resolvedMerchantIcon == null || resolvedMerchantIcon.isEmpty) {
-              resolvedMerchantIcon = c.icon;
+    if (allCategories.isNotEmpty) {
+      if ((merchantId?.trim().isNotEmpty == true) ||
+          (merchantName?.trim().isNotEmpty == true)) {
+        final mIdLower = merchantId?.trim().toLowerCase();
+        final mNameLower = merchantName?.trim().toLowerCase();
+        for (final c in allCategories) {
+          if (c.categoryGroup == 'merchant') {
+            final idMatch = mIdLower != null && c.id.toLowerCase() == mIdLower;
+            final nameMatch =
+                mNameLower != null && c.name.trim().toLowerCase() == mNameLower;
+            if (idMatch || nameMatch) {
+              if (resolvedMerchantIcon == null || resolvedMerchantIcon.isEmpty) {
+                resolvedMerchantIcon = c.icon;
+              }
+              if (c.color != null && c.color!.trim().isNotEmpty) {
+                resolvedMerchantColor = BankIconRegistry.parseThemeColor(c.color);
+              }
+              break;
             }
-            if (c.color != null && c.color!.trim().isNotEmpty) {
-              resolvedMerchantColor = BankIconRegistry.parseThemeColor(c.color);
+          }
+        }
+      }
+
+      if (categoryName != null && categoryName!.trim().isNotEmpty) {
+        final catTarget = categoryName!.trim().toLowerCase();
+        for (final c in allCategories) {
+          if (c.categoryGroup != 'merchant' &&
+              c.name.trim().toLowerCase() == catTarget) {
+            if (c.icon.trim().isNotEmpty &&
+                (resolvedCatIcon == null ||
+                    resolvedCatIcon.trim().isEmpty ||
+                    CategoryIconHelper.isPhoto(c.icon, c.name))) {
+              resolvedCatIcon = c.icon;
+            }
+            if ((resolvedCatColor == null || resolvedCatColor.trim().isEmpty) &&
+                c.color != null &&
+                c.color!.trim().isNotEmpty) {
+              resolvedCatColor = c.color;
             }
             break;
           }
@@ -935,11 +1516,11 @@ class TransactionIconWidget extends StatelessWidget {
     }
 
     final effectiveColor = resolvedMerchantColor ??
-        TransactionVisuals.iconColorFor(type, categoryColor: categoryColor);
+        TransactionVisuals.iconColorFor(type, categoryColor: resolvedCatColor);
 
     final resolvedIconStr = TransactionVisuals.iconFor(
       type,
-      categoryIcon,
+      resolvedCatIcon,
       merchantId: merchantId,
       categoryName: categoryName,
       merchantIcon: resolvedMerchantIcon,
@@ -954,11 +1535,36 @@ class TransactionIconWidget extends StatelessWidget {
     final effectiveSize = size * scale;
 
     final dec = isPhoto
-        ? const BoxDecoration(shape: BoxShape.circle)
+        ? BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                effectiveColor.withValues(alpha: isDark ? 0.28 : 0.18),
+                effectiveColor.withValues(alpha: isDark ? 0.14 : 0.08),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: effectiveColor.withValues(alpha: isDark ? 0.58 : 0.42),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: effectiveColor.withValues(alpha: isDark ? 0.26 : 0.14),
+                blurRadius: 7,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          )
         : (!showBorder
             ? BoxDecoration(
                 shape: BoxShape.circle,
                 color: effectiveColor.withValues(alpha: isDark ? 0.22 : 0.14),
+                border: Border.all(
+                  color: effectiveColor.withValues(alpha: isDark ? 0.35 : 0.22),
+                  width: 1.0,
+                ),
               )
             : (studio != null
                 ? studio.getIconContainerDecoration(
@@ -970,11 +1576,21 @@ class TransactionIconWidget extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: TransactionVisuals.backgroundFor(type,
                         categoryColor: categoryColor, isDark: isDark),
+                    border: Border.all(
+                      color: effectiveColor.withValues(alpha: isDark ? 0.42 : 0.28),
+                      width: 1.2,
+                    ),
                   )));
 
     final effectiveIconColor = studio != null
         ? studio.resolveIconGlyphColor(effectiveColor, isDark)
-        : (isDark ? effectiveColor : Color.lerp(effectiveColor, Colors.black, 0.15)!);
+        : (isDark
+            ? effectiveColor
+            : Color.lerp(effectiveColor, Colors.black, 0.28)!);
+    final photoFallbackColor = isDark
+        ? Color.lerp(effectiveColor, Colors.white, 0.34)!
+        : Color.lerp(effectiveColor, const Color(0xFF0F172A),
+            effectiveColor.computeLuminance() > 0.50 ? 0.42 : 0.25)!;
 
     final baseIcon = Container(
       width: effectiveSize,
@@ -982,12 +1598,39 @@ class TransactionIconWidget extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: dec,
       child: Center(
-        child: CategoryIconWidget(
-          icon: resolvedIconStr,
-          categoryName: categoryName ?? merchantName,
-          size: isPhoto ? effectiveSize : effectiveSize * 0.58,
-          color: effectiveIconColor,
-        ),
+        child: isPhoto
+            ? Container(
+                width: effectiveSize * 0.78,
+                height: effectiveSize * 0.78,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : Color.alphaBlend(
+                          effectiveColor.withValues(alpha: 0.08),
+                          const Color(0xFFFCFDFF),
+                        ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: isDark ? 0.22 : 0.85),
+                    width: 1.0,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Center(
+                  child: CategoryIconWidget(
+                    icon: resolvedIconStr,
+                    categoryName: categoryName ?? merchantName,
+                    size: effectiveSize * 0.74,
+                    color: photoFallbackColor,
+                  ),
+                ),
+              )
+            : CategoryIconWidget(
+                icon: resolvedIconStr,
+                categoryName: categoryName ?? merchantName,
+                size: effectiveSize * 0.58,
+                color: effectiveIconColor,
+              ),
       ),
     );
 

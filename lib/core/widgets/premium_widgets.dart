@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../../features/dashboard/dashboard_theme_painters.dart';
 import '../theme/finora_tokens.dart';
+import '../design_system/v9_liquid/liquid_aurora.dart';
+import 'finora_modal_scope.dart';
 import 'liquid_glass/liquid_glass_card.dart';
 
 /// 1. GradientBackground: Clean Warm Paper & Ink minimal background (Finora 2026).
@@ -51,7 +53,10 @@ class AmbientFloatingBackground extends StatelessWidget {
   const AmbientFloatingBackground({super.key, required this.child});
 
   bool _usesCalmBackdrop(ThemeStudioController? studio) =>
-      studio == null || studio.palette == AppColorPalette.emeraldWealth;
+      studio == null ||
+      studio.customPrimaryAccentColor != null ||
+      studio.ambientBlur == AmbientBlurPreset.emeraldMatrix ||
+      studio.palette == AppColorPalette.emeraldWealth;
 
   @override
   Widget build(BuildContext context) {
@@ -114,26 +119,53 @@ class AmbientFloatingBackground extends StatelessWidget {
         studio?.currentPaletteMeta.lightBg ?? const Color(0xFFF8FAFC);
 
     final List<Color> ambientBgColors;
-    if (useCalmEmerald) {
-      ambientBgColors = isDark
-          ? const [
-              Color(0xFF081410),
-              Color(0xFF0B1A15),
-              Color(0xFF060F0C),
-            ]
-          : const [
-              Color(0xFFF0FDF4),
-              Color(0xFFFAFCFA),
-              Color(0xFFECFDF5),
-            ];
-    } else if (meta?.preset == AmbientBlurPreset.amoledPitch && isDark) {
+    if (meta?.preset == AmbientBlurPreset.amoledPitch && isDark) {
       ambientBgColors = const [
         Color(0xFF000000),
         Color(0xFF000000),
-        Color(0xFF000000)
+        Color(0xFF000000),
+        Color(0xFF000000),
       ];
+    } else if (useCalmEmerald) {
+      ambientBgColors = isDark
+          ? [
+              Color.alphaBlend(
+                primaryColor.withValues(alpha: 0.09),
+                const Color(0xFF060A12),
+              ),
+              Color.alphaBlend(
+                secondaryColor.withValues(alpha: 0.07),
+                const Color(0xFF09111E),
+              ),
+              Color.alphaBlend(
+                const Color(0xFF0284C7).withValues(alpha: 0.06),
+                const Color(0xFF0B1626),
+              ),
+              Color.alphaBlend(
+                primaryColor.withValues(alpha: 0.05),
+                const Color(0xFF070C16),
+              ),
+            ]
+          : [
+              Color.alphaBlend(
+                primaryColor.withValues(alpha: 0.035),
+                const Color(0xFFF6F9FC),
+              ),
+              Color.alphaBlend(
+                secondaryColor.withValues(alpha: 0.025),
+                const Color(0xFFF2F6FA),
+              ),
+              Color.alphaBlend(
+                const Color(0xFF0284C7).withValues(alpha: 0.025),
+                const Color(0xFFEEF4F9),
+              ),
+              Color.alphaBlend(
+                primaryColor.withValues(alpha: 0.02),
+                const Color(0xFFF7FAFC),
+              ),
+            ];
     } else {
-      // Tint custom preset with active palette primary so palette choice still transforms the screen
+      // Tint custom preset with active palette primary so palette choice transforms the screen cleanly
       final rawColors = isDark
           ? (meta?.bgColorsDark ??
               [paletteDarkBg, paletteDarkBg, paletteDarkBg])
@@ -153,7 +185,7 @@ class AmbientFloatingBackground extends StatelessWidget {
             (i) => Color.lerp(
               styleBgColors[i],
               ambientBgColors[i % ambientBgColors.length],
-              studio?.prefersQuietBackground == true ? 0.15 : 0.25,
+              studio?.prefersQuietBackground == true ? 0.45 : 0.65,
             )!,
           );
 
@@ -192,12 +224,12 @@ class AmbientFloatingBackground extends StatelessWidget {
       effectiveBgColors = bgColors;
     }
 
-    final orbOpacity = (isDark ? 0.22 : 0.12) *
-        vibrancy *
+    final orbOpacity = (isDark ? 0.12 : 0.075) *
+        vibrancy.clamp(0.7, 1.25) *
         (studio?.backgroundTintOpacity ?? 0.85) *
-        (studio?.prefersQuietBackground == true ? 0.22 : 1.0);
+        (studio?.prefersQuietBackground == true ? 0.45 : 1.0);
 
-    // Orbs: when default aurora, derive directly from current palette's primary, secondary, tertiary
+    // Harmonious analogous aurora orbs (never mix green with yellow/orange to avoid muddy olive tones)
     final Color rawOrb1;
     final Color rawOrb2;
     final Color rawOrb3;
@@ -205,31 +237,31 @@ class AmbientFloatingBackground extends StatelessWidget {
     final Color rawOrb5;
     final Color rawOrb6;
 
-    if (isDefaultAurora || meta == null) {
+    if (isDefaultAurora || meta == null || useCalmEmerald) {
       rawOrb1 = primaryColor;
       rawOrb2 = secondaryColor;
-      rawOrb3 = paletteHeroGradient.length > 2
+      rawOrb3 = paletteHeroGradient.length > 2 &&
+              studio?.customPrimaryAccentColor == null
           ? paletteHeroGradient[2]
           : Color.lerp(primaryColor, secondaryColor, 0.5)!;
       rawOrb4 = seasonalPair != null
           ? seasonalPair.$2
-          : Color.lerp(secondaryColor, const Color(0xFF00C2FA), 0.5)!;
+          : Color.lerp(secondaryColor, primaryColor, 0.35)!;
       rawOrb5 = seasonalPair != null
           ? seasonalPair.$1
-          : Color.lerp(primaryColor, const Color(0xFFF59E0B), 0.5)!;
-      rawOrb6 = Color.lerp(secondaryColor, const Color(0xFF00866A), 0.6)!;
+          : Color.lerp(primaryColor, secondaryColor, 0.65)!;
+      rawOrb6 = Color.lerp(secondaryColor, primaryColor, 0.5)!;
     } else {
-      // Harmonize preset orbs with current palette primary
-      rawOrb1 = Color.lerp(meta.orb1, primaryColor, 0.45)!;
-      rawOrb2 = Color.lerp(meta.orb2, secondaryColor, 0.45)!;
-      rawOrb3 = Color.lerp(meta.orb3, paletteHeroGradient.last, 0.40)!;
+      rawOrb1 = Color.lerp(meta.orb1, primaryColor, 0.50)!;
+      rawOrb2 = Color.lerp(meta.orb2, secondaryColor, 0.50)!;
+      rawOrb3 = Color.lerp(meta.orb3, paletteHeroGradient.last, 0.45)!;
       rawOrb4 = seasonalPair != null
           ? seasonalPair.$2
-          : Color.lerp(meta.orb4, secondaryColor, 0.40)!;
+          : Color.lerp(meta.orb4, secondaryColor, 0.45)!;
       rawOrb5 = seasonalPair != null
           ? seasonalPair.$1
-          : Color.lerp(primaryColor, const Color(0xFFF59E0B), 0.5)!;
-      rawOrb6 = Color.lerp(secondaryColor, const Color(0xFF00866A), 0.6)!;
+          : Color.lerp(primaryColor, const Color(0xFF0284C7), 0.35)!;
+      rawOrb6 = Color.lerp(secondaryColor, primaryColor, 0.5)!;
     }
 
     final orb1Color =
@@ -366,108 +398,52 @@ class AmbientFloatingBackground extends StatelessWidget {
               ),
             ),
 
-          // Subtle Pastel Corner Mesh Blobs (Soft white + emerald / sea blue + blur layer)
+          // Subtle Architectural Radial Halos (harmonized with active primary & secondary colors)
           if (!isAmoled) ...[
             Positioned(
-              top: -80,
-              right: -60,
+              top: -90,
+              right: -70,
               child: _buildOrb(
-                size: 380,
-                color:
-                    (isDark ? const Color(0xFF10B981) : const Color(0xFF10B981))
-                        .withValues(alpha: isDark ? 0.16 : 0.12),
+                size: 420,
+                color: primaryColor.withValues(alpha: isDark ? 0.11 : 0.065),
               ),
             ),
             Positioned(
-              bottom: 120,
-              left: -80,
+              bottom: 100,
+              left: -90,
               child: _buildOrb(
-                size: 360,
-                color:
-                    (isDark ? const Color(0xFF0284C7) : const Color(0xFF005FEA))
-                        .withValues(alpha: isDark ? 0.15 : 0.10),
+                size: 400,
+                color: Color.lerp(secondaryColor, const Color(0xFF0284C7), 0.35)!
+                    .withValues(alpha: isDark ? 0.085 : 0.05),
               ),
             ),
             Positioned(
-              top: 260,
-              left: -100,
+              top: 240,
+              left: -110,
               child: _buildOrb(
-                size: 320,
-                color:
-                    (isDark ? const Color(0xFF059669) : const Color(0xFF06B6D4))
-                        .withValues(alpha: isDark ? 0.12 : 0.08),
-              ),
-            ),
-            Positioned.fill(
-              child: IgnorePointer(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                  child: const SizedBox.expand(),
-                ),
+                size: 340,
+                color: secondaryColor.withValues(alpha: isDark ? 0.07 : 0.045),
               ),
             ),
           ],
 
-          // Floating Chromatic Orbs Layer (Common across styles unless AMOLED)
+          // Liquid drifting aurora orbs (Liquid Glass signature layer)
           if (!isAmoled &&
               (studio?.systemWideLiquidGlass ?? false) &&
-              !(studio?.prefersQuietBackground ?? true)) ...[
-            // Multi-color chromatic orbs covering the entire screen canvas
-            Positioned(
-              top: -70,
-              left: -50,
-              child: _buildOrb(
-                size: 340,
-                color: orb1Color,
-                blurSigma: studio?.backgroundBlurSigma,
+              !(studio?.prefersQuietBackground ?? true))
+            Positioned.fill(
+              child: LiquidAuroraLayer(
+                isDark: isDark,
+                colors: [
+                  orb1Color,
+                  orb2Color,
+                  orb3Color,
+                  orb4Color,
+                  orb5Color,
+                  orb6Color,
+                ],
               ),
             ),
-            Positioned(
-              top: 60,
-              right: -80,
-              child: _buildOrb(
-                size: 300,
-                color: orb2Color,
-                blurSigma: studio?.backgroundBlurSigma,
-              ),
-            ),
-            Positioned(
-              top: 280,
-              left: -80,
-              child: _buildOrb(
-                size: 260,
-                color: orb5Color,
-                blurSigma: studio?.backgroundBlurSigma,
-              ),
-            ),
-            Positioned(
-              top: 420,
-              right: -60,
-              child: _buildOrb(
-                size: 310,
-                color: orb3Color,
-                blurSigma: studio?.backgroundBlurSigma,
-              ),
-            ),
-            Positioned(
-              bottom: 120,
-              left: -50,
-              child: _buildOrb(
-                size: 280,
-                color: orb6Color,
-                blurSigma: studio?.backgroundBlurSigma,
-              ),
-            ),
-            Positioned(
-              bottom: -50,
-              right: -40,
-              child: _buildOrb(
-                size: 360,
-                color: orb4Color,
-                blurSigma: studio?.backgroundBlurSigma,
-              ),
-            ),
-          ],
 
           // Seasonal Festive Subtle Accent Orbs
           if (studio?.seasonalTheme != null &&
@@ -553,8 +529,7 @@ class AmbientFloatingBackground extends StatelessWidget {
     );
   }
 
-  Widget _buildOrb(
-      {required double size, required Color color, double? blurSigma}) {
+  Widget _buildOrb({required double size, required Color color}) {
     if (color.a == 0) return const SizedBox.shrink();
     return IgnorePointer(
       child: Container(
@@ -896,8 +871,10 @@ class FloatingGlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final insideModal = FinoraModalScope.isInsideModal(context);
 
-    final effectiveBlur = blur ?? (studio?.glassBlur ?? 18.0);
+    final effectiveBlur =
+        insideModal ? 0.0 : (blur ?? (studio?.glassBlur ?? 18.0));
     final effectiveRadius = radius ?? (studio?.cardCornerRadius ?? 22.0);
     final effectivePadding =
         padding ?? (studio?.getCardInsets() ?? const EdgeInsets.all(18));
@@ -907,6 +884,7 @@ class FloatingGlassCard extends StatelessWidget {
           customRadius: effectiveRadius,
           customBg: customFillColor,
           customBorder: customBorder,
+          forceOpaque: insideModal,
         ) ??
         studio?.getCardDecoration(
           isDark: isDark,
@@ -914,6 +892,7 @@ class FloatingGlassCard extends StatelessWidget {
           customFill: customFillColor,
           customBorder: customBorder,
           customShadows: customShadows,
+          forceOpaque: insideModal,
         );
 
     Widget content = Padding(
@@ -935,11 +914,20 @@ class FloatingGlassCard extends StatelessWidget {
       );
     }
 
-    final isLiquidGlass = studio?.isSystemWideLiquidGlass ?? false;
-    final shouldBlur = effectiveBlur > 0.5 &&
+    final isLiquidGlass =
+        !insideModal && (studio?.isSystemWideLiquidGlass ?? false);
+    final wantsGlassLook = !insideModal &&
         ((studio?.glassOpacity ?? 1.0) < 0.98 || isLiquidGlass);
+    // Cheap glass by default: keep the translucent fill + specular rim + glow
+    // but skip the per-card BackdropFilter. Card fills are 88-98% opaque, so
+    // the blur is nearly invisible yet costs a full GPU pass per card per
+    // frame (the main source of jank). Real per-card blur is opt-in.
+    final realBlur = !insideModal &&
+        (studio?.cardBackdropBlur ?? false) &&
+        effectiveBlur > 0.5 &&
+        wantsGlassLook;
 
-    if (shouldBlur) {
+    if (wantsGlassLook) {
       final primaryColor = studio?.resolvedPrimary ?? const Color(0xFF005FEA);
       final tintColor = isDark ? Colors.white : primaryColor;
       final enableSpecular = studio?.liquidGlassSpecularHighlight ?? false;
@@ -957,21 +945,9 @@ class FloatingGlassCard extends StatelessWidget {
           ),
       ];
 
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(effectiveRadius),
-          boxShadow: effectiveShadows,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(effectiveRadius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: effectiveBlur.clamp(0.0, 32.0),
-              sigmaY: effectiveBlur.clamp(0.0, 32.0),
-            ),
-            child: Stack(
-              fit: StackFit.passthrough,
-              children: [
+      final glassStack = Stack(
+        fit: StackFit.passthrough,
+        children: [
                 // Layer 1: Base Container / Gradient Fill
                 Container(
                   decoration: BoxDecoration(
@@ -1018,21 +994,21 @@ class FloatingGlassCard extends StatelessWidget {
                         borderWidth:
                             (studio?.widgetBorderWidth ?? 1.25).clamp(0.8, 1.8),
                         borderGradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: const [0.0, 0.22, 0.75, 1.0],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          stops: const [0.0, 0.25, 0.62, 1.0],
                           colors: isDark
                               ? const [
-                                  Color(0x35FFFFFF),
-                                  Color(0x0AFFFFFF),
+                                  Color(0x4DFFFFFF),
+                                  Color(0x0FFFFFFF),
                                   Color(0x00FFFFFF),
-                                  Color(0x04FFFFFF),
+                                  Color(0x0AFFFFFF),
                                 ]
                               : const [
-                                  Color(0x40FFFFFF),
-                                  Color(0x0EFFFFFF),
+                                  Color(0x8CFFFFFF),
+                                  Color(0x1FFFFFFF),
                                   Color(0x00FFFFFF),
-                                  Color(0x06FFFFFF),
+                                  Color(0x14FFFFFF),
                                 ],
                         ),
                         enableSpecularHighlight: true,
@@ -1040,9 +1016,25 @@ class FloatingGlassCard extends StatelessWidget {
                     ),
                   ),
                 ),
-            ],
-            ),
-          ),
+        ],
+      );
+
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(effectiveRadius),
+          boxShadow: effectiveShadows,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(effectiveRadius),
+          child: realBlur
+              ? BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: effectiveBlur.clamp(0.0, 32.0),
+                    sigmaY: effectiveBlur.clamp(0.0, 32.0),
+                  ),
+                  child: glassStack,
+                )
+              : glassStack,
         ),
       );
     }
@@ -1629,11 +1621,13 @@ class FinoraTextField extends StatelessWidget {
 class BankIconAvatar extends StatelessWidget {
   final String? bankCode;
   final double size;
+  final bool fullBleed;
 
   const BankIconAvatar({
     super.key,
     required this.bankCode,
     this.size = 44.0,
+    this.fullBleed = false,
   });
 
   @override
@@ -1669,8 +1663,69 @@ class BankIconAvatar extends StatelessWidget {
       'EXIMBANK': 'assets/banks/eib.jpg',
       'AGRI': 'assets/banks/agri.jpg',
       'AGRIBANK': 'assets/banks/agri.jpg',
+      'NCB': 'assets/banks/ncb.png',
+      'QUOCDAN': 'assets/banks/ncb.png',
+      'LPB': 'assets/banks/lpbank.png',
+      'LPBANK': 'assets/banks/lpbank.png',
+      'NAMABANK': 'assets/banks/namabank.png',
+      'NAMA': 'assets/banks/namabank.png',
+      'ABB': 'assets/banks/abbank.png',
+      'ABBANK': 'assets/banks/abbank.png',
+      'PVCB': 'assets/banks/pvcombank.png',
+      'PVCOMBANK': 'assets/banks/pvcombank.png',
+      'BAB': 'assets/banks/bacabank.png',
+      'BACABANK': 'assets/banks/bacabank.png',
+      'BVB': 'assets/banks/bvbank.png',
+      'BVBANK': 'assets/banks/bvbank.png',
+      'VIETCAPITALBANK': 'assets/banks/bvbank.png',
+      'VAB': 'assets/banks/vietabank.png',
+      'VIETABANK': 'assets/banks/vietabank.png',
+      'VBB': 'assets/banks/vietbank.png',
+      'VIETBANK': 'assets/banks/vietbank.png',
+      'KLB': 'assets/banks/kienlongbank.png',
+      'KIENLONGBANK': 'assets/banks/kienlongbank.png',
+      'PGB': 'assets/banks/pgbank.png',
+      'PGBANK': 'assets/banks/pgbank.png',
+      'SGB': 'assets/banks/saigonbank.png',
+      'SAIGONBANK': 'assets/banks/saigonbank.png',
+      'BAOVIET': 'assets/banks/baovietbank.png',
+      'BAOVIETBANK': 'assets/banks/baovietbank.png',
+      'GPB': 'assets/banks/gpbank.png',
+      'GPBANK': 'assets/banks/gpbank.png',
+      'OCEANBANK': 'assets/banks/oceanbank.png',
+      'MBV': 'assets/banks/oceanbank.png',
+      'CBB': 'assets/banks/cbbank.png',
+      'CBBANK': 'assets/banks/cbbank.png',
+      'VikkiBank': 'assets/banks/vikki.png',
+      'SCB': 'assets/banks/scb.png',
+      'COOPBANK': 'assets/banks/coopbank.png',
+      'VBSP': 'assets/banks/vbsp.png',
+      'VRB': 'assets/banks/vrb.png',
+      'IVB': 'assets/banks/ivb.png',
+      'INDOVINABANK': 'assets/banks/ivb.png',
       'CAKE': 'assets/banks/cake.jpg',
       'TIMO': 'assets/banks/timo.jpg',
+      'TNEX': 'assets/banks/tnex.png',
+      'UBANK': 'assets/banks/ubank.png',
+      'LIOBANK': 'assets/banks/liobank.png',
+      'VIKKI': 'assets/banks/vikki.png',
+      'DONGA': 'assets/banks/vikki.png',
+      'DONGABANK': 'assets/banks/vikki.png',
+      'WOORI': 'assets/banks/wooribank.png',
+      'WOORIBANK': 'assets/banks/wooribank.png',
+      'SHINHAN': 'assets/banks/shinhan.png',
+      'SHINHANBANK': 'assets/banks/shinhan.png',
+      'HSBC': 'assets/banks/hsbc.png',
+      'SCVN': 'assets/banks/standardchartered.png',
+      'STANDARDCHARTERED': 'assets/banks/standardchartered.png',
+      'UOB': 'assets/banks/uob.png',
+      'PBVN': 'assets/banks/publicbank.png',
+      'PUBLICBANK': 'assets/banks/publicbank.png',
+      'HLBVN': 'assets/banks/hongleong.png',
+      'HONGLEONG': 'assets/banks/hongleong.png',
+      'HONGLEONGBANK': 'assets/banks/hongleong.png',
+      'CIMB': 'assets/banks/cimb.png',
+      'KBANK': 'assets/banks/kbank.png',
       'MOMO': 'assets/banks/momo.jpg',
       'ZALO': 'assets/banks/zalo.jpg',
       'ZALOPAY': 'assets/banks/zalo.jpg',
@@ -1678,6 +1733,20 @@ class BankIconAvatar extends StatelessWidget {
       'SHOPEEPAY': 'assets/banks/shopeepay.jpg',
       'VIETTELMONEY': 'assets/banks/viettelmoney.jpg',
       'VNPTMONEY': 'assets/banks/vnptmoney.jpg',
+      'PAYOO': 'assets/banks/payoo.png',
+      'VTCPAY': 'assets/banks/vtcpay.png',
+      'FOXPAY': 'assets/banks/foxpay.png',
+      'FPTPAY': 'assets/banks/foxpay.png',
+      'MOBIFONEMONEY': 'assets/banks/mobifonemoney.png',
+      'SMARTPAY': 'assets/banks/smartpay.png',
+      '9PAY': 'assets/banks/9pay.png',
+      'APPOTAPAY': 'assets/banks/appotapay.png',
+      'VINID': 'assets/banks/vinid.png',
+      'ONEU': 'assets/banks/vinid.png',
+      'HOMECREDIT': 'assets/banks/homecredit.png',
+      'FECREDIT': 'assets/banks/fecredit.png',
+      'HDSAISON': 'assets/banks/hdsaison.png',
+      'MIRAEASSET': 'assets/banks/miraeasset.png',
       'SHOPEE': 'assets/banks/shopee.jpg',
       'LAZADA': 'assets/banks/lazada.jpg',
       'TIKTOK': 'assets/banks/tiktok.jpg',
@@ -1687,6 +1756,29 @@ class BankIconAvatar extends StatelessWidget {
     final assetPath = registry[code];
 
     if (assetPath != null) {
+      final oval = ClipOval(
+        child: Builder(
+          builder: (context) {
+            final cacheDim = (size * MediaQuery.devicePixelRatioOf(context))
+                .round()
+                .clamp(32, 256);
+            return Image.asset(
+              assetPath,
+              width: size,
+              height: size,
+              cacheWidth: cacheDim,
+              cacheHeight: cacheDim,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildFallback(context, code);
+              },
+            );
+          },
+        ),
+      );
+      if (fullBleed) {
+        return SizedBox(width: size, height: size, child: oval);
+      }
       return Container(
         width: size,
         height: size,
@@ -1705,17 +1797,7 @@ class BankIconAvatar extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipOval(
-          child: Image.asset(
-            assetPath,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return _buildFallback(context, code);
-            },
-          ),
-        ),
+        child: oval,
       );
     } else {
       return _buildFallback(context, code);
@@ -1766,17 +1848,21 @@ class BankIconAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: gradient,
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.25),
-          width: 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: fullBleed
+            ? null
+            : Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.0,
+              ),
+        boxShadow: fullBleed
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       alignment: Alignment.center,
       child: Text(

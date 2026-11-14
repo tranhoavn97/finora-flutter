@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/services/bank_sync_service.dart';
 import '../../core/widgets/bank_icon.dart';
+import '../../core/widgets/finora_modal_scope.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/finora_notice.dart';
 
@@ -74,6 +75,15 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
 
   @override
   Widget build(BuildContext context) {
+    return FinoraModalScope(
+      child: Theme(
+        data: FinoraModalScope.opaqueModalTheme(context),
+        child: Builder(builder: _buildScopedContent),
+      ),
+    );
+  }
+
+  Widget _buildScopedContent(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenH = MediaQuery.sizeOf(context).height;
 
@@ -239,6 +249,10 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                         isConnected: isConnected,
                         isSupported: isSupported,
                       ),
+                      const SizedBox(height: 16),
+
+                      // Section 1b: Real Recognition Queue Status
+                      _buildRecognitionQueueCard(isDark),
                       const SizedBox(height: 16),
 
                       // Section 2: Wallet & App Scan Settings
@@ -493,6 +507,70 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecognitionQueueCard(bool isDark) {
+    final pendingCount = _service.pending.length;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFF059669).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.inbox_rounded,
+              color: Color(0xFF059669),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nhận diện ngân hàng',
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  pendingCount == 0
+                      ? 'Chưa có giao dịch chờ xử lý'
+                      : 'Có $pendingCount giao dịch chờ xử lý trong hộp chờ',
+                  style: TextStyle(
+                    fontFamily: 'BeVietnamPro',
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

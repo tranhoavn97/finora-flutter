@@ -342,7 +342,7 @@ class NojaBentoQuickActions extends StatelessWidget {
               child: InkWell(
                 onTap: action.$3,
                 borderRadius: studio?.getIconBorderRadius(58) ??
-                    BorderRadius.circular(18),
+                    BorderRadius.circular(29),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 5),
                   child: Column(children: [
@@ -361,7 +361,13 @@ class NojaBentoQuickActions extends StatelessWidget {
                                 border: Border.all(
                                     color: action.$4.withValues(alpha: .35),
                                     width: 1.4)),
-                        child: Icon(action.$1, size: 24, color: action.$4)),
+                        child: Icon(
+                          action.$1,
+                          size: 24,
+                          color: studio?.resolveIconGlyphColor(
+                                  action.$4, isDark) ??
+                              action.$4,
+                        )),
                     const SizedBox(height: 8),
                     Text(action.$2,
                         textAlign: TextAlign.center,

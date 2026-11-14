@@ -15,6 +15,10 @@ import '../../core/widgets/premium_widgets.dart';
 import '../../core/widgets/super_action_sheet.dart';
 import '../../state/auth_provider.dart';
 import '../../state/family_provider.dart';
+import '../../state/theme_studio_controller.dart';
+import '../../data/services/supabase_bridge.dart';
+import '../../data/services/qr_payment_draft_store.dart';
+import '../qr_pay/qr_confirm_expense_sheet.dart';
 import '../auth/auth_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../planning/planning_hub_screen.dart';
@@ -38,7 +42,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _wasBankSyncGranted = false;
   bool _showingBankInbox = false;
   bool _showingBankPrompt = false;
+  bool _showingQrResumeSheet = false;
   final Set<String> _promptedBankIds = <String>{};
+  final Set<String> _promptedQrDraftIds = <String>{};
   StreamSubscription<void>? _bankInboxSubscription;
   bool _foreground = true;
 
@@ -50,6 +56,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     BankSyncService()
         .isPermissionGranted()
         .then((granted) => _wasBankSyncGranted = granted);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (QrPaymentDraftStore.pendingAutoResumeInSession) {
+        _checkPendingQrDrafts();
+      } else {
+        // Clean up any stale uncompleted drafts from previous app sessions
+        // so the QR confirm sheet never pops up unexpectedly on cold start.
+        final uid = widget.user?.uid ?? '';
+        QrPaymentDraftStore.clear('guest');
+        QrPaymentDraftStore.clear('');
+        if (uid.isNotEmpty) {
+          QrPaymentDraftStore.clear(uid);
+        }
+      }
+    });
 
     try {
       final tabParam = Uri.base.queryParameters['tab'];
@@ -80,10 +101,81 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(covariant MainScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user?.uid != widget.user?.uid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkPendingQrDrafts();
+      });
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
     if (_foreground) {
       _checkBankSyncOnResume();
+      _checkPendingQrDrafts();
+      final uid = widget.user?.uid ?? '';
+      if (uid.isNotEmpty) {
+        unawaited(SupabaseBridge.refreshUserCollections(userId: uid));
+      }
+      if (mounted) {
+        unawaited(
+            context.read<ThemeStudioController>().refreshMemberAvatars());
+      }
+    }
+  }
+
+  Future<void> _checkPendingQrDrafts() async {
+    if (!QrPaymentDraftStore.pendingAutoResumeInSession) {
+      return;
+    }
+    if (!mounted || !_foreground || _showingQrResumeSheet || _showingBankPrompt) {
+      return;
+    }
+    QrPaymentDraftStore.pendingAutoResumeInSession = false;
+    final uid = widget.user?.uid ?? '';
+    final effectiveUid = uid.isEmpty ? 'guest' : uid;
+    try {
+      // Migrate any guest or empty-uid drafts to the logged-in user
+      if (uid.isNotEmpty) {
+        for (final key in const ['guest', '']) {
+          final guestDrafts = await QrPaymentDraftStore.list(key);
+          for (final d in guestDrafts) {
+            await QrPaymentDraftStore.save(uid, d);
+            await QrPaymentDraftStore.remove(key, d.id);
+          }
+        }
+      }
+      final drafts = await QrPaymentDraftStore.list(effectiveUid);
+      if (!mounted || !_foreground || _showingQrResumeSheet) return;
+      QrPaymentDraft? target;
+      for (final d in drafts) {
+        if (!_promptedQrDraftIds.contains(d.id)) {
+          target = d;
+          break;
+        }
+      }
+      if (target == null) return;
+      _showingQrResumeSheet = true;
+      _promptedQrDraftIds.add(target.id);
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: QrConfirmExpenseSheet(
+            qrData: target!.data,
+            userId: uid,
+            resumeDraft: target,
+          ),
+        ),
+      );
+    } catch (_) {
+    } finally {
+      _showingQrResumeSheet = false;
     }
   }
 
@@ -345,10 +437,113 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         if (didPop) return;
         handleBackOrExit();
       },
-      child: Builder(
-        builder: (context) {
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 840;
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           final bottomInset = MediaQuery.of(context).viewInsets.bottom;
           final isKeyboardOpen = bottomInset > 60;
+
+          if (isWide) {
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              body: AmbientFloatingBackground(
+                child: Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF131A22).withValues(alpha: 0.96)
+                            : Colors.white.withValues(alpha: 0.96),
+                        border: Border(
+                          right: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF25303E)
+                                : const Color(0xFFE2EAE6),
+                          ),
+                        ),
+                      ),
+                      child: SafeArea(
+                        child: NavigationRail(
+                          selectedIndex: _currentIndex,
+                          onDestinationSelected: (index) =>
+                              setState(() => _currentIndex = index),
+                          backgroundColor: Colors.transparent,
+                          labelType: NavigationRailLabelType.all,
+                          indicatorColor: const Color(0xFF0F6E56)
+                              .withValues(alpha: isDark ? 0.28 : 0.14),
+                          selectedIconTheme: IconThemeData(
+                            color: isDark
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFF0F6E56),
+                          ),
+                          selectedLabelTextStyle: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: isDark
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFF0F6E56),
+                          ),
+                          unselectedLabelTextStyle: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF556862),
+                          ),
+                          leading: Padding(
+                            padding: const EdgeInsets.only(top: 12, bottom: 16),
+                            child: FloatingActionButton(
+                              heroTag: 'wide_rail_add_fab',
+                              backgroundColor: const Color(0xFF0F6E56),
+                              foregroundColor: Colors.white,
+                              elevation: 2,
+                              onPressed: () {
+                                showSuperActionSheet(
+                                    context: context, userId: uid);
+                              },
+                              child: const Icon(Icons.add_rounded, size: 26),
+                            ),
+                          ),
+                          destinations: const [
+                            NavigationRailDestination(
+                              icon: Icon(Icons.home_outlined),
+                              selectedIcon: Icon(Icons.home_rounded),
+                              label: Text('Tổng quan'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Icon(Icons.account_balance_wallet_outlined),
+                              selectedIcon:
+                                  Icon(Icons.account_balance_wallet_rounded),
+                              label: Text('Sổ & Ví'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Icon(Icons.insights_outlined),
+                              selectedIcon: Icon(Icons.insights_rounded),
+                              label: Text('Báo cáo'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Icon(Icons.person_outline_rounded),
+                              selectedIcon: Icon(Icons.person_rounded),
+                              label: Text('Cá nhân'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: FinoraFluidTabSwitcher(
+                        currentIndex: _currentIndex,
+                        children: pages,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
           return Scaffold(
             backgroundColor: Colors.transparent,

@@ -8,6 +8,7 @@ import '../../core/design_system/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/finora_date_picker_sheet.dart';
+import '../../core/widgets/finora_member_filter.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/finance_models.dart';
 import '../../data/models/transaction.dart';
@@ -36,12 +37,11 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
-  late String _type; // 'lent' (Cho vay - Xuất tiền) | 'borrowed' (Đi vay - Nhận tiền)
+  late String _type; // 'lent' | 'borrowed'
   String _owner = 'husband'; // 'husband' (Chồng) | 'wife' (Vợ)
   String? _selectedWalletId;
   DateTime? _dueDate;
   bool _isSaving = false;
-  bool _showWalletList = false;
 
   @override
   void initState() {
@@ -153,6 +153,8 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
       // Sync wallet balance by recording the corresponding loan / borrowing transaction
       if (selectedWallet != null && mounted) {
         final txProv = Provider.of<TransactionProvider?>(context, listen: false);
+        final studio =
+            Provider.of<ThemeStudioController?>(context, listen: false);
         if (txProv != null) {
           final txNote = _type == 'lent'
               ? 'Cho $name vay${rawNote.isNotEmpty ? " - $rawNote" : ""}'
@@ -165,7 +167,9 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
             walletId: selectedWallet.id,
             walletName: selectedWallet.name,
             owner: _owner,
-            ownerName: _owner == 'wife' ? 'Vợ' : 'Chồng',
+            ownerName: _owner == 'wife'
+                ? (studio?.wifeDisplayLabel ?? 'Vợ')
+                : (studio?.husbandDisplayLabel ?? 'Chồng'),
             creatorTag: _owner,
             loanId: loanId,
             categoryName: _type == 'lent' ? 'Cho vay' : 'Đi vay',
@@ -189,17 +193,18 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
-    final glassOpacity = studio?.glassOpacity ?? 0.95;
     final primaryTextColor =
         isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
     final secondaryTextColor =
         isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     final isLent = _type == 'lent';
-    final accentColor =
-        isLent ? const Color(0xFF0F6E56) : const Color(0xFFE11D48);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+    final brandSecondary =
+        studio?.resolvedSecondary ?? const Color(0xFF10B981);
+    final accentColor = isLent ? brandPrimary : const Color(0xFFE11D48);
     final accentBright =
-        isLent ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
+        isLent ? brandSecondary : const Color(0xFFF43F5E);
 
     final wallets = _resolveAvailableWallets(context);
     final selectedWallet = _resolveSelectedWallet(wallets);
@@ -207,45 +212,47 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
       _selectedWalletId = selectedWallet.id;
     }
 
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      decoration: BoxDecoration(
-        color: (isDark ? const Color(0xFF0F172A) : Colors.white)
-            .withValues(alpha: glassOpacity.clamp(0.92, 1.0)),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(
-          top: BorderSide(
-            color: (isDark ? Colors.white : Colors.black)
-                .withValues(alpha: isDark ? 0.12 : 0.06),
-            width: 1.0,
+    const quickAmounts = <(String, int)>[
+      ('500k', 500000),
+      ('1tr', 1000000),
+      ('2tr', 2000000),
+      ('5tr', 5000000),
+      ('10tr', 10000000),
+      ('50tr', 50000000),
+    ];
+
+    return FinoraDraggableSheetWrapper(
+      onClose: () => Navigator.pop(context),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.90,
+        ),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          6,
+          16,
+          MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(
+            top: BorderSide(
+              color: (isDark ? Colors.white : Colors.black)
+                  .withValues(alpha: isDark ? 0.12 : 0.06),
+              width: 1.0,
+            ),
           ),
         ),
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Drag Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+            // Drag Handle outside ScrollView
+            FinoraSheetDragHandle(
+              padding: const EdgeInsets.only(top: 6, bottom: 10),
+              onClose: () => Navigator.pop(context),
             ),
-            const SizedBox(height: 14),
 
             // Header Title & Close Button
             Row(
@@ -265,7 +272,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,19 +280,19 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                       Text(
                         isLent ? 'Thêm khoản cho vay' : 'Thêm khoản vay nợ',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 17.5,
                           fontWeight: FontWeight.w900,
                           letterSpacing: -0.3,
                           color: primaryTextColor,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1.5),
                       Text(
                         isLent
-                            ? 'Xuất tiền từ ví cho người khác vay'
-                            : 'Nhận tiền vay vào ví và ghi nhận công nợ',
+                            ? 'Ghi nhận khoản cho vay & lịch nhắc thu nợ'
+                            : 'Ghi nhận khoản vay & lịch nhắc trả nợ',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w500,
                           color: secondaryTextColor,
                         ),
@@ -306,20 +313,28 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            // 1. Type Selector Pills: Cho vay (Xuất tiền) vs Đi vay (Nhận tiền)
+            Flexible(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+            // 1. Type Selector Pills: Cho vay vs Đi vay
             Row(
               children: [
                 Expanded(
                   child: _buildTypePill(
-                    label: 'Cho vay (Xuất tiền)',
+                    label: 'Cho vay',
                     icon: Icons.arrow_outward_rounded,
                     isSelected: isLent,
-                    activeColor: const Color(0xFF0F6E56),
+                    activeColor: brandPrimary,
                     pastelBg: isDark
-                        ? const Color(0xFF0F6E56).withValues(alpha: 0.14)
-                        : const Color(0xFFECFDF5),
+                        ? brandPrimary.withValues(alpha: 0.16)
+                        : brandPrimary.withValues(alpha: 0.08),
                     isDark: isDark,
                     onTap: () {
                       HapticFeedback.selectionClick();
@@ -327,10 +342,10 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                     },
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _buildTypePill(
-                    label: 'Đi vay (Nhận tiền)',
+                    label: 'Đi vay',
                     icon: Icons.south_west_rounded,
                     isSelected: !isLent,
                     activeColor: const Color(0xFFE11D48),
@@ -346,27 +361,28 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
-            // 2. Spender / Owner Selector Pills: Chồng vs Vợ
+            // 2. Spender / Owner Selector Pills: Chồng vs Vợ với avatar thật
             Row(
               children: [
                 Text(
                   isLent ? 'Người cho vay:' : 'Người đứng vay:',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: secondaryTextColor,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Row(
                     children: [
                       Expanded(
                         child: _buildOwnerPill(
-                          label: 'Chồng',
-                          icon: Icons.face_rounded,
+                          member: 'husband',
+                          label: studio?.husbandDisplayLabel ?? 'Chồng',
+                          studio: studio,
                           isSelected: _owner == 'husband',
                           color: const Color(0xFF0284C7),
                           isDark: isDark,
@@ -379,8 +395,9 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildOwnerPill(
-                          label: 'Vợ',
-                          icon: Icons.face_3_rounded,
+                          member: 'wife',
+                          label: studio?.wifeDisplayLabel ?? 'Vợ',
+                          studio: studio,
                           isSelected: _owner == 'wife',
                           color: const Color(0xFFDB2777),
                           isDark: isDark,
@@ -395,7 +412,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
             // 3. Person Name Field
             TextField(
@@ -410,7 +427,9 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
               decoration: InputDecoration(
                 labelText:
                     isLent ? 'Tên người vay' : 'Tên người cho vay (Chủ nợ)',
-                hintText: isLent ? 'VD: Anh Tuấn, Chị Mai...' : 'VD: Ngân hàng, Anh Hùng...',
+                hintText: isLent
+                    ? 'VD: Anh Tuấn, Chị Mai...'
+                    : 'VD: Ngân hàng, Anh Hùng...',
                 prefixIcon: Icon(
                   Icons.person_outline_rounded,
                   size: 20,
@@ -421,7 +440,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                     ? const Color(0xFF1E293B).withValues(alpha: 0.65)
                     : const Color(0xFFF8FAFC),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
@@ -442,15 +461,15 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-            // 4. Amount Field
+            // 4. Amount Field + Quick Amount Chips
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
               inputFormatters: const [DotSeparatorTextInputFormatter()],
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 16.5,
                 fontWeight: FontWeight.w900,
                 color: isDark ? accentBright : accentColor,
               ),
@@ -473,7 +492,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                     ? const Color(0xFF1E293B).withValues(alpha: 0.65)
                     : const Color(0xFFF8FAFC),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
@@ -494,13 +513,56 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: quickAmounts.map((qa) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _amountController.text =
+                            DotSeparatorTextInputFormatter.formatDigits(
+                          qa.$2.toString(),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accentColor
+                              .withValues(alpha: isDark ? 0.16 : 0.08),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: accentColor.withValues(alpha: 0.25),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Text(
+                          '+${qa.$1}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? accentBright : accentColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             // 5. Source / Destination Wallet Selector
             Text(
-              isLent
-                  ? 'Nguồn tiền cho vay (Trừ tiền từ ví)'
-                  : 'Ví nhận tiền vay (Cộng tiền vào ví)',
+              isLent ? 'Nguồn tiền cho vay' : 'Ví nhận khoản vay',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
@@ -533,7 +595,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Chưa có ví khả dụng (Sẽ chỉ ghi sổ nợ)',
+                        'Chưa có ví khả dụng (Chỉ lưu sổ nợ)',
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
@@ -544,31 +606,37 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                   ],
                 ),
               )
-            else ...[
-              // Selected Wallet Interactive Apple Tile
+            else
               InkWell(
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  setState(() => _showWalletList = !_showWalletList);
+                  _openWalletPickerSheet(
+                    wallets: wallets,
+                    accentColor: accentColor,
+                    accentBright: accentBright,
+                    isDark: isDark,
+                    primaryTextColor: primaryTextColor,
+                    secondaryTextColor: secondaryTextColor,
+                  );
                 },
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? const Color(0xFF1E293B).withValues(alpha: 0.75)
+                        ? const Color(0xFF1E293B).withValues(alpha: 0.78)
                         : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: accentColor.withValues(alpha: isDark ? 0.45 : 0.30),
+                      color: accentColor.withValues(alpha: isDark ? 0.45 : 0.28),
                       width: 1.1,
                     ),
                   ),
                   child: Row(
                     children: [
-                      _buildWalletBrandAvatar(selectedWallet!, size: 34),
-                      const SizedBox(width: 10),
+                      _buildWalletBrandAvatar(selectedWallet!, size: 36),
+                      const SizedBox(width: 11),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,8 +651,11 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            const SizedBox(height: 1.5),
                             Text(
-                              isLent ? 'Xuất tiền cho vay' : 'Nhận tiền đi vay',
+                              wallets.length > 1
+                                  ? 'Chạm để chọn ví hoặc tài khoản khác'
+                                  : 'Ví áp dụng giao dịch',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -611,98 +682,24 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        _showWalletList
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: secondaryTextColor,
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accentColor.withValues(alpha: 0.12),
+                        ),
+                        child: Icon(
+                          Icons.unfold_more_rounded,
+                          size: 16,
+                          color: isDark ? accentBright : accentColor,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-
-              // Quick Horizontal Wallet Chips / Expandable Picker
-              if (wallets.length > 1 || _showWalletList) ...[
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: wallets.map((w) {
-                      final isSelected = w.id == selectedWallet.id;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: InkWell(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() {
-                              _selectedWalletId = w.id;
-                              _showWalletList = false;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(100),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? accentColor
-                                  : (isDark
-                                      ? const Color(0xFF1E293B)
-                                      : const Color(0xFFF1F5F9)),
-                              borderRadius: BorderRadius.circular(100),
-                              border: Border.all(
-                                color: isSelected
-                                    ? accentColor
-                                    : (isDark ? Colors.white : Colors.black)
-                                        .withValues(alpha: 0.08),
-                                width: 0.9,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildWalletBrandAvatar(w, size: 18),
-                                const SizedBox(width: 6),
-                                Text(
-                                  w.name,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w800
-                                        : FontWeight.w600,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : primaryTextColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '(${formatVND(w.balance)})',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: isSelected
-                                        ? Colors.white.withValues(alpha: 0.85)
-                                        : secondaryTextColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
-            ],
             const SizedBox(height: 12),
 
             // 6. Due Date & Note Row
@@ -883,6 +880,10 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
                       ),
               ),
             ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -951,9 +952,201 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
     );
   }
 
+  Future<void> _openWalletPickerSheet({
+    required List<Wallet> wallets,
+    required Color accentColor,
+    required Color accentBright,
+    required bool isDark,
+    required Color primaryTextColor,
+    required Color secondaryTextColor,
+  }) async {
+    await showFinoraGlassModalBottomSheet<void>(
+      context: context,
+      showHandle: true,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(ctx).height * 0.65,
+        ),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          6,
+          16,
+          MediaQuery.paddingOf(ctx).bottom + 18,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accentColor.withValues(alpha: 0.14),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 18,
+                    color: isDark ? accentBright : accentColor,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Chọn nguồn tiền áp dụng',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                      Text(
+                        'Đồng bộ số dư theo ví & tài khoản hiện có',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                FinoraCircleIconButton(
+                  icon: Icons.close_rounded,
+                  size: 32,
+                  iconSize: 16,
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const BouncingScrollPhysics(),
+                itemCount: wallets.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, idx) {
+                  final w = wallets[idx];
+                  final isSel = w.id == _selectedWalletId;
+                  final typeLabel = w.isCreditCard
+                      ? 'Thẻ tín dụng'
+                      : (w.type == 'cash' ? 'Tiền mặt' : 'Tài khoản ngân hàng');
+                  return InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedWalletId = w.id);
+                      Navigator.pop(ctx);
+                    },
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSel
+                            ? accentColor.withValues(alpha: isDark ? 0.20 : 0.08)
+                            : (isDark
+                                ? const Color(0xFF1E293B).withValues(alpha: 0.72)
+                                : Colors.white),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: isSel
+                              ? accentColor
+                              : (isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : const Color(0xFFE2E8F0)),
+                          width: isSel ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildWalletBrandAvatar(w, size: 38),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  w.name,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight:
+                                        isSel ? FontWeight.w800 : FontWeight.w700,
+                                    color: primaryTextColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  typeLabel,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: secondaryTextColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                formatVND(w.balance),
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: isSel ? accentColor : primaryTextColor,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
+                              if (isSel) ...[
+                                const SizedBox(height: 3),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: accentColor,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Text(
+                                    'Đang chọn',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildOwnerPill({
+    required String member,
     required String label,
-    required IconData icon,
+    required ThemeStudioController? studio,
     required bool isSelected,
     required Color color,
     required bool isDark,
@@ -963,7 +1156,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        height: 34,
+        height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: isSelected
@@ -972,7 +1165,7 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
           borderRadius: BorderRadius.circular(100),
           border: Border.all(
             color: isSelected ? color : color.withValues(alpha: 0.28),
-            width: 0.9,
+            width: isSelected ? 1.2 : 0.9,
           ),
         ),
         child: FittedBox(
@@ -981,16 +1174,18 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 14,
-                color: isSelected ? Colors.white : color,
+              FinoraMemberAvatar(
+                member: member,
+                size: 22,
+                isDark: isDark,
+                showRing: true,
+                studio: studio,
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   color: isSelected ? Colors.white : color,
                 ),
@@ -1003,55 +1198,11 @@ class _AddLoanSheetState extends State<AddLoanSheet> {
   }
 
   Widget _buildWalletBrandAvatar(Wallet wallet, {required double size}) {
-    final brand = BankIconRegistry.resolve(
-      wallet.bankCode ?? wallet.type,
+    return BankIcon(
+      bankCode: wallet.bankCode ?? wallet.type,
       bankName: wallet.bankName ?? wallet.name,
-    );
-    final isCash = brand.code == 'cash' || wallet.type == 'cash';
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isCash ? const Color(0xFF10B981) : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: isCash
-          ? Center(
-              child: Icon(
-                Icons.payments_rounded,
-                color: Colors.white,
-                size: size * 0.52,
-              ),
-            )
-          : (brand.assetPath != null && brand.assetPath!.isNotEmpty
-              ? ClipOval(
-                  child: Image.asset(
-                    brand.assetPath!,
-                    width: size,
-                    height: size,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Center(
-                      child: Icon(
-                        Icons.account_balance_rounded,
-                        size: size * 0.52,
-                        color: brand.color,
-                      ),
-                    ),
-                  ),
-                )
-              : Center(
-                  child: Icon(
-                    Icons.account_balance_rounded,
-                    size: size * 0.52,
-                    color: brand.color,
-                  ),
-                )),
+      customIconUrl: wallet.iconUrl,
+      size: size,
     );
   }
 }

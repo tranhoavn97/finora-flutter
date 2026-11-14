@@ -16,6 +16,9 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - lib_backup_glassmorphism_21_9/**
+    - clean_original_preview_section.dart
+    - v6_reconstructed_dashboard.dart
 include: package:flutter_lints/flutter.yaml
 
 linter:

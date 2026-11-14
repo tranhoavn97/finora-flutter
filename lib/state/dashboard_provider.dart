@@ -106,6 +106,10 @@ class DashboardProvider extends ChangeNotifier {
   OwnerFilter selectedOwner = OwnerFilter.all;
   DateFilterOption selectedDateFilter = DateFilterOption.today;
   DateTime? customDate;
+  DateTime? customStartDate;
+  DateTime? customEndDate;
+  int? customYear;
+  int? customMonth;
 
   String? _userId;
   String? _familyId;
@@ -127,9 +131,20 @@ class DashboardProvider extends ChangeNotifier {
     _recompute();
   }
 
-  void setDateFilter(DateFilterOption filter, {DateTime? custom}) {
+  void setDateFilter(
+    DateFilterOption filter, {
+    DateTime? custom,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? year,
+    int? month,
+  }) {
     selectedDateFilter = filter;
     customDate = custom;
+    customStartDate = startDate;
+    customEndDate = endDate;
+    customYear = year;
+    customMonth = month;
     _recompute();
   }
 
@@ -204,22 +219,38 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   bool _isTxInPeriod(TransactionModel tx) {
-    if (customDate != null) {
-      final d = DateTime.fromMillisecondsSinceEpoch(tx.date);
-      return d.year == customDate!.year &&
-          d.month == customDate!.month &&
-          d.day == customDate!.day;
-    }
-    return isDateInFilterOption(tx.date, selectedDateFilter);
+    return isDateInFilterOption(
+      tx.date,
+      selectedDateFilter,
+      customDate: customDate,
+      customStartDate: customStartDate,
+      customEndDate: customEndDate,
+      customYear: customYear,
+      customMonth: customMonth,
+    );
   }
 
   String _computePeriodLabel() {
     final now = DateTime.now();
-    if (customDate != null) {
+    if (selectedDateFilter == DateFilterOption.customDate && customDate != null) {
       final cd = customDate!;
       final dd = cd.day.toString().padLeft(2, '0');
       final mm = cd.month.toString().padLeft(2, '0');
       return 'Ngày $dd/$mm/${cd.year}';
+    }
+    if (selectedDateFilter == DateFilterOption.customMonth &&
+        customYear != null &&
+        customMonth != null) {
+      return 'Tháng $customMonth/$customYear';
+    }
+    if (selectedDateFilter == DateFilterOption.customRange &&
+        customStartDate != null &&
+        customEndDate != null) {
+      final s =
+          '${customStartDate!.day.toString().padLeft(2, '0')}/${customStartDate!.month.toString().padLeft(2, '0')}';
+      final e =
+          '${customEndDate!.day.toString().padLeft(2, '0')}/${customEndDate!.month.toString().padLeft(2, '0')}/${customEndDate!.year}';
+      return '$s - $e';
     }
     switch (selectedDateFilter) {
       case DateFilterOption.today:

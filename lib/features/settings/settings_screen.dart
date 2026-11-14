@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/widgets/finora_mascot.dart';
+import '../../core/widgets/finora_member_filter.dart';
+import '../../core/widgets/finora_notice.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../state/theme_controller.dart';
@@ -20,6 +23,37 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   int _selectedZoneIndex =
       0; // 0: Vùng 1 (Trên), 1: Vùng 2 (Phải), 2: Vùng 3 (Dưới)
+  late final TextEditingController _husbandNameCtrl;
+  late final TextEditingController _wifeNameCtrl;
+  final FocusNode _husbandNameFocus = FocusNode();
+  final FocusNode _wifeNameFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    final studio = context.read<ThemeStudioController>();
+    _husbandNameCtrl = TextEditingController(text: studio.husbandName);
+    _wifeNameCtrl = TextEditingController(text: studio.wifeName);
+    _husbandNameFocus.addListener(_onMemberNameFocusChange);
+    _wifeNameFocus.addListener(_onMemberNameFocusChange);
+  }
+
+  void _onMemberNameFocusChange() {
+    if (!_husbandNameFocus.hasFocus && !_wifeNameFocus.hasFocus && mounted) {
+      context.read<ThemeStudioController>().notifyMemberNamesChanged();
+    }
+  }
+
+  @override
+  void dispose() {
+    _husbandNameFocus.removeListener(_onMemberNameFocusChange);
+    _wifeNameFocus.removeListener(_onMemberNameFocusChange);
+    _husbandNameFocus.dispose();
+    _wifeNameFocus.dispose();
+    _husbandNameCtrl.dispose();
+    _wifeNameCtrl.dispose();
+    super.dispose();
+  }
 
   static const _modes = [
     (
@@ -36,15 +70,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _RgbPresetItem(
       name: 'Thạch Anh Hồng (Rose Quartz)',
       c1: Color(0xFFF472B6),
-      c2: Color(0xFFC084FC),
+      c2: Color(0xFF0EA5E9),
       c3: Color(0xFF38BDF8),
       intensity: 0.22,
     ),
     _RgbPresetItem(
-      name: 'Thạch Anh Tím (Amethyst)',
-      c1: Color(0xFFA855F7),
-      c2: Color(0xFF6366F1),
-      c3: Color(0xFFEC4899),
+      name: 'Thạch Anh Lam Ngọc (Sapphire)',
+      c1: Color(0xFF0284C7),
+      c2: Color(0xFF0EA5E9),
+      c3: Color(0xFF10B981),
       intensity: 0.22,
     ),
     _RgbPresetItem(
@@ -64,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _RgbPresetItem(
       name: 'Thạch Anh Khói (Smoky Quartz)',
       c1: Color(0xFF94A3B8),
-      c2: Color(0xFFC084FC),
+      c2: Color(0xFF0EA5E9),
       c3: Color(0xFF2DD4BF),
       intensity: 0.18,
     ),
@@ -93,14 +127,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       name: 'Hoàng Hôn Ruby',
       c1: Color(0xFFF43F5E),
       c2: Color(0xFFF59E0B),
-      c3: Color(0xFFA855F7),
+      c3: Color(0xFFFB7185),
       intensity: 0.20,
     ),
     _RgbPresetItem(
-      name: 'Tím Cực Quang',
-      c1: Color(0xFF8B5CF6),
-      c2: Color(0xFFEC4899),
-      c3: Color(0xFF3B82F6),
+      name: 'Bắc Cực Quang',
+      c1: Color(0xFF0D9488),
+      c2: Color(0xFF0EA5E9),
+      c3: Color(0xFF34D399),
       intensity: 0.20,
     ),
     _RgbPresetItem(
@@ -113,14 +147,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _RgbPresetItem(
       name: 'Bắc Cực Băng',
       c1: Color(0xFF38BDF8),
-      c2: Color(0xFF818CF8),
-      c3: Color(0xFFC084FC),
+      c2: Color(0xFF0284C7),
+      c3: Color(0xFF2DD4BF),
       intensity: 0.18,
     ),
     _RgbPresetItem(
       name: 'Cyberpunk Neon',
       c1: Color(0xFF06B6D4),
-      c2: Color(0xFFD946EF),
+      c2: Color(0xFF10B981),
       c3: Color(0xFF84CC16),
       intensity: 0.22,
     ),
@@ -146,10 +180,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       intensity: 0.18,
     ),
     _RgbPresetItem(
-      name: 'Midnight Galaxy',
-      c1: Color(0xFF1E1B4B),
-      c2: Color(0xFF312E81),
-      c3: Color(0xFF4C1D95),
+      name: 'Midnight Sapphire',
+      c1: Color(0xFF0F172A),
+      c2: Color(0xFF0C4A6E),
+      c3: Color(0xFF134E4A),
       intensity: 0.25,
     ),
     _RgbPresetItem(
@@ -170,10 +204,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Color(0xFF0284C7), // Sapphire
     Color(0xFF2563EB), // Cobalt Blue
     Color(0xFF06B6D4), // Cyan
-    Color(0xFF6366F1), // Indigo
-    Color(0xFF8B5CF6), // Purple
-    Color(0xFF7C3AED), // Royal Violet
-    Color(0xFFA855F7), // Fuchsia
+    Color(0xFF0F6E56), // Deep Emerald
+    Color(0xFF14B8A6), // Sea Green
+    Color(0xFF0891B2), // Ocean Cyan
+    Color(0xFF0369A1), // Deep Sky
     Color(0xFFEC4899), // Pink
     Color(0xFFF43F5E), // Rose
     Color(0xFFE11D48), // Crimson
@@ -181,7 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Color(0xFFF59E0B), // Amber
     Color(0xFFEAB308), // Gold Yellow
     Color(0xFF84CC16), // Lime Green
-    Color(0xFF14B8A6), // Sea Green
+    Color(0xFF2DD4BF), // Bright Teal
     Color(0xFF475569), // Slate
     Color(0xFF64748B), // Slate Muted
     Color(0xFF94A3B8), // Slate Light
@@ -217,7 +251,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final secondaryTextColor =
         isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final cardBg = isDark ? const Color(0xFF121A17) : Colors.white;
+    final cardBg = (isDark ? const Color(0xFF121A17) : Colors.white)
+        .withValues(alpha: studio.glassOpacity);
     final borderColor =
         isDark ? Colors.white.withValues(alpha: 0.10) : const Color(0xFFE2E8F0);
 
@@ -228,170 +263,176 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final hexString =
         '#${activeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
+    if (!_husbandNameFocus.hasFocus &&
+        _husbandNameCtrl.text != studio.husbandName) {
+      _husbandNameCtrl.text = studio.husbandName;
+    }
+    if (!_wifeNameFocus.hasFocus && _wifeNameCtrl.text != studio.wifeName) {
+      _wifeNameCtrl.text = studio.wifeName;
+    }
+
     return GlassScaffold(
+      extendBodyBehindAppBar: true,
       appBar: GlassTopBar(
         title: 'Giao diện',
         onBack: () => Navigator.of(context).pop(),
       ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            GlassScaffold.topInset(context, 8),
-            16,
-            40,
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(
+          studio.pageHorizontalMargin,
+          GlassScaffold.topInset(context, 10),
+          studio.pageHorizontalMargin,
+          32,
+        ),
+        children: [
+          // ==========================================
+          // PHÂN HỆ 1: CHẾ ĐỘ HIỂN THỊ & CỠ CHỮ (THEME & TYPOGRAPHY)
+          // ==========================================
+          _buildSectionHeader(
+            title: 'Chế độ hiển thị & Giao diện',
+            subtitle: 'Sáng trong & Đồng bộ toàn hệ thống',
+            icon: Icons.palette_rounded,
+            color: studio.resolvedPrimary,
+            primaryTextColor: primaryTextColor,
+            secondaryTextColor: secondaryTextColor,
           ),
-          children: [
-            // ==========================================
-            // PHÂN HỆ 1: CHẾ ĐỘ HIỂN THỊ & CỠ CHỮ (THEME & TYPOGRAPHY)
-            // ==========================================
-            _buildSectionHeader(
-              title: 'Chế độ hiển thị & Giao diện',
-              subtitle: 'Sáng trong & Xanh tươi',
-              icon: Icons.palette_rounded,
-              color: const Color(0xFF0EA5E9),
-              primaryTextColor: primaryTextColor,
-              secondaryTextColor: secondaryTextColor,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: _modes.map((item) {
-                final isSelected = theme.mode == item.$1;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Material(
-                      color: Colors.transparent,
+          const SizedBox(height: 12),
+          Row(
+            children: _modes.map((item) {
+              final isSelected = theme.mode == item.$1;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        theme.setMode(item.$1);
+                      },
                       borderRadius: BorderRadius.circular(16),
-                      child: InkWell(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          theme.setMode(item.$1);
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 8),
-                          decoration: BoxDecoration(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? studio.resolvedPrimary
+                                  .withValues(alpha: isDark ? 0.22 : 0.12)
+                              : cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
                             color: isSelected
-                                ? (isDark
-                                    ? const Color(0xFF1E2D27)
-                                    : const Color(0xFFE6F4EA))
-                                : cardBg,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF10B981)
-                                  : borderColor,
-                              width: isSelected ? 1.6 : 1.0,
+                                ? studio.resolvedPrimary
+                                : borderColor,
+                            width: isSelected ? 1.6 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: studio.resolvedPrimary
+                                        .withValues(alpha: 0.20),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? studio.resolvedPrimary
+                                    : (isDark
+                                        ? Colors.white10
+                                        : const Color(0xFFF1F5F9)),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                item.$3,
+                                size: 18,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF475569)),
+                              ),
                             ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFF10B981)
-                                          .withValues(alpha: 0.20),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(7),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFF10B981)
-                                      : (isDark
-                                          ? Colors.white10
-                                          : const Color(0xFFF1F5F9)),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  item.$3,
-                                  size: 18,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : (isDark
-                                          ? Colors.white70
-                                          : const Color(0xFF475569)),
-                                ),
+                            const SizedBox(height: 8),
+                            Text(
+                              item.$2,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: isSelected
+                                    ? studio.resolvedPrimary
+                                    : primaryTextColor,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                item.$2,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: isSelected
-                                      ? const Color(0xFF10B981)
-                                      : primaryTextColor,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Cỡ chữ hiển thị',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: primaryTextColor,
-                        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Cỡ chữ hiển thị',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: primaryTextColor,
                       ),
-                      Text(
-                        '${(studio.fontScale * 100).round()}%',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF10B981),
-                        ),
+                    ),
+                    Text(
+                      '${(studio.fontScale * 100).round()}%',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: studio.resolvedPrimary,
                       ),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: const Color(0xFF10B981),
-                      inactiveTrackColor:
-                          isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                      thumbColor: Colors.white,
-                      trackHeight: 5,
                     ),
-                    child: Slider(
-                      value: studio.fontScale.clamp(0.9, 1.25),
-                      min: 0.9,
-                      max: 1.25,
-                      divisions: 7,
-                      label: '${(studio.fontScale * 100).round()}%',
-                      onChanged: studio.setFontScale,
-                    ),
+                  ],
+                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: studio.resolvedPrimary,
+                    inactiveTrackColor:
+                        isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    thumbColor: Colors.white,
+                    trackHeight: 5,
                   ),
+                  child: Slider(
+                    value: studio.fontScale.clamp(0.9, 1.25),
+                    min: 0.9,
+                    max: 1.25,
+                    divisions: 7,
+                    label: '${(studio.fontScale * 100).round()}%',
+                    onChanged: studio.setFontScale,
+                  ),
+                ),
                   const Divider(height: 12),
                   Material(
                     color: Colors.transparent,
@@ -463,7 +504,745 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // ==========================================
+            // PHÂN HỆ 1.2: MÀU SẮC CHỦ ĐẠO TOÀN HỆ THỐNG (SYSTEM PRIMARY COLOR)
+            // ==========================================
+            _buildSectionHeader(
+              title: 'MÀU SẮC CHỦ ĐẠO TOÀN HỆ THỐNG',
+              subtitle:
+                  'Đồng bộ tức thì màu nút bấm, thẻ Hero, biểu đồ, viền sáng và hào quang nền',
+              icon: Icons.color_lens_rounded,
+              color: studio.resolvedPrimary,
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: studio.currentPaletteMeta.heroGradient,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: studio.resolvedPrimary
+                                  .withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              studio.currentPaletteMeta.title,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              studio.currentPaletteMeta.subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: secondaryTextColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (studio.customPrimaryAccentColor != null)
+                        TextButton(
+                          onPressed: () =>
+                              studio.setCustomPrimaryAccentColor(null),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Mặc định',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: studio.resolvedPrimary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 68,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: ThemeStudioController.palettes.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, idx) {
+                        final p = ThemeStudioController.palettes[idx];
+                        final selected =
+                            studio.customPrimaryAccentColor == null &&
+                                studio.palette == p.palette;
+                        return GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            studio.setPalette(p.palette);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 124,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? p.primary
+                                      .withValues(alpha: isDark ? 0.22 : 0.10)
+                                  : (isDark
+                                      ? Colors.white.withValues(alpha: 0.04)
+                                      : const Color(0xFFF8FAFC)),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: selected ? p.primary : borderColor,
+                                width: selected ? 1.8 : 1.0,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: p.heroGradient,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (selected)
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 16,
+                                        color: p.primary,
+                                      ),
+                                  ],
+                                ),
+                                Text(
+                                  p.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: selected
+                                        ? FontWeight.w800
+                                        : FontWeight.w700,
+                                    color: selected
+                                        ? p.primary
+                                        : primaryTextColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'CHỌN NHANH MÀU CHỦ ĐẠO TUỲ BIẾN',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                      color: secondaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _swatches.map((swatch) {
+                      final isSelected = studio.resolvedPrimary.toARGB32() ==
+                          swatch.toARGB32();
+                      return GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          studio.setCustomPrimaryAccentColor(swatch);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: swatch,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected
+                                  ? (isDark ? Colors.white : Colors.black87)
+                                  : Colors.white.withValues(alpha: 0.25),
+                              width: isSelected ? 2.5 : 1.0,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: swatch.withValues(alpha: 0.45),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: isSelected
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ==========================================
+            // PHÂN HỆ 1.3: LINH VẬT ĐỒNG HÀNH TOÀN HỆ THỐNG (MASCOT STUDIO)
+            // ==========================================
+            _buildSectionHeader(
+              title: 'LINH VẬT ĐỒNG HÀNH TOÀN HỆ THỐNG',
+              subtitle:
+                  'Tuỳ biến nhân vật linh thú, tư thế biểu cảm & hiệu ứng xuất hiện trên toàn ứng dụng',
+              icon: Icons.pets_rounded,
+              color: studio.resolvedPrimary,
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Nhân vật Linh vật
+                  GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.05,
+                    children: [
+                      for (final item in const [
+                        (
+                          AppMascotCharacter.jadeDragon3D,
+                          'Rồng Ngọc 3D',
+                          'Biểu tượng chính'
+                        ),
+                        (
+                          AppMascotCharacter.chibiClassic,
+                          'Tiểu Rồng Chibi',
+                          'Đáng yêu'
+                        ),
+                        (
+                          AppMascotCharacter.hidden,
+                          'Ẩn Linh Vật',
+                          'Giao diện thuần'
+                        ),
+                      ])
+                        Builder(
+                          builder: (context) {
+                            final selected = studio.mascotCharacter == item.$1;
+                            return GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                studio.setMascotCharacter(item.$1);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? studio.resolvedPrimary.withValues(
+                                          alpha: isDark ? 0.20 : 0.10)
+                                      : (isDark
+                                          ? Colors.white.withValues(alpha: 0.04)
+                                          : const Color(0xFFF8FAFC)),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: selected
+                                        ? studio.resolvedPrimary
+                                        : borderColor,
+                                    width: selected ? 1.8 : 1.0,
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 42,
+                                      height: 42,
+                                      child: item.$1 ==
+                                              AppMascotCharacter.hidden
+                                          ? Icon(
+                                              Icons.visibility_off_rounded,
+                                              size: 26,
+                                              color: selected
+                                                  ? studio.resolvedPrimary
+                                                  : secondaryTextColor,
+                                            )
+                                          : FinoraMascotImage(
+                                              pose: FinoraMascotImage
+                                                  .resolvePoseByName(
+                                                      studio.mascotDefaultPose),
+                                              size: 42,
+                                              characterOverride: item.$1,
+                                              forceShow: true,
+                                            ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      item.$2,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: selected
+                                            ? studio.resolvedPrimary
+                                            : primaryTextColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      item.$3,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: secondaryTextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                  if (studio.mascotCharacter ==
+                          AppMascotCharacter.jadeDragon3D ||
+                      studio.mascotCharacter ==
+                          AppMascotCharacter.chibiClassic) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'TƯ THẾ & BIỂU CẢM MẶC ĐỊNH',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          for (final poseItem in const [
+                            ('hero', 'Bay lượn (Hero)'),
+                            ('happy', 'Vui vẻ'),
+                            ('confident', 'Tự tin'),
+                            ('focused', 'Tập trung'),
+                            ('celebrate', 'Ăn mừng'),
+                            ('saving', 'Tiết kiệm'),
+                            ('goal', 'Mục tiêu'),
+                            ('family', 'Gia đình'),
+                            ('relaxed', 'Thảnh thơi'),
+                          ]) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  studio.setMascotDefaultPose(poseItem.$1);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 160),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: studio.mascotDefaultPose ==
+                                            poseItem.$1
+                                        ? studio.resolvedPrimary
+                                        : (isDark
+                                            ? Colors.white
+                                                .withValues(alpha: 0.06)
+                                            : const Color(0xFFF1F5F9)),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: studio.mascotDefaultPose ==
+                                              poseItem.$1
+                                          ? studio.resolvedPrimary
+                                          : borderColor,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    poseItem.$2,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: studio.mascotDefaultPose ==
+                                              poseItem.$1
+                                          ? Colors.white
+                                          : primaryTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (studio.mascotCharacter != AppMascotCharacter.hidden) ...[
+                    const SizedBox(height: 6),
+                    Material(
+                      type: MaterialType.transparency,
+                      child: SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(
+                          'Hiển thị hình chìm linh vật (Watermark 3D)',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Trang trí nhẹ nhàng ở góc các thẻ tổng quan & màn hình',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: secondaryTextColor,
+                          ),
+                        ),
+                        value: studio.showMascotWatermark,
+                        onChanged: studio.setShowMascotWatermark,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ==========================================
+            // PHÂN HỆ 1.5: ĐẶT TÊN HIỂN THỊ THÀNH VIÊN (CHỒNG / VỢ)
+            // ==========================================
+            _buildSectionHeader(
+              title: 'ĐẶT TÊN THÀNH VIÊN GIA ĐÌNH',
+              subtitle:
+                  'Hiển thị rút gọn ở mọi nút lọc: Tất cả · ${studio.husbandDisplayLabel} · ${studio.wifeDisplayLabel}',
+              icon: Icons.people_alt_rounded,
+              color: const Color(0xFF0284C7),
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _husbandNameCtrl,
+                          focusNode: _husbandNameFocus,
+                          textInputAction: TextInputAction.next,
+                          onChanged: (v) {
+                            studio.setHusbandName(v, notify: false);
+                            setState(() {});
+                          },
+                          onSubmitted: (v) {
+                            studio.setHusbandName(v, notify: true);
+                          },
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Tên Chồng',
+                            hintText: 'VD: Minh',
+                            isDense: true,
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: FinoraMemberAvatar(
+                                member: 'husband',
+                                size: 22,
+                                isDark: isDark,
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(
+                              minWidth: 38,
+                              minHeight: 38,
+                            ),
+                            suffixIcon: _husbandNameCtrl.text.isNotEmpty
+                                ? IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 28,
+                                      minHeight: 28,
+                                    ),
+                                    icon: Icon(
+                                      Icons.close_rounded,
+                                      size: 15,
+                                      color: secondaryTextColor,
+                                    ),
+                                    onPressed: () {
+                                      _husbandNameCtrl.clear();
+                                      studio.setHusbandName('', notify: true);
+                                      setState(() {});
+                                    },
+                                  )
+                                : null,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 11,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0284C7),
+                                width: 1.4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _wifeNameCtrl,
+                          focusNode: _wifeNameFocus,
+                          textInputAction: TextInputAction.done,
+                          onChanged: (v) {
+                            studio.setWifeName(v, notify: false);
+                            setState(() {});
+                          },
+                          onSubmitted: (v) {
+                            studio.setWifeName(v, notify: true);
+                          },
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Tên Vợ',
+                            hintText: 'VD: Lan',
+                            isDense: true,
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: FinoraMemberAvatar(
+                                member: 'wife',
+                                size: 22,
+                                isDark: isDark,
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(
+                              minWidth: 38,
+                              minHeight: 38,
+                            ),
+                            suffixIcon: _wifeNameCtrl.text.isNotEmpty
+                                ? IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 28,
+                                      minHeight: 28,
+                                    ),
+                                    icon: Icon(
+                                      Icons.close_rounded,
+                                      size: 15,
+                                      color: secondaryTextColor,
+                                    ),
+                                    onPressed: () {
+                                      _wifeNameCtrl.clear();
+                                      studio.setWifeName('', notify: true);
+                                      setState(() {});
+                                    },
+                                  )
+                                : null,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 11,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFEC4899),
+                                width: 1.4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _buildColorBadge('Tất cả', const Color(0xFF10B981)),
+                            _buildColorBadge(
+                              studio.husbandDisplayLabel,
+                              const Color(0xFF0284C7),
+                            ),
+                            _buildColorBadge(
+                              studio.wifeDisplayLabel,
+                              const Color(0xFFEC4899),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          FocusScope.of(context).unfocus();
+                          studio.setHusbandName(
+                            _husbandNameCtrl.text,
+                            notify: false,
+                          );
+                          studio.setWifeName(
+                            _wifeNameCtrl.text,
+                            notify: true,
+                          );
+                          FinoraNotice.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Đã lưu tên: ${studio.husbandDisplayLabel} · ${studio.wifeDisplayLabel}',
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF059669),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Lưu tên',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
 
             // ==========================================
             // PHÂN HỆ 2: TUỲ BIẾN NỀN PHA MÀU ĐÁ THẠCH ANH (QUARTZ MESH)
@@ -679,14 +1458,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? (isDark
-                                  ? const Color(0xFF1E2D27)
-                                  : const Color(0xFFEAF5EF))
+                              ? studio.resolvedPrimary.withValues(
+                                  alpha: isDark ? 0.22 : 0.12)
                               : cardBg,
                           borderRadius: BorderRadius.circular(100),
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFF10B981)
+                                ? studio.resolvedPrimary
                                 : borderColor,
                             width: isSelected ? 1.5 : 1.0,
                           ),
@@ -713,7 +1491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ? FontWeight.w800
                                     : FontWeight.w600,
                                 color: isSelected
-                                    ? const Color(0xFF10B981)
+                                    ? studio.resolvedPrimary
                                     : primaryTextColor,
                               ),
                             ),
@@ -1467,8 +2245,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildSectionHeader({

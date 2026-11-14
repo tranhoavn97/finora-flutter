@@ -155,36 +155,42 @@ class BankLauncherHelper {
       _ => bank.shortName.toLowerCase(),
     };
 
-    // 1. Try VietQR universal deep link FIRST (opens bank transfer screen with pre-filled account, amount & memo)
+    Uri? deepLink;
     if (recipient != null && amount > 0) {
-      try {
-        final deepLink = Uri.https('dl.vietqr.io', '/pay', {
-          'app': appSlug,
-          'am': amount.toInt().toString(),
-          'tn': memo,
-          'ba': '${data.accountNumber}@${recipient.shortName.toLowerCase()}',
-          'url': kIsWeb
-              ? Uri.base
-                  .replace(path: '/', query: 'qrReturn=1', fragment: '')
-                  .toString()
-              : 'finora://qr-return',
-        });
-        opened =
-            await launchUrl(deepLink, mode: LaunchMode.externalApplication);
-      } catch (_) {}
+      deepLink = Uri.https('dl.vietqr.io', '/pay', {
+        'app': appSlug,
+        'am': amount.toInt().toString(),
+        'tn': memo,
+        'ba': '${data.accountNumber}@${recipient.shortName.toLowerCase()}',
+        'url': kIsWeb
+            ? Uri.base
+                .replace(path: '/', query: 'qrReturn=1', fragment: '')
+                .toString()
+            : 'finora://qr-return',
+      });
     }
 
-    // 2. Fallback to native Android package open if deep link handler was unavailable
-    if (!opened &&
-        !kIsWeb &&
+    // 1. On Android, launch native banking app package directly (with optional deepLink intent targeted to that package)
+    if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&
         bank.androidPackage != null) {
       try {
         opened = await _channel.invokeMethod<bool>(
               'openBank',
-              {'package': bank.androidPackage},
+              {
+                'package': bank.androidPackage,
+                if (deepLink != null) 'deepLink': deepLink.toString(),
+              },
             ) ??
             false;
+      } catch (_) {}
+    }
+
+    // 2. Fallback to VietQR universal deep link (Web / iOS / when native channel unavailable)
+    if (!opened && deepLink != null) {
+      try {
+        opened =
+            await launchUrl(deepLink, mode: LaunchMode.externalApplication);
       } catch (_) {}
     }
 

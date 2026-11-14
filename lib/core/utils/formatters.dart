@@ -305,6 +305,34 @@ class CategoryIconHelper {
     'se': '🔍', 'sp': '✨', 'ar': '🔄', 'ha': '🫱🪙', 'ac': '📈', 'it': '🏆',
   };
 
+  /// 24 Popular Vietnamese Finance & Lifestyle Icons Pack (`assets/icons/popular_24/`)
+  static const List<({String id, String label, String assetPath})> popular24Icons = [
+    (id: '01-vi-tien', label: 'Ví tiền', assetPath: 'assets/icons/popular_24/01-vi-tien.png'),
+    (id: '02-heo-dat', label: 'Tiết kiệm', assetPath: 'assets/icons/popular_24/02-heo-dat.png'),
+    (id: '03-an-uong', label: 'Ăn uống', assetPath: 'assets/icons/popular_24/03-an-uong.png'),
+    (id: '04-ca-phe', label: 'Cà phê', assetPath: 'assets/icons/popular_24/04-ca-phe.png'),
+    (id: '05-mua-sam', label: 'Mua sắm', assetPath: 'assets/icons/popular_24/05-mua-sam.png'),
+    (id: '06-xe-co', label: 'Xe cộ', assetPath: 'assets/icons/popular_24/06-xe-co.png'),
+    (id: '07-do-xang', label: 'Đổ xăng', assetPath: 'assets/icons/popular_24/07-do-xang.png'),
+    (id: '08-nha-o', label: 'Nhà ở', assetPath: 'assets/icons/popular_24/08-nha-o.png'),
+    (id: '09-hoa-don-dien', label: 'Tiền điện', assetPath: 'assets/icons/popular_24/09-hoa-don-dien.png'),
+    (id: '10-hoa-don-nuoc', label: 'Tiền nước', assetPath: 'assets/icons/popular_24/10-hoa-don-nuoc.png'),
+    (id: '11-internet', label: 'Internet', assetPath: 'assets/icons/popular_24/11-internet.png'),
+    (id: '12-suc-khoe', label: 'Sức khỏe', assetPath: 'assets/icons/popular_24/12-suc-khoe.png'),
+    (id: '13-the-thao', label: 'Thể thao', assetPath: 'assets/icons/popular_24/13-the-thao.png'),
+    (id: '14-giao-duc', label: 'Giáo dục', assetPath: 'assets/icons/popular_24/14-giao-duc.png'),
+    (id: '15-giai-tri', label: 'Giải trí', assetPath: 'assets/icons/popular_24/15-giai-tri.png'),
+    (id: '16-du-lich', label: 'Du lịch', assetPath: 'assets/icons/popular_24/16-du-lich.png'),
+    (id: '17-qua-tang', label: 'Quà tặng', assetPath: 'assets/icons/popular_24/17-qua-tang.png'),
+    (id: '18-thu-cung', label: 'Thú cưng', assetPath: 'assets/icons/popular_24/18-thu-cung.png'),
+    (id: '19-em-be', label: 'Con cái', assetPath: 'assets/icons/popular_24/19-em-be.png'),
+    (id: '20-luong', label: 'Tiền lương', assetPath: 'assets/icons/popular_24/20-luong.png'),
+    (id: '21-dau-tu', label: 'Đầu tư', assetPath: 'assets/icons/popular_24/21-dau-tu.png'),
+    (id: '22-the-ngan-hang', label: 'Thẻ NH', assetPath: 'assets/icons/popular_24/22-the-ngan-hang.png'),
+    (id: '23-sua-chua', label: 'Sửa chữa', assetPath: 'assets/icons/popular_24/23-sua-chua.png'),
+    (id: '24-dien-thoai', label: 'Điện thoại', assetPath: 'assets/icons/popular_24/24-dien-thoai.png'),
+  ];
+
   static String? getAssetPath(String? iconStr) {
     if (iconStr == null || iconStr.trim().isEmpty) return null;
     var raw = iconStr.trim().toLowerCase();
@@ -314,15 +342,53 @@ class CategoryIconHelper {
         raw.contains('/storage/')) {
       return null;
     }
+    if (raw.startsWith('/icons/popular_24/')) {
+      return 'assets${iconStr.trim()}';
+    }
+    if (raw.startsWith('/banks/')) {
+      return 'assets${iconStr.trim()}';
+    }
     if (raw.startsWith('assets/')) {
       return iconStr.trim();
+    }
+    for (final p in popular24Icons) {
+      if (raw == p.id || raw == '${p.id}.png' || raw == 'pop-${p.id}') {
+        return p.assetPath;
+      }
     }
     var clean = raw;
     if (clean.startsWith('bank-')) clean = clean.substring(5);
     if (clean.startsWith('brand-')) clean = clean.substring(6);
+    if (clean.startsWith('pop-')) clean = clean.substring(4);
     clean = clean.replaceAll(RegExp(r'[^a-z0-9]'), '');
 
     const assetMap = {
+      // Popular 24 icons
+      '01vitien': 'assets/icons/popular_24/01-vi-tien.png',
+      '02heodat': 'assets/icons/popular_24/02-heo-dat.png',
+      '03anuong': 'assets/icons/popular_24/03-an-uong.png',
+      '04caphe': 'assets/icons/popular_24/04-ca-phe.png',
+      '05muasam': 'assets/icons/popular_24/05-mua-sam.png',
+      '06xeco': 'assets/icons/popular_24/06-xe-co.png',
+      '07doxang': 'assets/icons/popular_24/07-do-xang.png',
+      '08nhao': 'assets/icons/popular_24/08-nha-o.png',
+      '09hoadondien': 'assets/icons/popular_24/09-hoa-don-dien.png',
+      '10hoadonnuoc': 'assets/icons/popular_24/10-hoa-don-nuoc.png',
+      '11internet': 'assets/icons/popular_24/11-internet.png',
+      '12suckhoe': 'assets/icons/popular_24/12-suc-khoe.png',
+      '13thethao': 'assets/icons/popular_24/13-the-thao.png',
+      '14giaoduc': 'assets/icons/popular_24/14-giao-duc.png',
+      '15giaitri': 'assets/icons/popular_24/15-giai-tri.png',
+      '16dulich': 'assets/icons/popular_24/16-du-lich.png',
+      '17quatang': 'assets/icons/popular_24/17-qua-tang.png',
+      '18thucung': 'assets/icons/popular_24/18-thu-cung.png',
+      '19embe': 'assets/icons/popular_24/19-em-be.png',
+      '20luong': 'assets/icons/popular_24/20-luong.png',
+      '21dautu': 'assets/icons/popular_24/21-dau-tu.png',
+      '22thenganhang': 'assets/icons/popular_24/22-the-ngan-hang.png',
+      '23suachua': 'assets/icons/popular_24/23-sua-chua.png',
+      '24dienthoai': 'assets/icons/popular_24/24-dien-thoai.png',
+      // Banks & E-wallets
       'vcb': 'assets/banks/vcb.jpg',
       'vietcombank': 'assets/banks/vcb.jpg',
       'tcb': 'assets/banks/tcb.jpg',
@@ -352,8 +418,65 @@ class CategoryIconHelper {
       'eximbank': 'assets/banks/eib.jpg',
       'agri': 'assets/banks/agri.jpg',
       'agribank': 'assets/banks/agri.jpg',
+      'lpbank': 'assets/banks/lpbank.png',
+      'lpb': 'assets/banks/lpbank.png',
+      'lienvietpostbank': 'assets/banks/lpbank.png',
+      'namabank': 'assets/banks/namabank.png',
+      'nab': 'assets/banks/namabank.png',
+      'abbank': 'assets/banks/abbank.png',
+      'abb': 'assets/banks/abbank.png',
+      'pvcombank': 'assets/banks/pvcombank.png',
+      'pvc': 'assets/banks/pvcombank.png',
+      'bacabank': 'assets/banks/bacabank.png',
+      'bab': 'assets/banks/bacabank.png',
+      'bvbank': 'assets/banks/bvbank.png',
+      'vietcapitalbank': 'assets/banks/bvbank.png',
+      'digimi': 'assets/banks/bvbank.png',
+      'vietabank': 'assets/banks/vietabank.png',
+      'vab': 'assets/banks/vietabank.png',
+      'vietbank': 'assets/banks/vietbank.png',
+      'vbb': 'assets/banks/vietbank.png',
+      'ncb': 'assets/banks/ncb.png',
+      'izimobile': 'assets/banks/ncb.png',
+      'kienlongbank': 'assets/banks/kienlongbank.png',
+      'klb': 'assets/banks/kienlongbank.png',
+      'pgbank': 'assets/banks/pgbank.png',
+      'pgb': 'assets/banks/pgbank.png',
+      'saigonbank': 'assets/banks/saigonbank.png',
+      'sgb': 'assets/banks/saigonbank.png',
+      'baovietbank': 'assets/banks/baovietbank.png',
+      'baoviet': 'assets/banks/baovietbank.png',
+      'gpbank': 'assets/banks/gpbank.png',
+      'gpb': 'assets/banks/gpbank.png',
+      'oceanbank': 'assets/banks/oceanbank.png',
+      'mbv': 'assets/banks/oceanbank.png',
+      'cbbank': 'assets/banks/cbbank.png',
+      'cbb': 'assets/banks/cbbank.png',
+      'scb': 'assets/banks/scb.png',
+      'coopbank': 'assets/banks/coopbank.png',
+      'vbsp': 'assets/banks/vbsp.png',
+      'vrb': 'assets/banks/vrb.png',
+      'ivb': 'assets/banks/ivb.png',
+      'indovinabank': 'assets/banks/ivb.png',
       'cake': 'assets/banks/cake.jpg',
       'timo': 'assets/banks/timo.jpg',
+      'tnex': 'assets/banks/tnex.png',
+      'ubank': 'assets/banks/ubank.png',
+      'liobank': 'assets/banks/liobank.png',
+      'vikki': 'assets/banks/vikki.png',
+      'dongabank': 'assets/banks/vikki.png',
+      'woori': 'assets/banks/wooribank.png',
+      'wooribank': 'assets/banks/wooribank.png',
+      'shinhan': 'assets/banks/shinhan.png',
+      'shinhanbank': 'assets/banks/shinhan.png',
+      'hsbc': 'assets/banks/hsbc.png',
+      'standardchartered': 'assets/banks/standardchartered.png',
+      'uob': 'assets/banks/uob.png',
+      'publicbank': 'assets/banks/publicbank.png',
+      'hongleong': 'assets/banks/hongleong.png',
+      'hongleongbank': 'assets/banks/hongleong.png',
+      'cimb': 'assets/banks/cimb.png',
+      'kbank': 'assets/banks/kbank.png',
       'momo': 'assets/banks/momo.jpg',
       'zalo': 'assets/banks/zalo.jpg',
       'zalopay': 'assets/banks/zalo.jpg',
@@ -361,6 +484,20 @@ class CategoryIconHelper {
       'shopeepay': 'assets/banks/shopeepay.jpg',
       'viettelmoney': 'assets/banks/viettelmoney.jpg',
       'vnptmoney': 'assets/banks/vnptmoney.jpg',
+      'payoo': 'assets/banks/payoo.png',
+      'vtcpay': 'assets/banks/vtcpay.png',
+      'foxpay': 'assets/banks/foxpay.png',
+      'mobifonemoney': 'assets/banks/mobifonemoney.png',
+      'smartpay': 'assets/banks/smartpay.png',
+      '9pay': 'assets/banks/9pay.png',
+      'ninepay': 'assets/banks/9pay.png',
+      'appotapay': 'assets/banks/appotapay.png',
+      'vinid': 'assets/banks/vinid.png',
+      'oneu': 'assets/banks/vinid.png',
+      'homecredit': 'assets/banks/homecredit.png',
+      'fecredit': 'assets/banks/fecredit.png',
+      'hdsaison': 'assets/banks/hdsaison.png',
+      'miraeasset': 'assets/banks/miraeasset.png',
       'shopee': 'assets/banks/shopee.jpg',
       'shopeemall': 'assets/banks/shopee.jpg',
       'lazada': 'assets/banks/lazada.jpg',

@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/theme_studio_controller.dart';
+import 'avatar_crop_sheet.dart';
+import 'finora_modal_scope.dart';
 import 'finora_notice.dart';
 import 'glass_widgets.dart';
 
@@ -291,6 +293,7 @@ class FinoraUnifiedMemberPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final member = (currentMember == 'all' ||
             currentMember == null ||
             currentMember == 'joint')
@@ -298,25 +301,119 @@ class FinoraUnifiedMemberPill extends StatelessWidget {
         : currentMember;
     final color = FinoraMemberAvatar.colorFor(member);
     final isFiltered = member != null;
-    final btnSize = height ?? 38.0;
+    final btnSize = height ?? 36.0;
 
-    // 100% SOLID OPAQUE background (never transparent)
+    final insideModal = FinoraModalScope.isInsideModal(context);
+    final fillAlpha = insideModal
+        ? 1.0
+        : (studio?.glassOpacity ?? 0.92).clamp(0.20, 1.0);
     final Color baseSurface = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color solidBg = isFiltered
+    final Color solidBg = (isFiltered
+            ? Color.alphaBlend(
+                color.withValues(alpha: isDark ? 0.28 : 0.14),
+                baseSurface,
+              )
+            : baseSurface)
+        .withValues(alpha: fillAlpha);
+
+    final memberLabel = member == 'husband'
+        ? (studio?.husbandDisplayLabel ?? 'Chồng')
+        : (member == 'wife'
+            ? (studio?.wifeDisplayLabel ?? 'Vợ')
+            : 'Tất cả');
+
+    final tooltipLabel =
+        'Đang lọc: $memberLabel (Chạm để đổi hoặc tải ảnh avatar)';
+
+    final borderColor = isFiltered
         ? Color.alphaBlend(
-            color.withValues(alpha: isDark ? 0.28 : 0.14),
+            color.withValues(alpha: isDark ? 0.75 : 0.55),
             baseSurface,
           )
-        : baseSurface;
+        : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1));
 
-    final tooltipLabel = member == 'husband'
-        ? 'Đang lọc: Chồng (Chạm để đổi hoặc tải ảnh avatar)'
-        : (member == 'wife'
-            ? 'Đang lọc: Vợ (Chạm để đổi hoặc tải ảnh avatar)'
-            : 'Đang lọc: Tất cả thành viên (Chạm để chọn Vợ/Chồng)');
+    final pillContent = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: expand ? null : btnSize,
+      height: btnSize,
+      padding:
+          expand ? const EdgeInsets.symmetric(horizontal: 8) : EdgeInsets.zero,
+      decoration: BoxDecoration(
+        color: solidBg,
+        shape: expand ? BoxShape.rectangle : BoxShape.circle,
+        borderRadius: expand ? BorderRadius.circular(999) : null,
+        border: Border.all(
+          color: borderColor,
+          width: isFiltered ? 1.4 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isFiltered
+                ? color.withValues(alpha: isDark ? 0.22 : 0.10)
+                : Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: expand
+          ? Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FinoraMemberAvatar(
+                        member: member,
+                        size: (btnSize - 12).clamp(20.0, 26.0),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            memberLabel,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontFamily: 'BeVietnamPro',
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 15,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
+                ),
+              ],
+            )
+          : Center(
+              child: FinoraMemberAvatar(
+                member: member,
+                size: btnSize - 4,
+                isDark: isDark,
+              ),
+            ),
+    );
 
     return SizedBox(
-      width: btnSize,
+      width: expand ? null : btnSize,
       height: btnSize,
       child: Tooltip(
         message: tooltipLabel,
@@ -333,62 +430,7 @@ class FinoraUnifiedMemberPill extends StatelessWidget {
               );
             },
             borderRadius: BorderRadius.circular(999),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: btnSize,
-              height: btnSize,
-              decoration: BoxDecoration(
-                color: solidBg,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isFiltered
-                      ? Color.alphaBlend(
-                          color.withValues(alpha: isDark ? 0.75 : 0.55),
-                          baseSurface,
-                        )
-                      : (isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFCBD5E1)),
-                  width: isFiltered ? 1.5 : 1.1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isFiltered
-                        ? color.withValues(alpha: isDark ? 0.28 : 0.14)
-                        : Colors.black.withValues(alpha: isDark ? 0.22 : 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  FinoraMemberAvatar(
-                    member: member,
-                    size: btnSize - 6,
-                    isDark: isDark,
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: baseSurface,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            child: pillContent,
           ),
         ),
       ),
@@ -412,37 +454,131 @@ void showFinoraMemberFilterSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (ctx) {
-      return GlassBottomSheet(
-        showHandle: true,
-        radius: 28,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            10,
-            20,
-            MediaQuery.paddingOf(ctx).bottom + 20,
-          ),
+    builder: (ctx) => _FinoraMemberFilterSheetContent(
+      activeTag: active,
+      onSelected: onSelected,
+      isDark: isDark,
+    ),
+  );
+}
+
+class _FinoraMemberFilterSheetContent extends StatefulWidget {
+  final String? activeTag;
+  final ValueChanged<String?> onSelected;
+  final bool isDark;
+
+  const _FinoraMemberFilterSheetContent({
+    required this.activeTag,
+    required this.onSelected,
+    required this.isDark,
+  });
+
+  @override
+  State<_FinoraMemberFilterSheetContent> createState() =>
+      _FinoraMemberFilterSheetContentState();
+}
+
+class _FinoraMemberFilterSheetContentState
+    extends State<_FinoraMemberFilterSheetContent> {
+  late final TextEditingController _husbandCtrl;
+  late final TextEditingController _wifeCtrl;
+  final FocusNode _husbandFocus = FocusNode();
+  final FocusNode _wifeFocus = FocusNode();
+  ThemeStudioController? _studioRef;
+  bool _showCustomizeDrawer = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _studioRef = Provider.of<ThemeStudioController?>(context, listen: false);
+    _husbandCtrl = TextEditingController(text: _studioRef?.husbandName ?? '');
+    _wifeCtrl = TextEditingController(text: _studioRef?.wifeName ?? '');
+    _husbandFocus.addListener(_onFocusChange);
+    _wifeFocus.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (!_husbandFocus.hasFocus && !_wifeFocus.hasFocus && mounted) {
+      _studioRef?.notifyMemberNamesChanged();
+    }
+  }
+
+  @override
+  void dispose() {
+    _husbandFocus.removeListener(_onFocusChange);
+    _wifeFocus.removeListener(_onFocusChange);
+    final studio = _studioRef;
+    if (studio != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        studio.notifyMemberNamesChanged();
+      });
+    }
+    _husbandFocus.dispose();
+    _wifeFocus.dispose();
+    _husbandCtrl.dispose();
+    _wifeCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final active = widget.activeTag;
+    final liveStudio =
+        Provider.of<ThemeStudioController?>(context, listen: true);
+    _studioRef = liveStudio;
+    final primaryColor =
+        liveStudio?.resolvedPrimary ?? const Color(0xFF059669);
+    final secondaryColor =
+        liveStudio?.resolvedSecondary ?? const Color(0xFF0284C7);
+
+    if (liveStudio != null) {
+      if (!_husbandFocus.hasFocus &&
+          _husbandCtrl.text != liveStudio.husbandName) {
+        _husbandCtrl.text = liveStudio.husbandName;
+      }
+      if (!_wifeFocus.hasFocus && _wifeCtrl.text != liveStudio.wifeName) {
+        _wifeCtrl.text = liveStudio.wifeName;
+      }
+    }
+
+    final husbandTitle = liveStudio?.husbandDisplayLabel ?? 'Chồng';
+    final wifeTitle = liveStudio?.wifeDisplayLabel ?? 'Vợ';
+
+    return GlassBottomSheet(
+      showHandle: true,
+      radius: 28,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          4,
+          16,
+          MediaQuery.viewInsetsOf(context).bottom +
+              MediaQuery.paddingOf(context).bottom +
+              16,
+        ),
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // 1. Compact Header + "Tùy chỉnh" Pill Button
               Row(
                 children: [
                   Container(
-                    width: 38,
-                    height: 38,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF059669), Color(0xFF0284C7)],
+                      gradient: LinearGradient(
+                        colors: [primaryColor, secondaryColor],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              const Color(0xFF059669).withValues(alpha: 0.25),
+                          color: primaryColor.withValues(alpha: 0.25),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -451,29 +587,30 @@ void showFinoraMemberFilterSheet(
                     child: const Icon(
                       Icons.people_alt_rounded,
                       color: Colors.white,
-                      size: 19,
+                      size: 18,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Phân loại theo thành viên',
+                          'Thành viên gia đình',
                           style: TextStyle(
-                            fontSize: 17,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -0.3,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
-                          'Chọn người hiển thị hoặc tải ảnh đại diện cho Vợ / Chồng',
+                          'Chạm thẻ để lọc · Nhấn icon máy ảnh để đổi avatar',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: isDark
                                 ? const Color(0xFF94A3B8)
                                 : const Color(0xFF64748B),
@@ -482,69 +619,353 @@ void showFinoraMemberFilterSheet(
                       ],
                     ),
                   ),
+                  if (liveStudio != null)
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _showCustomizeDrawer = !_showCustomizeDrawer;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _showCustomizeDrawer
+                              ? primaryColor
+                              : primaryColor.withValues(
+                                  alpha: isDark ? 0.18 : 0.10),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: primaryColor.withValues(alpha: 0.35),
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _showCustomizeDrawer
+                                  ? Icons.expand_less_rounded
+                                  : Icons.edit_note_rounded,
+                              size: 14,
+                              color: _showCustomizeDrawer
+                                  ? Colors.white
+                                  : primaryColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Đổi tên',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: _showCustomizeDrawer
+                                    ? Colors.white
+                                    : primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _buildOption(
-                ctx: ctx,
-                tag: null,
-                title: 'Tất cả (Vợ & Chồng · Ảnh chung)',
-                subtitle: 'Tổng hợp toàn bộ ví, tài sản và thu chi gia đình',
-                color: const Color(0xFF059669),
-                isSelected: active == null,
-                isDark: isDark,
-                onSelected: onSelected,
-                onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
-                  ctx,
-                  role: 'joint',
-                  isDark: isDark,
-                ),
+              const SizedBox(height: 14),
+
+              // 2. Sleek 3-Column Bento Grid: [ Tất cả ] [ Chồng ] [ Vợ ]
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildBentoMemberCard(
+                      ctx: context,
+                      tag: null,
+                      title: 'Tất cả',
+                      roleBadge: 'Chung',
+                      color: primaryColor,
+                      isSelected: active == null,
+                      isDark: isDark,
+                      onSelected: widget.onSelected,
+                      onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
+                        context,
+                        role: 'joint',
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildBentoMemberCard(
+                      ctx: context,
+                      tag: 'husband',
+                      title: husbandTitle,
+                      roleBadge: 'Chồng',
+                      color: const Color(0xFF0284C7),
+                      isSelected: active == 'husband',
+                      isDark: isDark,
+                      onSelected: widget.onSelected,
+                      onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
+                        context,
+                        role: 'husband',
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildBentoMemberCard(
+                      ctx: context,
+                      tag: 'wife',
+                      title: wifeTitle,
+                      roleBadge: 'Vợ',
+                      color: const Color(0xFFE11D48),
+                      isSelected: active == 'wife',
+                      isDark: isDark,
+                      onSelected: widget.onSelected,
+                      onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
+                        context,
+                        role: 'wife',
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              _buildOption(
-                ctx: ctx,
-                tag: 'husband',
-                title: 'Chỉ riêng Chồng',
-                subtitle: 'Chỉ lọc dữ liệu của Chồng',
-                color: const Color(0xFF0284C7),
-                isSelected: active == 'husband',
-                isDark: isDark,
-                onSelected: onSelected,
-                onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
-                  ctx,
-                  role: 'husband',
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _buildOption(
-                ctx: ctx,
-                tag: 'wife',
-                title: 'Chỉ riêng Vợ',
-                subtitle: 'Chỉ lọc dữ liệu của Vợ',
-                color: const Color(0xFFE11D48),
-                isSelected: active == 'wife',
-                isDark: isDark,
-                onSelected: onSelected,
-                onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
-                  ctx,
-                  role: 'wife',
-                  isDark: isDark,
-                ),
+
+              // 3. Collapsible Inline Name Editor Drawer (Only shown when "Đổi tên" is tapped)
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: (_showCustomizeDrawer && liveStudio != null)
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.badge_outlined,
+                                    size: 14,
+                                    color: primaryColor,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Tên hiển thị của Vợ & Chồng',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      FocusScope.of(context).unfocus();
+                                      liveStudio.setHusbandName(
+                                        _husbandCtrl.text,
+                                        notify: false,
+                                      );
+                                      liveStudio.setWifeName(
+                                        _wifeCtrl.text,
+                                        notify: true,
+                                      );
+                                      setState(() {
+                                        _showCustomizeDrawer = false;
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: primaryColor,
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: const Text(
+                                        'Lưu tên',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _husbandCtrl,
+                                      focusNode: _husbandFocus,
+                                      textInputAction: TextInputAction.next,
+                                      onChanged: (v) {
+                                        liveStudio.setHusbandName(
+                                          v,
+                                          notify: false,
+                                        );
+                                        setState(() {});
+                                      },
+                                      onSubmitted: (v) {
+                                        liveStudio.setHusbandName(
+                                          v,
+                                          notify: true,
+                                        );
+                                      },
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        hintText: 'Tên Chồng (VD: Minh)',
+                                        hintStyle: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? const Color(0xFF64748B)
+                                              : const Color(0xFF94A3B8),
+                                        ),
+                                        prefixIcon: Padding(
+                                          padding: const EdgeInsets.all(7),
+                                          child: FinoraMemberAvatar(
+                                            member: 'husband',
+                                            size: 18,
+                                            isDark: isDark,
+                                          ),
+                                        ),
+                                        prefixIconConstraints:
+                                            const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 9),
+                                        filled: true,
+                                        fillColor: isDark
+                                            ? const Color(0xFF1E293B)
+                                            : Colors.white,
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _wifeCtrl,
+                                      focusNode: _wifeFocus,
+                                      textInputAction: TextInputAction.done,
+                                      onChanged: (v) {
+                                        liveStudio.setWifeName(
+                                          v,
+                                          notify: false,
+                                        );
+                                        setState(() {});
+                                      },
+                                      onSubmitted: (v) {
+                                        liveStudio.setWifeName(
+                                          v,
+                                          notify: true,
+                                        );
+                                      },
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        hintText: 'Tên Vợ (VD: Lan)',
+                                        hintStyle: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? const Color(0xFF64748B)
+                                              : const Color(0xFF94A3B8),
+                                        ),
+                                        prefixIcon: Padding(
+                                          padding: const EdgeInsets.all(7),
+                                          child: FinoraMemberAvatar(
+                                            member: 'wife',
+                                            size: 18,
+                                            isDark: isDark,
+                                          ),
+                                        ),
+                                        prefixIconConstraints:
+                                            const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 9),
+                                        filled: true,
+                                        fillColor: isDark
+                                            ? const Color(0xFF1E293B)
+                                            : Colors.white,
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
 }
 
-Widget _buildOption({
+Widget _buildBentoMemberCard({
   required BuildContext ctx,
   required String? tag,
   required String title,
-  required String subtitle,
+  required String roleBadge,
   required Color color,
   required bool isSelected,
   required bool isDark,
@@ -552,131 +973,143 @@ Widget _buildOption({
   VoidCallback? onEditAvatar,
 }) {
   final baseSurface = isDark ? const Color(0xFF1E293B) : Colors.white;
-  return InkWell(
-    onTap: () {
-      HapticFeedback.selectionClick();
-      onSelected(tag);
-      Navigator.pop(ctx);
-    },
-    borderRadius: BorderRadius.circular(18),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? Color.alphaBlend(
-                color.withValues(alpha: isDark ? 0.24 : 0.12), baseSurface)
-            : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onSelected(tag);
+        Navigator.pop(ctx);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+        decoration: BoxDecoration(
           color: isSelected
-              ? color
-              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-          width: isSelected ? 1.5 : 1.0,
-        ),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onEditAvatar,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                FinoraMemberAvatar(
-                  member: tag,
-                  size: 44,
-                  isDark: isDark,
-                  showRing: true,
-                ),
-                if (onEditAvatar != null)
-                  Positioned(
-                    right: -2,
-                    bottom: -2,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: baseSurface, width: 1.5),
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        size: 10,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ? Color.alphaBlend(
+                  color.withValues(alpha: isDark ? 0.24 : 0.12),
+                  baseSurface,
+                )
+              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? color
+                : (isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE2E8F0)),
+            width: isSelected ? 1.6 : 1.0,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: isDark ? 0.24 : 0.14),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (isSelected)
+              Positioned(
+                top: -2,
+                right: 2,
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  color: color,
+                  size: 16,
+                ),
+              ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                GestureDetector(
+                  onTap: onEditAvatar == null
+                      ? null
+                      : () {
+                          HapticFeedback.lightImpact();
+                          onEditAvatar();
+                        },
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      FinoraMemberAvatar(
+                        member: tag,
+                        size: 50,
+                        isDark: isDark,
+                        showRing: true,
+                      ),
+                      if (onEditAvatar != null)
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: baseSurface,
+                                width: 1.6,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 10.5,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: isDark ? 0.22 : 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    roleBadge,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : color,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          if (onEditAvatar != null) ...[
-            const SizedBox(width: 8),
-            InkWell(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                onEditAvatar();
-              },
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: isDark ? 0.22 : 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.40),
-                    width: 0.9,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add_a_photo_rounded, size: 12.5, color: color),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Up ảnh',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : color,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
-          if (isSelected) ...[
-            const SizedBox(width: 8),
-            Icon(Icons.check_circle_rounded, color: color, size: 20),
-          ],
-        ],
+        ),
       ),
     ),
   );
@@ -744,6 +1177,31 @@ Future<void> showFinoraMemberAvatarPickerSheet(
     return const Color(0xFFE11D48);
   }
 
+  Future<void> saveCroppedDataUri(
+    BuildContext sheetCtx,
+    String targetRole,
+    String dataUri,
+  ) async {
+    final roleLabel = labelForRole(targetRole);
+    final accent = accentForRole(targetRole);
+    final studio = sheetCtx.read<ThemeStudioController>();
+    if (targetRole == 'joint') {
+      await studio.setJointFamilyAvatar(dataUri);
+    } else if (targetRole == 'husband') {
+      await studio.setHusbandAvatar(dataUri);
+    } else {
+      await studio.setWifeAvatar(dataUri);
+    }
+    if (!sheetCtx.mounted) return;
+    Navigator.pop(sheetCtx);
+    FinoraNotice.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã cập nhật & đồng bộ ảnh đại diện $roleLabel!'),
+        backgroundColor: accent,
+      ),
+    );
+  }
+
   Future<void> pickPhoto(
     BuildContext sheetCtx,
     ImageSource source,
@@ -755,30 +1213,21 @@ Future<void> showFinoraMemberAvatarPickerSheet(
       final picker = ImagePicker();
       final xfile = await picker.pickImage(
         source: source,
-        maxWidth: 360,
-        maxHeight: 360,
-        imageQuality: 84,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 92,
       );
       if (xfile == null) return;
       final bytes = await xfile.readAsBytes();
-      final dataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       if (!sheetCtx.mounted) return;
-      final studio = sheetCtx.read<ThemeStudioController>();
-      if (targetRole == 'joint') {
-        await studio.setJointFamilyAvatar(dataUri);
-      } else if (targetRole == 'husband') {
-        await studio.setHusbandAvatar(dataUri);
-      } else {
-        await studio.setWifeAvatar(dataUri);
-      }
-      if (!sheetCtx.mounted) return;
-      Navigator.pop(sheetCtx);
-      FinoraNotice.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã cập nhật ảnh đại diện $roleLabel!'),
-          backgroundColor: accent,
-        ),
+      final croppedDataUri = await showFinoraAvatarCropSheet(
+        context: sheetCtx,
+        imageBytes: bytes,
+        roleLabel: roleLabel,
+        accentColor: accent,
       );
+      if (croppedDataUri == null || !sheetCtx.mounted) return;
+      await saveCroppedDataUri(sheetCtx, targetRole, croppedDataUri);
     } catch (e) {
       if (!sheetCtx.mounted) return;
       FinoraNotice.of(context).showSnackBar(
@@ -788,6 +1237,23 @@ Future<void> showFinoraMemberAvatarPickerSheet(
         ),
       );
     }
+  }
+
+  Future<void> recropExistingPhoto(
+    BuildContext sheetCtx,
+    String targetRole,
+    String rawAvatar,
+  ) async {
+    final bytes = tryDecodeAvatarDataUri(rawAvatar);
+    if (bytes == null) return;
+    final croppedDataUri = await showFinoraAvatarCropSheet(
+      context: sheetCtx,
+      imageBytes: bytes,
+      roleLabel: labelForRole(targetRole),
+      accentColor: accentForRole(targetRole),
+    );
+    if (croppedDataUri == null || !sheetCtx.mounted) return;
+    await saveCroppedDataUri(sheetCtx, targetRole, croppedDataUri);
   }
 
   await showModalBottomSheet(
@@ -899,7 +1365,7 @@ Future<void> showFinoraMemberAvatarPickerSheet(
                     child: Row(
                       children: [
                         buildRoleTab(
-                            'joint', 'Ảnh Chung', Icons.people_alt_rounded),
+                            'joint', 'Chung', Icons.people_alt_rounded),
                         buildRoleTab('husband', 'Chồng', Icons.face_rounded),
                         buildRoleTab('wife', 'Vợ', Icons.face_3_rounded),
                       ],
@@ -975,11 +1441,14 @@ Future<void> showFinoraMemberAvatarPickerSheet(
                               pickPhoto(stCtx, ImageSource.gallery, activeRole),
                           icon:
                               const Icon(Icons.photo_library_rounded, size: 18),
-                          label: const Text(
-                            'Tải ảnh từ máy',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Chọn ảnh',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -998,14 +1467,17 @@ Future<void> showFinoraMemberAvatarPickerSheet(
                               pickPhoto(stCtx, ImageSource.camera, activeRole),
                           icon: Icon(Icons.camera_alt_rounded,
                               size: 18, color: accent),
-                          label: Text(
-                            'Chụp ảnh mới',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF0F172A),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Chụp ảnh',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
+                              ),
                             ),
                           ),
                           style: OutlinedButton.styleFrom(
@@ -1020,6 +1492,36 @@ Future<void> showFinoraMemberAvatarPickerSheet(
                       ),
                     ],
                   ),
+                  if (tryDecodeAvatarDataUri(currentVal) != null) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => recropExistingPhoto(
+                            stCtx, activeRole, currentVal!),
+                        icon: Icon(Icons.crop_rotate_rounded,
+                            size: 18, color: accent),
+                        label: Text(
+                          'Cắt / chỉnh sửa ảnh hiện tại',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          side: BorderSide(
+                            color: accent.withValues(alpha: 0.38),
+                            width: 1.1,
+                          ),
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   Text(
                     'HOẶC CHỌN ICON AVATAR MẪU',

@@ -9,10 +9,12 @@ import '../../features/ai/ai_advisor_screen.dart';
 import '../../features/qr_pay/qr_scanner_screen.dart';
 import '../../features/loan/loan_screen.dart';
 import '../../state/theme_studio_controller.dart';
+import '../design_system/app_colors.dart';
+import 'glass_widgets.dart';
 
-/// FINORA Speed Dial Action Sheet (+)
-/// Khi nhấn vào dấu + ở thanh Dock, vẫn giữ nguyên nút dấu + tại đúng vị trí đó
-/// (với màu sắc tuỳ chỉnh của nút +) và bung các tuỳ chọn mượt mà phía trên.
+/// FINORA iOS 27 Liquid Glass Bento Quick Actions Sheet (+)
+/// Khi nhấn vào dấu + ở thanh Dock, bung bảng Bento Tác vụ nhanh gọn gàng,
+/// icon và nhãn hợp công năng, không dư thừa khoảng trống 2 bên.
 void showSuperActionSheet({
   required BuildContext context,
   required String userId,
@@ -24,8 +26,8 @@ void showSuperActionSheet({
     context: context,
     barrierDismissible: true,
     barrierLabel: 'SpeedDial',
-    barrierColor: Colors.black.withValues(alpha: isDark ? 0.56 : 0.36),
-    transitionDuration: const Duration(milliseconds: 260),
+    barrierColor: Colors.black.withValues(alpha: isDark ? 0.58 : 0.36),
+    transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (dialogContext, animation, secondaryAnimation) {
       return _SpeedDialOverlay(
         userId: userId,
@@ -66,7 +68,7 @@ class _SpeedDialOverlayState extends State<_SpeedDialOverlay>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 340),
+      duration: const Duration(milliseconds: 300),
     )..forward();
   }
 
@@ -101,6 +103,12 @@ class _SpeedDialOverlayState extends State<_SpeedDialOverlay>
 
     final media = MediaQuery.of(context);
     final bottomPadding = media.padding.bottom + 12;
+    final sideMargin = studio?.pageHorizontalMargin ?? 12.0;
+
+    final panelAnim = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutBack,
+    );
 
     return Stack(
       children: [
@@ -110,16 +118,16 @@ class _SpeedDialOverlayState extends State<_SpeedDialOverlay>
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.of(context).pop(),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: const SizedBox.expand(),
             ),
           ),
         ),
 
-        // 2. Speed Dial Fan-Out Stack anchored right above the Dock (+) button
+        // 2. Bento Command Deck anchored above Dock
         Positioned(
-          left: isRightAnchored ? null : 16,
-          right: 16,
+          left: sideMargin,
+          right: sideMargin,
           bottom: bottomPadding,
           child: Align(
             alignment:
@@ -134,171 +142,254 @@ class _SpeedDialOverlayState extends State<_SpeedDialOverlay>
                       : CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header pill
-                    FadeTransition(
-                      opacity: CurvedAnimation(
-                        parent: _controller,
-                        curve: const Interval(0.15, 0.85, curve: Curves.easeOut),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
+                    ScaleTransition(
+                      scale: Tween<double>(begin: 0.90, end: 1.0)
+                          .animate(panelAnim),
+                      alignment: isRightAnchored
+                          ? Alignment.bottomRight
+                          : Alignment.bottomCenter,
+                      child: FadeTransition(
+                        opacity: CurvedAnimation(
+                          parent: _controller,
+                          curve: Curves.easeOut,
                         ),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF0F172A).withValues(alpha: 0.88)
-                              : Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: plusColor.withValues(alpha: 0.38),
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.bolt_rounded,
-                              size: 14,
-                              color: plusColor,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              'TÁC VỤ NHANH FINORA',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.6,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF0F172A),
+                        child: FinoraDraggableSheetWrapper(
+                          onClose: () => Navigator.of(context).pop(),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF0F172A)
+                                          .withValues(alpha: 0.90)
+                                      : Colors.white.withValues(alpha: 0.94),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.14)
+                                        : const Color(0xFFE2E8F0),
+                                    width: 1.1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                          alpha: isDark ? 0.42 : 0.10),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Integrated Drag Handle + Compact Header (zero wasted top space, >=44dp touch zone)
+                                    FinoraSheetDragHandle(
+                                      padding: const EdgeInsets.only(
+                                          top: 3, bottom: 5),
+                                      minHeight: 44.0,
+                                      onClose: () =>
+                                          Navigator.of(context).pop(),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: plusColor.withValues(
+                                                  alpha: isDark ? 0.22 : 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(9),
+                                            ),
+                                            child: Icon(
+                                              LucideIcons.zap,
+                                              size: 13.5,
+                                              color: plusColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Tác vụ nhanh',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: -0.2,
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : const Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: (isDark
+                                                      ? Colors.white
+                                                      : const Color(0xFF0F172A))
+                                                  .withValues(
+                                                      alpha:
+                                                          isDark ? 0.08 : 0.05),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              'Vuốt để đóng',
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    // Row 1: 2 Primary Hero Cards (50/50) — Quét QR (Left) & Ghi giao dịch (Right)
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _buildPrimaryHeroCard(
+                                            title: 'Quét QR',
+                                            subtitle: 'Mở Ngân hàng & Ghi sổ',
+                                            icon: LucideIcons.qr_code,
+                                            gradientColors: const [
+                                              Color(0xFF0EA5E9),
+                                              Color(0xFF0284C7),
+                                            ],
+                                            isDark: isDark,
+                                            onTap: () => _closeAndRun(() {
+                                              Navigator.of(widget.parentContext)
+                                                  .push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      QrScannerScreen(
+                                                          userId:
+                                                              widget.userId),
+                                                ),
+                                              );
+                                            }),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _buildPrimaryHeroCard(
+                                            title: 'Ghi giao dịch',
+                                            subtitle: 'Thu chi & Chuyển khoản',
+                                            icon: Icons.edit_note_rounded,
+                                            gradientColors: [
+                                              lightStop,
+                                              plusColor,
+                                            ],
+                                            isDark: isDark,
+                                            onTap: () => _closeAndRun(() {
+                                              Navigator.of(widget.parentContext)
+                                                  .push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      AddTransactionPage(
+                                                          userId:
+                                                              widget.userId),
+                                                ),
+                                              );
+                                            }),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  const SizedBox(height: 8),
+
+                                  // Row 2: 3 Compact Secondary Bento Tiles (1/3 each)
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildCompactBentoTile(
+                                          title: 'Trợ lý AI',
+                                          subtitle: 'Phân tích & OCR',
+                                          icon: LucideIcons.sparkles,
+                                          accentColor: AppColors.jointTeal,
+                                          isDark: isDark,
+                                          onTap: () => _closeAndRun(() {
+                                            Navigator.of(widget.parentContext)
+                                                .push(
+                                              MaterialPageRoute(
+                                                builder: (_) => AiAdvisorScreen(
+                                                    userId: widget.userId),
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildCompactBentoTile(
+                                          title: 'Sổ Vay / Nợ',
+                                          subtitle: 'Cho vay & Đi vay',
+                                          icon: LucideIcons.handshake,
+                                          accentColor: const Color(0xFFF43F5E),
+                                          isDark: isDark,
+                                          onTap: () => _closeAndRun(() {
+                                            showModalBottomSheet(
+                                              context: widget.parentContext,
+                                              isScrollControlled: true,
+                                              backgroundColor:
+                                                  Colors.transparent,
+                                              builder: (_) => AddLoanSheet(
+                                                userId: widget.userId,
+                                                initialType: 'loan',
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildCompactBentoTile(
+                                          title: 'Đầu tư',
+                                          subtitle: 'Vàng · Cổ phiếu',
+                                          icon: LucideIcons.trending_up,
+                                          accentColor: const Color(0xFFF59E0B),
+                                          isDark: isDark,
+                                          onTap: () => _closeAndRun(() {
+                                            Navigator.of(widget.parentContext)
+                                                .push(
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    AddTransactionPage(
+                                                  userId: widget.userId,
+                                                  initialType: 'investment',
+                                                ),
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
+                        ),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
 
-                    // Action 5: Trợ lý AI & Quét hoá đơn
-                    _buildSpeedDialItem(
-                      index: 4,
-                      title: 'Trợ lý AI & Quét hoá đơn',
-                      subtitle: 'Hỏi đáp tài chính & OCR hoá đơn',
-                      icon: LucideIcons.sparkles,
-                      gradientColors: const [
-                        Color(0xFF059669),
-                        Color(0xFF10B981)
-                      ],
-                      isDark: isDark,
-                      isRightAnchored: isRightAnchored,
-                      onTap: () => _closeAndRun(() {
-                        Navigator.of(widget.parentContext).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                AiAdvisorScreen(userId: widget.userId),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Action 4: Ghi chép Đầu tư
-                    _buildSpeedDialItem(
-                      index: 3,
-                      title: 'Ghi chép Đầu tư',
-                      subtitle: 'Vàng, cổ phiếu, tiết kiệm, BĐS',
-                      icon: LucideIcons.trending_up,
-                      gradientColors: const [
-                        Color(0xFFFBBF24),
-                        Color(0xFFF59E0B)
-                      ],
-                      isDark: isDark,
-                      isRightAnchored: isRightAnchored,
-                      onTap: () => _closeAndRun(() {
-                        Navigator.of(widget.parentContext).push(
-                          MaterialPageRoute(
-                            builder: (_) => AddTransactionPage(
-                              userId: widget.userId,
-                              initialType: 'investment',
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Action 3: Thêm Cho vay / Vay nợ
-                    _buildSpeedDialItem(
-                      index: 2,
-                      title: 'Thêm Cho vay / Vay nợ',
-                      subtitle: 'Ghi sổ khoản cho vay hoặc đi vay',
-                      icon: LucideIcons.handshake,
-                      gradientColors: const [
-                        Color(0xFFFB7185),
-                        Color(0xFFF43F5E)
-                      ],
-                      isDark: isDark,
-                      isRightAnchored: isRightAnchored,
-                      onTap: () => _closeAndRun(() {
-                        showModalBottomSheet(
-                          context: widget.parentContext,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => AddLoanSheet(
-                            userId: widget.userId,
-                            initialType: 'loan',
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Action 2: Quét mã VietQR & Chuyển tiền
-                    _buildSpeedDialItem(
-                      index: 1,
-                      title: 'Quét mã VietQR & Chuyển tiền',
-                      subtitle: 'Mở thẳng App Ngân hàng Vợ/Chồng & ghi sổ',
-                      icon: LucideIcons.qr_code,
-                      gradientColors: const [
-                        Color(0xFF00C2FA),
-                        Color(0xFF0EA5E9)
-                      ],
-                      isDark: isDark,
-                      isRightAnchored: isRightAnchored,
-                      onTap: () => _closeAndRun(() {
-                        Navigator.of(widget.parentContext).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                QrScannerScreen(userId: widget.userId),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Action 1: Ghi chép giao dịch
-                    _buildSpeedDialItem(
-                      index: 0,
-                      title: 'Ghi chép giao dịch',
-                      subtitle: 'Chi tiêu, thu nhập, chuyển khoản',
-                      icon: LucideIcons.calendar_check,
-                      gradientColors: [lightStop, plusColor],
-                      isDark: isDark,
-                      isRightAnchored: isRightAnchored,
-                      onTap: () => _closeAndRun(() {
-                        Navigator.of(widget.parentContext).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                AddTransactionPage(userId: widget.userId),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Anchored Dock (+) Button — remains the (+) button at the exact dock spot!
+                    // Anchored Dock (+) Close Button
                     ScaleTransition(
                       scale: CurvedAnimation(
                         parent: _controller,
@@ -311,45 +402,32 @@ class _SpeedDialOverlayState extends State<_SpeedDialOverlay>
                           Navigator.of(context).pop();
                         },
                         child: Container(
-                          width: 62,
-                          height: 62,
-                          padding: const EdgeInsets.all(4),
+                          width: 56,
+                          height: 56,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: plusColor.withValues(alpha: 0.18),
+                            gradient: LinearGradient(
+                              colors: [lightStop, plusColor, darkStop],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             border: Border.all(
-                              color: plusColor.withValues(alpha: 0.50),
-                              width: 1.4,
+                              color: Colors.white.withValues(alpha: 0.78),
+                              width: 1.5,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: plusColor.withValues(alpha: 0.42),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
-                          child: Container(
-                            width: 54,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [lightStop, plusColor, darkStop],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.78),
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: plusColor.withValues(alpha: 0.45),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.add_rounded,
-                                color: Colors.white,
-                                size: 30,
-                              ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 26,
                             ),
                           ),
                         ),
@@ -365,130 +443,178 @@ class _SpeedDialOverlayState extends State<_SpeedDialOverlay>
     );
   }
 
-  Widget _buildSpeedDialItem({
-    required int index,
+  Widget _buildPrimaryHeroCard({
     required String title,
     required String subtitle,
     required IconData icon,
     required List<Color> gradientColors,
     required bool isDark,
-    required bool isRightAnchored,
     required VoidCallback onTap,
   }) {
-    final startInterval = (index * 0.10).clamp(0.0, 0.65);
-    final endInterval = (startInterval + 0.40).clamp(0.0, 1.0);
-
-    final animation = CurvedAnimation(
-      parent: _controller,
-      curve: Interval(startInterval, endInterval, curve: Curves.easeOutBack),
-    );
-
-    final cardPill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131F33) : Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: gradientColors.last.withValues(alpha: isDark ? 0.35 : 0.24),
-          width: 1.1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.34 : 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!isRightAnchored) ...[
-            _buildCircleIcon(icon, gradientColors),
-            const SizedBox(width: 12),
-          ],
-          Flexible(
-            child: Column(
-              crossAxisAlignment: isRightAnchored
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13.8,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
+    final accent = gradientColors.last;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                accent.withValues(alpha: isDark ? 0.22 : 0.10),
+                accent.withValues(alpha: isDark ? 0.10 : 0.04),
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: accent.withValues(alpha: isDark ? 0.42 : 0.28),
+              width: 1.1,
             ),
           ),
-          if (isRightAnchored) ...[
-            const SizedBox(width: 12),
-            _buildCircleIcon(icon, gradientColors),
-          ],
-        ],
-      ),
-    );
-
-    return ScaleTransition(
-      scale: animation,
-      alignment:
-          isRightAnchored ? Alignment.bottomRight : Alignment.bottomCenter,
-      child: FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.25),
-            end: Offset.zero,
-          ).animate(animation),
-          child: GestureDetector(
-            onTap: onTap,
-            child: cardPill,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48.0),
+            child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(13),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.30),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
+      ),
       ),
     );
   }
 
-  Widget _buildCircleIcon(IconData icon, List<Color> gradientColors) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: gradientColors.last.withValues(alpha: 0.36),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+  Widget _buildCompactBentoTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF1E293B).withValues(alpha: 0.72)
+                : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: accentColor.withValues(alpha: isDark ? 0.32 : 0.22),
+              width: 1.0,
+            ),
           ),
-        ],
-      ),
-      child: Center(
-        child: Icon(
-          icon,
-          color: Colors.white,
-          size: 21,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56.0),
+            child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: isDark ? 0.22 : 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: accentColor,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9.8,
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+          ),
         ),
       ),
     );

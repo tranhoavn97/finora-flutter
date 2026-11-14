@@ -158,8 +158,8 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
     final primaryColor = studio?.primaryColor ?? Theme.of(context).colorScheme.primary;
     final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final secondaryTextColor = const Color(0xFF64748B);
-    final surfaceColor = studio?.getCardFillColor(isDark) ??
-        (isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF8FAFC));
+    final surfaceColor = studio?.getCardFillColor(isDark, forceOpaque: true) ??
+        (isDark ? const Color(0xFF162033) : const Color(0xFFF8FAFC));
     final borderColor = studio?.getBorderColor(isDark) ??
         (isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0));
     final bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;

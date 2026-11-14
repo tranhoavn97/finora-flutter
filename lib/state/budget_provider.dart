@@ -24,9 +24,40 @@ class BudgetProvider extends ChangeNotifier {
   List<BudgetSpentData> budgetsWithSpent = [];
   bool isRefreshing = true;
   String? error;
+  int selectedYear = DateTime.now().year;
+  int selectedMonth = DateTime.now().month;
   final Set<String> _pending = {};
   final Set<String> _failed = {};
   int _generation = 0;
+
+  String get selectedMonthKey =>
+      '$selectedYear-${selectedMonth.toString().padLeft(2, '0')}';
+
+  void setSelectedMonth(int year, int month) {
+    selectedYear = year;
+    selectedMonth = month;
+    _recompute();
+  }
+
+  void prevMonth() {
+    if (selectedMonth == 1) {
+      selectedMonth = 12;
+      selectedYear -= 1;
+    } else {
+      selectedMonth -= 1;
+    }
+    _recompute();
+  }
+
+  void nextMonth() {
+    if (selectedMonth == 12) {
+      selectedMonth = 1;
+      selectedYear += 1;
+    } else {
+      selectedMonth += 1;
+    }
+    _recompute();
+  }
 
   String? _userId;
   String? _familyId;
@@ -93,7 +124,7 @@ class BudgetProvider extends ChangeNotifier {
   }
 
   void _recompute() {
-    final monthKey = currentMonthKey();
+    final monthKey = selectedMonthKey;
     var currentBudgets = _budgets
         .where((b) =>
             (b.monthKey == monthKey || b.monthKey.trim().isEmpty) &&

@@ -1,3 +1,5 @@
+import '../../core/widgets/finora_member_filter.dart';
+import '../../core/widgets/finora_modal_scope.dart';
 import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,13 +13,15 @@ import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
 import '../../data/services/wallet_repository.dart';
+import '../../domain/finance/transaction_member.dart';
+import '../../state/theme_studio_controller.dart';
 import '../../state/transaction_provider.dart';
 import '../../state/wallet_provider.dart';
 import '../planning/planning_hub_screen.dart';
 import '../wallet/wealth_hub_screen.dart';
 import 'add_transaction_page.dart';
 
-/// Modal Chi Tiết Giao Dịch phong cách Hero Gradient Card & Inset Pod (Chuẩn Image 2)
+/// Modal Chi Tiết Giao Dịch — thiết kế hiện đại, rõ nét, luôn nền đặc 100%.
 Future<void> showTransactionDetailSheet(
   BuildContext context, {
   required String userId,
@@ -28,23 +32,30 @@ Future<void> showTransactionDetailSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.45),
-    builder: (sheetContext) => Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border(
-          top: BorderSide(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-            width: 1.0,
+    barrierColor: Colors.black.withValues(alpha: 0.48),
+    builder: (sheetContext) => FinoraModalScope(
+      child: Theme(
+        data: FinoraModalScope.opaqueModalTheme(sheetContext),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            border: Border(
+              top: BorderSide(
+                color: isDark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFE2E8F0),
+                width: 1.0,
+              ),
+            ),
           ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: _TransactionDetailModalContent(
-          userId: userId,
-          transaction: transaction,
+          child: SafeArea(
+            top: false,
+            child: _TransactionDetailModalContent(
+              userId: userId,
+              transaction: transaction,
+            ),
+          ),
         ),
       ),
     ),
@@ -206,6 +217,11 @@ class _TransactionDetailModalContent extends StatelessWidget {
       wallet?.name,
       fallbackName,
     ].whereType<String>().join(' ').toLowerCase();
+    if (combined.contains('ncb') ||
+        combined.contains('quốc dân') ||
+        combined.contains('quoc dan')) {
+      return 'ncb';
+    }
     if (combined.contains('mb') ||
         combined.contains('tiết kiệm') ||
         combined.contains('tiet kiem')) {
@@ -227,7 +243,25 @@ class _TransactionDetailModalContent extends StatelessWidget {
     return null;
   }
 
-  bool _resolveIsWife(TransactionModel tx, Wallet? matchingWallet) {
+  TransactionMember _resolveMember(TransactionModel tx, Wallet? matchingWallet) {
+    final txExplicit = resolveMemberFields([
+      tx.owner,
+      tx.creatorTag,
+      tx.ownerName,
+      tx.creatorName,
+      tx.fromOwner,
+      tx.paidByOwner,
+    ]);
+    if (txExplicit != TransactionMember.unknown) {
+      return txExplicit;
+    }
+    final walletResolved = resolveMemberFields([
+      matchingWallet?.owner,
+      matchingWallet?.ownerName,
+    ]);
+    if (walletResolved != TransactionMember.unknown) {
+      return walletResolved;
+    }
     final candidates = <String?>[
       tx.owner,
       tx.creatorTag,
@@ -250,7 +284,7 @@ class _TransactionDetailModalContent extends StatelessWidget {
           v == 'bà xã' ||
           v.contains('vợ') ||
           v.contains('wife')) {
-        return true;
+        return TransactionMember.wife;
       }
       if (v == 'husband' ||
           v == 'chồng' ||
@@ -259,15 +293,22 @@ class _TransactionDetailModalContent extends StatelessWidget {
           v == 'ông xã' ||
           v.contains('chồng') ||
           v.contains('husband')) {
-        return false;
+        return TransactionMember.husband;
+      }
+      if (v == 'joint' || v == 'shared' || v == 'family' || v == 'chung') {
+        return TransactionMember.joint;
       }
     }
-    return matchingWallet?.owner.trim().toLowerCase() == 'wife';
+    return TransactionMember.husband;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
+    final brandSecondary =
+        studio?.resolvedSecondary ?? const Color(0xFF10B981);
     final txProvider =
         Provider.of<TransactionProvider?>(context, listen: false);
     final walletProvider = Provider.of<WalletProvider?>(context, listen: false);
@@ -310,28 +351,31 @@ class _TransactionDetailModalContent extends StatelessWidget {
         {'income', 'borrowing', 'loan_repayment_received'}.contains(normType);
     final isTransfer = normType == 'transfer';
 
-    // Semantic colors & copy matching Image 2
     final List<Color> heroGradientColors;
+    final Color heroAccent;
     final Color heroShadowColor;
     final String sign;
     final String statusBadgeText;
 
     if (isTransfer) {
-      heroGradientColors = const [Color(0xFF005FEA), Color(0xFF0284C7)];
-      heroShadowColor = const Color(0xFF005FEA).withValues(alpha: 0.35);
+      heroGradientColors = const [Color(0xFF0284C7), Color(0xFF2563EB)];
+      heroAccent = const Color(0xFF0284C7);
+      heroShadowColor = const Color(0xFF0284C7).withValues(alpha: 0.30);
       statusBadgeText = 'CHUYỂN KHOẢN NỘI BỘ';
       sign = '';
     } else if (isInflow) {
-      heroGradientColors = const [Color(0xFF10B981), Color(0xFF059669)];
-      heroShadowColor = const Color(0xFF059669).withValues(alpha: 0.35);
+      heroGradientColors = const [Color(0xFF059669), Color(0xFF10B981)];
+      heroAccent = const Color(0xFF059669);
+      heroShadowColor = const Color(0xFF059669).withValues(alpha: 0.30);
       statusBadgeText =
-          normType == 'borrowing' ? 'KHOẢN ĐI VAY' : 'TIỀN VÀO (THU NHẬP)';
+          normType == 'borrowing' ? 'KHOẢN ĐI VAY' : 'TIỀN VÀO · THU NHẬP';
       sign = '+';
     } else {
-      heroGradientColors = const [Color(0xFFFF3B46), Color(0xFFF5253E)];
-      heroShadowColor = const Color(0xFFF5253E).withValues(alpha: 0.35);
+      heroGradientColors = const [Color(0xFFE11D48), Color(0xFFF43F5E)];
+      heroAccent = const Color(0xFFE11D48);
+      heroShadowColor = const Color(0xFFE11D48).withValues(alpha: 0.30);
       statusBadgeText =
-          normType == 'loan' ? 'KHOẢN CHO VAY' : 'TIỀN RA (CHI TIÊU)';
+          normType == 'loan' ? 'KHOẢN CHO VAY' : 'TIỀN RA · CHI TIÊU';
       sign = '−';
     }
 
@@ -345,7 +389,27 @@ class _TransactionDetailModalContent extends StatelessWidget {
     final hasCustomNote = tx.note != null && tx.note!.trim().isNotEmpty;
     final displayTitle =
         hasCustomNote ? tx.note!.trim() : (tx.categoryName ?? 'Giao dịch');
-    final isWife = _resolveIsWife(tx, matchingWallet);
+
+    final member = _resolveMember(tx, matchingWallet);
+    final String? memberKey = switch (member) {
+      TransactionMember.husband => 'husband',
+      TransactionMember.wife => 'wife',
+      TransactionMember.joint || TransactionMember.unknown => null,
+    };
+    final String memberDisplayLabel = switch (member) {
+      TransactionMember.husband =>
+        studio?.husbandDisplayLabel ?? TransactionMember.husband.label,
+      TransactionMember.wife =>
+        studio?.wifeDisplayLabel ?? TransactionMember.wife.label,
+      TransactionMember.joint => TransactionMember.joint.label,
+      TransactionMember.unknown => TransactionMember.joint.label,
+    };
+    final Color memberAccentColor = switch (member) {
+      TransactionMember.wife => const Color(0xFFDB2777),
+      TransactionMember.husband => const Color(0xFF0284C7),
+      TransactionMember.joint || TransactionMember.unknown =>
+        const Color(0xFF059669),
+    };
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -353,16 +417,16 @@ class _TransactionDetailModalContent extends StatelessWidget {
         0,
         10,
         0,
-        MediaQuery.of(context).viewInsets.bottom + 16,
+        MediaQuery.of(context).viewInsets.bottom + 18,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. TOP SHEET DRAG HANDLE
+          // 1. TOP SHEET HEADER BAR (Drag Handle + Title + Close Pill)
           Center(
             child: Container(
-              width: 44,
+              width: 42,
               height: 4.5,
               decoration: BoxDecoration(
                 color:
@@ -372,87 +436,142 @@ class _TransactionDetailModalContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: (isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9)),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.receipt_long_rounded,
+                        size: 13.5,
+                        color: brandPrimary,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Chi tiết giao dịch',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'BeVietnamPro',
+                          color: isDark
+                              ? const Color(0xFFE2E8F0)
+                              : const Color(0xFF334155),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      Navigator.of(context).maybePop();
+                    },
+                    borderRadius: BorderRadius.circular(100),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9),
+                      ),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
 
-          // 2. HERO GRADIENT CARD (Image 2 Parity)
+          // 2. SLEEK HERO GRADIENT CARD
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: heroGradientColors,
               ),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.22),
+                width: 1.0,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: heroShadowColor,
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Circular frame enclosing the full category icon.
+                // Single crisp circular category badge
                 Container(
-                  width: 70,
-                  height: 70,
+                  width: 62,
+                  height: 62,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
                     shape: BoxShape.circle,
+                    color: Colors.white,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.45),
-                      width: 1.5,
+                      color: Colors.white.withValues(alpha: 0.78),
+                      width: 2.0,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: heroShadowColor.withValues(alpha: 0.40),
-                        blurRadius: 14,
+                        color: Colors.black.withValues(alpha: 0.14),
+                        blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Center(
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: CategoryIconBadge(
-                          icon: tx.categoryIcon,
-                          categoryName: tx.categoryName,
-                          size: 52,
-                          isDark: false,
-                        ),
-                      ),
+                    child: CategoryIconBadge(
+                      icon: tx.categoryIcon,
+                      categoryName: tx.categoryName,
+                      size: 58,
+                      isDark: false,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 11),
 
-                // Translucent Status Capsule Pill
+                // Type badge capsule
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4.5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
+                    color: Colors.white.withValues(alpha: 0.20),
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.40),
-                      width: 1.0,
+                      color: Colors.white.withValues(alpha: 0.36),
+                      width: 0.9,
                     ),
                   ),
                   child: Row(
@@ -462,8 +581,8 @@ class _TransactionDetailModalContent extends StatelessWidget {
                         isTransfer
                             ? Icons.swap_horiz_rounded
                             : (isInflow
-                                ? Icons.arrow_downward_rounded
-                                : Icons.check_circle_rounded),
+                                ? Icons.south_west_rounded
+                                : Icons.north_east_rounded),
                         size: 13,
                         color: Colors.white,
                       ),
@@ -471,32 +590,33 @@ class _TransactionDetailModalContent extends StatelessWidget {
                       Text(
                         statusBadgeText,
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                           fontFamily: 'BeVietnamPro',
                           color: Colors.white,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.6,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
-                // Large Amount with Underlined Currency Symbol
+                // Bold tabular amount
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: RichText(
                     text: TextSpan(
                       children: [
                         TextSpan(
-                          text: '$sign${NumberFormat('#,##0', 'vi_VN').format(tx.amount)}',
+                          text:
+                              '$sign${NumberFormat('#,##0', 'vi_VN').format(tx.amount)}',
                           style: const TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.w900,
                             fontFamily: 'BeVietnamPro',
                             color: Colors.white,
-                            letterSpacing: -0.6,
+                            letterSpacing: -0.8,
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
@@ -504,12 +624,12 @@ class _TransactionDetailModalContent extends StatelessWidget {
                         const TextSpan(
                           text: 'đ',
                           style: TextStyle(
-                            fontSize: 26,
+                            fontSize: 25,
                             fontWeight: FontWeight.w900,
                             fontFamily: 'BeVietnamPro',
                             color: Colors.white,
                             decoration: TextDecoration.underline,
-                            decorationThickness: 2.2,
+                            decorationThickness: 2.0,
                           ),
                         ),
                       ],
@@ -518,26 +638,34 @@ class _TransactionDetailModalContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
 
-                // Timestamp with Clock Icon
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.access_time_rounded,
-                      size: 14,
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$formattedTime · $weekdayName, $formattedDate',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'BeVietnamPro',
+                // Timestamp capsule
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.schedule_rounded,
+                        size: 13.5,
                         color: Colors.white.withValues(alpha: 0.90),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 5),
+                      Text(
+                        '$formattedTime · $weekdayName, $formattedDate',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'BeVietnamPro',
+                          color: Colors.white.withValues(alpha: 0.94),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -545,25 +673,19 @@ class _TransactionDetailModalContent extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // 3. INSET DETAILS CARD (Image 2 Parity)
+          // 3. BENTO DETAILS CARD
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              color:
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
                 color:
-                    isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                width: 1.2,
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                width: 1.0,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -571,20 +693,24 @@ class _TransactionDetailModalContent extends StatelessWidget {
                 // Row 1: Nội dung
                 _buildInsetRow(
                   isDark: isDark,
-                  iconBoxColor: const Color(0xFFE0F2FE),
-                  iconColor: const Color(0xFF0284C7),
+                  iconBoxColor: isDark
+                      ? const Color(0xFF0C4A6E)
+                      : const Color(0xFFE0F2FE),
+                  iconColor: isDark
+                      ? const Color(0xFF38BDF8)
+                      : const Color(0xFF0284C7),
                   icon: Icons.notes_rounded,
                   label: 'Nội dung',
                   valueWidget: Text(
                     displayTitle,
                     textAlign: TextAlign.end,
                     style: TextStyle(
-                      fontSize: 14.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'BeVietnamPro',
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -594,53 +720,25 @@ class _TransactionDetailModalContent extends StatelessWidget {
                 // Row 2: Danh mục
                 _buildInsetRow(
                   isDark: isDark,
-                  iconBoxColor: const Color(0xFFF3E8FF),
-                  iconColor: const Color(0xFF9333EA),
-                  icon: Icons.category_rounded,
+                  iconBoxColor: heroAccent.withValues(alpha: isDark ? 0.22 : 0.12),
+                  iconColor: heroAccent,
+                  icon: Icons.grid_view_rounded,
                   label: 'Danh mục',
                   valueWidget: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Rounded square container tinted with transaction semantic color enclosing a full circular category icon
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: heroGradientColors.first
-                              .withValues(alpha: isDark ? 0.25 : 0.12),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: heroGradientColors.first
-                                .withValues(alpha: isDark ? 0.40 : 0.25),
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            clipBehavior: Clip.antiAlias,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                            ),
-                            child: Center(
-                              child: CategoryIconBadge(
-                                icon: tx.categoryIcon,
-                                categoryName: tx.categoryName,
-                                size: 20,
-                                isDark: false,
-                              ),
-                            ),
-                          ),
-                        ),
+                      CategoryIconBadge(
+                        icon: tx.categoryIcon,
+                        categoryName: tx.categoryName,
+                        size: 26,
+                        isDark: isDark,
                       ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           tx.categoryName ?? 'Chưa phân loại',
                           style: TextStyle(
-                            fontSize: 14.5,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'BeVietnamPro',
                             color:
@@ -658,17 +756,28 @@ class _TransactionDetailModalContent extends StatelessWidget {
                 // Row 3: Tài khoản / Ví
                 _buildInsetRow(
                   isDark: isDark,
-                  iconBoxColor: const Color(0xFFD1FAE5),
-                  iconColor: const Color(0xFF059669),
+                  iconBoxColor: isDark
+                      ? const Color(0xFF064E3B)
+                      : const Color(0xFFD1FAE5),
+                  iconColor: isDark
+                      ? const Color(0xFF34D399)
+                      : const Color(0xFF059669),
                   icon: Icons.account_balance_wallet_rounded,
                   label: isTransfer ? 'Từ ví nguồn' : 'Tài khoản / Ví',
                   valueWidget: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      BankIcon(
-                        bankCode: sourceBankCode,
-                        bankName: sourceBankName,
-                        size: 24,
+                      SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: ClipOval(
+                          child: BankIcon(
+                            bankCode: sourceBankCode,
+                            bankName: sourceBankName,
+                            size: 26,
+                            fullBleed: true,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Flexible(
@@ -678,7 +787,7 @@ class _TransactionDetailModalContent extends StatelessWidget {
                               tx.fromWalletName ??
                               'Tiền mặt',
                           style: TextStyle(
-                            fontSize: 14.5,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'BeVietnamPro',
                             color:
@@ -699,17 +808,28 @@ class _TransactionDetailModalContent extends StatelessWidget {
                   _buildHairlineDivider(isDark),
                   _buildInsetRow(
                     isDark: isDark,
-                    iconBoxColor: const Color(0xFFE0F2FE),
-                    iconColor: const Color(0xFF0284C7),
+                    iconBoxColor: isDark
+                        ? const Color(0xFF0C4A6E)
+                        : const Color(0xFFE0F2FE),
+                    iconColor: isDark
+                        ? const Color(0xFF38BDF8)
+                        : const Color(0xFF0284C7),
                     icon: Icons.arrow_forward_rounded,
                     label: 'Đến ví nhận',
                     valueWidget: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        BankIcon(
-                          bankCode: destBankCode,
-                          bankName: destBankName,
-                          size: 24,
+                        SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: ClipOval(
+                            child: BankIcon(
+                              bankCode: destBankCode,
+                              bankName: destBankName,
+                              size: 26,
+                              fullBleed: true,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Flexible(
@@ -719,7 +839,7 @@ class _TransactionDetailModalContent extends StatelessWidget {
                                 tx.creditCardName ??
                                 'Ví đích',
                             style: TextStyle(
-                              fontSize: 14.5,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                               fontFamily: 'BeVietnamPro',
                               color: isDark
@@ -736,92 +856,69 @@ class _TransactionDetailModalContent extends StatelessWidget {
 
                 _buildHairlineDivider(isDark),
 
-                // Row 4: Người ghi chép
+                // Row 4: Người ghi chép (Real synced avatar + name pill)
                 _buildInsetRow(
                   isDark: isDark,
-                  iconBoxColor: const Color(0xFFFCE7F3),
-                  iconColor: const Color(0xFFDB2777),
+                  iconBoxColor: memberAccentColor.withValues(
+                    alpha: isDark ? 0.22 : 0.12,
+                  ),
+                  iconColor: memberAccentColor,
                   icon: Icons.person_rounded,
-                  label: 'Người ghi chép',
-                  valueWidget: isWife
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFDF2F8),
-                            borderRadius: BorderRadius.circular(100),
-                            border: Border.all(
-                              color: const Color(0xFFFBCFE8),
-                              width: 1.0,
+                  label: 'Thành viên',
+                  valueWidget: Container(
+                    padding: const EdgeInsets.fromLTRB(5, 4, 12, 4),
+                    decoration: BoxDecoration(
+                      color: memberAccentColor.withValues(
+                        alpha: isDark ? 0.18 : 0.09,
+                      ),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: memberAccentColor.withValues(
+                          alpha: isDark ? 0.42 : 0.26,
+                        ),
+                        width: 0.9,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FinoraMemberAvatar(
+                          member: memberKey,
+                          size: 22,
+                          isDark: isDark,
+                          studio: studio,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            memberDisplayLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isDark
+                                  ? Color.lerp(
+                                      memberAccentColor, Colors.white, 0.35)!
+                                  : memberAccentColor,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'BeVietnamPro',
                             ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '♀',
-                                style: TextStyle(
-                                  color: Color(0xFFDB2777),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'Vợ',
-                                style: TextStyle(
-                                  color: Color(0xFFDB2777),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: 'BeVietnamPro',
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(100),
-                            border: Border.all(
-                              color: const Color(0xFFBFDBFE),
-                              width: 1.0,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '♂',
-                                style: TextStyle(
-                                  color: Color(0xFF2563EB),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'Chồng',
-                                style: TextStyle(
-                                  color: Color(0xFF2563EB),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: 'BeVietnamPro',
-                                ),
-                              ),
-                            ],
                           ),
                         ),
+                      ],
+                    ),
+                  ),
                 ),
+
                 if (tx.bankTransactionCode != null &&
                     tx.bankTransactionCode!.trim().isNotEmpty) ...[
                   _buildHairlineDivider(isDark),
                   _buildInsetRow(
                     isDark: isDark,
-                    iconBoxColor: const Color(0xFFD1FAE5),
-                    iconColor: const Color(0xFF059669),
+                    iconBoxColor: brandPrimary.withValues(
+                      alpha: isDark ? 0.22 : 0.12,
+                    ),
+                    iconColor: brandPrimary,
                     icon: Icons.qr_code_2_rounded,
                     label: 'Mã GD ngân hàng',
                     valueWidget: InkWell(
@@ -844,7 +941,7 @@ class _TransactionDetailModalContent extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            backgroundColor: const Color(0xFF059669),
+                            backgroundColor: brandPrimary,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -852,17 +949,17 @@ class _TransactionDetailModalContent extends StatelessWidget {
                           ),
                         );
                       },
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(100),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4.5),
+                            horizontal: 11, vertical: 4.5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981)
-                              .withValues(alpha: isDark ? 0.20 : 0.10),
-                          borderRadius: BorderRadius.circular(12),
+                          color: brandPrimary.withValues(
+                            alpha: isDark ? 0.22 : 0.10,
+                          ),
+                          borderRadius: BorderRadius.circular(100),
                           border: Border.all(
-                            color: const Color(0xFF10B981)
-                                .withValues(alpha: 0.35),
+                            color: brandPrimary.withValues(alpha: 0.35),
                             width: 0.8,
                           ),
                         ),
@@ -874,19 +971,25 @@ class _TransactionDetailModalContent extends StatelessWidget {
                                 '#${tx.bankTransactionCode!.trim()}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
                                   fontFamily: 'BeVietnamPro',
-                                  color: Color(0xFF059669),
+                                  color: isDark
+                                      ? Color.lerp(
+                                          brandPrimary, Colors.white, 0.30)!
+                                      : brandPrimary,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 6),
-                            const Icon(
+                            Icon(
                               Icons.copy_rounded,
-                              size: 14,
-                              color: Color(0xFF059669),
+                              size: 13.5,
+                              color: isDark
+                                  ? Color.lerp(
+                                      brandPrimary, Colors.white, 0.30)!
+                                  : brandPrimary,
                             ),
                           ],
                         ),
@@ -992,14 +1095,13 @@ class _TransactionDetailModalContent extends StatelessWidget {
             ),
           ],
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
 
-          // 4. ACTION BUTTONS ROW (Image 2 Parity: Pink Xóa + Emerald Chỉnh sửa)
+          // 4. STADIUM PILL ACTION BUTTONS ROW (Theme Primary Gradient + Crimson Delete)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                // Delete Button (Solid Red with White Text)
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -1010,34 +1112,37 @@ class _TransactionDetailModalContent extends StatelessWidget {
                     borderRadius: BorderRadius.circular(100),
                     child: Container(
                       height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE11D48),
+                        color: const Color(0xFFE11D48)
+                            .withValues(alpha: isDark ? 0.22 : 0.11),
                         borderRadius: BorderRadius.circular(100),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFE11D48).withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        border: Border.all(
+                          color: const Color(0xFFE11D48)
+                              .withValues(alpha: isDark ? 0.50 : 0.35),
+                          width: 1.0,
+                        ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.delete_rounded,
+                            Icons.delete_outline_rounded,
                             size: 18,
-                            color: Colors.white,
+                            color: isDark
+                                ? const Color(0xFFFB7185)
+                                : const Color(0xFFE11D48),
                           ),
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Text(
                             'Xóa',
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w700,
                               fontFamily: 'BeVietnamPro',
-                              color: Colors.white,
+                              color: isDark
+                                  ? const Color(0xFFFB7185)
+                                  : const Color(0xFFE11D48),
                             ),
                           ),
                         ],
@@ -1048,7 +1153,6 @@ class _TransactionDetailModalContent extends StatelessWidget {
 
                 const SizedBox(width: 12),
 
-                // Edit Button (Crystal Emerald Gradient)
                 Expanded(
                   child: Material(
                     color: Colors.transparent,
@@ -1061,15 +1165,15 @@ class _TransactionDetailModalContent extends StatelessWidget {
                       child: Container(
                         height: 48,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF003D35), Color(0xFF00866A), Color(0xFF10B981)],
+                          gradient: LinearGradient(
+                            colors: [brandSecondary, brandPrimary],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(100),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF00866A).withValues(alpha: 0.35),
+                              color: brandPrimary.withValues(alpha: 0.32),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),

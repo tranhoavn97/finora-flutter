@@ -129,22 +129,72 @@ class ParsedBankTransaction {
 }
 
 class BankNotificationParser {
-  /// Clean amount string like "50,000", "50.000", "50000 VND" into double
+  /// Fold Vietnamese characters (including NFD combining diacritics) to ASCII lowercase
+  /// while preserving digits, symbols, signs, and whitespace.
+  static String foldVietnamese(String input) {
+    if (input.isEmpty) return '';
+    // Strip Unicode combining diacritical marks (NFD decomposed accents from Android/iOS notifications)
+    var s = input.replaceAll(RegExp(r'[\u0300-\u036f\u1dc0-\u1dff\u20d0-\u20ff]'), '');
+    s = s.toLowerCase();
+    const map = <String, String>{
+      'à': 'a', 'á': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
+      'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ẳ': 'a', 'ẵ': 'a', 'ặ': 'a',
+      'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ậ': 'a',
+      'đ': 'd',
+      'è': 'e', 'é': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ẹ': 'e',
+      'ê': 'e', 'ề': 'e', 'ế': 'e', 'ể': 'e', 'ễ': 'e', 'ệ': 'e',
+      'ì': 'i', 'í': 'i', 'ỉ': 'i', 'ĩ': 'i', 'ị': 'i',
+      'ò': 'o', 'ó': 'o', 'ỏ': 'o', 'õ': 'o', 'ọ': 'o',
+      'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ổ': 'o', 'ỗ': 'o', 'ộ': 'o',
+      'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ở': 'o', 'ỡ': 'o', 'ợ': 'o',
+      'ù': 'u', 'ú': 'u', 'ủ': 'u', 'ũ': 'u', 'ụ': 'u',
+      'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ử': 'u', 'ữ': 'u', 'ự': 'u',
+      'ỳ': 'y', 'ý': 'y', 'ỷ': 'y', 'ỹ': 'y', 'ỵ': 'y',
+    };
+    final sb = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      final ch = s[i];
+      sb.write(map[ch] ?? ch);
+    }
+    return sb.toString();
+  }
+
+  /// Clean amount string like "50,000", "50.000", "1 250 000", "50000 VND" into double
   static double? parseAmount(String raw) {
     var clean = raw
-        .replaceAll('VND', '')
-        .replaceAll('vnd', '')
-        .replaceAll('₫', '')
-        .replaceAll('đ', '')
-        .replaceAll('Đ', '')
+        .replaceAll(
+            RegExp(r'VND|VNĐ|vnd|vnđ|đồng|dong|₫|đ|Đ', caseSensitive: false),
+            '')
+        .replaceAll(RegExp(r'[dD]\s*$'), '')
         .trim();
 
-    clean = clean.replaceAll(RegExp(r'\s'), '').replaceAll('−', '-');
+    clean = clean
+        .replaceAll(RegExp(r'\s+'), '')
+        .replaceAll('−', '-')
+        .replaceAll('–', '-')
+        .replaceAll('+', '');
+    if (clean.isEmpty) return null;
+
+    final isNegative = clean.startsWith('-');
+    if (isNegative) {
+      clean = clean.substring(1);
+    }
+
     if (clean.contains('.') && clean.contains(',')) {
       if (clean.lastIndexOf('.') < clean.lastIndexOf(',')) {
-        clean = clean.replaceAll('.', '').replaceAll(',', '.');
+        final tail = clean.substring(clean.lastIndexOf(',') + 1);
+        if (tail.length == 3) {
+          clean = clean.replaceAll('.', '').replaceAll(',', '');
+        } else {
+          clean = clean.replaceAll('.', '').replaceAll(',', '.');
+        }
       } else {
-        clean = clean.replaceAll(',', '');
+        final tail = clean.substring(clean.lastIndexOf('.') + 1);
+        if (tail.length == 3) {
+          clean = clean.replaceAll(',', '').replaceAll('.', '');
+        } else {
+          clean = clean.replaceAll(',', '');
+        }
       }
     } else if (clean.contains('.')) {
       final parts = clean.split('.');
@@ -160,7 +210,113 @@ class BankNotificationParser {
       }
     }
 
-    return double.tryParse(clean);
+    final parsed = double.tryParse(clean);
+    if (parsed == null) return null;
+    return isNegative ? -parsed : parsed;
+  }
+
+  /// Extract post-transaction account balance (Số dư cuối / SD khả dụng / SD / NCB / all VN banks) from notification text.
+  static double? extractBalanceAfter(String raw) {
+    // Normalize dashes and fold Vietnamese accents (handles both NFC and NFD combining marks from NCB iziMobile, etc.)
+    final normalized = foldVietnamese(raw)
+        .replaceAll('−', '-')
+        .replaceAll('–', '-');
+
+    // Mask out balance-change title/intro phrases so they don't get mistaken for ending balance
+    final masked = normalized
+        .replaceAll(
+          RegExp(
+            r'bien\s+dong\s+so\s+du|thay\s+doi\s+so\s+du|thong\s+bao\s+so\s+du|so\s+du\s+bien\s+dong|so\s+du\s+thay\s+doi',
+            caseSensitive: false,
+          ),
+          'bd_tk',
+        )
+        // Also mask "so du tk <acct> thay doi/bien dong/tang/giam [+-]amount"
+        .replaceAllMapped(
+          RegExp(
+            r'\b(?:so\s+du|sd)\s+(?:tk|tai\s+khoan)\s+[0-9a-zxX*.-]{3,24}\s*(?:tai\s+[a-z0-9\s]{1,16}\s*)?(?:thay\s+doi|bien\s+dong|tang|giam|vua\s+thay\s+doi|phat\s+sinh|gd|ps)',
+            caseSensitive: false,
+          ),
+          (m) => 'bd_tk_acct',
+        );
+
+    // 1. Explicit Ending-Balance Keywords (Highest Confidence — e.g. SD khả dụng, SDKD, Số dư cuối, Số dư sau GD, Số dư thực tế, Số dư hiện tại, Số dư hiện có)
+    // Supports optional "TK <acct>" before separator, and ":", "=", "-", "la", or space separator, and optional "+" prefix on positive balance.
+    final explicitMatches = RegExp(
+      r'\b(?:(?:so\s*du|sd)\s+(?:kha\s+dung|cuoi(?:\s+ky)?|sau\s+gd|sau\s+giao\s+dich|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi)|sdkd|sdtt|sdc|available\s+balance|avail\s+bal|ending\s+balance|han\s*muc\s*(?:con\s*lai|kha\s*dung))(?:\s+(?:tk|tai\s*khoan)\s+[0-9a-zxX*.-]{3,24})?\s*(?:[:=-]|\bla\b|\s)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?',
+      caseSensitive: false,
+    ).allMatches(masked);
+
+    double? bestExplicit;
+    for (final m in explicitMatches) {
+      final rawVal = (m.group(1) ?? '').trim();
+      // Ending account balance is never a negative debit delta
+      if (rawVal.startsWith('-')) continue;
+      final val = parseAmount(rawVal);
+      if (val != null && val.isFinite && val >= 0) {
+        bestExplicit = val;
+      }
+    }
+    if (bestExplicit != null) return bestExplicit;
+
+    // 2. "SD TK <acct>: <balance>" / "So du TK <acct> la <balance>"
+    // Note: in NCB & some banks, the FIRST "So du TK <acct>: -500,000" is the transaction delta,
+    // while a non-negative or subsequent match is the ending balance.
+    final acctBalanceMatches = RegExp(
+      r'\b(?:sd|so\s*du)\s+(?:tk|tai\s*khoan)\s+[0-9a-zxX*.-]{3,24}\s*(?:[:=]|\bla\b)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)',
+      caseSensitive: false,
+    ).allMatches(masked);
+    double? acctCandidate;
+    for (final m in acctBalanceMatches) {
+      final rawVal = (m.group(1) ?? '').trim();
+      if (rawVal.startsWith('-')) continue;
+      // If it starts with '+', only accept as balance if there is already another signed transaction amount earlier
+      if (rawVal.startsWith('+')) {
+        final beforeText = masked.substring(0, m.start);
+        if (!RegExp(r'[+-]\s*\d').hasMatch(beforeText)) continue;
+      }
+      final val = parseAmount(rawVal);
+      if (val != null && val.isFinite && val >= 0) {
+        acctCandidate = val;
+      }
+    }
+
+    // 3. Generic "SD:" / "So du:" / "Balance:" patterns (take the LAST valid non-negative balance in the notification)
+    final genericMatches = RegExp(
+      r'\b(?:sd|so\s*du|balance)\s*(?:[:=-]|\bla\b|\s)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?',
+      caseSensitive: false,
+    ).allMatches(masked);
+
+    double? genericCandidate;
+    for (final m in genericMatches) {
+      final fullMatch = m.group(0) ?? '';
+      // Skip if this matched "SD TK <account_number>" where the captured number is the account number
+      final afterMatch = masked.substring(m.start);
+      if (RegExp(r'^(?:sd|so\s*du)\s+(?:tk|tai\s*khoan)\b', caseSensitive: false)
+          .hasMatch(afterMatch) ||
+          RegExp(r'^(?:sd|so\s*du)\s+tk\b', caseSensitive: false)
+              .hasMatch(fullMatch)) {
+        continue;
+      }
+      final rawVal = (m.group(1) ?? '').trim();
+      if (rawVal.startsWith('-')) continue;
+      if (rawVal.startsWith('+')) {
+        // In NCB/SHB/Agribank, "SD: +12,500,000 VND" has a '+' sign on the ending balance!
+        // Accept it if there was an earlier transaction amount in the text.
+        final beforeText = masked.substring(0, m.start);
+        final hasEarlierAmount = RegExp(
+          r'(?:[+-]\s*\d|\b(?:gd|ps|thanh\s+toan|chuyen|nhan|rut|ghi\s+no|ghi\s+co|tru|cong)\b[^0-9]{0,25}\d)',
+          caseSensitive: false,
+        ).hasMatch(beforeText);
+        if (!hasEarlierAmount) continue;
+      }
+      final val = parseAmount(rawVal);
+      if (val != null && val.isFinite && val >= 0) {
+        genericCandidate = val;
+      }
+    }
+
+    return genericCandidate ?? acctCandidate;
   }
 
   /// Extract bank reference / transaction code (Mã giao dịch chính) from notification text.
@@ -411,12 +567,490 @@ class BankNotificationParser {
   }
 
   /// Resolve bank or shopping app code and brand name from package name, title, or message text
-  static ({String code, String name}) resolveBank(String pkg, String title, [String text = '']) {
-    final p = pkg.toLowerCase();
-    final t = title.toLowerCase();
-    final txt = text.toLowerCase();
-    final combined = '$t $txt';
+  static ({String code, String name}) resolveBank(String pkg, String title,
+      [String text = '']) {
+    final p = pkg.trim().toLowerCase();
+    final t = foldVietnamese(title.trim());
+    // Sanitize text so interbank routing codes (MBVCB, VCB.IBFT) or counter-party phrases
+    // ("tới NH MB", "đến VCB") don't override the actual sender bank.
+    final sanitizedText = foldVietnamese(text)
+        .replaceAll(
+            RegExp(r'\bmbvcb\.[a-z0-9.]*\b', caseSensitive: false), 'ibft_ref')
+        .replaceAll(
+            RegExp(
+                r'(?:toi|den|sang|nhan tu|chuyen den|thu huong)\s+(?:nh|ngan hang|tk|tai khoan)?\s*[a-z0-9\s]{1,20}',
+                caseSensitive: false),
+            ' ');
 
+    const banks = <({
+      String code,
+      String name,
+      List<String> pkgs,
+      List<String> keywords
+    })>[
+      (
+        code: 'vcb',
+        name: 'Vietcombank',
+        pkgs: ['com.vcb', 'vietcombank'],
+        keywords: ['vietcombank', 'vcb digibank', r'\bvcb\b']
+      ),
+      (
+        code: 'techcombank',
+        name: 'Techcombank',
+        pkgs: ['techcombank'],
+        keywords: ['techcombank', 'techcombank mobile', r'\btcb\b']
+      ),
+      (
+        code: 'mbbank',
+        name: 'MB Bank',
+        pkgs: ['mb.mbbank', 'mbmobile', 'com.mb.'],
+        keywords: ['mbbank', 'mb bank', 'ngan hang quan doi', r'\bmb\b']
+      ),
+      (
+        code: 'acb',
+        name: 'ACB',
+        pkgs: ['mobile.acb', 'com.acb'],
+        keywords: ['acb one', 'ngan hang a chau', r'\bacb\b']
+      ),
+      (
+        code: 'vpbank',
+        name: 'VPBank',
+        pkgs: ['vpbankonline', 'vpbank.online', 'vpbank.neo', 'com.vpbank'],
+        keywords: ['vpbank neo', 'vpbank', r'\bvpb\b']
+      ),
+      (
+        code: 'bidv',
+        name: 'BIDV',
+        pkgs: ['bidv'],
+        keywords: ['bidv smartbanking', r'\bbidv\b']
+      ),
+      (
+        code: 'vietinbank',
+        name: 'VietinBank',
+        pkgs: ['vietinbank', 'ipay'],
+        keywords: ['vietinbank ipay', 'vietinbank', 'vietin', r'\bctg\b', r'\bvtb\b']
+      ),
+      (
+        code: 'tpbank',
+        name: 'TPBank',
+        pkgs: ['tpb.mb', 'tpbank'],
+        keywords: ['tpbank', 'tien phong', r'\btpb\b']
+      ),
+      (
+        code: 'sacombank',
+        name: 'Sacombank',
+        pkgs: ['sacombank'],
+        keywords: ['sacombank pay', 'sacombank', r'\bstb\b']
+      ),
+      (
+        code: 'agribank',
+        name: 'Agribank',
+        pkgs: ['agribank'],
+        keywords: ['agribank plus', 'agribank', r'\bagri\b', r'\bvba\b']
+      ),
+      (
+        code: 'vib',
+        name: 'VIB',
+        pkgs: ['com.vib', 'myvib'],
+        keywords: ['myvib', 'ngan hang quoc te', r'\bvib\b']
+      ),
+      (
+        code: 'hdbank',
+        name: 'HDBank',
+        pkgs: ['hdbank'],
+        keywords: ['hdbank', r'\bhdb\b']
+      ),
+      (
+        code: 'shb',
+        name: 'SHB',
+        pkgs: ['vn.shb', 'shb.mbanking', 'shbmobile'],
+        keywords: ['shb mobile', 'shb saigon', r'\bshb\b']
+      ),
+      (
+        code: 'ocb',
+        name: 'OCB',
+        pkgs: ['com.ocb.omni', 'ocb.omni'],
+        keywords: ['ocb omni', 'phuong dong', r'\bocb\b']
+      ),
+      (
+        code: 'msb',
+        name: 'MSB',
+        pkgs: ['msb'],
+        keywords: ['msb m-bank', 'hang hai', r'\bmsb\b']
+      ),
+      (
+        code: 'seabank',
+        name: 'SeABank',
+        pkgs: ['seabank'],
+        keywords: ['seabank', 'seamobile', r'\bsea\b']
+      ),
+      (
+        code: 'eximbank',
+        name: 'Eximbank',
+        pkgs: ['eximbank', 'edigi'],
+        keywords: ['eximbank edigi', 'eximbank', r'\beib\b']
+      ),
+      (
+        code: 'lpbank',
+        name: 'LPBank',
+        pkgs: ['lienviet', 'lpbank', 'vn.com.lpb'],
+        keywords: ['lpbank', 'lienvietpostbank', 'lien viet', r'\blpb\b']
+      ),
+      (
+        code: 'bvbank',
+        name: 'BVBank',
+        pkgs: ['vietcapitalbank', 'bvbank', 'digimi', 'banvietbank'],
+        keywords: ['bvbank', 'digimi', 'ban viet', 'vietcapital']
+      ),
+      (
+        code: 'vikki',
+        name: 'Vikki Digital Bank',
+        pkgs: ['vikki', 'dongabank'],
+        keywords: ['vikki', 'dong a bank', r'\bdab\b']
+      ),
+      (
+        code: 'kbank',
+        name: 'KBank',
+        pkgs: ['kasikornbank', 'kplus'],
+        keywords: ['k plus', 'kplus', 'kasikorn', 'kbank']
+      ),
+      (
+        code: 'abbank',
+        name: 'ABBank',
+        pkgs: ['abbank', 'abditizen'],
+        keywords: ['abbank', 'an binh', 'ab ditizen', r'\babb\b']
+      ),
+      (
+        code: 'namabank',
+        name: 'Nam A Bank',
+        pkgs: ['namabank', 'openbanking.nama'],
+        keywords: ['nam a bank', 'nam a', 'namabank', r'\bnab\b']
+      ),
+      (
+        code: 'bacabank',
+        name: 'Bac A Bank',
+        pkgs: ['baca', 'bacabank', 'com.bab.'],
+        keywords: ['bac a bank', 'bac a', 'bacabank', r'\bbab\b']
+      ),
+      (
+        code: 'vietbank',
+        name: 'VietBank',
+        pkgs: ['vietbank'],
+        keywords: ['vietbank', 'viet thuong tin', r'\bvbb\b']
+      ),
+      (
+        code: 'pvcombank',
+        name: 'PVcomBank',
+        pkgs: ['pvcombank'],
+        keywords: ['pvcombank', 'dai chung', r'\bpvc\b']
+      ),
+      (
+        code: 'ncb',
+        name: 'NCB (Quốc Dân)',
+        pkgs: ['com.ncb.bank', 'ncb', 'izimobile'],
+        keywords: ['ncb izimobile', 'izimobile', 'ngan hang quoc dan', 'quoc dan', r'\bncb\b']
+      ),
+      (
+        code: 'kienlongbank',
+        name: 'KienlongBank',
+        pkgs: ['kienlongbank', 'klb', 'sunshine.ksbank', 'kienlong'],
+        keywords: ['kienlongbank', 'kien long', r'\bklb\b']
+      ),
+      (
+        code: 'saigonbank',
+        name: 'Saigonbank',
+        pkgs: ['saigonbank'],
+        keywords: ['saigonbank', 'sai gon cong thuong', r'\bsgb\b']
+      ),
+      (
+        code: 'pgbank',
+        name: 'PGBank',
+        pkgs: ['pgbank'],
+        keywords: ['pgbank', 'pg bank', 'thinh vuong va phat trien', r'\bpgb\b']
+      ),
+      (
+        code: 'vietabank',
+        name: 'VietABank',
+        pkgs: ['vietabank', 'ezmobile'],
+        keywords: ['vietabank', 'viet a bank', r'\bvab\b']
+      ),
+      (
+        code: 'baovietbank',
+        name: 'BaoViet Bank',
+        pkgs: ['baovietbank', 'baoviet'],
+        keywords: ['baoviet bank', 'bao viet', 'baovietbank']
+      ),
+      (
+        code: 'oceanbank',
+        name: 'MBV (OceanBank)',
+        pkgs: ['oceanbank', 'com.mbv.mobilebanking'],
+        keywords: ['oceanbank', 'ngan hang dai duong', 'modern bank of vietnam', r'\bmbv\b']
+      ),
+      (
+        code: 'gpbank',
+        name: 'GPBank',
+        pkgs: ['gpbank'],
+        keywords: ['gpbank', 'dau khi toan cau', r'\bgpb\b']
+      ),
+      (
+        code: 'cbbank',
+        name: 'CBBank',
+        pkgs: ['cbbank'],
+        keywords: ['cbbank', 'ngan hang xay dung', r'\bcbb\b']
+      ),
+      (
+        code: 'scb',
+        name: 'SCB',
+        pkgs: ['vnpay.scb', 'scb.mbanking'],
+        keywords: ['ngan hang sai gon', 'scb mobile', r'\bscb\b']
+      ),
+      (
+        code: 'coopbank',
+        name: 'Co-opBank',
+        pkgs: ['coopbank'],
+        keywords: ['co-opbank', 'coopbank', 'ngan hang hop tac xa']
+      ),
+      (
+        code: 'vbsp',
+        name: 'VBSP (Chính sách XH)',
+        pkgs: ['vbsp'],
+        keywords: ['vbsp', 'chinh sach xa hoi', 'nhcsxh']
+      ),
+      (
+        code: 'vrb',
+        name: 'VRB (Việt - Nga)',
+        pkgs: ['vnpay.vrb', 'com.vrb'],
+        keywords: ['viet - nga', 'viet nga', r'\bvrb\b']
+      ),
+      (
+        code: 'ivb',
+        name: 'Indovina Bank (IVB)',
+        pkgs: ['vnpay.ivb', 'ivb.mobilebanking'],
+        keywords: ['indovina', r'\bivb\b']
+      ),
+      (
+        code: 'shinhan',
+        name: 'Shinhan Bank',
+        pkgs: ['shinhan', 'solvn'],
+        keywords: ['shinhan', 'shinhan sol']
+      ),
+      (
+        code: 'woori',
+        name: 'Woori Bank',
+        pkgs: ['woori', 'wonvn'],
+        keywords: ['woori bank', 'woori won', 'woori']
+      ),
+      (
+        code: 'hsbc',
+        name: 'HSBC',
+        pkgs: ['hsbc'],
+        keywords: [r'\bhsbc\b']
+      ),
+      (
+        code: 'uob',
+        name: 'UOB',
+        pkgs: ['uob', 'tmrw'],
+        keywords: ['uob tmrw', r'\buob\b', r'\btmrw\b']
+      ),
+      (
+        code: 'cimb',
+        name: 'CIMB',
+        pkgs: ['cimb', 'octo'],
+        keywords: ['cimb octo', r'\bcimb\b']
+      ),
+      (
+        code: 'publicbank',
+        name: 'Public Bank',
+        pkgs: ['publicbank', 'pbengage'],
+        keywords: ['public bank', 'publicbank']
+      ),
+      (
+        code: 'hongleong',
+        name: 'Hong Leong Bank',
+        pkgs: ['hongleong', 'hlb.connectvn'],
+        keywords: ['hong leong', 'hongleong', r'\bhlb\b']
+      ),
+      (
+        code: 'standardchartered',
+        name: 'Standard Chartered',
+        pkgs: ['standardchartered', 'scmobile', 'sc.mobilebanking'],
+        keywords: ['standard chartered', 'sc mobile']
+      ),
+      (
+        code: 'cake',
+        name: 'Cake by VPBank',
+        pkgs: ['xyz.be.cake', 'com.cake.bank'],
+        keywords: ['cake by vpbank', r'\bcake\b']
+      ),
+      (
+        code: 'timo',
+        name: 'Timo Digital Bank',
+        pkgs: ['timo.vn', 'vn.timo'],
+        keywords: ['timo digital', r'\btimo\b']
+      ),
+      (
+        code: 'liobank',
+        name: 'Liobank',
+        pkgs: ['liobank'],
+        keywords: ['liobank', r'\blio\b']
+      ),
+      (
+        code: 'ubank',
+        name: 'Ubank by VPBank',
+        pkgs: ['vpbank.ubank', 'ubank'],
+        keywords: ['ubank by vpbank', r'\bubank\b']
+      ),
+      (
+        code: 'tnex',
+        name: 'TNEX',
+        pkgs: ['tnex'],
+        keywords: [r'\btnex\b']
+      ),
+      (
+        code: 'momo',
+        name: 'Ví MoMo',
+        pkgs: ['mservice', 'momotransfer', 'momopay'],
+        keywords: ['vi momo', r'\bmomo\b']
+      ),
+      (
+        code: 'zalopay',
+        name: 'ZaloPay',
+        pkgs: ['zalopay'],
+        keywords: ['zalopay', 'zalo pay']
+      ),
+      (
+        code: 'viettelmoney',
+        name: 'Viettel Money',
+        pkgs: ['vtpay', 'bankplus', 'viettelpay', 'viettelmoney'],
+        keywords: ['viettel money', 'viettelpay', 'viettel pay']
+      ),
+      (
+        code: 'vnptmoney',
+        name: 'VNPT Money',
+        pkgs: ['vnptpay', 'vnptmoney', 'vinaphone.vnptpay'],
+        keywords: ['vnpt money', 'vnpt pay', 'vnptpay']
+      ),
+      (
+        code: 'vnpay',
+        name: 'VNPAY',
+        pkgs: ['vn.vnpay', 'vnpay.wallet'],
+        keywords: ['vi vnpay', 'vnpay wallet', r'\bvnpay\b']
+      ),
+      (
+        code: 'shopeepay',
+        name: 'ShopeePay',
+        pkgs: ['airpay', 'shopeepay'],
+        keywords: ['shopeepay', 'shopee pay', 'airpay']
+      ),
+      (
+        code: 'payoo',
+        name: 'Ví Payoo',
+        pkgs: ['vn.payoo', 'payoo'],
+        keywords: ['vi payoo', r'\bpayoo\b']
+      ),
+      (
+        code: 'vtcpay',
+        name: 'VTC Pay',
+        pkgs: ['vtc.paygate', 'vtcpay'],
+        keywords: ['vtc pay', 'vtcpay']
+      ),
+      (
+        code: 'foxpay',
+        name: 'Foxpay (FPT)',
+        pkgs: ['ftel.foxpay', 'foxpay'],
+        keywords: [r'\bfoxpay\b']
+      ),
+      (
+        code: 'mobifonemoney',
+        name: 'MobiFone Money',
+        pkgs: ['mobifone.mmdt', 'mobifonemoney'],
+        keywords: ['mobifone money', 'mobifone pay']
+      ),
+      (
+        code: 'smartpay',
+        name: 'SmartPay',
+        pkgs: ['smartpay'],
+        keywords: [r'\bsmartpay\b']
+      ),
+      (
+        code: '9pay',
+        name: 'Ví 9Pay',
+        pkgs: ['ninepay', '9pay'],
+        keywords: ['vi 9pay', r'\b9pay\b', 'ninepay']
+      ),
+      (
+        code: 'appotapay',
+        name: 'AppotaPay',
+        pkgs: ['wallet.appota', 'appotapay'],
+        keywords: ['appotapay', 'appota pay']
+      ),
+      (
+        code: 'vinid',
+        name: 'VinID / OneU',
+        pkgs: ['com.oneid', 'vinid'],
+        keywords: ['vinid pay', r'\bvinid\b', r'\boneu\b']
+      ),
+      (
+        code: 'homecredit',
+        name: 'Home Credit',
+        pkgs: ['homecredit'],
+        keywords: ['home credit', 'homecredit']
+      ),
+      (
+        code: 'fecredit',
+        name: 'FE Credit',
+        pkgs: ['fecredit'],
+        keywords: ['fe credit', 'fecredit']
+      ),
+      (
+        code: 'hdsaison',
+        name: 'HD Saison',
+        pkgs: ['hdsaison'],
+        keywords: ['hd saison', 'hdsaison']
+      ),
+      (
+        code: 'miraeasset',
+        name: 'Mirae Asset Finance',
+        pkgs: ['mafc.mobileapp', 'miraeasset'],
+        keywords: ['mirae asset', 'mafc']
+      ),
+    ];
+
+    bool matchesKeyword(String haystack, String kw) {
+      if (kw.startsWith(r'\b') || kw.endsWith(r'\b')) {
+        return RegExp(kw, caseSensitive: false).hasMatch(haystack);
+      }
+      return haystack.contains(kw);
+    }
+
+    // 1. Package name match (highest confidence)
+    if (p.isNotEmpty && p != 'manual.bank') {
+      for (final b in banks) {
+        if (b.pkgs.any((pk) => p.contains(pk))) {
+          return (code: b.code, name: b.name);
+        }
+      }
+    }
+
+    // 2. Notification title / SMS sender match (second highest confidence)
+    if (t.isNotEmpty) {
+      for (final b in banks) {
+        if (b.keywords.any((kw) => matchesKeyword(t, kw))) {
+          return (code: b.code, name: b.name);
+        }
+      }
+    }
+
+    // 3. Sanitized message body match
+    if (sanitizedText.isNotEmpty) {
+      for (final b in banks) {
+        if (b.keywords.any((kw) => matchesKeyword(sanitizedText, kw))) {
+          return (code: b.code, name: b.name);
+        }
+      }
+    }
+
+    final combined = '$t $sanitizedText';
     if (p.contains('shopee.vn') ||
         (combined.contains('shopee') && !combined.contains('shopeepay'))) {
       return (code: 'shopee', name: 'Shopee');
@@ -428,112 +1062,6 @@ class BankNotificationParser {
     }
     if (p.contains('lazada') || combined.contains('lazada')) {
       return (code: 'lazada', name: 'Lazada');
-    }
-
-    if (p.contains('vietcombank') ||
-        p.contains('vcb') ||
-        combined.contains('vietcombank') ||
-        combined.contains('vcb')) {
-      return (code: 'vcb', name: 'Vietcombank');
-    }
-    if (p.contains('techcombank') ||
-        combined.contains('techcombank') ||
-        combined.contains('tcb')) {
-      return (code: 'techcombank', name: 'Techcombank');
-    }
-    if (p.contains('mb.mbbank') ||
-        p.contains('mbmobile') ||
-        combined.contains('mb bank') ||
-        combined.contains('mbbank') ||
-        combined.contains('ngan hang quan doi') ||
-        RegExp(r'\bmb\b').hasMatch(combined)) {
-      return (code: 'mbbank', name: 'MB Bank');
-    }
-    if (p.contains('acb') || combined.contains('acb') || combined.contains('á châu') || combined.contains('a chau')) {
-      return (code: 'acb', name: 'ACB');
-    }
-    if (p.contains('vpbank') || combined.contains('vpbank') || combined.contains('vpb')) {
-      return (code: 'vpbank', name: 'VPBank');
-    }
-    if (p.contains('bidv') || combined.contains('bidv')) {
-      return (code: 'bidv', name: 'BIDV');
-    }
-    if (p.contains('vietinbank') ||
-        combined.contains('vietinbank') ||
-        combined.contains('vietin') ||
-        combined.contains('ctg') ||
-        combined.contains('vtb')) {
-      return (code: 'vietinbank', name: 'VietinBank');
-    }
-    if (p.contains('tpb') || combined.contains('tpbank') || combined.contains('tpb') || combined.contains('tien phong')) {
-      return (code: 'tpbank', name: 'TPBank');
-    }
-    if (p.contains('cake') || combined.contains('cake')) {
-      return (code: 'cake', name: 'Cake by VPBank');
-    }
-    if (p.contains('timo') || combined.contains('timo')) {
-      return (code: 'timo', name: 'Timo Digital Bank');
-    }
-    if (p.contains('liobank') || combined.contains('liobank')) {
-      return (code: 'liobank', name: 'Liobank');
-    }
-    if (p.contains('mservice') || combined.contains('momo') || combined.contains('ví momo')) {
-      return (code: 'momo', name: 'Ví MoMo');
-    }
-    if (p.contains('zalopay') || combined.contains('zalopay')) {
-      return (code: 'zalopay', name: 'ZaloPay');
-    }
-    if (p.contains('vtpay') ||
-        p.contains('bankplus') ||
-        combined.contains('viettel money') ||
-        combined.contains('viettelpay') ||
-        combined.contains('viettel')) {
-      return (code: 'viettelmoney', name: 'Viettel Money');
-    }
-    if (p.contains('sacombank') || combined.contains('sacombank') || combined.contains('stb')) {
-      return (code: 'sacombank', name: 'Sacombank');
-    }
-    if (p.contains('agribank') || combined.contains('agribank') || combined.contains('agri') || combined.contains('vba')) {
-      return (code: 'agribank', name: 'Agribank');
-    }
-    if (p.contains('vib') || combined.contains('vib') || combined.contains('quoc te')) {
-      return (code: 'vib', name: 'VIB');
-    }
-    if (p.contains('ocb') || combined.contains('ocb') || combined.contains('phuong dong')) {
-      return (code: 'ocb', name: 'OCB');
-    }
-    if (p.contains('msb') || combined.contains('msb') || combined.contains('hang hai')) {
-      return (code: 'msb', name: 'MSB');
-    }
-
-    for (final entry in const {
-      'hdbank': 'HDBank',
-      'shb': 'SHB',
-      'eximbank': 'Eximbank',
-      'seabank': 'SeABank',
-      'namabank': 'Nam A Bank',
-      'bacabank': 'Bac A Bank',
-      'vietbank': 'VietBank',
-      'pvcombank': 'PVcomBank',
-      'ncb': 'NCB',
-      'abbank': 'ABBank',
-      'kienlongbank': 'KienlongBank',
-      'bvbank': 'BVBank',
-      'saigonbank': 'Saigonbank',
-      'pgbank': 'PGBank',
-      'shinhan': 'Shinhan Bank',
-      'woori': 'Woori Bank',
-      'hsbc': 'HSBC',
-      'uob': 'UOB',
-      'cimb': 'CIMB',
-      'publicbank': 'Public Bank',
-      'vietabank': 'VietABank',
-      'vnpay': 'VNPay',
-      'airpay': 'ShopeePay',
-    }.entries) {
-      if (p.contains(entry.key) || combined.contains(entry.key)) {
-        return (code: entry.key, name: entry.value);
-      }
     }
     return (code: 'bank', name: title.isNotEmpty ? title : 'Ngân hàng');
   }
@@ -549,18 +1077,23 @@ class BankNotificationParser {
     if (text.isEmpty && title.isEmpty) return null;
 
     final combined = '$title\n$text';
-    final lower = combined.toLowerCase();
+    final foldedCombined = foldVietnamese(combined)
+        .replaceAll('₫', 'd')
+        .replaceAll('−', '-')
+        .replaceAll('–', '-');
+    final foldedText = foldVietnamese(text)
+        .replaceAll('₫', 'd')
+        .replaceAll('−', '-')
+        .replaceAll('–', '-');
 
     // Drop security / OTP notices
-    if (lower.contains('otp') ||
-        lower.contains('mã xác thực') ||
-        lower.contains('ma xac thuc') ||
-        lower.contains('password') ||
-        lower.contains('mật khẩu') ||
-        lower.contains('cảnh báo bảo mật') ||
-        lower.contains('mat khau') ||
-        lower.contains('verification code') ||
-        lower.contains('security code')) {
+    if (foldedCombined.contains('otp') ||
+        foldedCombined.contains('ma xac thuc') ||
+        foldedCombined.contains('password') ||
+        foldedCombined.contains('mat khau') ||
+        foldedCombined.contains('canh bao bao mat') ||
+        foldedCombined.contains('verification code') ||
+        foldedCombined.contains('security code')) {
       return null;
     }
 
@@ -571,28 +1104,65 @@ class BankNotificationParser {
 
     // Require a transaction direction; never treat an offer or a balance as spending.
     if (RegExp(
-            r'không thành công|khong thanh cong|thất bại|that bai|failed|ưu đãi|uu dai|khuyến mãi|khuyen mai|voucher|mã giảm giá',
+            r'khong thanh cong|that bai|failed|uu dai|khuyen mai|voucher|ma giam gia',
             caseSensitive: false)
-        .hasMatch(combined)) return null;
+        .hasMatch(foldedCombined)) return null;
     final normalized = combined.replaceAll('−', '-').replaceAll('–', '-');
-    // A negative current balance is not a new debit. Leave uncertain alerts
-    // for explicit review instead of turning the account balance into spending.
-    if (RegExp(r'^\s*(?:số dư|so du|balance|sd\s*:)', caseSensitive: false)
-            .hasMatch(text) &&
-        !RegExp(r'\bGD\b|biến động|bien dong|thay đổi|thay doi|ghi nợ|ghi no|ghi có|ghi co|thanh toán|thanh toan|đã chuyển|da chuyen',
+    // A pure static balance inquiry ("Số dư: 10,000,000 VND") with no transaction verb and no second balance clause is not a transaction.
+    // However, NCB and several banks start transaction notifications with "Số dư TK 1000xxx +/-500,000 VND. Số dư khả dụng: 10,000,000 VND".
+    final hasExplicitEndingBalanceClause = RegExp(
+      r'\b(?:(?:so\s*du|sd)\s+(?:kha\s+dung|cuoi|sau\s+gd|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi)|sdkd|sdtt|sdc)\b',
+      caseSensitive: false,
+    ).hasMatch(foldedCombined);
+    if (RegExp(r'^\s*(?:so du|balance|sd\s*:)', caseSensitive: false)
+            .hasMatch(foldedText) &&
+        !hasExplicitEndingBalanceClause &&
+        !RegExp(
+                r'\bgd\b|\bps\b|bien dong|thay doi|ghi no|ghi co|thanh toan|da chuyen|chuyen khoan|chuyen tien|rut tien|nhan tien',
                 caseSensitive: false)
-            .hasMatch(text)) return null;
+            .hasMatch(foldedCombined)) return null;
+
+    // Extract post-transaction balance first
+    final balanceAfter = extractBalanceAfter(normalized);
+
+    // Strip fee segments (Phí: 1,100đ) and explicit ending balance clauses ("SD khả dụng: 12,450,000VND")
+    // from a copy used for transaction amount extraction so fees or ending balances are never picked as tx amount.
+    var amountTarget = foldedCombined
+        .replaceAll(
+          RegExp(
+            r'(?:phi(?:\s+gd)?|fee|vat)\s*[:=-]?\s*[+-]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(?:(?:so\s*du|sd)\s+(?:kha\s+dung|cuoi(?:\s+ky)?|sau\s+gd|sau\s+giao\s+dich|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi)|sdkd|sdtt|sdc|available\s+balance|avail\s+bal|ending\s+balance)(?:\s+(?:tk|tai\s*khoan)\s+[0-9a-zxX*.-]{3,24})?\s*(?:[:=-]|\bla\b|\s)\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        // Strip explicit ending balance snippets ("SD: 12,450,000", "Số dư: +2,734,539 VND") so delta amount stays unambiguous.
+        .replaceAll(
+          RegExp(
+            r'\b(?:sd|so\s*du|so\s*du\s*hien\s*tai|so\s*du\s*kha\s*dung|balance)\s*[:=]\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
+            caseSensitive: false,
+          ),
+          ' ',
+        );
+
     final signedAfter = RegExp(
-            r'(?<![\d/.-])([+-])\s*(\d[\d.,]*)\s*(?:VND|VNĐ|đ|₫|dong|đồng|d\b)(?![a-z])',
+            r'(?<![\d/.-])([+-])\s*(\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)(?![a-z])',
             caseSensitive: false)
-        .firstMatch(normalized);
-    final signedBefore =
-        RegExp(r'(?:VND|VNĐ|đ|₫)\s*([+-])\s*(\d[\d.,]+)', caseSensitive: false)
-            .firstMatch(normalized);
+        .firstMatch(amountTarget);
+    final signedBefore = RegExp(
+            r'(?:vnd|d\b)\s*([+-])\s*(\d(?:[\d.,\s]*\d)?)',
+            caseSensitive: false)
+        .firstMatch(amountTarget);
     final signedContext = RegExp(
-            r'(?:GD|PS|Biến động|Bien dong|SD|Số dư|So du|TK|Tài khoản|Tai khoan)[^+\-\d]{0,25}([+-])\s*(\d[\d.,]{3,})',
+            r'(?:gd|ps|bien dong|thay doi|sd|so du|tk|tai khoan|the)[^+\-\d]{0,35}([+-])\s*(\d[\d.,\s]{2,})',
             caseSensitive: false)
-        .firstMatch(normalized);
+        .firstMatch(amountTarget);
     String? type;
     double? extractedAmount;
     if (signedAfter != null) {
@@ -605,18 +1175,18 @@ class BankNotificationParser {
       type = signedContext.group(1) == '+' ? 'income' : 'expense';
       extractedAmount = parseAmount(signedContext.group(2)!);
     } else {
-      // Bank debit/credit or Shopee/TikTok order wording before the transaction amount.
+      // Bank debit/credit, credit card swipe, or Shopee/TikTok order wording before the transaction amount.
       final directed = RegExp(
-        r'(ghi có|ghi co|báo có|bao co|nhận được|nhan duoc|nhận tiền|nhan tien|tiền vào|tien vao|cộng|cong|tăng|tang|credited|hoàn tiền|hoan tien|ghi nợ|ghi no|báo nợ|bao no|thanh toán|thanh toan|đã chuyển|da chuyen|chuyển khoản|chuyen khoan|chuyển tiền|chuyen tien|rút tiền|rut tien|trừ|tru|giảm|giam|debited|đặt đơn|dat don|đơn hàng|don hang|mua hàng|mua hang|tổng tiền|tong tien)[^0-9]{0,35}?(\d[\d.,]+)\s*(?:VND|VNĐ|đ|₫|dong|đồng|d\b)(?![a-zÀ-ỹ])',
+        r'(ghi co|bao co|nhan duoc|nhan tien|tien vao|cong|tang|credited|hoan tien|ghi no|bao no|thanh toan|chi tieu|giao dich the|gd the|da dung|spent|charged|da chuyen|chuyen khoan|chuyen tien|rut tien|tru|giam|debited|dat don|don hang|mua hang|tong tien|so tien)[^0-9]{0,35}?(\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)(?![a-z])',
         caseSensitive: false,
-      ).firstMatch(normalized);
+      ).firstMatch(amountTarget);
       if (directed != null) {
-        type =
-            RegExp(r'ghi có|ghi co|báo có|bao co|nhận|nhan|tiền vào|tien vao|cộng|cong|tăng|tang|credited|hoàn tiền|hoan tien',
-                        caseSensitive: false)
-                    .hasMatch(directed.group(1)!)
-                ? 'income'
-                : 'expense';
+        type = RegExp(
+                    r'ghi co|bao co|nhan|tien vao|cong|tang|credited|hoan tien',
+                    caseSensitive: false)
+                .hasMatch(directed.group(1)!)
+            ? 'income'
+            : 'expense';
         extractedAmount = parseAmount(directed.group(2)!);
       }
     }
@@ -624,21 +1194,23 @@ class BankNotificationParser {
         extractedAmount == null ||
         !extractedAmount.isFinite ||
         extractedAmount <= 0) return null;
+    extractedAmount = extractedAmount.abs();
 
-    // Extract account number: TK 102xxx or TK ...xxx
+    // Extract account number: TK 102xxx or TK ...xxx or Thẻ 4123*9988
     String? accountNo;
     final acctMatch = RegExp(
-            r'(?:TK|tai khoan|Tài khoản|STK|the|Thẻ)\s*:?\s*([0-9xX*]{3,24})',
+            r'(?:TK|tai khoan|Tài khoản|STK|the|Thẻ|Card)\s*(?:thanh toán|tt|tín dụng|td)?\s*[:#-]?\s*([0-9xX*.]{3,24})',
             caseSensitive: false)
         .firstMatch(combined);
     if (acctMatch != null) {
-      accountNo = acctMatch.group(1);
+      accountNo = acctMatch.group(1)?.replaceAll(RegExp(r'^[.]+|[.]+$'), '');
     }
 
     // Extract note: Content / Noi dung / ND / tai
     String note = '';
     final ndMatch = RegExp(
-            r'(?:ND|Nội dung|Noi dung|tai|tại|Ref|Giao dịch|GD)\s*:?\s*([^.\n]+)')
+            r'(?:ND|Nội dung|Noi dung|tai|tại|Ref|Giao dịch|GD|Lý do|Ly do|Mô tả|Mo ta)\s*:?\s*([^.\n]+)',
+            caseSensitive: false)
         .firstMatch(combined);
     if (ndMatch != null) {
       note = ndMatch.group(1)?.trim() ?? '';
@@ -672,6 +1244,7 @@ class BankNotificationParser {
       amount: extractedAmount,
       type: type,
       accountNumber: accountNo,
+      balanceAfter: balanceAfter,
       note: note,
       transactionCode: txCode,
       rawNotificationText: combined.trim(),
@@ -709,6 +1282,7 @@ class BankNotificationParser {
       title,
       text,
     );
+    final balanceAfter = extractBalanceAfter(combined);
     final isIncome = RegExp(
       r'\+|ghi có|ghi co|báo có|bao co|nhận|nhan|tiền vào|tien vao|cộng|cong|tăng|tang|credited',
       caseSensitive: false,
@@ -720,7 +1294,7 @@ class BankNotificationParser {
     for (final m in numMatches) {
       final candidate = parseAmount(m.group(0) ?? '');
       if (candidate != null && candidate >= 1000 && candidate <= 100000000000) {
-        fallbackAmount = candidate;
+        fallbackAmount = candidate.abs();
         break;
       }
     }
@@ -742,6 +1316,7 @@ class BankNotificationParser {
       bankName: bank.name,
       amount: fallbackAmount,
       type: isIncome ? 'income' : 'expense',
+      balanceAfter: balanceAfter,
       note: note,
       transactionCode: txCode,
       rawNotificationText: combined.trim(),

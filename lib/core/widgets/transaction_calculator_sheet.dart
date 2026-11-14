@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:provider/provider.dart';
+import '../../state/theme_studio_controller.dart';
 
 class TransactionCalculatorSheet extends StatefulWidget {
   final int initialAmount;
@@ -193,7 +195,10 @@ class _TransactionCalculatorSheetState
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = widget.accentColor ?? const Color(0xFF00866A);
+    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
+    final accent = widget.accentColor ??
+        studio?.resolvedPrimary ??
+        const Color(0xFF00866A);
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     final displayResultInt = _currentResult.round();
@@ -536,7 +541,7 @@ class _TransactionCalculatorSheetState
                 child: ElevatedButton.icon(
                   onPressed: _applyResult,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00866A),
+                    backgroundColor: accent,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(

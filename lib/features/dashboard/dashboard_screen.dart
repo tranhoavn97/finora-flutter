@@ -13,6 +13,7 @@ import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/finora_motion.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
+import '../../core/widgets/date_filter_modal.dart';
 import '../../core/widgets/morph_icon.dart';
 import '../../core/widgets/finora_privacy_mask.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -40,7 +41,6 @@ import '../ai/ai_advisor_screen.dart';
 import '../planning/planning_hub_screen.dart';
 import '../transaction/add_transaction_page.dart';
 import '../../core/widgets/finora_swipeable_transaction_card.dart';
-import '../transaction/transaction_detail_sheet.dart';
 import '../wallet/wealth_hub_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../qr_pay/qr_scanner_screen.dart';
@@ -127,168 +127,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _openDateFilter() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final provider = context.read<DashboardProvider>();
-    final currentOption = provider.selectedDateFilter;
+    final currentRange =
+        provider.customStartDate != null && provider.customEndDate != null
+            ? DateTimeRange(
+                start: provider.customStartDate!,
+                end: provider.customEndDate!,
+              )
+            : null;
 
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: AdaptiveGlassSurface(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(28)),
-              border: Border(
-                top: BorderSide(
-                  color: isDark
-                      ? const Color(0xFF1E293B)
-                      : const Color(0xFFE2E8F0),
-                  width: 1.0,
-                ),
-              ),
-            ),
-            padding: EdgeInsets.fromLTRB(
-                20, 16, 20, MediaQuery.paddingOf(ctx).bottom + 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Chọn mốc thời gian',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.close_rounded,
-                            color: Colors.red, size: 18),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _buildDateOptionTile(
-                  ctx,
-                  title: 'Hôm nay',
-                  subtitle: 'Số liệu thu chi trong ngày',
-                  icon: Icons.today_rounded,
-                  color: const Color(0xFF3B82F6),
-                  isSelected: currentOption == DateFilterOption.today &&
-                      provider.customDate == null,
-                  isDark: isDark,
-                  onTap: () => Navigator.pop(ctx, 'today'),
-                ),
-                _buildDateOptionTile(
-                  ctx,
-                  title: 'Hôm qua',
-                  subtitle: 'Giao dịch ngày hôm qua',
-                  icon: Icons.history_toggle_off_rounded,
-                  color: const Color(0xFF6366F1),
-                  isSelected: currentOption == DateFilterOption.yesterday &&
-                      provider.customDate == null,
-                  isDark: isDark,
-                  onTap: () => Navigator.pop(ctx, 'yesterday'),
-                ),
-                _buildDateOptionTile(
-                  ctx,
-                  title: 'Tuần này',
-                  subtitle: 'Tính từ đầu tuần đến nay',
-                  icon: Icons.date_range_rounded,
-                  color: const Color(0xFF0EA5E9),
-                  isSelected: currentOption == DateFilterOption.thisWeek &&
-                      provider.customDate == null,
-                  isDark: isDark,
-                  onTap: () => Navigator.pop(ctx, 'thisWeek'),
-                ),
-                _buildDateOptionTile(
-                  ctx,
-                  title: 'Tháng này',
-                  subtitle:
-                      'Tháng hiện tại (${DateTime.now().month}/${DateTime.now().year})',
-                  icon: Icons.calendar_month_rounded,
-                  color: const Color(0xFF10B981),
-                  isSelected: currentOption == DateFilterOption.thisMonth &&
-                      provider.customDate == null,
-                  isDark: isDark,
-                  onTap: () => Navigator.pop(ctx, 'thisMonth'),
-                ),
-                _buildDateOptionTile(
-                  ctx,
-                  title: 'Năm nay',
-                  subtitle: 'Tổng hợp cả năm ${DateTime.now().year}',
-                  icon: Icons.calendar_today_rounded,
-                  color: const Color(0xFFF59E0B),
-                  isSelected: currentOption == DateFilterOption.thisYear &&
-                      provider.customDate == null,
-                  isDark: isDark,
-                  onTap: () => Navigator.pop(ctx, 'thisYear'),
-                ),
-                _buildDateOptionTile(
-                  ctx,
-                  title: 'Chọn ngày cụ thể...',
-                  subtitle: provider.customDate != null
-                      ? 'Đang chọn: ${DateFormat('dd/MM/yyyy').format(provider.customDate!)}'
-                      : 'Xem số liệu của một ngày bất kỳ',
-                  icon: Icons.edit_calendar_rounded,
-                  color: const Color(0xFF005FEA),
-                  isSelected: provider.customDate != null,
-                  isDark: isDark,
-                  onTap: () => Navigator.pop(ctx, 'custom'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    final result = await showDateFilterModal(
+      context,
+      currentOption: provider.selectedDateFilter,
+      currentCustomDate: provider.customDate,
+      currentCustomRange: currentRange,
+      currentCustomYear: provider.customYear,
+      currentCustomMonth: provider.customMonth,
+      showAllTime: true,
     );
 
     if (!mounted || result == null) return;
 
-    if (result == 'today') {
-      provider.setDateFilter(DateFilterOption.today);
-    } else if (result == 'yesterday') {
-      provider.setDateFilter(DateFilterOption.yesterday);
-    } else if (result == 'thisWeek') {
-      provider.setDateFilter(DateFilterOption.thisWeek);
-    } else if (result == 'thisMonth') {
-      provider.setDateFilter(DateFilterOption.thisMonth);
-    } else if (result == 'thisYear') {
-      provider.setDateFilter(DateFilterOption.thisYear);
-    } else if (result == 'custom') {
-      final picked = await CustomDatePickerSheet.show(context,
-          initialDate: provider.customDate ?? _selectedDate);
-      if (picked != null && mounted) {
-        _selectedDate = picked;
-        provider.setDateFilter(DateFilterOption.customDate, custom: picked);
-      }
+    if (result.option == DateFilterOption.customDate &&
+        result.customDate != null) {
+      _selectedDate = result.customDate!;
+      provider.setDateFilter(
+        DateFilterOption.customDate,
+        custom: result.customDate,
+      );
+    } else if (result.option == DateFilterOption.customRange &&
+        result.customRange != null) {
+      provider.setDateFilter(
+        DateFilterOption.customRange,
+        startDate: result.customRange!.start,
+        endDate: result.customRange!.end,
+      );
+    } else if (result.option == DateFilterOption.customMonth &&
+        result.customYear != null &&
+        result.customMonth != null) {
+      provider.setDateFilter(
+        DateFilterOption.customMonth,
+        year: result.customYear,
+        month: result.customMonth,
+      );
+    } else {
+      provider.setDateFilter(result.option);
     }
   }
 
@@ -581,10 +464,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final netFlow = d.periodNet;
     final txList = d.recentTransactions;
     final moduleGap = studio.pageVerticalGap;
-    final topSafePadding = MediaQuery.paddingOf(context).top;
 
     final headerHeight =
-        (MediaQuery.textScalerOf(context).scale(32) * 1.45).clamp(52.0, 160.0);
+        (MediaQuery.textScalerOf(context).scale(30) * 1.45).clamp(44.0, 160.0);
     return GlassScaffold(
       extendBodyBehindAppBar: true,
       appBar: GlassTopBar(
@@ -605,9 +487,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             parent: AlwaysScrollableScrollPhysics(),
           ),
           padding: EdgeInsets.fromLTRB(
-            16.0,
-            GlassScaffold.topInset(context, 6, headerHeight),
-            16.0,
+            studio.pageHorizontalMargin,
+            GlassScaffold.topInset(context, 4, headerHeight),
+            studio.pageHorizontalMargin,
             136,
           ),
           child: Column(
@@ -646,13 +528,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildAvatarWithAura(ThemeStudioController studio, bool isDark) {
     return Container(
-      width: 42,
-      height: 42,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
           color: isDark ? const Color(0xFF059669) : const Color(0xFF10B981),
-          width: 1.6,
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
@@ -690,45 +572,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         // Left: Avatar + Line 1 (Xin chào buổi...) + Line 2 (Full User Name)
         _buildAvatarWithAura(studio, isDark),
-        const SizedBox(width: 11),
+        const SizedBox(width: 10),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _getDiurnalGreeting(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
-                  fontFamily: studio.fontFamilyName,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _getDiurnalGreeting(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.15,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+                    fontFamily: studio.fontFamilyName,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 17.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                  color: isDark ? Colors.white : const Color(0xFF0D1F1A),
-                  fontFamily: studio.fontFamilyName,
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16.0,
+                    height: 1.15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: isDark ? Colors.white : const Color(0xFF0D1F1A),
+                    fontFamily: studio.fontFamilyName,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
 
         // Right: Circular Notification Bell
-        FinoraNotificationBell(userId: widget.userId, size: 38),
+        FinoraNotificationBell(userId: widget.userId, size: 36),
       ],
     );
   }
@@ -753,25 +640,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Row(
       children: [
-        // 1. Left: Circular Avatar-Only Member Filter Button (40x40, 100% solid opaque)
-        FinoraUnifiedMemberPill(
-          currentMember: currentMemberTag,
-          isDark: isDark,
-          height: 40,
-          onSelected: (val) {
-            if (val == 'husband') {
-              dProv.setOwnerFilter(OwnerFilter.husband);
-            } else if (val == 'wife') {
-              dProv.setOwnerFilter(OwnerFilter.wife);
-            } else {
-              dProv.setOwnerFilter(OwnerFilter.all);
-            }
-          },
-        ),
-        const SizedBox(width: 10),
-
-        // 2. Right Pill: Solid Stadium Date Filter (Hôm nay / Tháng này) — Height 40px
+        // 1. Left Pill: 35% Stadium Member Filter Button (Height 40px)
         Expanded(
+          flex: 35,
+          child: FinoraUnifiedMemberPill(
+            currentMember: currentMemberTag,
+            isDark: isDark,
+            height: 40,
+            expand: true,
+            onSelected: (val) {
+              if (val == 'husband') {
+                dProv.setOwnerFilter(OwnerFilter.husband);
+              } else if (val == 'wife') {
+                dProv.setOwnerFilter(OwnerFilter.wife);
+              } else {
+                dProv.setOwnerFilter(OwnerFilter.all);
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // 2. Right Pill: 65% Solid Stadium Date Filter (Hôm nay / Tháng này) — Height 40px
+        Expanded(
+          flex: 65,
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -779,18 +671,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(999),
               child: Container(
                 height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF059669), Color(0xFF047857)],
+                  gradient: LinearGradient(
+                    colors: [
+                      studio.resolvedPrimary
+                          .withValues(alpha: studio.glassOpacity),
+                      Color.lerp(studio.resolvedPrimary, Colors.black, 0.18)!
+                          .withValues(alpha: studio.glassOpacity),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF059669)
-                          .withValues(alpha: isDark ? 0.32 : 0.22),
+                      color: studio.resolvedPrimary.withValues(
+                          alpha: (isDark ? 0.32 : 0.22) * studio.glassOpacity),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -814,15 +711,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(width: 7),
                     Flexible(
-                      child: Text(
-                        filterLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          fontFamily: studio.fontFamilyName,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          filterLabel,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            fontFamily: studio.fontFamilyName,
+                          ),
                         ),
                       ),
                     ),

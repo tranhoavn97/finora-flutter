@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/design_system/credit_card_palette.dart';
 import '../../core/utils/formatters.dart';
@@ -9,6 +10,7 @@ import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
+import '../../state/theme_studio_controller.dart';
 
 /// Zenvest Swipeable Bank Card Deck
 /// Thiết kế thẻ ngân hàng lơ lửng vuốt ngang mượt mà chuẩn trang chủ Finora.
@@ -1289,47 +1291,62 @@ class _SwipeableBankCardDeckState extends State<SwipeableBankCardDeck> {
                         const SizedBox(width: 8),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 112),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  widget.isMasked ? '••••••••' : formatVND(displayBalance),
-                                  textAlign: TextAlign.right,
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: isCurrent
-                                        ? (widget.isDark ? const Color(0xFF34D399) : const Color(0xFF0F6E56))
-                                        : (widget.isDark ? Colors.white70 : const Color(0xFF334155)),
-                                    fontFeatures: const [FontFeature.tabularFigures()],
-                                  ),
-                                ),
-                              ),
-                              if (isCurrent)
-                                Container(
-                                  margin: const EdgeInsets.only(top: 2),
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0F6E56).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
+                          child: Builder(builder: (ctx) {
+                            final brandPrimary =
+                                Provider.of<ThemeStudioController?>(ctx,
+                                            listen: false)
+                                        ?.resolvedPrimary ??
+                                    const Color(0xFF0F6E56);
+                            final currentAccent = widget.isDark
+                                ? Color.lerp(brandPrimary, Colors.white, 0.28)!
+                                : brandPrimary;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
                                   child: Text(
-                                    'Đang xem',
+                                    widget.isMasked
+                                        ? '••••••••'
+                                        : formatVND(displayBalance),
+                                    textAlign: TextAlign.right,
                                     style: TextStyle(
-                                      fontSize: 9,
+                                      fontSize: 13.5,
                                       fontWeight: FontWeight.w800,
-                                      color: widget.isDark
-                                          ? const Color(0xFF34D399)
-                                          : const Color(0xFF0F6E56),
+                                      color: isCurrent
+                                          ? currentAccent
+                                          : (widget.isDark
+                                              ? Colors.white70
+                                              : const Color(0xFF334155)),
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ],
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
+                                if (isCurrent)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: brandPrimary.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'Đang xem',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: currentAccent,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }),
                         ),
                       ],
                     ),

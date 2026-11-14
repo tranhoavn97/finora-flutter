@@ -1,4 +1,5 @@
 import '../../core/widgets/finora_notice.dart';
+import '../../core/widgets/glass_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/utils/bank_launcher_helper.dart';
@@ -74,77 +75,97 @@ class _BankAppSelectorSheetState extends State<BankAppSelectorSheet> {
       banks.removeWhere((b) => b.bin == preferred.bin);
       banks.insert(0, preferred);
     }
-    return SafeArea(
+    return FinoraDraggableSheetWrapper(
+      onClose: () => Navigator.pop(context),
+      child: SafeArea(
         top: false,
         child: Container(
           constraints: BoxConstraints(
               maxHeight: MediaQuery.sizeOf(context).height * .88),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
           decoration: BoxDecoration(
               color: FinoraTokens.surface(dark),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(28))),
-          child: SingleChildScrollView(
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                Row(children: [
-                  const Expanded(
-                      child: Text('Mở ngân hàng',
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w700))),
-                  IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded))
-                ]),
-                const Text(
-                    'Bản nháp đang lưu trên máy. Mở ngân hàng không đồng nghĩa đã thanh toán.',
-                    style: TextStyle(fontSize: 12, height: 1.5)),
-                const SizedBox(height: 16),
-                for (final bank in banks)
-                  Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: OutlinedButton(
-                          onPressed: _opening ? null : () => _open(bank),
-                          style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 18, vertical: 14),
-                              shape: const StadiumBorder()),
-                          child: Row(children: [
-                            Image.asset(bank.logo,
-                                width: 32,
-                                height: 32,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.account_balance_rounded)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                  Text('Mở ${bank.name}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700)),
-                                  const Text(
-                                      'Tạo giao dịch mẫu & điền sẵn STK, số tiền, nội dung qua VietQR',
-                                      style: TextStyle(fontSize: 11),
-                                      maxLines: 2)
-                                ])),
-                            const Icon(Icons.open_in_new_rounded, size: 18)
-                          ]))),
-                const Divider(),
-                Text('Ngân hàng nhận: ${widget.qrData.bankName}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                if (widget.qrData.accountName != null)
-                  Text('Tên từ mã QR: ${widget.qrData.accountName}'),
-                _copy('Số tài khoản', widget.qrData.accountNumber),
-                _copy('Số tiền', widget.amount.toInt().toString()),
-                _copy('Nội dung', widget.memo),
-                TextButton(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FinoraSheetDragHandle(
+                padding: const EdgeInsets.only(top: 6, bottom: 8),
+                onClose: () => Navigator.pop(context),
+              ),
+              Row(children: [
+                const Expanded(
+                    child: Text('Mở ngân hàng',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w700))),
+                IconButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Quay lại · Xác nhận đã thanh toán')),
-              ])),
-        ));
+                    icon: const Icon(Icons.close_rounded))
+              ]),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                          'Bản nháp đang lưu trên máy. Mở ngân hàng không đồng nghĩa đã thanh toán.',
+                          style: TextStyle(fontSize: 12, height: 1.5)),
+                      const SizedBox(height: 16),
+                      for (final bank in banks)
+                        Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: OutlinedButton(
+                                onPressed: _opening ? null : () => _open(bank),
+                                style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 14),
+                                    shape: const StadiumBorder()),
+                                child: Row(children: [
+                                  Image.asset(bank.logo,
+                                      width: 32,
+                                      height: 32,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                          Icons.account_balance_rounded)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                        Text('Mở ${bank.name}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700)),
+                                        const Text(
+                                            'Tạo giao dịch mẫu & điền sẵn STK, số tiền, nội dung qua VietQR',
+                                            style: TextStyle(fontSize: 11),
+                                            maxLines: 2)
+                                      ])),
+                                  const Icon(Icons.open_in_new_rounded,
+                                      size: 18)
+                                ]))),
+                      const Divider(),
+                      Text('Ngân hàng nhận: ${widget.qrData.bankName}',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      if (widget.qrData.accountName != null)
+                        Text('Tên từ mã QR: ${widget.qrData.accountName}'),
+                      _copy('Số tài khoản', widget.qrData.accountNumber),
+                      _copy('Số tiền', widget.amount.toInt().toString()),
+                      _copy('Nội dung', widget.memo),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child:
+                              const Text('Quay lại · Xác nhận đã thanh toán')),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

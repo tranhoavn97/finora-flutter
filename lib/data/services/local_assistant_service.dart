@@ -92,7 +92,7 @@ class LocalAssistantService {
     if (!query) return _drafts(prompt, categories, wallets, now);
 
     final ledgerQuery = _has(q,
-        'thu|chi|tieu|luong|thu nhap|so sanh|tiet kiem|bao cao|thong ke|tong hop|phan tich|ngan sach|con hom|con thang|con tuan|vi sao|tai sao|khoan nao|liet ke|chi tiet|tang|giam');
+        'thu|chi|tieu|luong|thu nhap|so sanh|tiet kiem|bao cao|thong ke|tong hop|phan tich|ngan sach|con hom|con thang|con tuan|vi sao|tai sao|khoan nao|liet ke|chi tiet|tang|giam|vo chong|suc khoe tai chinh|danh gia tai chinh|50/30/20');
     final followUp =
         previousPrompt.isNotEmpty && RegExp(r'^(?:con|the|vay)\b').hasMatch(q);
     if ((ledgerQuery || followUp) &&

@@ -378,9 +378,11 @@ class _FinoraTransactionSuccessModalState
                                       width: 1.5,
                                     ),
                                   ),
-                                  child: const FinoraMascotImage(
+                                  child: const FinoraInteractive3DMascot(
                                     pose: FinoraMascotPose.celebrate,
                                     size: 76,
+                                    enableFloatingAnimation: true,
+                                    enableTouch3DRotation: true,
                                   ),
                                 ),
                               ),
