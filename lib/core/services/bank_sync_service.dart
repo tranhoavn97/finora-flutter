@@ -19,6 +19,9 @@ class BankSyncService extends ChangeNotifier {
   final _inboxRequests = StreamController<void>.broadcast();
   Stream<void> get onInboxRequested => _inboxRequests.stream;
 
+  final _launchActions = StreamController<String>.broadcast();
+  Stream<String> get onLaunchAction => _launchActions.stream;
+
   final _events = StreamController<ParsedBankTransaction>.broadcast();
   Stream<ParsedBankTransaction> get onTransactionDetected => _events.stream;
   final Map<String, ParsedBankTransaction> _pending = {};
@@ -27,6 +30,10 @@ class BankSyncService extends ChangeNotifier {
       Map.unmodifiable(_unrecognized);
   List<ParsedBankTransaction> get pending => List.unmodifiable(_pending.values);
   int get unrecognizedCount => _unrecognized.length;
+  int _unreadActivityCount = 0;
+  int get unreadActivityCount => _unreadActivityCount;
+  int get totalBadgeCount =>
+      _pending.length + _unrecognized.length + _unreadActivityCount;
   bool connected = false;
   DateTime? lastReceivedAt;
   String? error;
@@ -53,6 +60,12 @@ class BankSyncService extends ChangeNotifier {
         if (call.method == 'openBankInbox') {
           await _consumeInboxRequest();
         }
+        if (call.method == 'onLaunchAction' && call.arguments is String) {
+          final action = (call.arguments as String).trim();
+          if (action.isNotEmpty) {
+            _launchActions.add(action);
+          }
+        }
         if (call.method == 'onBankNotification' && call.arguments is String) {
           _processRawJson(call.arguments as String);
         }
@@ -66,10 +79,28 @@ class BankSyncService extends ChangeNotifier {
     await loadScanSettings();
     await checkPendingNotifications();
     await _consumeInboxRequest();
+    await consumeLaunchAction();
   }
 
   Future<void> _consumeInboxRequest() async {
     if (await _invokeBool('consumeBankInboxRequest')) _inboxRequests.add(null);
+  }
+
+  Future<String?> consumeLaunchAction() async {
+    if (!supported) return null;
+    try {
+      final action = await _channel.invokeMethod<String>('consumeLaunchAction');
+      final trimmed = action?.trim();
+      if (trimmed != null && trimmed.isNotEmpty) {
+        if (trimmed == 'open_bank_inbox') {
+          _inboxRequests.add(null);
+        } else {
+          _launchActions.add(trimmed);
+        }
+        return trimmed;
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// Pair-match an incoming transaction against existing pending transactions:
@@ -150,6 +181,7 @@ class BankSyncService extends ChangeNotifier {
         }
       }
       notifyListeners();
+      unawaited(updateAppBadge());
     } catch (_) {
       error =
           'Có thông báo chưa đọc được. Nội dung vẫn được giữ trên thiết bị.';
@@ -260,14 +292,58 @@ class BankSyncService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> isPostNotificationsGranted() =>
+      _invokeBool('isPostNotificationsGranted');
+
   Future<bool> requestPostNotifications() =>
       _invokeBool('requestPostNotifications');
+
+  Future<bool> openNotificationSettings() =>
+      _invokeBool('openNotificationSettings');
+
+  Future<bool> showSystemNotification({
+    required String title,
+    required String body,
+    String channel = 'activity',
+    int? id,
+    bool fromBankSync = false,
+    String? action,
+  }) async {
+    if (!supported) return false;
+    try {
+      return await _channel.invokeMethod<bool>('showSystemNotification', {
+            'title': title,
+            'body': body,
+            'channel': channel,
+            if (id != null) 'id': id,
+            'fromBankSync': fromBankSync,
+            if (action != null) 'action': action,
+          }) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Đồng bộ số lượng thông báo hoạt động chưa đọc từ MoreProvider để badge luôn chính xác.
+  Future<void> setUnreadActivityCount(int count) async {
+    final normalized = count < 0 ? 0 : count;
+    final changed = _unreadActivityCount != normalized;
+    _unreadActivityCount = normalized;
+    if (changed) notifyListeners();
+    await updateAppBadge();
+  }
+
   /// Cập nhật số lượng thông báo / giao dịch chờ lên biểu tượng ứng dụng ngoài màn hình chính
   Future<void> updateAppBadge([int? count]) async {
     if (!supported || kIsWeb) return;
     try {
-      final total = count ?? (_pending.length + _unrecognized.length);
-      await _channel.invokeMethod('updateAppBadge', {'count': total});
+      final total = count ?? totalBadgeCount;
+      final extra = _unrecognized.length + _unreadActivityCount;
+      await _channel.invokeMethod('updateAppBadge', {
+        'count': total,
+        'extraCount': extra,
+      });
     } catch (_) {}
   }
 
@@ -288,6 +364,7 @@ class BankSyncService extends ChangeNotifier {
       _pending.remove(rawId);
       _unrecognized.remove(rawId);
       notifyListeners();
+      unawaited(updateAppBadge());
       return;
     }
     if (!kIsWeb) {
@@ -308,7 +385,7 @@ class BankSyncService extends ChangeNotifier {
       _unrecognized.remove(ackId);
     }
     notifyListeners();
-    updateAppBadge();
+    unawaited(updateAppBadge());
   }
 
   /// Dọn dẹp sạch toàn bộ hàng đợi giao dịch chờ và thông báo chưa đọc số tiền
@@ -322,6 +399,7 @@ class BankSyncService extends ChangeNotifier {
       _pending.clear();
       _unrecognized.clear();
       notifyListeners();
+      unawaited(updateAppBadge());
       return;
     }
 
@@ -339,7 +417,7 @@ class BankSyncService extends ChangeNotifier {
     _pending.clear();
     _unrecognized.clear();
     notifyListeners();
-    updateAppBadge(0);
+    unawaited(updateAppBadge());
   }
 
   Future<void> checkPendingNotifications() async {
@@ -363,6 +441,7 @@ class BankSyncService extends ChangeNotifier {
     } finally {
       _polling = false;
       notifyListeners();
+      unawaited(updateAppBadge());
     }
   }
 }

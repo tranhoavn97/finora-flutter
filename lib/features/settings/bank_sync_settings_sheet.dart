@@ -2,12 +2,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/services/bank_sync_service.dart';
 import '../../core/widgets/bank_icon.dart';
+import '../../core/widgets/finora_home_widget_card.dart';
 import '../../core/widgets/finora_modal_scope.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/finora_notice.dart';
+import '../../state/theme_studio_controller.dart';
 
 /// Trang / Bottom Sheet Cài Đặt Đọc Biến Động Số Dư (BETA)
 /// Tích hợp toàn bộ quyền thông báo, kiểm tra kết nối dịch vụ ngầm,
@@ -47,6 +50,7 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
     with WidgetsBindingObserver {
   final _service = BankSyncService();
   bool _granted = false;
+  bool _postNotifGranted = false;
   bool _isChecking = false;
 
   @override
@@ -69,8 +73,14 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
 
   Future<void> _refresh() async {
     final granted = await _service.isPermissionGranted();
+    final postGranted = await _service.isPostNotificationsGranted();
     await _service.checkPendingNotifications();
-    if (mounted) setState(() => _granted = granted);
+    if (mounted) {
+      setState(() {
+        _granted = granted;
+        _postNotifGranted = postGranted;
+      });
+    }
   }
 
   @override
@@ -85,6 +95,8 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
 
   Widget _buildScopedContent(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final studio = context.watch<ThemeStudioController?>();
+    final brandAccent = studio?.resolvedPrimary ?? const Color(0xFF059669);
     final screenH = MediaQuery.sizeOf(context).height;
 
     return SafeArea(
@@ -100,9 +112,7 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                 ? const Color(0xFF64748B)
                 : (!_granted
                     ? const Color(0xFFE11D48)
-                    : (isConnected
-                        ? const Color(0xFF059669)
-                        : const Color(0xFF0284C7)));
+                    : (isConnected ? brandAccent : const Color(0xFF0284C7)));
 
             final statusText = !isSupported
                 ? 'Không hỗ trợ trên nền tảng này'
@@ -153,15 +163,19 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  'Đọc biến động số dư',
-                                  style: TextStyle(
-                                    fontFamily: 'BeVietnamPro',
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                    color: isDark
-                                        ? Colors.white
-                                        : const Color(0xFF0F172A),
+                                Flexible(
+                                  child: Text(
+                                    'Đọc biến động số dư',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -202,13 +216,17 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                                   ),
                                 ),
                                 const SizedBox(width: 5),
-                                Text(
-                                  statusText,
-                                  style: TextStyle(
-                                    fontFamily: 'BeVietnamPro',
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: statusColor,
+                                Expanded(
+                                  child: Text(
+                                    statusText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: statusColor,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -242,6 +260,14 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                     physics: const BouncingScrollPhysics(),
                     children: [
+                      // Section 0: OS Status Bar & Launcher Icon Badge Notifications
+                      _buildSystemNotificationCard(
+                        isDark: isDark,
+                        isSupported: isSupported,
+                        accent: brandAccent,
+                      ),
+                      const SizedBox(height: 16),
+
                       // Section 1: Connection & Permissions Card
                       _buildServiceStatusCard(
                         isDark: isDark,
@@ -253,6 +279,10 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
 
                       // Section 1b: Real Recognition Queue Status
                       _buildRecognitionQueueCard(isDark),
+                      const SizedBox(height: 16),
+
+                      // Section 1c: Home Screen Widgets (5x2 & 5x4)
+                      const FinoraHomeWidgetCard(),
                       const SizedBox(height: 16),
 
                       // Section 2: Wallet & App Scan Settings
@@ -272,6 +302,234 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildSystemNotificationCard({
+    required bool isDark,
+    required bool isSupported,
+    required Color accent,
+  }) {
+    final badgeColor =
+        _postNotifGranted ? accent : const Color(0xFFD97706);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: badgeColor.withValues(alpha: isDark ? 0.45 : 0.30),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: badgeColor.withValues(alpha: isDark ? 0.12 : 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: badgeColor.withValues(alpha: isDark ? 0.22 : 0.14),
+                ),
+                child: Icon(
+                  _postNotifGranted
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_off_rounded,
+                  color: badgeColor,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Thông báo & Số trên biểu tượng app',
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 13.8,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      !isSupported
+                          ? 'Chỉ khả dụng trên thiết bị Android.'
+                          : (_postNotifGranted
+                              ? 'Đang bật: hiện banner thanh trạng thái & đếm số ngoài icon FINORA.'
+                              : 'Đang tắt trên thiết bị: hãy bật để nhận thông báo thanh trạng thái & số đếm ngoài icon.'),
+                      style: TextStyle(
+                        fontFamily: 'BeVietnamPro',
+                        fontSize: 11.4,
+                        height: 1.35,
+                        color: isDark
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSupported)
+                Switch.adaptive(
+                  value: _postNotifGranted,
+                  activeThumbColor: accent,
+                  activeTrackColor: accent.withValues(alpha: 0.45),
+                  onChanged: (_) async {
+                    HapticFeedback.selectionClick();
+                    if (_postNotifGranted) {
+                      await _service.openNotificationSettings();
+                    } else {
+                      final ok = await _service.requestPostNotifications();
+                      if (!ok) {
+                        await _service.openNotificationSettings();
+                      }
+                      await _service.updateAppBadge();
+                    }
+                    await _refresh();
+                  },
+                ),
+            ],
+          ),
+          if (isSupported) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (!_postNotifGranted)
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        HapticFeedback.mediumImpact();
+                        final ok = await _service.requestPostNotifications();
+                        if (!ok) {
+                          await _service.openNotificationSettings();
+                        }
+                        await _service.updateAppBadge();
+                        await _refresh();
+                      },
+                      icon: const Icon(Icons.notifications_active_rounded, size: 16),
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Bật thông báo ngay',
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 11),
+                        shape: const StadiumBorder(),
+                      ),
+                    ),
+                  )
+                else ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        HapticFeedback.selectionClick();
+                        await _service.openNotificationSettings();
+                        await _refresh();
+                      },
+                      icon: const Icon(Icons.tune_rounded, size: 16),
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Cài đặt thông báo máy',
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11.8,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: accent,
+                        side: BorderSide(color: accent.withValues(alpha: 0.55)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 11),
+                        shape: const StadiumBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        HapticFeedback.mediumImpact();
+                        final pendingTotal = _service.totalBadgeCount;
+                        final testBadge = pendingTotal > 0 ? pendingTotal : 1;
+                        final shown = await _service.showSystemNotification(
+                          title: 'FINORA • Kiểm tra thông báo',
+                          body:
+                              'Thanh trạng thái & số đếm ($testBadge) trên icon FINORA đang hoạt động bình thường.',
+                          channel: 'bank',
+                          fromBankSync: true,
+                        );
+                        await _service.updateAppBadge(testBadge);
+                        if (!mounted) return;
+                        FinoraNotice.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              shown
+                                  ? 'Đã gửi thông báo thanh trạng thái & cập nhật số ($testBadge) lên icon!'
+                                  : 'Hệ thống đang chặn thông báo. Hãy bật trong Cài đặt thông báo máy.',
+                            ),
+                            backgroundColor: shown
+                                ? const Color(0xFF059669)
+                                : const Color(0xFFD97706),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.send_rounded, size: 15),
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Thử thông báo',
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 11.8,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 11),
+                        shape: const StadiumBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

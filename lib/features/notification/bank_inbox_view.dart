@@ -23,20 +23,42 @@ class BankInboxView extends StatefulWidget {
   State<BankInboxView> createState() => _BankInboxViewState();
 }
 
-class _BankInboxViewState extends State<BankInboxView> {
+class _BankInboxViewState extends State<BankInboxView>
+    with WidgetsBindingObserver {
   final _bank = BankSyncService();
   bool? _granted;
+  bool _postNotifGranted = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refresh();
+    }
   }
 
   Future<void> _refresh() async {
     final granted = await _bank.isPermissionGranted();
+    final postGranted = await _bank.isPostNotificationsGranted();
     await _bank.reconnect();
-    if (mounted) setState(() => _granted = granted);
+    if (mounted) {
+      setState(() {
+        _granted = granted;
+        _postNotifGranted = !_bank.supported || postGranted;
+      });
+    }
   }
 
   Future<void> _review(ParsedBankTransaction tx) async {
@@ -129,6 +151,154 @@ class _BankInboxViewState extends State<BankInboxView> {
               parent: BouncingScrollPhysics(),
             ),
             children: [
+              if (!kIsWeb &&
+                  _bank.supported &&
+                  (!_postNotifGranted || _granted == false))
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B)
+                          .withValues(alpha: isDark ? 0.50 : 0.40),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF59E0B)
+                            .withValues(alpha: isDark ? 0.10 : 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFF59E0B)
+                                  .withValues(alpha: isDark ? 0.22 : 0.14),
+                            ),
+                            child: const Icon(
+                              Icons.notifications_active_rounded,
+                              size: 18,
+                              color: Color(0xFFD97706),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  !_postNotifGranted
+                                      ? 'Chưa bật thông báo trên máy'
+                                      : 'Chưa bật quyền đọc số dư ngân hàng',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  !_postNotifGranted
+                                      ? 'Bật quyền hiển thị để thấy banner thanh trạng thái & số đếm ngoài icon FINORA.'
+                                      : 'Cấp quyền đọc thông báo để FINORA tự bắt biến động ngân hàng.',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 11.4,
+                                    color: isDark
+                                        ? const Color(0xFFCBD5E1)
+                                        : const Color(0xFF475569),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          if (!_postNotifGranted)
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () async {
+                                  HapticFeedback.mediumImpact();
+                                  final ok =
+                                      await _bank.requestPostNotifications();
+                                  if (!ok) {
+                                    await _bank.openNotificationSettings();
+                                  }
+                                  await _bank.updateAppBadge();
+                                  await _refresh();
+                                },
+                                icon: const Icon(
+                                    Icons.notifications_on_rounded,
+                                    size: 16),
+                                label: const Text(
+                                  'Bật thông báo & Badge',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF059669),
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                  shape: const StadiumBorder(),
+                                ),
+                              ),
+                            ),
+                          if (!_postNotifGranted && _granted == false)
+                            const SizedBox(width: 8),
+                          if (_granted == false)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  HapticFeedback.selectionClick();
+                                  await _bank.requestPermission();
+                                  await _refresh();
+                                },
+                                icon: const Icon(Icons.account_balance_rounded,
+                                    size: 16),
+                                label: const Text(
+                                  'Bật đọc số dư',
+                                  style: TextStyle(
+                                    fontFamily: 'BeVietnamPro',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF059669),
+                                  side: const BorderSide(
+                                      color: Color(0xFF059669)),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                  shape: const StadiumBorder(),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               if (totalCount > 0) ...[
                 // Action toolbar moved out of header: Xoá tất cả giao dịch chờ
                 Container(

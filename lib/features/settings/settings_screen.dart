@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/widgets/finora_home_widget_card.dart';
 import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/finora_member_filter.dart';
 import '../../core/widgets/finora_notice.dart';
@@ -2745,6 +2746,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            const FinoraHomeWidgetCard(),
           ],
         ),
       );

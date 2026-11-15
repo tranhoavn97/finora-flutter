@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="finora_widget_5x2_label">FINORA 5×2 • Chi tiêu &amp; Số dư chờ</string>
+    <string name="finora_widget_5x2_desc">Theo dõi nhanh chi tiêu hôm nay, tháng này, tổng số dư và các biến động ngân hàng cần ghi chép.</string>
+    <string name="finora_widget_5x4_label">FINORA 5×4 • Bảng theo dõi chi tiêu</string>
+    <string name="finora_widget_5x4_desc">Bảng điều khiển trực tiếp chi tiêu, tổng số dư ví, danh sách biến động ngân hàng cần ghi chép và giao dịch gần đây.</string>
+</resources>

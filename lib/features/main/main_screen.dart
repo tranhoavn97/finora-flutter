@@ -4,17 +4,22 @@ import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/bank_notification_parser.dart';
 import '../../core/services/bank_sync_service.dart';
+import '../../core/services/home_widget_sync_service.dart';
 import '../../core/widgets/bank_transaction_prompt_sheet.dart';
 import '../notification/notification_screen.dart';
 import '../../core/widgets/finora_navigation.dart';
 import '../../core/widgets/finora_motion.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../core/widgets/super_action_sheet.dart';
+import '../../data/models/finance_models.dart';
 import '../../state/auth_provider.dart';
+import '../../state/dashboard_provider.dart';
 import '../../state/family_provider.dart';
+import '../../state/more_provider.dart';
 import '../../state/theme_studio_controller.dart';
 import '../../data/services/supabase_bridge.dart';
 import '../../data/services/qr_payment_draft_store.dart';
@@ -23,6 +28,7 @@ import '../auth/auth_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../planning/planning_hub_screen.dart';
 import '../profile/profile_screen.dart';
+import '../transaction/add_transaction_page.dart';
 import '../wallet/wealth_hub_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -46,6 +52,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final Set<String> _promptedBankIds = <String>{};
   final Set<String> _promptedQrDraftIds = <String>{};
   StreamSubscription<void>? _bankInboxSubscription;
+  StreamSubscription<String>? _launchActionSubscription;
+  VoidCallback? _bankListener;
+  String _lastMoreSyncSig = '';
+  bool _checkingShownNotifs = false;
+  bool _openingQuickAdd = false;
   bool _foreground = true;
 
   @override
@@ -218,6 +229,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
     _wasBankSyncGranted = granted;
     await BankSyncService().reconnect();
+    await BankSyncService().consumeLaunchAction();
+    await _syncWidgetsFromCurrentState();
   }
 
   Future<void> _promptPendingBankTransactions({
@@ -277,12 +290,137 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _handleLaunchAction(String action) async {
+    if (!mounted || widget.user == null) return;
+    if (action == 'open_bank_inbox') {
+      await _openBankInbox();
+    } else if (action == 'add_transaction') {
+      if (_openingQuickAdd) return;
+      _openingQuickAdd = true;
+      try {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AddTransactionPage(userId: widget.user!.uid),
+          ),
+        );
+      } finally {
+        _openingQuickAdd = false;
+      }
+    }
+  }
+
+  Future<void> _ensurePostNotificationsPermissionOnStart() async {
+    final bank = BankSyncService();
+    if (!bank.supported) return;
+    try {
+      final alreadyGranted = await bank.isPostNotificationsGranted();
+      if (alreadyGranted) {
+        await bank.updateAppBadge();
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'finora_post_notif_prompted_v1';
+      if (prefs.getBool(key) == true) return;
+      await prefs.setBool(key, true);
+      await Future.delayed(const Duration(milliseconds: 650));
+      if (!mounted) return;
+      final ok = await bank.requestPostNotifications();
+      if (ok) {
+        await bank.updateAppBadge();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _syncWidgetsFromCurrentState() async {
+    if (!mounted) return;
+    final dash = Provider.of<DashboardProvider?>(context, listen: false);
+    final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final bank = BankSyncService();
+    if (dash == null) return;
+    await HomeWidgetSyncService().sync(
+      dashboardData: dash.data,
+      pendingCount: bank.pending.length + bank.unrecognizedCount,
+      hideAmounts: studio?.isPrivacyShieldActive ?? false,
+    );
+  }
+
+  Future<void> _dispatchNewStatusBarNotifications(
+    List<AppNotification> unreadItems,
+  ) async {
+    if (_checkingShownNotifs || unreadItems.isEmpty) return;
+    final bank = BankSyncService();
+    if (!bank.supported) return;
+    _checkingShownNotifs = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'finora_shown_system_notifs_v1';
+      final shown = (prefs.getStringList(key) ?? const <String>[]).toSet();
+      final cutoffMs = DateTime.now()
+          .subtract(const Duration(hours: 48))
+          .millisecondsSinceEpoch;
+
+      final toPost = <AppNotification>[];
+      for (final item in unreadItems) {
+        if (item.id.isEmpty || shown.contains(item.id)) continue;
+        if (item.createdAt > 0 && item.createdAt < cutoffMs) {
+          shown.add(item.id);
+          continue;
+        }
+        toPost.add(item);
+      }
+
+      if (toPost.isNotEmpty) {
+        final granted = await bank.isPostNotificationsGranted();
+        if (granted) {
+          for (final item in toPost.take(3)) {
+            final title = (item.title ?? '').trim().isNotEmpty
+                ? item.title!.trim()
+                : 'FINORA Thông báo';
+            final body = (item.message ?? '').trim().isNotEmpty
+                ? item.message!.trim()
+                : 'Bạn có thông báo tài chính mới.';
+            await bank.showSystemNotification(
+              title: title,
+              body: body,
+              channel: 'activity',
+              id: (item.id.hashCode & 0x7FFF) + 5000,
+              fromBankSync: true,
+            );
+            shown.add(item.id);
+          }
+        }
+      }
+      final trimmed = shown.toList();
+      await prefs.setStringList(
+        key,
+        trimmed.length > 80 ? trimmed.sublist(trimmed.length - 80) : trimmed,
+      );
+    } catch (_) {
+    } finally {
+      _checkingShownNotifs = false;
+    }
+  }
+
   void _initBankSync() {
     if (widget.user == null) return;
+    _bankListener = () {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _syncWidgetsFromCurrentState();
+      });
+    };
+    BankSyncService().addListener(_bankListener!);
+
     _bankInboxSubscription = BankSyncService().onInboxRequested.listen((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         await _openBankInbox();
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    });
+    _launchActionSubscription = BankSyncService().onLaunchAction.listen((action) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _handleLaunchAction(action);
       });
       WidgetsBinding.instance.ensureVisualUpdate();
     });
@@ -299,6 +437,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _promptPendingBankTransactions();
+          _ensurePostNotificationsPermissionOnStart();
+          _syncWidgetsFromCurrentState();
         }
       });
     });
@@ -309,6 +449,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _bankSyncSubscription?.cancel();
     _bankInboxSubscription?.cancel();
+    _launchActionSubscription?.cancel();
+    if (_bankListener != null) {
+      BankSyncService().removeListener(_bankListener!);
+    }
     super.dispose();
   }
 
@@ -316,6 +460,26 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final uid = widget.user?.uid ?? '';
     final familyId = context.watch<FamilyProvider>().familyId;
+    final more = context.watch<MoreProvider?>();
+    context.watch<DashboardProvider?>();
+    context.watch<ThemeStudioController?>();
+
+    if (more != null) {
+      final unread = more.notifications.where((n) => !n.isRead).toList();
+      final sig = unread.map((n) => '${n.id}:${n.createdAt}').join('|');
+      if (sig != _lastMoreSyncSig) {
+        _lastMoreSyncSig = sig;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          unawaited(BankSyncService().setUnreadActivityCount(unread.length));
+          unawaited(_dispatchNewStatusBarNotifications(unread));
+        });
+      }
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncWidgetsFromCurrentState();
+    });
+
     final name = widget.user?.displayName ??
         (widget.user?.email?.split('@').first ?? 'Bạn');
 

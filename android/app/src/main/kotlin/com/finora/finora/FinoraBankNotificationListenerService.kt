@@ -13,6 +13,7 @@ import android.net.Uri
 import android.content.ContentValues
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import android.content.Context
 import android.content.ComponentName
 import android.content.pm.PackageManager
@@ -30,85 +31,201 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         const val PREFS_NAME = "finora_bank_sync_prefs"
         const val KEY_PENDING_NOTIFICATIONS = "pending_notifications"
         private const val KEY_HANDLED = "handled_notifications"
+        private const val KEY_EXTRA_BADGE_COUNT = "extra_badge_count"
+        const val CHANNEL_BANK_SYNC = "finora_bank_sync_channel_v2"
+        const val CHANNEL_APP_BADGE = "finora_app_badge_channel_v2"
+        const val CHANNEL_ACTIVITY = "finora_activity_channel_v1"
+        private const val BADGE_NOTIFICATION_ID = 88888
         @Volatile var instance: FinoraBankNotificationListenerService? = null
         @Volatile var connected = false
         var onConnectionStatusChanged: ((Boolean) -> Unit)? = null
         private val queueLock = Any()
 
-        fun updateAppBadge(context: Context, count: Int) {
+        fun ensureNotificationChannels(context: Context) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             try {
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                val badgeChannelId = "finora_app_badge_channel"
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val channel = NotificationChannel(
-                        badgeChannelId,
-                        "FINORA Số thông báo",
-                        NotificationManager.IMPORTANCE_MIN
-                    ).apply {
-                        setShowBadge(true)
-                        description = "Hiển thị số lượng thông báo trên biểu tượng ứng dụng"
-                    }
-                    notificationManager.createNotificationChannel(channel)
-                }
+                val notificationManager =
+                    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-                if (count > 0) {
-                    val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                // Remove legacy low-importance / duplicate channels on upgrade.
+                try {
+                    notificationManager.deleteNotificationChannel("finora_app_badge_channel")
+                    notificationManager.deleteNotificationChannel("finora_bank_sync_channel")
+                } catch (_: Exception) {}
+
+                val bankChannel = NotificationChannel(
+                    CHANNEL_BANK_SYNC,
+                    "Biến động số dư ngân hàng",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Thông báo ngay khi nhận được biến động số dư từ ngân hàng hoặc ví điện tử"
+                    enableVibration(true)
+                    setShowBadge(false)
+                }
+                notificationManager.createNotificationChannel(bankChannel)
+
+                val activityChannel = NotificationChannel(
+                    CHANNEL_ACTIVITY,
+                    "Nhắc nhở & Hoạt động tài chính",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "Cảnh báo hạn mức, nhắc lịch sổ nợ và hoạt động ví gia đình"
+                    enableVibration(true)
+                    setShowBadge(false)
+                }
+                notificationManager.createNotificationChannel(activityChannel)
+
+                // Launcher badge channel must be IMPORTANCE_LOW+ and not MIN so launchers show badge numbers.
+                val badgeChannel = NotificationChannel(
+                    CHANNEL_APP_BADGE,
+                    "Số thông báo trên biểu tượng ứng dụng",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Hiển thị số lượng biến động và thông báo chưa đọc trên icon FINORA"
+                    setSound(null, null)
+                    enableVibration(false)
+                    setShowBadge(true)
+                }
+                notificationManager.createNotificationChannel(badgeChannel)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to create notification channels: ${e.message}")
+            }
+        }
+
+        fun setExtraBadgeCount(context: Context, extraCount: Int) {
+            val sanitized = extraCount.coerceAtLeast(0)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putInt(KEY_EXTRA_BADGE_COUNT, sanitized).apply()
+            refreshCombinedBadge(context)
+        }
+
+        fun refreshCombinedBadge(context: Context) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val pendingCount = try {
+                JSONArray(prefs.getString(KEY_PENDING_NOTIFICATIONS, "[]")).length()
+            } catch (_: Exception) {
+                0
+            }
+            val extraCount = prefs.getInt(KEY_EXTRA_BADGE_COUNT, 0).coerceAtLeast(0)
+            updateAppBadge(context, pendingCount + extraCount)
+        }
+
+        fun updateAppBadge(context: Context, rawCount: Int) {
+            val count = rawCount.coerceAtLeast(0)
+            try {
+                ensureNotificationChannels(context)
+                val notificationManager =
+                    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+                if (count > 0 && NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                    val launchIntent = Intent(context, MainActivity::class.java).apply {
+                        action = Intent.ACTION_MAIN
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP
                         putExtra("from_bank_sync", true)
                     }
-                    val pendingIntent = if (launchIntent != null) {
-                        PendingIntent.getActivity(
-                            context,
-                            8888,
-                            launchIntent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-                        )
-                    } else null
+                    val pendingIntent = PendingIntent.getActivity(
+                        context,
+                        8888,
+                        launchIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or
+                            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                    )
 
-                    val builder = NotificationCompat.Builder(context, badgeChannelId)
+                    val pendingLen = try {
+                        val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        JSONArray(p.getString(KEY_PENDING_NOTIFICATIONS, "[]")).length()
+                    } catch (_: Exception) {
+                        0
+                    }
+                    val summaryText = if (pendingLen > 0) {
+                        "Có $count thông báo ($pendingLen biến động số dư chờ ghi sổ)"
+                    } else {
+                        "Có $count thông báo chưa đọc trong FINORA"
+                    }
+
+                    val builder = NotificationCompat.Builder(context, CHANNEL_APP_BADGE)
                         .setSmallIcon(R.drawable.finora_bank_notification)
                         .setContentTitle("FINORA")
-                        .setContentText("Có $count biến động số dư đang chờ xử lý")
+                        .setContentText(summaryText)
                         .setNumber(count)
                         .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
-                        .setPriority(NotificationCompat.PRIORITY_MIN)
-                        .setOngoing(true)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .setCategory(NotificationCompat.CATEGORY_STATUS)
+                        .setGroup("finora_app_badge_group")
+                        .setOnlyAlertOnce(true)
+                        .setSilent(true)
+                        .setOngoing(false)
                         .setAutoCancel(false)
+                        .setContentIntent(pendingIntent)
 
-                    if (pendingIntent != null) {
-                        builder.setContentIntent(pendingIntent)
-                    }
-                    notificationManager.notify(88888, builder.build())
+                    val notification = builder.build()
+                    // Reflection fallback for MIUI / HyperOS badge field
+                    try {
+                        val field = notification.javaClass.getDeclaredField("extraNotification")
+                        val extraNotification = field.get(notification)
+                        val setMsgCount = extraNotification?.javaClass?.getDeclaredMethod(
+                            "setMessageCount",
+                            Int::class.javaPrimitiveType
+                        )
+                        setMsgCount?.invoke(extraNotification, count)
+                    } catch (_: Exception) {}
+
+                    notificationManager.notify(BADGE_NOTIFICATION_ID, notification)
                 } else {
-                    notificationManager.cancel(88888)
+                    notificationManager.cancel(BADGE_NOTIFICATION_ID)
                 }
 
-                // 1. Samsung OneUI Badge
+                val launcherClass = context.packageManager
+                    .getLaunchIntentForPackage(context.packageName)
+                    ?.component
+                    ?.className
+                    ?: "com.finora.finora.MainActivity"
+
+                // 1. Samsung OneUI Badge (update first, insert fallback)
                 try {
                     val contentUri = Uri.parse("content://com.sec.android.provider.badge/apps")
                     val contentValues = ContentValues().apply {
                         put("package", context.packageName)
-                        put("class", "com.finora.finora.MainActivity")
+                        put("class", launcherClass)
                         put("badgecount", count)
                     }
-                    context.contentResolver.insert(contentUri, contentValues)
+                    val updated = context.contentResolver.update(
+                        contentUri,
+                        contentValues,
+                        "package=? AND class=?",
+                        arrayOf(context.packageName, launcherClass)
+                    )
+                    if (updated == 0) {
+                        context.contentResolver.insert(contentUri, contentValues)
+                    }
                 } catch (_: Exception) {}
 
-                // 2. Xiaomi / MIUI / HyperOS Badge
+                // 2. Xiaomi / MIUI / HyperOS Badge broadcast
                 try {
-                    val miuiIntent = Intent("android.intent.action.APPLICATION_MESSAGE_UPDATE")
-                    miuiIntent.putExtra("android.intent.extra.update_application_component_name", "${context.packageName}/com.finora.finora.MainActivity")
-                    miuiIntent.putExtra("android.intent.extra.update_application_message_text", if (count > 0) count.toString() else "")
+                    val miuiIntent = Intent("android.intent.action.APPLICATION_MESSAGE_UPDATE").apply {
+                        putExtra(
+                            "android.intent.extra.update_application_component_name",
+                            "${context.packageName}/$launcherClass"
+                        )
+                        putExtra(
+                            "android.intent.extra.update_application_message_text",
+                            if (count > 0) count.toString() else ""
+                        )
+                    }
                     context.sendBroadcast(miuiIntent)
                 } catch (_: Exception) {}
 
-                // 3. Sony
+                // 3. Sony Xperia
                 try {
-                    val sonyIntent = Intent("com.sonyericsson.home.action.UPDATE_BADGE")
-                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.PACKAGE_NAME", context.packageName)
-                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.ACTIVITY_NAME", "com.finora.finora.MainActivity")
-                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.MESSAGE", count.toString())
-                    sonyIntent.putExtra("com.sonyericsson.home.intent.extra.badge.SHOW_MESSAGE", count > 0)
+                    val sonyIntent = Intent("com.sonyericsson.home.action.UPDATE_BADGE").apply {
+                        putExtra("com.sonyericsson.home.intent.extra.badge.PACKAGE_NAME", context.packageName)
+                        putExtra("com.sonyericsson.home.intent.extra.badge.ACTIVITY_NAME", launcherClass)
+                        putExtra("com.sonyericsson.home.intent.extra.badge.MESSAGE", if (count > 0) count.toString() else "")
+                        putExtra("com.sonyericsson.home.intent.extra.badge.SHOW_MESSAGE", count > 0)
+                    }
                     context.sendBroadcast(sonyIntent)
                 } catch (_: Exception) {}
 
@@ -116,13 +233,95 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 try {
                     val bundle = Bundle().apply {
                         putString("package", context.packageName)
-                        putString("class", "com.finora.finora.MainActivity")
+                        putString("class", launcherClass)
                         putInt("badgenumber", count)
                     }
-                    context.contentResolver.call(Uri.parse("content://com.huawei.android.launcher.settings/badge/"), "change_badge", null, bundle)
+                    context.contentResolver.call(
+                        Uri.parse("content://com.huawei.android.launcher.settings/badge/"),
+                        "change_badge",
+                        null,
+                        bundle
+                    )
+                } catch (_: Exception) {}
+
+                // 5. OPPO / Realme ColorOS
+                try {
+                    val extras = Bundle().apply {
+                        putInt("app_badge_count", count)
+                    }
+                    context.contentResolver.call(
+                        Uri.parse("content://com.android.badge/badge"),
+                        "setAppBadgeCount",
+                        null,
+                        extras
+                    )
+                } catch (_: Exception) {}
+
+                // 6. Vivo OriginOS / FuntouchOS
+                try {
+                    val vivoIntent = Intent("launcher.action.CHANGE_APPLICATION_NOTIFICATION_NUM").apply {
+                        putExtra("packageName", context.packageName)
+                        putExtra("className", launcherClass)
+                        putExtra("notificationNum", count)
+                    }
+                    context.sendBroadcast(vivoIntent)
                 } catch (_: Exception) {}
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to update launcher badge: ${e.message}")
+            }
+        }
+
+        fun showSystemNotification(
+            context: Context,
+            title: String,
+            body: String,
+            channelId: String = CHANNEL_ACTIVITY,
+            notifId: Int = ((System.currentTimeMillis() % 90000L) + 1000L).toInt(),
+            fromBankSync: Boolean = false,
+            finoraAction: String? = null
+        ): Boolean {
+            return try {
+                ensureNotificationChannels(context)
+                if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                    return false
+                }
+                val notificationManager =
+                    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                val launchIntent = Intent(context, MainActivity::class.java).apply {
+                    action = Intent.ACTION_MAIN
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    if (fromBankSync) putExtra("from_bank_sync", true)
+                    if (!finoraAction.isNullOrBlank()) putExtra("finora_action", finoraAction)
+                }
+                val pendingIntent = PendingIntent.getActivity(
+                    context,
+                    notifId,
+                    launchIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or
+                        (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                )
+
+                val builder = NotificationCompat.Builder(context, channelId)
+                    .setSmallIcon(R.drawable.finora_bank_notification)
+                    .setContentTitle(title)
+                    .setContentText(body)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                    .setPriority(
+                        if (channelId == CHANNEL_BANK_SYNC) NotificationCompat.PRIORITY_HIGH
+                        else NotificationCompat.PRIORITY_DEFAULT
+                    )
+                    .setGroup("finora_events_group")
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent)
+
+                notificationManager.notify(notifId, builder.build())
+                true
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to show system notification: ${e.message}")
+                false
             }
         }
 
@@ -174,7 +373,10 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             // Keep IDs, not notification bodies, for replay prevention.
             val ok = prefs.edit().putString(KEY_PENDING_NOTIFICATIONS, keep.toString())
                 .putStringSet(KEY_HANDLED, handled).commit()
-            if (ok) updateAppBadge(context, keep.length())
+            if (ok) {
+                refreshCombinedBadge(context)
+                FinoraWidgetHelper.updateAllWidgets(context)
+            }
             ok
         }
 
@@ -413,7 +615,10 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             // Never drop pending financial events just because the app has not opened.
             val ok = prefs.edit().putString(KEY_PENDING_NOTIFICATIONS, array.toString())
                 .putLong("lastReceivedAt", jsonObj.getLong("timestamp")).commit()
-            if (ok) updateAppBadge(context, array.length())
+            if (ok) {
+                refreshCombinedBadge(context)
+                FinoraWidgetHelper.updateAllWidgets(context)
+            }
             ok
         }
     }
@@ -421,6 +626,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        ensureNotificationChannels(applicationContext)
     }
 
     override fun onListenerConnected() {
@@ -449,33 +655,28 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
 
     private fun showCapturedNotification(context: Context, title: String, text: String, pkg: String = "") {
         try {
-            val channelId = "finora_bank_sync_channel"
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    channelId,
-                    "FINORA Nhận diện giao dịch ngân hàng",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Thông báo nhận diện biến động số dư ngân hàng tự động"
-                    enableVibration(true)
-                    setShowBadge(true)
-                }
-                notificationManager.createNotificationChannel(channel)
+            ensureNotificationChannels(context)
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                return
             }
+            val channelId = CHANNEL_BANK_SYNC
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            val launchIntent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("from_bank_sync", true)
             }
-            val pendingIntent = if (launchIntent != null) {
-                PendingIntent.getActivity(
-                    context,
-                    System.currentTimeMillis().toInt(),
-                    launchIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-                )
-            } else null
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                System.currentTimeMillis().toInt(),
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or
+                    (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
 
             // Determine bank name from package, title or text
             val combined = "$pkg $title $text".lowercase()

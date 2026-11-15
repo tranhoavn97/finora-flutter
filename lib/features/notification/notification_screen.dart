@@ -68,6 +68,9 @@ class _NotificationScreenState extends State<NotificationScreen>
         await more.markNotificationAsRead(widget.userId, n.id);
       }
     }
+    await _bank.setUnreadActivityCount(
+      more.notifications.where((n) => !n.isRead).length,
+    );
   }
 
   Future<void> _confirmClearAllNotifications(
@@ -139,9 +142,8 @@ class _NotificationScreenState extends State<NotificationScreen>
     if (confirm == true && mounted) {
       await more.clearAllNotifications(widget.userId);
       // Dọn dẹp đồng thời các giao dịch ngân hàng đang chờ bóc tách nếu có
-      for (final tx in _bank.pending) {
-        await _bank.acknowledge(tx.rawId);
-      }
+      await _bank.acknowledgeAll();
+      await _bank.setUnreadActivityCount(0);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
