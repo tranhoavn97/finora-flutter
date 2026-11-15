@@ -533,16 +533,8 @@ class _TransactionDetailModalContent extends StatelessWidget {
               children: [
                 // Single crisp circular category badge
                 Container(
-                  width: 62,
-                  height: 62,
-                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.78),
-                      width: 2.0,
-                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.14),
@@ -551,13 +543,11 @@ class _TransactionDetailModalContent extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: CategoryIconBadge(
-                      icon: tx.categoryIcon,
-                      categoryName: tx.categoryName,
-                      size: 58,
-                      isDark: false,
-                    ),
+                  child: CategoryIconBadge(
+                    icon: tx.categoryIcon,
+                    categoryName: tx.categoryName,
+                    size: 62,
+                    isDark: false,
                   ),
                 ),
                 const SizedBox(height: 11),

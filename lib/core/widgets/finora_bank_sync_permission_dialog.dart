@@ -282,9 +282,7 @@ class FinoraBankSyncPermissionDialog extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 4,
                 shadowColor: const Color(0xFF059669).withValues(alpha: 0.40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                shape: const StadiumBorder(),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: () async {

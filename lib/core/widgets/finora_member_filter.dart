@@ -56,11 +56,11 @@ class FinoraMemberAvatar extends StatelessWidget {
     return null;
   }
 
-  static Color colorFor(String? member) {
+  static Color colorFor(String? member, {Color? jointFallback}) {
     final norm = normalizeMember(member);
     if (norm == 'husband') return const Color(0xFF0284C7);
     if (norm == 'wife') return const Color(0xFFE11D48);
-    return const Color(0xFF059669);
+    return jointFallback ?? const Color(0xFF059669);
   }
 
   static IconData defaultIconFor(String? member) {
@@ -148,7 +148,10 @@ class FinoraMemberAvatar extends StatelessWidget {
         studio ?? Provider.of<ThemeStudioController?>(context, listen: true);
     final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
     final normalized = normalizeMember(member);
-    final accent = colorFor(normalized);
+    final accent = colorFor(
+      normalized,
+      jointFallback: effectiveStudio?.resolvedPrimary,
+    );
     final baseSurface = dark ? const Color(0xFF1E293B) : Colors.white;
     final badgeBg = Color.alphaBlend(
       accent.withValues(alpha: dark ? 0.30 : 0.16),
@@ -299,7 +302,10 @@ class FinoraUnifiedMemberPill extends StatelessWidget {
             currentMember == 'joint')
         ? null
         : currentMember;
-    final color = FinoraMemberAvatar.colorFor(member);
+    final color = FinoraMemberAvatar.colorFor(
+      member,
+      jointFallback: studio?.resolvedPrimary,
+    );
     final isFiltered = member != null;
     final btnSize = height ?? 36.0;
 
@@ -322,15 +328,17 @@ class FinoraUnifiedMemberPill extends StatelessWidget {
             ? (studio?.wifeDisplayLabel ?? 'Vợ')
             : 'Tất cả');
 
-    final tooltipLabel =
-        'Đang lọc: $memberLabel (Chạm để đổi hoặc tải ảnh avatar)';
+    final tooltipLabel = 'Đang lọc: $memberLabel (Chạm để đổi)';
 
     final borderColor = isFiltered
         ? Color.alphaBlend(
             color.withValues(alpha: isDark ? 0.75 : 0.55),
             baseSurface,
           )
-        : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1));
+        : Color.alphaBlend(
+            color.withValues(alpha: isDark ? 0.42 : 0.32),
+            isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+          );
 
     final pillContent = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -480,67 +488,16 @@ class _FinoraMemberFilterSheetContent extends StatefulWidget {
 
 class _FinoraMemberFilterSheetContentState
     extends State<_FinoraMemberFilterSheetContent> {
-  late final TextEditingController _husbandCtrl;
-  late final TextEditingController _wifeCtrl;
-  final FocusNode _husbandFocus = FocusNode();
-  final FocusNode _wifeFocus = FocusNode();
-  ThemeStudioController? _studioRef;
-  bool _showCustomizeDrawer = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _studioRef = Provider.of<ThemeStudioController?>(context, listen: false);
-    _husbandCtrl = TextEditingController(text: _studioRef?.husbandName ?? '');
-    _wifeCtrl = TextEditingController(text: _studioRef?.wifeName ?? '');
-    _husbandFocus.addListener(_onFocusChange);
-    _wifeFocus.addListener(_onFocusChange);
-  }
-
-  void _onFocusChange() {
-    if (!_husbandFocus.hasFocus && !_wifeFocus.hasFocus && mounted) {
-      _studioRef?.notifyMemberNamesChanged();
-    }
-  }
-
-  @override
-  void dispose() {
-    _husbandFocus.removeListener(_onFocusChange);
-    _wifeFocus.removeListener(_onFocusChange);
-    final studio = _studioRef;
-    if (studio != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        studio.notifyMemberNamesChanged();
-      });
-    }
-    _husbandFocus.dispose();
-    _wifeFocus.dispose();
-    _husbandCtrl.dispose();
-    _wifeCtrl.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final active = widget.activeTag;
     final liveStudio =
         Provider.of<ThemeStudioController?>(context, listen: true);
-    _studioRef = liveStudio;
     final primaryColor =
         liveStudio?.resolvedPrimary ?? const Color(0xFF059669);
     final secondaryColor =
         liveStudio?.resolvedSecondary ?? const Color(0xFF0284C7);
-
-    if (liveStudio != null) {
-      if (!_husbandFocus.hasFocus &&
-          _husbandCtrl.text != liveStudio.husbandName) {
-        _husbandCtrl.text = liveStudio.husbandName;
-      }
-      if (!_wifeFocus.hasFocus && _wifeCtrl.text != liveStudio.wifeName) {
-        _wifeCtrl.text = liveStudio.wifeName;
-      }
-    }
 
     final husbandTitle = liveStudio?.husbandDisplayLabel ?? 'Chồng';
     final wifeTitle = liveStudio?.wifeDisplayLabel ?? 'Vợ';
@@ -563,7 +520,7 @@ class _FinoraMemberFilterSheetContentState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Compact Header + "Tùy chỉnh" Pill Button
+              // 1. Clean Compact Header (filter-only outside settings)
               Row(
                 children: [
                   Container(
@@ -608,7 +565,7 @@ class _FinoraMemberFilterSheetContentState
                         ),
                         const SizedBox(height: 1),
                         Text(
-                          'Chạm thẻ để lọc · Nhấn icon máy ảnh để đổi avatar',
+                          'Chạm thẻ để lọc dữ liệu theo thành viên',
                           style: TextStyle(
                             fontSize: 11,
                             color: isDark
@@ -619,59 +576,6 @@ class _FinoraMemberFilterSheetContentState
                       ],
                     ),
                   ),
-                  if (liveStudio != null)
-                    InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() {
-                          _showCustomizeDrawer = !_showCustomizeDrawer;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(999),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _showCustomizeDrawer
-                              ? primaryColor
-                              : primaryColor.withValues(
-                                  alpha: isDark ? 0.18 : 0.10),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: primaryColor.withValues(alpha: 0.35),
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _showCustomizeDrawer
-                                  ? Icons.expand_less_rounded
-                                  : Icons.edit_note_rounded,
-                              size: 14,
-                              color: _showCustomizeDrawer
-                                  ? Colors.white
-                                  : primaryColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Đổi tên',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: _showCustomizeDrawer
-                                    ? Colors.white
-                                    : primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -689,11 +593,6 @@ class _FinoraMemberFilterSheetContentState
                       isSelected: active == null,
                       isDark: isDark,
                       onSelected: widget.onSelected,
-                      onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
-                        context,
-                        role: 'joint',
-                        isDark: isDark,
-                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -707,11 +606,6 @@ class _FinoraMemberFilterSheetContentState
                       isSelected: active == 'husband',
                       isDark: isDark,
                       onSelected: widget.onSelected,
-                      onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
-                        context,
-                        role: 'husband',
-                        isDark: isDark,
-                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -725,233 +619,9 @@ class _FinoraMemberFilterSheetContentState
                       isSelected: active == 'wife',
                       isDark: isDark,
                       onSelected: widget.onSelected,
-                      onEditAvatar: () => showFinoraMemberAvatarPickerSheet(
-                        context,
-                        role: 'wife',
-                        isDark: isDark,
-                      ),
                     ),
                   ),
                 ],
-              ),
-
-              // 3. Collapsible Inline Name Editor Drawer (Only shown when "Đổi tên" is tapped)
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: (_showCustomizeDrawer && liveStudio != null)
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF0F172A)
-                                : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: isDark
-                                  ? const Color(0xFF334155)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.badge_outlined,
-                                    size: 14,
-                                    color: primaryColor,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Tên hiển thị của Vợ & Chồng',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                  ),
-                                  InkWell(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      FocusScope.of(context).unfocus();
-                                      liveStudio.setHusbandName(
-                                        _husbandCtrl.text,
-                                        notify: false,
-                                      );
-                                      liveStudio.setWifeName(
-                                        _wifeCtrl.text,
-                                        notify: true,
-                                      );
-                                      setState(() {
-                                        _showCustomizeDrawer = false;
-                                      });
-                                    },
-                                    borderRadius: BorderRadius.circular(999),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: primaryColor,
-                                        borderRadius:
-                                            BorderRadius.circular(999),
-                                      ),
-                                      child: const Text(
-                                        'Lưu tên',
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _husbandCtrl,
-                                      focusNode: _husbandFocus,
-                                      textInputAction: TextInputAction.next,
-                                      onChanged: (v) {
-                                        liveStudio.setHusbandName(
-                                          v,
-                                          notify: false,
-                                        );
-                                        setState(() {});
-                                      },
-                                      onSubmitted: (v) {
-                                        liveStudio.setHusbandName(
-                                          v,
-                                          notify: true,
-                                        );
-                                      },
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF0F172A),
-                                      ),
-                                      decoration: InputDecoration(
-                                        isDense: true,
-                                        hintText: 'Tên Chồng (VD: Minh)',
-                                        hintStyle: TextStyle(
-                                          fontSize: 11,
-                                          color: isDark
-                                              ? const Color(0xFF64748B)
-                                              : const Color(0xFF94A3B8),
-                                        ),
-                                        prefixIcon: Padding(
-                                          padding: const EdgeInsets.all(7),
-                                          child: FinoraMemberAvatar(
-                                            member: 'husband',
-                                            size: 18,
-                                            isDark: isDark,
-                                          ),
-                                        ),
-                                        prefixIconConstraints:
-                                            const BoxConstraints(
-                                          minWidth: 32,
-                                          minHeight: 32,
-                                        ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 9),
-                                        filled: true,
-                                        fillColor: isDark
-                                            ? const Color(0xFF1E293B)
-                                            : Colors.white,
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _wifeCtrl,
-                                      focusNode: _wifeFocus,
-                                      textInputAction: TextInputAction.done,
-                                      onChanged: (v) {
-                                        liveStudio.setWifeName(
-                                          v,
-                                          notify: false,
-                                        );
-                                        setState(() {});
-                                      },
-                                      onSubmitted: (v) {
-                                        liveStudio.setWifeName(
-                                          v,
-                                          notify: true,
-                                        );
-                                      },
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF0F172A),
-                                      ),
-                                      decoration: InputDecoration(
-                                        isDense: true,
-                                        hintText: 'Tên Vợ (VD: Lan)',
-                                        hintStyle: TextStyle(
-                                          fontSize: 11,
-                                          color: isDark
-                                              ? const Color(0xFF64748B)
-                                              : const Color(0xFF94A3B8),
-                                        ),
-                                        prefixIcon: Padding(
-                                          padding: const EdgeInsets.all(7),
-                                          child: FinoraMemberAvatar(
-                                            member: 'wife',
-                                            size: 18,
-                                            isDark: isDark,
-                                          ),
-                                        ),
-                                        prefixIconConstraints:
-                                            const BoxConstraints(
-                                          minWidth: 32,
-                                          minHeight: 32,
-                                        ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 9),
-                                        filled: true,
-                                        fillColor: isDark
-                                            ? const Color(0xFF1E293B)
-                                            : Colors.white,
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
               ),
             ],
           ),

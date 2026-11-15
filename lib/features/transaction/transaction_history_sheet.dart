@@ -1595,9 +1595,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                     studio?.primaryColor ?? const Color(0xFF005FEA),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: const StadiumBorder(),
                 textStyle: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 12.5 * (studio?.fontScale ?? 1.0),

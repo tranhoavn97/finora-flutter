@@ -813,9 +813,7 @@ class _ZenvestGlassDeckCardState extends State<ZenvestGlassDeckCard> {
         final primary = widget.studio.resolvedPrimary;
         final secondary = widget.studio.resolvedSecondary;
         final statusColor = isOver ? FinoraTokens.appleCoral : primary;
-        final fill = widget.studio
-            .getCardFillColor(isDark)
-            .withValues(alpha: 0.96);
+        final fill = widget.studio.getCardFillColor(isDark);
 
         return Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),

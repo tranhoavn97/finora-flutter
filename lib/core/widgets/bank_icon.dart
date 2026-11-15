@@ -742,7 +742,7 @@ class BankIcon extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        padding: EdgeInsets.all((size * 0.08).clamp(2.0, 4.5)),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: brand.color.withValues(alpha: isDark ? 0.22 : 0.14),
@@ -758,16 +758,11 @@ class BankIcon extends StatelessWidget {
             ),
           ],
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-          ),
-          clipBehavior: Clip.antiAlias,
+        child: ClipOval(
           child: CategoryIconWidget(
             icon: rawCustom,
             categoryName: bankName,
-            size: size * 0.82,
+            size: size,
             color: brand.color,
           ),
         ),
@@ -1078,28 +1073,12 @@ class CategoryIconBadge extends StatelessWidget {
       decoration: decoration,
       child: Center(
         child: isPhoto
-            ? Container(
-                width: size * 0.78,
-                height: size * 0.78,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark
-                      ? const Color(0xFF0F172A)
-                      : Color.alphaBlend(
-                          tint.withValues(alpha: 0.08),
-                          const Color(0xFFFCFDFF),
-                        ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: isDark ? 0.22 : 0.85),
-                    width: 1.0,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Center(
+            ? ClipOval(
+                child: SizedBox.expand(
                   child: CategoryIconWidget(
                     icon: liveIcon,
                     categoryName: categoryName,
-                    size: size * 0.74,
+                    size: size,
                     color: photoFallbackColor,
                   ),
                 ),
@@ -1599,28 +1578,12 @@ class TransactionIconWidget extends StatelessWidget {
       decoration: dec,
       child: Center(
         child: isPhoto
-            ? Container(
-                width: effectiveSize * 0.78,
-                height: effectiveSize * 0.78,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark
-                      ? const Color(0xFF0F172A)
-                      : Color.alphaBlend(
-                          effectiveColor.withValues(alpha: 0.08),
-                          const Color(0xFFFCFDFF),
-                        ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: isDark ? 0.22 : 0.85),
-                    width: 1.0,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Center(
+            ? ClipOval(
+                child: SizedBox.expand(
                   child: CategoryIconWidget(
                     icon: resolvedIconStr,
                     categoryName: categoryName ?? merchantName,
-                    size: effectiveSize * 0.74,
+                    size: effectiveSize,
                     color: photoFallbackColor,
                   ),
                 ),

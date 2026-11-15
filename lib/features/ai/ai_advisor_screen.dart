@@ -1236,8 +1236,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: FinoraTokens.ink(isDark),
                     side: BorderSide(color: FinoraTokens.line(isDark)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: const StadiumBorder(),
                   ),
                   child: const Text('Hủy'),
                 ),
@@ -1251,8 +1250,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                     foregroundColor:
                         isDark ? const Color(0xFF141518) : Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: const StadiumBorder(),
                   ),
                   child: _savingDrafts
                       ? SizedBox(

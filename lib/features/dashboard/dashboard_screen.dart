@@ -35,6 +35,7 @@ import '../../state/transaction_provider.dart';
 import '../../data/services/finora_nlp_engine.dart';
 import 'dashboard_theme_painters.dart';
 import 'bento_luxury_deck_card.dart';
+import 'extended_hero_cards.dart';
 import 'net_worth_modern_deck_card.dart';
 import 'zenvest_glass_deck_card.dart';
 import '../ai/ai_advisor_screen.dart';
@@ -527,18 +528,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAvatarWithAura(ThemeStudioController studio, bool isDark) {
+    final primary = studio.resolvedPrimary;
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: isDark ? const Color(0xFF059669) : const Color(0xFF10B981),
+          color: primary,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF059669).withValues(alpha: 0.20),
+            color: primary.withValues(alpha: 0.22),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -880,6 +882,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onOwnerFilterTap: _openOwnerFilterModal,
             onToggleMask: () =>
                 setState(() => _obscureBalance = !_obscureBalance),
+          ),
+          const SizedBox(height: 12),
+          dualFilterBar,
+        ],
+      );
+    }
+
+    if (isExtendedHeroCardStyle(studio.heroCardStyle)) {
+      final useLightCapsule = !isDark &&
+          (studio.heroCardStyle == AppHeroCardStyle.auroraVaultCard ||
+              studio.heroCardStyle == AppHeroCardStyle.porcelainMinimal);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ExtendedNetWorthHeroCard(
+            style: studio.heroCardStyle,
+            totalBalance: totalBalance,
+            income: income,
+            expense: expense,
+            netFlow: netFlow,
+            isDark: isDark,
+            studio: studio,
+            filterActions: _buildHeroFilterActions(provider, useLightCapsule),
+            onTogglePrivacy: () {
+              studio.togglePrivacyShield();
+              setState(() => _obscureBalance = studio.isPrivacyShieldActive);
+            },
           ),
           const SizedBox(height: 12),
           dualFilterBar,

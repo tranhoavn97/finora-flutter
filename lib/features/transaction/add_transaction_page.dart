@@ -312,12 +312,19 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           _findWalletByName(wallets, e?.fromWalletName) ??
           (wallets.isNotEmpty ? wallets.first : null);
 
-      _toWallet = _findWallet(
-              wallets, e?.toWalletId ?? widget.initialToWalletId ?? initWId) ??
-          _findWalletByName(wallets, e?.toWalletName) ??
-          (wallets.length > 1
-              ? wallets[1]
-              : (wallets.isNotEmpty ? wallets.first : null));
+      final preferredTo = _findWallet(
+              wallets, e?.toWalletId ?? widget.initialToWalletId) ??
+          _findWalletByName(wallets, e?.toWalletName);
+      if (preferredTo != null && preferredTo.id != _fromWallet?.id) {
+        _toWallet = preferredTo;
+      } else if (wallets.length > 1) {
+        _toWallet = wallets.firstWhere(
+          (w) => w.id != _fromWallet?.id,
+          orElse: () => wallets.first,
+        );
+      } else {
+        _toWallet = wallets.isNotEmpty ? wallets.first : null;
+      }
 
       _category = _resolveCategory(provider, _type, e);
 
@@ -528,12 +535,46 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
   void _onTypeChanged(String type) {
     final provider = context.read<TransactionProvider>();
+    final wallets = provider.wallets;
 
     setState(() {
       _type = type;
 
-      if (type != 'transfer' && type != 'credit_card_payment') {
+      if (type == 'transfer' || type == 'credit_card_payment') {
+        if (wallets.length > 1 &&
+            (_toWallet == null || _toWallet?.id == _fromWallet?.id)) {
+          _toWallet = wallets.firstWhere(
+            (w) => type == 'credit_card_payment'
+                ? (w.isCreditCard && w.id != _fromWallet?.id)
+                : w.id != _fromWallet?.id,
+            orElse: () => wallets.firstWhere(
+              (w) => w.id != _fromWallet?.id,
+              orElse: () => wallets.first,
+            ),
+          );
+        }
+      } else {
         _category = _resolveCategory(provider, type, widget.existing);
+      }
+    });
+  }
+
+  void _swapTransferWallets(List<Wallet> wallets) {
+    if (_type != 'transfer' || _fromWallet == null && _toWallet == null) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      final previousFrom = _fromWallet;
+      final previousTo = _toWallet;
+      _fromWallet = previousTo;
+      _toWallet = previousFrom;
+      if (_fromWallet != null && _toWallet?.id == _fromWallet?.id && wallets.length > 1) {
+        _toWallet = wallets.firstWhere(
+          (w) => w.id != _fromWallet!.id,
+          orElse: () => _toWallet!,
+        );
+      }
+      if (_fromWallet != null) {
+        _autoDetectSpenderFromWallet(_fromWallet!);
       }
     });
   }
@@ -1466,8 +1507,21 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
       final toW = _toWallet ??
           (wallets.length > 1
-              ? wallets[1]
+              ? wallets.firstWhere(
+                  (w) => w.id != fromW?.id,
+                  orElse: () => wallets.first,
+                )
               : (wallets.isNotEmpty ? wallets.first : null));
+
+      if (fromW != null && toW != null && fromW.id == toW.id) {
+        FinoraNotice.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ví nguồn và ví nhận không được trùng nhau'),
+            backgroundColor: Color(0xFFD97706),
+          ),
+        );
+        return;
+      }
 
       tx = TransactionModel(
         amount: amount,
@@ -2883,48 +2937,61 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               }),
               current: _fromWallet,
               title: 'Chọn ví nguồn',
+              filter: (!isCard && wallets.length > 1)
+                  ? (w) => w.id != _toWallet?.id
+                  : null,
             ),
           ),
         ),
 
-        // Arrow circular bridge between the two Bento cards
+        // Arrow / swap circular bridge between the two Bento cards
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              border: Border.all(
-                color: (isCard
-                        ? const Color(0xFFD97706)
-                        : const Color(0xFF0284C7))
-                    .withValues(alpha: isDark ? 0.45 : 0.30),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: (isCard
-                          ? const Color(0xFFD97706)
-                          : const Color(0xFF0284C7))
-                      .withValues(alpha: 0.18),
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-            child: Center(
-              child: isCard
-                  ? const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 14,
-                      color: Color(0xFFD97706),
-                    )
-                  : FinoraTransferEmblem(
-                      size: 18,
-                      color: const Color(0xFF0284C7),
-                      isDark: isDark,
+          child: Semantics(
+            button: !isCard,
+            label: isCard ? 'Chuyển tới thẻ' : 'Đổi chiều chuyển khoản',
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: isCard ? null : () => _swapTransferWallets(wallets),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    border: Border.all(
+                      color: (isCard
+                              ? const Color(0xFFD97706)
+                              : const Color(0xFF0284C7))
+                          .withValues(alpha: isDark ? 0.55 : 0.38),
+                      width: 1.2,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isCard
+                                ? const Color(0xFFD97706)
+                                : const Color(0xFF0284C7))
+                            .withValues(alpha: 0.20),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(
+                      isCard
+                          ? Icons.arrow_forward_rounded
+                          : Icons.swap_horiz_rounded,
+                      size: isCard ? 16 : 19,
+                      color: isCard
+                          ? const Color(0xFFD97706)
+                          : const Color(0xFF0284C7),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -2950,7 +3017,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               }),
               current: _toWallet,
               title: isCard ? 'Chọn thẻ nhận' : 'Chọn ví nhận',
-              filter: isCard ? (w) => w.isCreditCard : null,
+              filter: isCard
+                  ? (w) => w.isCreditCard
+                  : (wallets.length > 1 ? (w) => w.id != _fromWallet?.id : null),
             ),
           ),
         ),
@@ -3412,6 +3481,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     final resolvedMerchants = Category.resolveMerchants(
       mergedCustom,
       deletedMerchantKeys: _deletedMerchantKeys,
+      preserveId: _merchantId,
+      preserveName: _merchantName,
     );
 
     return [

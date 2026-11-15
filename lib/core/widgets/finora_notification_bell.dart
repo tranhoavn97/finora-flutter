@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/bank_sync_service.dart';
 import '../../state/more_provider.dart';
+import '../../state/theme_studio_controller.dart';
 import '../../features/notification/notification_screen.dart';
 
 class FinoraNotificationBell extends StatelessWidget {
@@ -22,8 +23,10 @@ class FinoraNotificationBell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final more = context.watch<MoreProvider?>();
+    final studio = context.watch<ThemeStudioController?>();
     final bank = BankSyncService();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryAccent = studio?.resolvedPrimary ?? const Color(0xFF059669);
 
     return AnimatedBuilder(
       animation: bank,
@@ -38,8 +41,11 @@ class FinoraNotificationBell extends StatelessWidget {
                 : Colors.white.withValues(alpha: 0.95));
         final fg = iconColor ??
             (count > 0
-                ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
-                : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A)));
+                ? primaryAccent
+                : Color.alphaBlend(
+                    primaryAccent.withValues(alpha: isDark ? 0.55 : 0.72),
+                    isDark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A),
+                  ));
 
         return Semantics(
           label: 'Thông báo, $count mục cần xem',
@@ -66,13 +72,12 @@ class FinoraNotificationBell extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: bg,
                     border: Border.all(
-                      color: count > 0
-                          ? const Color(0xFF10B981)
-                              .withValues(alpha: isDark ? 0.45 : 0.30)
-                          : (isDark
-                              ? Colors.white.withValues(alpha: 0.12)
-                              : const Color(0xFFE2E8F0)),
-                      width: 1.1,
+                      color: primaryAccent.withValues(
+                        alpha: count > 0
+                            ? (isDark ? 0.55 : 0.42)
+                            : (isDark ? 0.30 : 0.22),
+                      ),
+                      width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(

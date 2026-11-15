@@ -55,7 +55,7 @@ class FinoraNotice {
 
     final entry = OverlayEntry(
       builder: (_) => Positioned(
-        top: media.padding.top + 8,
+        top: media.padding.top + 68,
         left: 14,
         right: 14,
         child: Align(

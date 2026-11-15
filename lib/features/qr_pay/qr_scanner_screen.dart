@@ -633,8 +633,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                               backgroundColor:
                                   Colors.white.withValues(alpha: 0.16),
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                              shape: StadiumBorder(
                                 side: BorderSide(
                                   color: Colors.white.withValues(alpha: 0.20),
                                 ),
@@ -662,9 +661,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primary,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                              shape: const StadiumBorder(),
                               elevation: 0,
                             ),
                           ),

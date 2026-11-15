@@ -29,6 +29,7 @@ class FinoraSegmentedTabs extends StatelessWidget {
   final double? height;
   final double? fontSize;
   final bool transparentBackground;
+  final bool preserveCustomColors;
 
   const FinoraSegmentedTabs({
     super.key,
@@ -43,6 +44,7 @@ class FinoraSegmentedTabs extends StatelessWidget {
     this.height,
     this.fontSize,
     this.transparentBackground = false,
+    this.preserveCustomColors = false,
   }) : assert(labels.length > 1);
 
   @override
@@ -61,11 +63,13 @@ class FinoraSegmentedTabs extends StatelessWidget {
     // Sync default emerald tab colors to the user's selected system primary color
     final bool allEmerald =
         colors != null && colors!.every(_isDefaultEmeraldColor);
-    final Color active = (colors == null ||
-            allEmerald ||
-            (safeIndex == 0 && _isDefaultEmeraldColor(rawActive)))
-        ? primary
-        : rawActive;
+    final Color active = preserveCustomColors
+        ? rawActive
+        : ((colors == null ||
+                allEmerald ||
+                (safeIndex == 0 && _isDefaultEmeraldColor(rawActive)))
+            ? primary
+            : rawActive);
     final x = -1.0 + (2 * safeIndex / (labels.length - 1));
     final controlHeight = (height ?? 40).clamp(34.0, 48.0);
     final double effectiveFontSize = fontSize ?? 11.5;

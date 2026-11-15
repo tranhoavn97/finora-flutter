@@ -824,6 +824,10 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             !TransactionVisuals.isTransfer(t.type))
         .fold<int>(0, (s, t) => s + t.amount);
 
+    final txTransfer = filteredTransactions
+        .where((t) => TransactionVisuals.isTransfer(t.type))
+        .fold<int>(0, (s, t) => s + t.amount);
+
     final canPop = !widget.isRoot && Navigator.of(context).canPop();
 
     return GlassScaffold(
@@ -860,6 +864,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
             filteredTransactions: filteredTransactions,
             txIncome: txIncome,
             txExpense: txExpense,
+            txTransfer: txTransfer,
             isDark: isDark,
             studio: studio,
           ),
@@ -957,6 +962,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     required List<TransactionModel> filteredTransactions,
     required int txIncome,
     required int txExpense,
+    required int txTransfer,
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
@@ -994,6 +1000,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                   txProv: txProv,
                   txIncome: txIncome,
                   txExpense: txExpense,
+                  txTransfer: txTransfer,
                   filteredTxCount: filteredTransactions.length,
                   isDark: isDark,
                   studio: studio,
@@ -1216,23 +1223,93 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     );
   }
 
+  ({Color primary, Color secondary, String title}) _transactionTabVisuals(
+      String? selectedType) {
+    switch (selectedType) {
+      case 'expense':
+        return (
+          primary: const Color(0xFFE11D48),
+          secondary: const Color(0xFFF43F5E),
+          title: 'TỔNG CHI TIÊU',
+        );
+      case 'income':
+        return (
+          primary: const Color(0xFF059669),
+          secondary: const Color(0xFF10B981),
+          title: 'TỔNG THU NHẬP',
+        );
+      case 'transfer':
+        return (
+          primary: const Color(0xFF0284C7),
+          secondary: const Color(0xFF38BDF8),
+          title: 'CHUYỂN KHOẢN',
+        );
+      default:
+        return (
+          primary: const Color(0xFF4338CA),
+          secondary: const Color(0xFF6366F1),
+          title: 'DÒNG TIỀN THÁNG',
+        );
+    }
+  }
+
   Widget _buildCompactTransactionHeroCard({
     required BuildContext context,
     required TransactionProvider txProv,
     required int txIncome,
     required int txExpense,
+    int txTransfer = 0,
     required int filteredTxCount,
     required bool isDark,
     required ThemeStudioController? studio,
   }) {
     final cardRadius = studio?.cardCornerRadius ?? 20.0;
-    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
-    final brandSecondary =
-        studio?.resolvedSecondary ?? const Color(0xFF10B981);
+    final visuals = _transactionTabVisuals(txProv.selectedType);
+    final tabPrimary = visuals.primary;
+    final tabSecondary = visuals.secondary;
 
     final netCashflow = txIncome - txExpense;
 
     final isPositive = netCashflow >= 0;
+
+    final String headlineText;
+    final String statusLabel;
+    final Color statusBgTint;
+    final Color statusTextTint;
+    switch (txProv.selectedType) {
+      case 'expense':
+        headlineText = '-${formatVND(txExpense)}';
+        statusLabel = 'Chi tiêu';
+        statusBgTint = const Color(0xFFFDA4AF);
+        statusTextTint = const Color(0xFFFFE4E6);
+      case 'income':
+        headlineText = '+${formatVND(txIncome)}';
+        statusLabel = 'Thu nhập';
+        statusBgTint = const Color(0xFF6EE7B7);
+        statusTextTint = const Color(0xFFD1FAE5);
+      case 'transfer':
+        headlineText = formatVND(txTransfer);
+        statusLabel = 'Nội bộ';
+        statusBgTint = const Color(0xFF7DD3FC);
+        statusTextTint = const Color(0xFFE0F2FE);
+      default:
+        headlineText = '${isPositive ? '+' : ''}${formatVND(netCashflow)}';
+        statusLabel = netCashflow > 0
+            ? 'Dương'
+            : netCashflow < 0
+                ? 'Thâm hụt'
+                : 'Cân bằng';
+        statusBgTint = netCashflow > 0
+            ? const Color(0xFF10B981)
+            : netCashflow < 0
+                ? const Color(0xFFF43F5E)
+                : Colors.white;
+        statusTextTint = netCashflow > 0
+            ? const Color(0xFF6EE7B7)
+            : netCashflow < 0
+                ? const Color(0xFFFDA4AF)
+                : Colors.white;
+    }
 
     return Container(
       margin: const EdgeInsets.fromLTRB(10, 8, 10, 4),
@@ -1240,9 +1317,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color.lerp(brandPrimary, Colors.black, 0.25)!,
-            brandPrimary,
-            brandSecondary,
+            Color.lerp(tabPrimary, Colors.black, 0.22)!,
+            tabPrimary,
+            tabSecondary,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1250,7 +1327,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
         borderRadius: BorderRadius.circular(cardRadius),
         boxShadow: [
           BoxShadow(
-            color: brandPrimary.withValues(alpha: isDark ? 0.35 : 0.20),
+            color: tabPrimary.withValues(alpha: isDark ? 0.35 : 0.22),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1283,9 +1360,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Text(
-                        'DÒNG TIỀN THÁNG',
-                        style: TextStyle(
+                      Text(
+                        visuals.title,
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.6,
@@ -1297,28 +1374,15 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: (netCashflow > 0
-                                  ? const Color(0xFF10B981)
-                                  : netCashflow < 0
-                                      ? const Color(0xFFF43F5E)
-                                      : Colors.white)
-                              .withValues(alpha: 0.25),
+                          color: statusBgTint.withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(100),
                         ),
                         child: Text(
-                          netCashflow > 0
-                              ? 'Dương'
-                              : netCashflow < 0
-                                  ? 'Thâm hụt'
-                                  : 'Cân bằng',
+                          statusLabel,
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w700,
-                            color: netCashflow > 0
-                                ? const Color(0xFF6EE7B7)
-                                : netCashflow < 0
-                                    ? const Color(0xFFFDA4AF)
-                                    : Colors.white,
+                            color: statusTextTint,
                           ),
                         ),
                       ),
@@ -1378,7 +1442,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${isPositive ? '+' : ''}${formatVND(netCashflow)}',
+                      headlineText,
                       style: const TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
@@ -3689,9 +3753,9 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
     }
 
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
-    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
-    final brandSecondary =
-        studio?.resolvedSecondary ?? const Color(0xFF10B981);
+    final tabVisuals = _transactionTabVisuals(txProv.selectedType);
+    final tabPrimary = tabVisuals.primary;
+    final tabSecondary = tabVisuals.secondary;
 
     return Row(
       children: [
@@ -3732,9 +3796,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                         alpha: (studio?.glassOpacity ?? 0.92).clamp(0.18, 0.98)),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.14)
-                      : const Color(0xFFCBD5E1),
+                  color: tabPrimary.withValues(alpha: isDark ? 0.45 : 0.30),
                   width: 1.0,
                 ),
                 boxShadow: [
@@ -3749,8 +3811,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 Icons.style_rounded,
                 size: 18,
                 color: isDark
-                    ? Color.lerp(brandPrimary, Colors.white, 0.28)!
-                    : brandPrimary,
+                    ? Color.lerp(tabPrimary, Colors.white, 0.35)!
+                    : tabPrimary,
               ),
             ),
           ),
@@ -3773,9 +3835,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                         alpha: (studio?.glassOpacity ?? 0.92).clamp(0.18, 0.98)),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.14)
-                      : const Color(0xFFCBD5E1),
+                  color: tabPrimary.withValues(alpha: isDark ? 0.45 : 0.30),
                   width: 1.0,
                 ),
                 boxShadow: [
@@ -3790,8 +3850,8 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 Icons.search_rounded,
                 size: 18,
                 color: isDark
-                    ? Color.lerp(brandPrimary, Colors.white, 0.28)!
-                    : brandPrimary,
+                    ? Color.lerp(tabPrimary, Colors.white, 0.35)!
+                    : tabPrimary,
               ),
             ),
           ),
@@ -3815,7 +3875,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [brandSecondary, brandPrimary],
+                  colors: [tabSecondary, tabPrimary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -3826,7 +3886,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: brandPrimary.withValues(alpha: 0.35),
+                    color: tabPrimary.withValues(alpha: 0.35),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -3851,20 +3911,18 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
   }) {
     const types = <String?>[null, 'expense', 'income', 'transfer'];
 
-    final studio = Provider.of<ThemeStudioController?>(context, listen: true);
-    final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
-
     return Row(
       children: [
         Expanded(
           child: FinoraSegmentedTabs(
             labels: const ['Tất cả', 'Chi tiêu', 'Thu nhập', 'Chuyển khoản'],
-            colors: [
-              brandPrimary,
-              const Color(0xFFE11D48),
-              const Color(0xFF059669),
-              Color(0xFF0284C7)
+            colors: const [
+              Color(0xFF4338CA),
+              Color(0xFFE11D48),
+              Color(0xFF059669),
+              Color(0xFF0284C7),
             ],
+            preserveCustomColors: true,
             selectedIndex: types.indexOf(txProv.selectedType),
             height: 42,
             onChanged: (index) => txProv.setSelectedType(types[index]),
@@ -4978,12 +5036,14 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
   }) {
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final baseSurface = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final primary = studio?.resolvedPrimary ?? const Color(0xFF10B981);
+    final tabVisuals = _transactionTabVisuals(txProv.selectedType);
+    final pillAccent =
+        _selectedTab == 0 ? tabVisuals.primary : (studio?.resolvedPrimary ?? const Color(0xFF10B981));
     final pillAlpha = (studio?.glassOpacity ?? 0.92).clamp(0.18, 0.98);
     final fill = onHeroCard
         ? Colors.white.withValues(alpha: 0.18)
         : Color.alphaBlend(
-            primary.withValues(alpha: isDark ? 0.16 : 0.08),
+            pillAccent.withValues(alpha: isDark ? 0.16 : 0.08),
             baseSurface,
           ).withValues(alpha: pillAlpha);
 
@@ -5001,8 +5061,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
           border: Border.all(
             color: onHeroCard
                 ? Colors.white.withValues(alpha: 0.28)
-                : const Color(0xFF10B981)
-                    .withValues(alpha: isDark ? 0.45 : 0.32),
+                : pillAccent.withValues(alpha: isDark ? 0.45 : 0.32),
             width: 1.0,
           ),
           boxShadow: !onHeroCard
@@ -5027,17 +5086,16 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 shape: BoxShape.circle,
                 color: onHeroCard
                     ? Colors.white.withValues(alpha: 0.18)
-                    : const Color(0xFF10B981)
-                        .withValues(alpha: isDark ? 0.24 : 0.14),
+                    : pillAccent.withValues(alpha: isDark ? 0.24 : 0.14),
               ),
               child: Icon(
                 Icons.calendar_month_rounded,
                 size: 12.5,
                 color: onHeroCard
-                    ? const Color(0xFF6EE7B7)
+                    ? Colors.white
                     : (isDark
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFF059669)),
+                        ? Color.lerp(pillAccent, Colors.white, 0.35)!
+                        : pillAccent),
               ),
             ),
             const SizedBox(width: 6),

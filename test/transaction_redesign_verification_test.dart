@@ -31,6 +31,8 @@ class _MockTransactions extends TransactionProvider {
     categories = const [
       Category(id: 'food', name: 'Ăn uống', categoryGroup: 'expense', color: '#E11D48'),
       Category(id: 'salary', name: 'Lương', categoryGroup: 'income', color: '#059669'),
+      Category(id: 'green_sm', name: 'Green SM', categoryGroup: 'merchant', icon: 'car'),
+      Category(id: 'be', name: 'Be', categoryGroup: 'merchant', icon: 'car'),
     ];
   }
   @override
@@ -69,10 +71,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify 2 dropdowns exist on 1 row
+    // Verify 2 dropdowns exist on 1 row with swap button
     expect(find.text('Ví nguồn'), findsOneWidget);
     expect(find.text('Ví nhận'), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_forward_rounded), findsWidgets);
+    expect(find.byIcon(Icons.swap_horiz_rounded), findsOneWidget);
   });
 
   testWidgets('AddTransactionPage renders merchant selector with icons and text for expense',

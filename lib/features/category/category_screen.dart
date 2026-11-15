@@ -568,99 +568,95 @@ class _CategoryScreenState extends State<CategoryScreen> {
       bool isDark, Color primaryTextColor, Color secondaryTextColor) {
     final studio = Provider.of<ThemeStudioController?>(context, listen: true);
     final brandPrimary = studio?.resolvedPrimary ?? const Color(0xFF0F6E56);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: [
-          // Month picker pill (height: 32)
-          FinoraDateFilterPill(
-            label: 'Tháng ${_currentMonth.month}/${_currentMonth.year}',
-            onTap: _pickMonthYear,
+    return Row(
+      children: [
+        // Compact Month picker pill (height: 32, e.g. "11/2026")
+        FinoraDateFilterPill(
+          label: '${_currentMonth.month}/${_currentMonth.year}',
+          onTap: _pickMonthYear,
+          height: 32,
+        ),
+        const SizedBox(width: 6),
+
+        Expanded(
+          child: FinoraSegmentedTabs(
+            labels: const ['Tất cả', 'Đã dùng'],
+            selectedIndex: _statusFilter == 'used' ? 1 : 0,
             height: 32,
-          ),
-          const SizedBox(width: 6),
-
-          SizedBox(
-            width: 144,
-            child: FinoraSegmentedTabs(
-              labels: const ['Tất cả', 'Đã dùng'],
-              selectedIndex: _statusFilter == 'used' ? 1 : 0,
-              height: 34,
-              onChanged: (index) {
-                setState(() => _statusFilter = index == 0 ? 'all' : 'used');
-                _saveViewSettings();
-              },
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Search button (height: 32, width: 32)
-          InkWell(
-            onTap: () {
-              setState(() {
-                _isSearching = !_isSearching;
-                if (!_isSearching) _searchController.clear();
-              });
-            },
-            borderRadius: BorderRadius.circular(100),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: _isSearching || _searchController.text.isNotEmpty
-                    ? brandPrimary.withValues(alpha: 0.15)
-                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _isSearching || _searchController.text.isNotEmpty
-                      ? brandPrimary
-                      : (isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0)),
-                ),
-              ),
-              child: Icon(Icons.search_rounded, size: 16, color: brandPrimary),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Grid/List toggle button (height: 32, width: 32)
-          InkWell(
-            onTap: () {
-              setState(() => _isListView = !_isListView);
+            fontSize: 11,
+            onChanged: (index) {
+              setState(() => _statusFilter = index == 0 ? 'all' : 'used');
               _saveViewSettings();
             },
-            borderRadius: BorderRadius.circular(100),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: Icon(
-                _isListView ? Icons.grid_view_rounded : Icons.view_list_rounded,
-                size: 16,
-                color: secondaryTextColor,
+          ),
+        ),
+        const SizedBox(width: 6),
+
+        // Search button (height: 32, width: 32)
+        InkWell(
+          onTap: () {
+            setState(() {
+              _isSearching = !_isSearching;
+              if (!_isSearching) _searchController.clear();
+            });
+          },
+          borderRadius: BorderRadius.circular(100),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _isSearching || _searchController.text.isNotEmpty
+                  ? brandPrimary.withValues(alpha: 0.15)
+                  : (isDark ? const Color(0xFF1E293B) : Colors.white),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: _isSearching || _searchController.text.isNotEmpty
+                    ? brandPrimary
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
               ),
             ),
+            child: Icon(Icons.search_rounded, size: 16, color: brandPrimary),
           ),
-          const SizedBox(width: 6),
+        ),
+        const SizedBox(width: 6),
 
-          FinoraAddButton(
-            onPressed: _openAdd,
-            tooltip: _group == 'merchant' ? 'Thêm nơi mua' : 'Thêm danh mục',
-            size: 34,
-            color: _group == 'expense' ? const Color(0xFFE11D48) : brandPrimary,
+        // Grid/List toggle button (height: 32, width: 32)
+        InkWell(
+          onTap: () {
+            setState(() => _isListView = !_isListView);
+            _saveViewSettings();
+          },
+          borderRadius: BorderRadius.circular(100),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Icon(
+              _isListView ? Icons.grid_view_rounded : Icons.view_list_rounded,
+              size: 16,
+              color: secondaryTextColor,
+            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 6),
+
+        FinoraAddButton(
+          onPressed: _openAdd,
+          tooltip: _group == 'merchant' ? 'Thêm nơi mua' : 'Thêm danh mục',
+          size: 32,
+          color: _group == 'expense' ? const Color(0xFFE11D48) : brandPrimary,
+        ),
+      ],
     );
   }
 
@@ -1590,106 +1586,6 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                     _buildModalSegmentedControl(isDark),
                     const SizedBox(height: 20),
 
-                    if (isMerchant) ...[
-                      Text(
-                        'THƯƠNG HIỆU PHỔ BIẾN (LOGO CHUẨN)',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: secondaryTextColor,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 38,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          children: [
-                            for (final b in const [
-                              (id: 'shopee', name: 'Shopee', color: '#EE4D2D'),
-                              (
-                                id: 'winmart',
-                                name: 'WinMart',
-                                color: '#ED1C24'
-                              ),
-                              (
-                                id: 'tiktok',
-                                name: 'TikTok Shop',
-                                color: '#000000'
-                              ),
-                              (id: 'lazada', name: 'Lazada', color: '#0F146D'),
-                              (
-                                id: 'brand-tiki',
-                                name: 'Tiki',
-                                color: '#1A94FF'
-                              ),
-                              (
-                                id: 'brand-grab',
-                                name: 'Grab',
-                                color: '#00B14F'
-                              ),
-                            ])
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: InkWell(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    setState(() {
-                                      _emojiController.text = b.id;
-                                      _color = b.color;
-                                      if (_nameController.text.trim().isEmpty) {
-                                        _nameController.text = b.name;
-                                      }
-                                    });
-                                  },
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: previewEmoji == b.id
-                                          ? previewTint.withValues(alpha: 0.18)
-                                          : surfaceColor,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: previewEmoji == b.id
-                                            ? previewTint
-                                            : borderColor,
-                                        width: previewEmoji == b.id ? 1.5 : 1,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        CategoryIconWidget(
-                                          icon: b.id,
-                                          categoryName: b.name,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          b.name,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: previewEmoji == b.id
-                                                ? previewTint
-                                                : textColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
                     // Chọn Biểu tượng (24 Icon Phổ Biến / Web Icons / Emoji)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2111,7 +2007,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
                       color: (isMerchant
@@ -2126,7 +2022,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(999),
                     onTap: _isSaving ? null : _submit,
                     child: Center(
                       child: _isSaving

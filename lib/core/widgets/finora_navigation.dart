@@ -874,41 +874,38 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
 
     final btn = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Tooltip(
-        message: 'Thêm giao dịch',
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.lerp(primaryColor, Colors.white, 0.14)!,
-                primaryColor,
-                Color.lerp(primaryColor, Colors.black, 0.16)!,
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: primaryColor.withValues(alpha: 0.36),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.lerp(primaryColor, Colors.white, 0.14)!,
+              primaryColor,
+              Color.lerp(primaryColor, Colors.black, 0.16)!,
             ],
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onAddTap,
-              customBorder: const CircleBorder(),
-              child: SizedBox(
-                width: isCompact ? 40 : 48,
-                height: isCompact ? 40 : 48,
-                child: Icon(
-                  Icons.add_rounded,
-                  color: Colors.white,
-                  size: isCompact ? 22 : 26,
-                ),
+          boxShadow: [
+            BoxShadow(
+              color: primaryColor.withValues(alpha: 0.36),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onAddTap,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: isCompact ? 40 : 48,
+              height: isCompact ? 40 : 48,
+              child: Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: isCompact ? 22 : 26,
               ),
             ),
           ),
@@ -1163,57 +1160,52 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
         selected: selected,
         button: true,
         label: label,
-        child: Tooltip(
-          message: label,
-          child: InkWell(
-            onTap: () => _handleTabTap(tab, studio),
-            borderRadius: BorderRadius.circular(16),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: isStealthWire ? 38 : 46),
-              child: Center(
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isPillTabs && selected ? 10 : 8,
-                    vertical: showLabel ? 4 : (isStealthWire ? 4 : 8),
-                  ),
-                  decoration: getPillDecoration(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedScale(
-                        scale: selected ? 1.08 : 1.0,
+        child: InkWell(
+          onTap: () => _handleTabTap(tab, studio),
+          borderRadius: BorderRadius.circular(16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: isStealthWire ? 38 : 46),
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isPillTabs && selected ? 10 : 8,
+                  vertical: showLabel ? 4 : (isStealthWire ? 4 : 8),
+                ),
+                decoration: getPillDecoration(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedScale(
+                      scale: selected ? 1.08 : 1.0,
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutBack,
+                      child: Icon(
+                        selected ? activeIcon : icon,
+                        size: showLabel ? 21 : (isStealthWire ? 19 : 23),
+                        color: color,
+                      ),
+                    ),
+                    if (showLabel) ...[
+                      const SizedBox(height: 2),
+                      AnimatedDefaultTextStyle(
                         duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOutBack,
-                        child: Icon(
-                          selected ? activeIcon : icon,
-                          size: showLabel ? 21 : (isStealthWire ? 19 : 23),
-                          color: color,
+                        style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                              fontSize: 10,
+                              fontWeight:
+                                  selected ? FontWeight.bold : FontWeight.w500,
+                              color: color,
+                              letterSpacing: -0.2,
+                            ),
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (showLabel) ...[
-                        const SizedBox(height: 2),
-                        AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 180),
-                          style:
-                              Theme.of(context).textTheme.labelSmall!.copyWith(
-                                    fontSize: 10,
-                                    fontWeight: selected
-                                        ? FontWeight.bold
-                                        : FontWeight.w500,
-                                    color: color,
-                                    letterSpacing: -0.2,
-                                  ),
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                      buildIndicator(),
                     ],
-                  ),
+                    buildIndicator(),
+                  ],
                 ),
               ),
             ),
@@ -1521,88 +1513,85 @@ class _FinoraNavigationState extends State<FinoraNavigation> {
         selected: isSelected,
         button: true,
         label: label,
-        child: Tooltip(
-          message: label,
-          child: Material(
-            color: Colors.transparent,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+          child: InkWell(
+            onTap: () => _handleTabTap(tabIndex, studio),
             borderRadius: BorderRadius.circular(100),
-            child: InkWell(
-              onTap: () => _handleTabTap(tabIndex, studio),
-              borderRadius: BorderRadius.circular(100),
-              splashFactory: NoSplash.splashFactory,
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              child: Container(
-                height: double.infinity,
-                alignment: Alignment.center,
-                decoration: isSelected
-                    ? BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color.lerp(
-                              activeAccent,
-                              Colors.white,
-                              isDragging ? 0.22 : 0.12,
-                            )!,
+            splashFactory: NoSplash.splashFactory,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: Container(
+              height: double.infinity,
+              alignment: Alignment.center,
+              decoration: isSelected
+                  ? BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color.lerp(
                             activeAccent,
-                            Color.lerp(activeAccent, Colors.black, 0.12)!,
-                          ],
+                            Colors.white,
+                            isDragging ? 0.22 : 0.12,
+                          )!,
+                          activeAccent,
+                          Color.lerp(activeAccent, Colors.black, 0.12)!,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: Colors.white.withValues(
+                          alpha: isDragging
+                              ? 0.72
+                              : (dark ? 0.34 : 0.48),
                         ),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(
-                          color: Colors.white.withValues(
-                            alpha: isDragging
-                                ? 0.72
-                                : (dark ? 0.34 : 0.48),
-                          ),
-                          width: isDragging ? 1.35 : 1.0,
-                        ),
-                      )
-                    : null,
-                child: isSelected
-                    ? AnimatedScale(
-                        scale: isDragging ? 1.07 : 1.0,
-                        duration: const Duration(milliseconds: 160),
-                        curve: Curves.easeOutBack,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  selectedIcon,
-                                  size: 19,
+                        width: isDragging ? 1.35 : 1.0,
+                      ),
+                    )
+                  : null,
+              child: isSelected
+                  ? AnimatedScale(
+                      scale: isDragging ? 1.07 : 1.0,
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOutBack,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                selectedIcon,
+                                size: 19,
+                                color: activeFg,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                label,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
                                   color: activeFg,
+                                  letterSpacing: -0.2,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  label,
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: activeFg,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ),
-                      )
-                    : Center(
-                        child: Icon(
-                          unselectedIcon,
-                          size: 21,
-                          color: inactiveFg,
                         ),
                       ),
-              ),
+                    )
+                  : Center(
+                      child: Icon(
+                        unselectedIcon,
+                        size: 21,
+                        color: inactiveFg,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -1637,54 +1626,51 @@ class _FloatingCtaButtonState extends State<_FloatingCtaButton> {
       scale: _isPressed ? 0.90 : 1.0,
       duration: const Duration(milliseconds: 120),
       curve: Curves.easeOutBack,
-      child: Tooltip(
-        message: 'Thêm mới',
-        child: GestureDetector(
-          onTapDown: (_) => setState(() => _isPressed = true),
-          onTapUp: (_) {
-            setState(() => _isPressed = false);
-            HapticFeedback.mediumImpact();
-            widget.onTap();
-          },
-          onTapCancel: () => setState(() => _isPressed = false),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  lightStop,
-                  baseColor,
-                  darkStop,
-                ],
-              ),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.72),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: baseColor.withValues(alpha: 0.38),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) {
+          setState(() => _isPressed = false);
+          HapticFeedback.mediumImpact();
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                lightStop,
+                baseColor,
+                darkStop,
               ],
             ),
-            child: const Center(
-              child: Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 28,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.72),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: baseColor.withValues(alpha: 0.38),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
               ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.add_rounded,
+              color: Colors.white,
+              size: 28,
             ),
           ),
         ),

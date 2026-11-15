@@ -214,6 +214,10 @@ enum AppHeroCardStyle {
   bentoLuxuryDeck, // Bento Luxury Fintech: Thớt thẻ ngân hàng vật lý 3D & Bento nhịp chi tiêu
   netWorthModernDeck, // Net Worth Modern: Chuẩn giao diện quốc tế (Piggy 3D, Thẻ xanh Electric Blue, 5 phím Pastel, Bento kép)
   zenvestGlassDeck, // Zenvest Glass Deck: Chuẩn giao diện thẻ kính mờ lơ lửng, chào mừng tài chính, dãy phím tác vụ & danh sách giao dịch bo tròn kiểu sheet
+  auroraVaultCard, // Aurora Vault: Thẻ kính cực quang 2 tầng với thanh tiến độ thu chi ròng
+  obsidianTitanium, // Obsidian Titanium: Kim loại đen ánh kim với chip thẻ & viền khắc quang học
+  porcelainMinimal, // Porcelain Minimal: Trắng sứ tinh khiết tối giản kiểu Private Banking
+  cyberMeshHorizon, // Cyber Mesh Horizon: Lưới gradient chuyển sắc & 3 ô chỉ số phát sáng
 }
 
 enum AppHeroBalanceSize {

@@ -348,7 +348,11 @@ class _BankTransactionPromptSheetState
     final fromTx = txProv?.categories ?? const <Category>[];
     final fromMore = moreProv?.categories ?? const <Category>[];
     final all = <Category>[...fromMore, ...fromTx];
-    return Category.resolveMerchants(all);
+    return Category.resolveMerchants(
+      all,
+      preserveId: _selectedMerchantId,
+      preserveName: _selectedMerchantName,
+    );
   }
 
   List<Category> _availableCategories(
@@ -463,6 +467,14 @@ class _BankTransactionPromptSheetState
   }) async {
     if (wallets.isEmpty) return;
     HapticFeedback.selectionClick();
+    final isTransferMode = _selectedType == 'transfer';
+    final oppositeId =
+        isDestination ? _selectedWalletId : _selectedToWalletId;
+    final selectableWallets =
+        (isTransferMode && wallets.length > 1 && oppositeId != null)
+            ? wallets.where((w) => w.id != oppositeId).toList()
+            : wallets;
+    final pool = selectableWallets.isNotEmpty ? selectableWallets : wallets;
     final currentId = isDestination ? _selectedToWalletId : _selectedWalletId;
     final chosen = await showModalBottomSheet<String>(
       context: context,
@@ -474,8 +486,8 @@ class _BankTransactionPromptSheetState
           builder: (ctx, setStateSheet) {
             final q = searchQuery.trim().toLowerCase();
             final filteredWallets = q.isEmpty
-                ? wallets
-                : wallets
+                ? pool
+                : pool
                     .where((w) =>
                         w.name.toLowerCase().contains(q) ||
                         (w.bankName?.toLowerCase().contains(q) ?? false) ||
@@ -614,7 +626,14 @@ class _BankTransactionPromptSheetState
                                           ? const Color(0xFF64748B)
                                           : const Color(0xFF94A3B8),
                                     ),
+                                    filled: false,
+                                    fillColor: Colors.transparent,
                                     border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
                                     isDense: true,
                                     contentPadding: EdgeInsets.zero,
                                   ),
@@ -806,8 +825,20 @@ class _BankTransactionPromptSheetState
       setState(() {
         if (isDestination) {
           _selectedToWalletId = chosen;
+          if (_selectedType == 'transfer' &&
+              _selectedWalletId == chosen &&
+              wallets.length > 1) {
+            _selectedWalletId =
+                wallets.firstWhere((w) => w.id != chosen).id;
+          }
         } else {
           _selectedWalletId = chosen;
+          if (_selectedType == 'transfer' &&
+              _selectedToWalletId == chosen &&
+              wallets.length > 1) {
+            _selectedToWalletId =
+                wallets.firstWhere((w) => w.id != chosen).id;
+          }
         }
       });
     }
@@ -1018,7 +1049,14 @@ class _BankTransactionPromptSheetState
                                           ? const Color(0xFF64748B)
                                           : const Color(0xFF94A3B8),
                                     ),
+                                    filled: false,
+                                    fillColor: Colors.transparent,
                                     border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
                                     isDense: true,
                                     contentPadding: EdgeInsets.zero,
                                   ),
@@ -1355,7 +1393,14 @@ class _BankTransactionPromptSheetState
                                     ? const Color(0xFF64748B)
                                     : const Color(0xFF94A3B8),
                               ),
+                              filled: false,
+                              fillColor: Colors.transparent,
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
                               hintText: 'Tìm kiếm hoặc nhập tên nơi mua mới...',
                               hintStyle: TextStyle(
                                 fontSize: 13,
@@ -1643,6 +1688,14 @@ class _BankTransactionPromptSheetState
     if (wallet == null || (_selectedType != 'transfer' && category == null)) {
       setState(() {
         _validationError = 'Chọn ví và danh mục thật trước khi lưu.';
+      });
+      return;
+    }
+    if (_selectedType == 'transfer' &&
+        destWallet != null &&
+        destWallet.id == wallet.id) {
+      setState(() {
+        _validationError = 'Ví nguồn và ví nhận không được trùng nhau.';
       });
       return;
     }
@@ -2452,7 +2505,47 @@ class _BankTransactionPromptSheetState
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                if (isTransfer)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, right: 4, top: 20),
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            final oldFrom = _selectedWalletId;
+                            final oldTo = _selectedToWalletId;
+                            _selectedWalletId = oldTo;
+                            _selectedToWalletId = oldFrom;
+                          });
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDark
+                                ? const Color(0xFF1E293B)
+                                : Colors.white,
+                            border: Border.all(
+                              color: const Color(0xFF0284C7)
+                                  .withValues(alpha: isDark ? 0.50 : 0.35),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.swap_horiz_rounded,
+                            size: 17,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 10),
                 // Destination Wallet (if transfer) OR Category Bento Picker Card
                 Expanded(
                   child: isTransfer

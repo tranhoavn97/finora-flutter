@@ -104,10 +104,15 @@ class Category {
     ),
   ];
 
-  /// Single source of truth for resolving active merchants across CategoryScreen & AddTransactionPage.
+  /// Single source of truth for resolving active user-owned merchants
+  /// across CategoryScreen & AddTransactionPage.
+  /// Preset popular brands are intentionally omitted from the active catalogue
+  /// while keeping [defaultMerchants] readable for legacy historical lookups.
   static List<Category> resolveMerchants(
     Iterable<Category> customCategories, {
     Set<String> deletedMerchantKeys = const {},
+    String? preserveId,
+    String? preserveName,
   }) {
     final result = <Category>[];
     final seenIds = <String>{};
@@ -137,19 +142,22 @@ class Category {
       result.add(c);
     }
 
-    for (final dm in defaultMerchants) {
-      final idKey = dm.id.trim().toLowerCase();
-      final nameKey = dm.name.trim().toLowerCase();
-      if (deletedMerchantKeys.contains(idKey) ||
-          deletedMerchantKeys.contains(nameKey)) {
-        continue;
+    final preserveIdKey = preserveId?.trim().toLowerCase() ?? '';
+    final preserveNameKey = preserveName?.trim().toLowerCase() ?? '';
+    if (preserveIdKey.isNotEmpty || preserveNameKey.isNotEmpty) {
+      for (final dm in defaultMerchants) {
+        final idKey = dm.id.trim().toLowerCase();
+        final nameKey = dm.name.trim().toLowerCase();
+        final matchesPreserved =
+            (preserveIdKey.isNotEmpty && idKey == preserveIdKey) ||
+            (preserveNameKey.isNotEmpty && nameKey == preserveNameKey);
+        if (matchesPreserved &&
+            !seenIds.contains(idKey) &&
+            !seenNames.contains(nameKey)) {
+          result.add(dm);
+          break;
+        }
       }
-      if (seenIds.contains(idKey) || seenNames.contains(nameKey)) {
-        continue;
-      }
-      seenIds.add(idKey);
-      seenNames.add(nameKey);
-      result.add(dm);
     }
     return result;
   }

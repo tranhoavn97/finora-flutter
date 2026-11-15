@@ -9,6 +9,7 @@ import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../state/theme_controller.dart';
 import '../../state/theme_studio_controller.dart';
+import '../dashboard/extended_hero_cards.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String userId;
@@ -747,7 +748,361 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
 
             // ==========================================
-            // PHÂN HỆ 1.3: LINH VẬT ĐỒNG HÀNH TOÀN HỆ THỐNG (MASCOT STUDIO)
+            // PHÂN HỆ 1.3: KIỂU THẺ TỔNG TÀI SẢN TRANG CHỦ
+            // ==========================================
+            _buildSectionHeader(
+              title: 'KIỂU THẺ TỔNG TÀI SẢN TRANG CHỦ',
+              subtitle:
+                  'Chọn 12 phong cách thẻ số dư (gồm 4 kiểu mới Aurora, Titanium, Porcelain & Horizon)',
+              icon: Icons.style_rounded,
+              color: studio.resolvedPrimary,
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor),
+              ),
+              child: Builder(
+                builder: (context) {
+                  final newStyles =
+                      kFinoraHeroStyleCatalog.where((e) => e.isNew).toList();
+                  final classicStyles =
+                      kFinoraHeroStyleCatalog.where((e) => !e.isNew).toList();
+                  final activeMeta = kFinoraHeroStyleCatalog.firstWhere(
+                    (e) => e.style == studio.heroCardStyle,
+                    orElse: () => kFinoraHeroStyleCatalog.first,
+                  );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Active Hero Card banner
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: studio.resolvedPrimary
+                              .withValues(alpha: isDark ? 0.14 : 0.07),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color:
+                                studio.resolvedPrimary.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                gradient: LinearGradient(
+                                  colors: activeMeta.previewColors,
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                ),
+                              ),
+                              child: Icon(
+                                activeMeta.icon,
+                                size: 15,
+                                color: activeMeta.style ==
+                                        AppHeroCardStyle.porcelainMinimal
+                                    ? const Color(0xFF0F172A)
+                                    : Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    activeMeta.title,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: primaryTextColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    activeMeta.subtitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: secondaryTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: studio.resolvedPrimary,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'ĐANG DÙNG',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '4 KIỂU THẺ MỚI ĐẶC BIỆT',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          mainAxisExtent: 106,
+                        ),
+                        itemCount: newStyles.length,
+                        itemBuilder: (context, idx) {
+                          final item = newStyles[idx];
+                          final selected = studio.heroCardStyle == item.style;
+                          final isPorcelain =
+                              item.style == AppHeroCardStyle.porcelainMinimal;
+                          return GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              studio.setHeroCardStyle(item.style);
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? studio.resolvedPrimary
+                                        .withValues(alpha: isDark ? 0.18 : 0.08)
+                                    : (isDark
+                                        ? Colors.white.withValues(alpha: 0.04)
+                                        : const Color(0xFFF8FAFC)),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: selected
+                                      ? studio.resolvedPrimary
+                                      : borderColor,
+                                  width: selected ? 1.8 : 1.0,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 34,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          gradient: LinearGradient(
+                                            colors: item.previewColors,
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          border: Border.all(
+                                            color: isPorcelain
+                                                ? const Color(0xFFCBD5E1)
+                                                : Colors.white
+                                                    .withValues(alpha: 0.30),
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          item.icon,
+                                          size: 12,
+                                          color: isPorcelain
+                                              ? const Color(0xFF0F172A)
+                                              : Colors.white,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: selected
+                                              ? studio.resolvedPrimary
+                                              : studio.resolvedPrimary
+                                                  .withValues(alpha: 0.14),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          selected ? 'ĐÃ CHỌN' : 'MỚI',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            color: selected
+                                                ? Colors.white
+                                                : studio.resolvedPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    item.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: selected
+                                          ? studio.resolvedPrimary
+                                          : primaryTextColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.subtitle,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      height: 1.2,
+                                      color: secondaryTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'CÁC PHONG CÁCH CỔ ĐIỂN & SIGNATURE',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 76,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: classicStyles.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, idx) {
+                            final item = classicStyles[idx];
+                            final selected = studio.heroCardStyle == item.style;
+                            return GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                studio.setHeroCardStyle(item.style);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                width: 132,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? studio.resolvedPrimary.withValues(
+                                          alpha: isDark ? 0.18 : 0.10)
+                                      : (isDark
+                                          ? Colors.white.withValues(alpha: 0.04)
+                                          : const Color(0xFFF8FAFC)),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: selected
+                                        ? studio.resolvedPrimary
+                                        : borderColor,
+                                    width: selected ? 1.6 : 1.0,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 24,
+                                          height: 16,
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(5),
+                                            gradient: LinearGradient(
+                                              colors: item.previewColors,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            item.icon,
+                                            size: 10,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        if (selected)
+                                          Icon(
+                                            Icons.check_circle_rounded,
+                                            size: 15,
+                                            color: studio.resolvedPrimary,
+                                          ),
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      item.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: selected
+                                            ? studio.resolvedPrimary
+                                            : primaryTextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ==========================================
+            // PHÂN HỆ 1.4: LINH VẬT ĐỒNG HÀNH TOÀN HỆ THỐNG (MASCOT STUDIO)
             // ==========================================
             _buildSectionHeader(
               title: 'LINH VẬT ĐỒNG HÀNH TOÀN HỆ THỐNG',
@@ -766,149 +1121,287 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: borderColor),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Nhân vật Linh vật
-                  GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.05,
+              child: Builder(
+                builder: (context) {
+                  const poseList = [
+                    ('hero', 'Bay lượn (Hero)'),
+                    ('happy', 'Vui vẻ'),
+                    ('confident', 'Tự tin'),
+                    ('focused', 'Tập trung'),
+                    ('celebrate', 'Ăn mừng'),
+                    ('saving', 'Tiết kiệm'),
+                    ('goal', 'Mục tiêu'),
+                    ('family', 'Gia đình'),
+                    ('relaxed', 'Thảnh thơi'),
+                  ];
+                  final activePoseLabel = poseList
+                      .firstWhere(
+                        (e) => e.$1 == studio.mascotDefaultPose,
+                        orElse: () => poseList.first,
+                      )
+                      .$2;
+                  final activeCharacterTitle = switch (studio.mascotCharacter) {
+                    AppMascotCharacter.jadeDragon3D => 'Rồng Ngọc 3D',
+                    AppMascotCharacter.chibiClassic => 'Tiểu Rồng Chibi',
+                    AppMascotCharacter.hidden => 'Đã ẩn Linh Vật',
+                    _ => 'Rồng Ngọc 3D',
+                  };
+                  final isHidden =
+                      studio.mascotCharacter == AppMascotCharacter.hidden;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final item in const [
-                        (
-                          AppMascotCharacter.jadeDragon3D,
-                          'Rồng Ngọc 3D',
-                          'Biểu tượng chính'
+                      // Live companion preview showcase banner
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              studio.resolvedPrimary
+                                  .withValues(alpha: isDark ? 0.20 : 0.10),
+                              studio.resolvedSecondary
+                                  .withValues(alpha: isDark ? 0.10 : 0.04),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color:
+                                studio.resolvedPrimary.withValues(alpha: 0.24),
+                          ),
                         ),
-                        (
-                          AppMascotCharacter.chibiClassic,
-                          'Tiểu Rồng Chibi',
-                          'Đáng yêu'
-                        ),
-                        (
-                          AppMascotCharacter.hidden,
-                          'Ẩn Linh Vật',
-                          'Giao diện thuần'
-                        ),
-                      ])
-                        Builder(
-                          builder: (context) {
-                            final selected = studio.mascotCharacter == item.$1;
-                            return GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                studio.setMascotCharacter(item.$1);
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? studio.resolvedPrimary.withValues(
-                                          alpha: isDark ? 0.20 : 0.10)
-                                      : (isDark
-                                          ? Colors.white.withValues(alpha: 0.04)
-                                          : const Color(0xFFF8FAFC)),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: selected
-                                        ? studio.resolvedPrimary
-                                        : borderColor,
-                                    width: selected ? 1.8 : 1.0,
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 42,
-                                      height: 42,
-                                      child: item.$1 ==
-                                              AppMascotCharacter.hidden
-                                          ? Icon(
-                                              Icons.visibility_off_rounded,
-                                              size: 26,
-                                              color: selected
-                                                  ? studio.resolvedPrimary
-                                                  : secondaryTextColor,
-                                            )
-                                          : FinoraMascotImage(
-                                              pose: FinoraMascotImage
-                                                  .resolvePoseByName(
-                                                      studio.mascotDefaultPose),
-                                              size: 42,
-                                              characterOverride: item.$1,
-                                              forceShow: true,
-                                            ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      item.$2,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: selected
-                                            ? studio.resolvedPrimary
-                                            : primaryTextColor,
-                                      ),
-                                    ),
-                                    Text(
-                                      item.$3,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        color: secondaryTextColor,
-                                      ),
-                                    ),
-                                  ],
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 58,
+                              height: 58,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: studio.resolvedPrimary
+                                      .withValues(alpha: 0.35),
+                                  width: 1.5,
                                 ),
                               ),
-                            );
-                          },
+                              alignment: Alignment.center,
+                              child: isHidden
+                                  ? Icon(
+                                      Icons.visibility_off_rounded,
+                                      size: 26,
+                                      color: secondaryTextColor,
+                                    )
+                                  : FinoraMascotImage(
+                                      pose: FinoraMascotImage.resolvePoseByName(
+                                          studio.mascotDefaultPose),
+                                      size: 48,
+                                      forceShow: true,
+                                    ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          activeCharacterTitle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: primaryTextColor,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isHidden
+                                              ? secondaryTextColor
+                                                  .withValues(alpha: 0.14)
+                                              : studio.resolvedPrimary,
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          isHidden ? 'ĐANG ẨN' : 'ĐANG BẬT',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w900,
+                                            color: isHidden
+                                                ? secondaryTextColor
+                                                : Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    isHidden
+                                        ? 'Chế độ tối giản — không hiển thị linh vật ở màn hình'
+                                        : 'Biểu cảm mặc định: $activePoseLabel',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: secondaryTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                    ],
-                  ),
-                  if (studio.mascotCharacter ==
-                          AppMascotCharacter.jadeDragon3D ||
-                      studio.mascotCharacter ==
-                          AppMascotCharacter.chibiClassic) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'TƯ THẾ & BIỂU CẢM MẶC ĐỊNH',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                        color: secondaryTextColor,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
+                      const SizedBox(height: 12),
+                      // Spacious 3-column selector row
+                      Row(
                         children: [
-                          for (final poseItem in const [
-                            ('hero', 'Bay lượn (Hero)'),
-                            ('happy', 'Vui vẻ'),
-                            ('confident', 'Tự tin'),
-                            ('focused', 'Tập trung'),
-                            ('celebrate', 'Ăn mừng'),
-                            ('saving', 'Tiết kiệm'),
-                            ('goal', 'Mục tiêu'),
-                            ('family', 'Gia đình'),
-                            ('relaxed', 'Thảnh thơi'),
-                          ]) ...[
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
+                          for (final (idx, item) in const [
+                            (
+                              AppMascotCharacter.jadeDragon3D,
+                              'Rồng Ngọc 3D',
+                              'Chính thức'
+                            ),
+                            (
+                              AppMascotCharacter.chibiClassic,
+                              'Tiểu Rồng Chibi',
+                              'Đáng yêu'
+                            ),
+                            (
+                              AppMascotCharacter.hidden,
+                              'Ẩn Linh Vật',
+                              'Tối giản'
+                            ),
+                          ].indexed) ...[
+                            if (idx > 0) const SizedBox(width: 8),
+                            Expanded(
                               child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  studio.setMascotCharacter(item.$1);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: studio.mascotCharacter == item.$1
+                                        ? studio.resolvedPrimary.withValues(
+                                            alpha: isDark ? 0.20 : 0.10)
+                                        : (isDark
+                                            ? Colors.white
+                                                .withValues(alpha: 0.04)
+                                            : const Color(0xFFF8FAFC)),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: studio.mascotCharacter == item.$1
+                                          ? studio.resolvedPrimary
+                                          : borderColor,
+                                      width: studio.mascotCharacter == item.$1
+                                          ? 1.8
+                                          : 1.0,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: studio.mascotCharacter ==
+                                                  item.$1
+                                              ? studio.resolvedPrimary
+                                                  .withValues(alpha: 0.12)
+                                              : (isDark
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.05)
+                                                  : Colors.white),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: item.$1 ==
+                                                AppMascotCharacter.hidden
+                                            ? Icon(
+                                                Icons.visibility_off_rounded,
+                                                size: 24,
+                                                color:
+                                                    studio.mascotCharacter ==
+                                                            item.$1
+                                                        ? studio.resolvedPrimary
+                                                        : secondaryTextColor,
+                                              )
+                                            : FinoraMascotImage(
+                                                pose: FinoraMascotImage
+                                                    .resolvePoseByName(
+                                                        studio
+                                                            .mascotDefaultPose),
+                                                size: 40,
+                                                characterOverride: item.$1,
+                                                forceShow: true,
+                                              ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        item.$2,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: studio.mascotCharacter ==
+                                                  item.$1
+                                              ? studio.resolvedPrimary
+                                              : primaryTextColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.$3,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: secondaryTextColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (!isHidden) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          'TƯ THẾ & BIỂU CẢM MẶC ĐỊNH',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: secondaryTextColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final poseItem in poseList)
+                              GestureDetector(
                                 onTap: () {
                                   HapticFeedback.selectionClick();
                                   studio.setMascotDefaultPose(poseItem.$1);
@@ -946,40 +1439,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                               ),
-                            ),
                           ],
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (studio.mascotCharacter != AppMascotCharacter.hidden) ...[
-                    const SizedBox(height: 6),
-                    Material(
-                      type: MaterialType.transparency,
-                      child: SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: Text(
-                          'Hiển thị hình chìm linh vật (Watermark 3D)',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: primaryTextColor,
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.04)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              activeTrackColor: studio.resolvedPrimary,
+                              title: Text(
+                                'Hiển thị hình chìm linh vật (Watermark 3D)',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: primaryTextColor,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Trang trí nhẹ nhàng ở góc các thẻ tổng quan & màn hình',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: secondaryTextColor,
+                                ),
+                              ),
+                              value: studio.showMascotWatermark,
+                              onChanged: studio.setShowMascotWatermark,
+                            ),
                           ),
                         ),
-                        subtitle: Text(
-                          'Trang trí nhẹ nhàng ở góc các thẻ tổng quan & màn hình',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: secondaryTextColor,
-                          ),
-                        ),
-                        value: studio.showMascotWatermark,
-                        onChanged: studio.setShowMascotWatermark,
-                      ),
-                    ),
-                  ],
-                ],
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
 
@@ -1212,7 +1714,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF059669),
+                            color: studio.resolvedPrimary,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Row(
@@ -1252,7 +1754,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle:
                   'Bảng màu pha tinh thể Thạch Anh & Mesh Gradient 3 vùng',
               icon: Icons.auto_awesome_rounded,
-              color: const Color(0xFF10B981),
+              color: studio.resolvedPrimary,
               primaryTextColor: primaryTextColor,
               secondaryTextColor: secondaryTextColor,
             ),
