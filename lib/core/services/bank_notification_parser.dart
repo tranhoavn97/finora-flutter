@@ -231,19 +231,19 @@ class BankNotificationParser {
           ),
           'bd_tk',
         )
-        // Also mask "so du tk <acct> thay doi/bien dong/tang/giam [+-]amount"
+        // Also mask "so du tk [subtype] <acct> thay doi/bien dong/tang/giam [+-]amount"
         .replaceAllMapped(
           RegExp(
-            r'\b(?:so\s+du|sd)\s+(?:tk|tai\s+khoan)\s+[0-9a-zxX*.-]{3,24}\s*(?:tai\s+[a-z0-9\s]{1,16}\s*)?(?:thay\s+doi|bien\s+dong|tang|giam|vua\s+thay\s+doi|phat\s+sinh|gd|ps)',
+            r'\b(?:so\s+du|sd)\s+(?:tk|tai\s+khoan|so)(?:\s+(?:tiet\s+kiem|tich\s+luy|thanh\s+toan|tin\s+dung))?\s+[0-9a-zxX*.-]{3,24}\s*(?:tai\s+[a-z0-9\s]{1,16}\s*)?(?:thay\s+doi|bien\s+dong|tang|giam|vua\s+thay\s+doi|phat\s+sinh|gd|ps)',
             caseSensitive: false,
           ),
           (m) => 'bd_tk_acct',
         );
 
-    // 1. Explicit Ending-Balance Keywords (Highest Confidence — e.g. SD khả dụng, SDKD, Số dư cuối, Số dư sau GD, Số dư thực tế, Số dư hiện tại, Số dư hiện có)
-    // Supports optional "TK <acct>" before separator, and ":", "=", "-", "la", or space separator, and optional "+" prefix on positive balance.
+    // 1. Explicit Ending-Balance Keywords (Highest Confidence — e.g. SD khả dụng, SDKD, Số dư cuối, Số dư sau GD, Số dư thực tế, Số dư hiện tại, Số dư hiện có, Số dư TK tiết kiệm hiện tại)
+    // Supports optional "TK [tiết kiệm] <acct>" before or after keyword, and ":", "=", " - ", "la", or space separator, and optional "+" prefix on positive balance.
     final explicitMatches = RegExp(
-      r'\b(?:(?:so\s*du|sd)\s+(?:kha\s+dung|cuoi(?:\s+ky)?|sau\s+gd|sau\s+giao\s+dich|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi)|sdkd|sdtt|sdc|available\s+balance|avail\s+bal|ending\s+balance|han\s*muc\s*(?:con\s*lai|kha\s*dung))(?:\s+(?:tk|tai\s*khoan)\s+[0-9a-zxX*.-]{3,24})?\s*(?:[:=-]|\bla\b|\s)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?',
+      r'\b(?:(?:so\s*du|sd)\s+(?:(?:(?:tk|tai\s*khoan|so)(?:\s+(?:tiet\s+kiem|tich\s+luy|thanh\s+toan|tin\s+dung))?(?:\s+[0-9a-zxX*.-]{3,24})?\s+)?(?:kha\s+dung|cuoi(?:\s+ky)?|sau\s+gd|sau\s+giao\s+dich|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi))|sdkd|sdtt|sdc|available\s+balance|avail\s+bal|ending\s+balance|han\s*muc\s*(?:con\s*lai|kha\s*dung))(?:\s+(?:tk|tai\s*khoan|so)(?:\s+(?:tiet\s+kiem|tich\s+luy|thanh\s+toan|tin\s+dung))?(?:\s+[0-9a-zxX*.-]{3,24})?)?\s*(?:[:=]|\s+-\s+|\bla\b|\s)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?',
       caseSensitive: false,
     ).allMatches(masked);
 
@@ -259,17 +259,31 @@ class BankNotificationParser {
     }
     if (bestExplicit != null) return bestExplicit;
 
-    // 2. "SD TK <acct>: <balance>" / "So du TK <acct> la <balance>"
+    // 1b. Explicit savings account balance phrasing without leading "Số dư" ("Tài khoản tiết kiệm <acct> hiện có 50,000,000 VND")
+    final savingsExplicitMatches = RegExp(
+      r'\b(?:tk|tai\s*khoan|so)\s+(?:tiet\s+kiem|tich\s+luy)(?:\s+[0-9a-zxX*.-]{3,24})?\s+(?:hien\s+(?:co|tai)|con\s+lai|so\s*du(?:\s+la)?)\s*(?:[:=]|\s+-\s+|\bla\b|\s)\s*([+]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?',
+      caseSensitive: false,
+    ).allMatches(masked);
+    for (final m in savingsExplicitMatches) {
+      final rawVal = (m.group(1) ?? '').trim();
+      final val = parseAmount(rawVal);
+      if (val != null && val.isFinite && val >= 0) {
+        bestExplicit = val;
+      }
+    }
+    if (bestExplicit != null) return bestExplicit;
+
+    // 2. "SD TK [tiết kiệm] <acct>: <balance>" / "So du tai khoan tiet kiem - 50,000,000 VND"
     // Note: in NCB & some banks, the FIRST "So du TK <acct>: -500,000" is the transaction delta,
     // while a non-negative or subsequent match is the ending balance.
     final acctBalanceMatches = RegExp(
-      r'\b(?:sd|so\s*du)\s+(?:tk|tai\s*khoan)\s+[0-9a-zxX*.-]{3,24}\s*(?:[:=]|\bla\b)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)',
+      r'\b(?:sd|so\s*du)\s+(?:tk|tai\s*khoan|so)(?:\s+(?:tiet\s+kiem|tich\s+luy|thanh\s+toan|tin\s+dung))?(?:\s+[0-9a-zxX*.-]{3,24})?\s*(?:(?:[:=]|\s+-\s+|\bla\b|\bhien\s+(?:co|tai)\b)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?|\s+([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)\b)',
       caseSensitive: false,
     ).allMatches(masked);
     double? acctCandidate;
     for (final m in acctBalanceMatches) {
-      final rawVal = (m.group(1) ?? '').trim();
-      if (rawVal.startsWith('-')) continue;
+      final rawVal = (m.group(1) ?? m.group(2) ?? '').trim();
+      if (rawVal.isEmpty || rawVal.startsWith('-')) continue;
       // If it starts with '+', only accept as balance if there is already another signed transaction amount earlier
       if (rawVal.startsWith('+')) {
         final beforeText = masked.substring(0, m.start);
@@ -283,7 +297,7 @@ class BankNotificationParser {
 
     // 3. Generic "SD:" / "So du:" / "Balance:" patterns (take the LAST valid non-negative balance in the notification)
     final genericMatches = RegExp(
-      r'\b(?:sd|so\s*du|balance)\s*(?:[:=-]|\bla\b|\s)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?',
+      r'\b(?:sd|so\s*du|balance)\s*(?:[:=]|\s+-\s+|\bla\b|\s)\s*([+-]?\s*\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)?',
       caseSensitive: false,
     ).allMatches(masked);
 
@@ -292,7 +306,7 @@ class BankNotificationParser {
       final fullMatch = m.group(0) ?? '';
       // Skip if this matched "SD TK <account_number>" where the captured number is the account number
       final afterMatch = masked.substring(m.start);
-      if (RegExp(r'^(?:sd|so\s*du)\s+(?:tk|tai\s*khoan)\b', caseSensitive: false)
+      if (RegExp(r'^(?:sd|so\s*du)\s+(?:tk|tai\s*khoan|so)\b', caseSensitive: false)
           .hasMatch(afterMatch) ||
           RegExp(r'^(?:sd|so\s*du)\s+tk\b', caseSensitive: false)
               .hasMatch(fullMatch)) {
@@ -1081,10 +1095,6 @@ class BankNotificationParser {
         .replaceAll('₫', 'd')
         .replaceAll('−', '-')
         .replaceAll('–', '-');
-    final foldedText = foldVietnamese(text)
-        .replaceAll('₫', 'd')
-        .replaceAll('−', '-')
-        .replaceAll('–', '-');
 
     // Drop security / OTP notices
     if (foldedCombined.contains('otp') ||
@@ -1108,48 +1118,17 @@ class BankNotificationParser {
             caseSensitive: false)
         .hasMatch(foldedCombined)) return null;
     final normalized = combined.replaceAll('−', '-').replaceAll('–', '-');
-    // A pure static balance inquiry ("Số dư: 10,000,000 VND") with no transaction verb and no second balance clause is not a transaction.
-    // However, NCB and several banks start transaction notifications with "Số dư TK 1000xxx +/-500,000 VND. Số dư khả dụng: 10,000,000 VND".
-    final hasExplicitEndingBalanceClause = RegExp(
-      r'\b(?:(?:so\s*du|sd)\s+(?:kha\s+dung|cuoi|sau\s+gd|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi)|sdkd|sdtt|sdc)\b',
-      caseSensitive: false,
-    ).hasMatch(foldedCombined);
-    if (RegExp(r'^\s*(?:so du|balance|sd\s*:)', caseSensitive: false)
-            .hasMatch(foldedText) &&
-        !hasExplicitEndingBalanceClause &&
-        !RegExp(
-                r'\bgd\b|\bps\b|bien dong|thay doi|ghi no|ghi co|thanh toan|da chuyen|chuyen khoan|chuyen tien|rut tien|nhan tien',
-                caseSensitive: false)
-            .hasMatch(foldedCombined)) return null;
+    // Pure static balance statements ("Số dư tài khoản tiết kiệm 50.000.000 VND",
+    // "Số dư tài khoản tiết kiệm - 50,000,000 VND", "Số dư: -50.000 VND")
+    // have no transaction delta and must NEVER be parsed as an expense.
+    if (isStaticBalanceOnlyMessage(foldedCombined)) return null;
 
     // Extract post-transaction balance first
     final balanceAfter = extractBalanceAfter(normalized);
 
     // Strip fee segments (Phí: 1,100đ) and explicit ending balance clauses ("SD khả dụng: 12,450,000VND")
     // from a copy used for transaction amount extraction so fees or ending balances are never picked as tx amount.
-    var amountTarget = foldedCombined
-        .replaceAll(
-          RegExp(
-            r'(?:phi(?:\s+gd)?|fee|vat)\s*[:=-]?\s*[+-]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
-            caseSensitive: false,
-          ),
-          ' ',
-        )
-        .replaceAll(
-          RegExp(
-            r'\b(?:(?:so\s*du|sd)\s+(?:kha\s+dung|cuoi(?:\s+ky)?|sau\s+gd|sau\s+giao\s+dich|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi)|sdkd|sdtt|sdc|available\s+balance|avail\s+bal|ending\s+balance)(?:\s+(?:tk|tai\s*khoan)\s+[0-9a-zxX*.-]{3,24})?\s*(?:[:=-]|\bla\b|\s)\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
-            caseSensitive: false,
-          ),
-          ' ',
-        )
-        // Strip explicit ending balance snippets ("SD: 12,450,000", "Số dư: +2,734,539 VND") so delta amount stays unambiguous.
-        .replaceAll(
-          RegExp(
-            r'\b(?:sd|so\s*du|so\s*du\s*hien\s*tai|so\s*du\s*kha\s*dung|balance)\s*[:=]\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
-            caseSensitive: false,
-          ),
-          ' ',
-        );
+    final amountTarget = stripBalanceAndFeeClauses(foldedCombined);
 
     final signedAfter = RegExp(
             r'(?<![\d/.-])([+-])\s*(\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)(?![a-z])',
@@ -1196,15 +1175,8 @@ class BankNotificationParser {
         extractedAmount <= 0) return null;
     extractedAmount = extractedAmount.abs();
 
-    // Extract account number: TK 102xxx or TK ...xxx or Thẻ 4123*9988
-    String? accountNo;
-    final acctMatch = RegExp(
-            r'(?:TK|tai khoan|Tài khoản|STK|the|Thẻ|Card)\s*(?:thanh toán|tt|tín dụng|td)?\s*[:#-]?\s*([0-9xX*.]{3,24})',
-            caseSensitive: false)
-        .firstMatch(combined);
-    if (acctMatch != null) {
-      accountNo = acctMatch.group(1)?.replaceAll(RegExp(r'^[.]+|[.]+$'), '');
-    }
+    // Extract account number: TK 102xxx, Tài khoản tiết kiệm 108542..., or Thẻ 4123*9988
+    final accountNo = extractAccountNumber(combined);
 
     // Extract note: Content / Noi dung / ND / tai
     String note = '';
@@ -1258,6 +1230,120 @@ class BankNotificationParser {
     );
   }
 
+  /// Strip fee segments and ending-balance clauses before scanning for a transaction delta.
+  static String stripBalanceAndFeeClauses(String foldedCombined) {
+    return foldedCombined
+        .replaceAll(
+          RegExp(
+            r'(?:phi(?:\s+gd)?|fee|vat)\s*[:=-]?\s*[+-]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(?:(?:so\s*du|sd)\s+(?:(?:(?:tk|tai\s*khoan|so)(?:\s+(?:tiet\s+kiem|tich\s+luy|thanh\s+toan|tin\s+dung))?(?:\s+[0-9a-zxX*.-]{3,24})?\s+)?(?:kha\s+dung|cuoi(?:\s+ky)?|sau\s+gd|sau\s+giao\s+dich|thuc\s+te|hien\s+tai|hien\s+co|con\s+lai|moi))|sdkd|sdtt|sdc|available\s+balance|avail\s+bal|ending\s+balance|han\s*muc\s*(?:con\s*lai|kha\s*dung))(?:\s+(?:tk|tai\s*khoan|so)(?:\s+(?:tiet\s+kiem|tich\s+luy|thanh\s+toan|tin\s+dung))?(?:\s+[0-9a-zxX*.-]{3,24})?)?\s*(?:[:=]|\s+-\s+|\bla\b|\s)\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        // Strip savings-account balance clauses ("Số dư TK tiết kiệm [123456]: 50,000,000 VND", "Số dư tài khoản tiết kiệm - 50,000,000 VND")
+        .replaceAll(
+          RegExp(
+            r'\b(?:sd|so\s*du)\s+(?:tk|tai\s*khoan|so)\s+(?:tiet\s+kiem|tich\s+luy)(?:\s+[0-9a-zxX*.-]{3,24})?\s*(?:(?:[:=]|\s+-\s+|\bla\b|\bhien\s+(?:co|tai)\b)\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?|\s+[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)\b)',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(?:tk|tai\s*khoan|so)\s+(?:tiet\s+kiem|tich\s+luy)(?:\s+[0-9a-zxX*.-]{3,24})?\s+(?:hien\s+(?:co|tai)|con\s+lai|so\s*du(?:\s+la)?)\s*(?:[:=]|\s+-\s+|\bla\b|\s)\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        // Strip explicit ending balance snippets ("SD: 12,450,000", "Số dư: +2,734,539 VND") so delta amount stays unambiguous.
+        .replaceAll(
+          RegExp(
+            r'\b(?:sd|so\s*du|so\s*du\s*hien\s*tai|so\s*du\s*kha\s*dung|balance)\s*(?:[:=]|\s+-\s+)\s*[+]?\s*\d[\d.,\s]*(?:vnd|d\b|dong)?',
+            caseSensitive: false,
+          ),
+          ' ',
+        );
+  }
+
+  /// True when the notification only states an account/savings balance without a transaction movement.
+  static bool isStaticBalanceOnlyMessage(String foldedCombined) {
+    final hasBalanceKeyword = RegExp(
+      r'\b(?:so\s*du|sd\s*[:=]|sd\s+(?:tk|tai\s*khoan|so|kha\s+dung|hien\s+tai|hien\s+co|cuoi|con\s+lai|thuc\s+te)|sdkd|sdtt|sdc|balance|(?:tk|tai\s*khoan|so)\s+(?:tiet\s+kiem|tich\s+luy)\b[^.\n]{0,40}\b(?:hien\s+(?:co|tai)|con\s+lai|so\s*du))',
+      caseSensitive: false,
+    ).hasMatch(foldedCombined);
+    if (!hasBalanceKeyword) return false;
+
+    final hasTransactionVerb = RegExp(
+      r'\bgd\b|\bps\b|phat\s+sinh|bien\s+dong|thay\s+doi|ghi\s+no|ghi\s+co|bao\s+no|bao\s+co|thanh\s+toan|chi\s+tieu|giao\s+dich|da\s+chuyen|chuyen\s+khoan|chuyen\s+tien|rut\s+tien|nhan\s+tien|nhan\s+duoc|tien\s+vao|hoan\s+tien|debited|credited|spent|charged|dat\s+don|don\s+hang|mua\s+hang|\bref\b|\bnd\b|noi\s+dung',
+      caseSensitive: false,
+    ).hasMatch(foldedCombined);
+    if (hasTransactionVerb) return false;
+
+    // If stripping an ending-balance clause still leaves an explicit signed delta
+    // (e.g., "SD TK 1000234567 -150,000 VND. SD: 12,450,000 VND"), it IS a real transaction.
+    final stripped = stripBalanceAndFeeClauses(foldedCombined);
+    final strippedEndingBalance = stripped != foldedCombined;
+    final hasSignedDeltaRemaining = RegExp(
+      r'(?<![\d/.-])[+-]\d(?:[\d.,\s]*\d)?\s*(?:vnd|d\b|dong)(?![a-z])',
+      caseSensitive: false,
+    ).hasMatch(stripped);
+    if (strippedEndingBalance && hasSignedDeltaRemaining) return false;
+
+    return true;
+  }
+
+  /// Extract bank/savings account number without mistaking formatted money amounts for account numbers.
+  static String? extractAccountNumber(String combined) {
+    final matches = RegExp(
+      r'(?:TK|tai khoan|Tài khoản|STK|sổ tiết kiệm|so tiet kiem|the|Thẻ|Card)\s*(?:thanh toán|thanh toan|tt|tín dụng|tin dung|td|tiết kiệm|tiet kiem|tích lũy|tich luy)?\s*[:#-]?\s*([0-9xX*.]{3,24})(?![0-9xX*.,])(?!\s*(?:vnd|đ|₫|d\b|dong\b))',
+      caseSensitive: false,
+    ).allMatches(combined);
+    for (final m in matches) {
+      final candidate = (m.group(1) ?? '').replaceAll(RegExp(r'^[.]+|[.]+$'), '');
+      if (candidate.isEmpty) continue;
+      // Reject thousands-grouped amounts like 50.000.000 or 8.500.000
+      if (RegExp(r'^\d{1,3}(?:\.\d{3})+$').hasMatch(candidate)) continue;
+      final digits = candidate.replaceAll(RegExp(r'\D'), '');
+      if (digits.length >= 3) return candidate;
+    }
+    return null;
+  }
+
+  /// Strictly detect husband/wife word tokens (never matches "vốn", "với", "vô", "vòng", "chống", etc.).
+  static String? detectMemberHint(String raw) {
+    if (raw.trim().isEmpty) return null;
+    final tokens = raw
+        .toLowerCase()
+        .split(RegExp(r'[^\p{L}\p{N}]+', unicode: true))
+        .where((t) => t.isNotEmpty)
+        .toSet();
+    final hasHusband = tokens.contains('husband') ||
+        tokens.contains('chồng') ||
+        tokens.contains('chong');
+    final hasWife = tokens.contains('wife') ||
+        tokens.contains('vợ') ||
+        tokens.contains('vo');
+    if (hasHusband && !hasWife) return 'husband';
+    if (hasWife && !hasHusband) return 'wife';
+    return null;
+  }
+
+  /// True when the notification or wallet name refers to a savings account / savings book.
+  static bool isSavingsContext(String raw) {
+    final folded = foldVietnamese(raw);
+    return RegExp(
+      r'\b(?:tiet\s+kiem|so\s+tiet\s+kiem|tich\s+luy|saving|savings|heo\s+dat)\b',
+      caseSensitive: false,
+    ).hasMatch(folded);
+  }
+
   /// Build a fallback [ParsedBankTransaction] from an unrecognized bank notification
   /// so the user can still tap it, pick a category, adjust amount if needed, and save.
   static ParsedBankTransaction fromUnrecognized({
@@ -1277,25 +1363,39 @@ class BankNotificationParser {
     if (parsed != null) return parsed;
 
     final combined = '$title\n$text';
+    final foldedCombined = foldVietnamese(combined)
+        .replaceAll('₫', 'd')
+        .replaceAll('−', '-')
+        .replaceAll('–', '-');
     final bank = resolveBank(
       packageName.isNotEmpty ? packageName : rawId,
       title,
       text,
     );
-    final balanceAfter = extractBalanceAfter(combined);
+    final balanceAfter = extractBalanceAfter(combined.replaceAll('−', '-').replaceAll('–', '-'));
+    final accountNo = extractAccountNumber(combined);
+    final isStaticBalance = isStaticBalanceOnlyMessage(foldedCombined);
     final isIncome = RegExp(
       r'\+|ghi có|ghi co|báo có|bao co|nhận|nhan|tiền vào|tien vao|cộng|cong|tăng|tang|credited',
       caseSensitive: false,
     ).hasMatch(combined);
 
     double fallbackAmount = 0;
-    final numMatches =
-        RegExp(r'(\d{1,3}(?:[.,]\d{3})+|\d{4,12})').allMatches(combined);
-    for (final m in numMatches) {
-      final candidate = parseAmount(m.group(0) ?? '');
-      if (candidate != null && candidate >= 1000 && candidate <= 100000000000) {
-        fallbackAmount = candidate.abs();
-        break;
+    // Never turn a pure savings/account balance statement into a spending transaction amount.
+    if (!isStaticBalance) {
+      var scanTarget = stripBalanceAndFeeClauses(foldedCombined)
+          .replaceAll(RegExp(r'\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b'), ' ');
+      if (accountNo != null && accountNo.isNotEmpty) {
+        scanTarget = scanTarget.replaceAll(accountNo.toLowerCase(), ' ');
+      }
+      final numMatches =
+          RegExp(r'(\d{1,3}(?:[.,]\d{3})+|\d{4,12})').allMatches(scanTarget);
+      for (final m in numMatches) {
+        final candidate = parseAmount(m.group(0) ?? '');
+        if (candidate != null && candidate >= 1000 && candidate <= 100000000000) {
+          fallbackAmount = candidate.abs();
+          break;
+        }
       }
     }
 
@@ -1316,6 +1416,7 @@ class BankNotificationParser {
       bankName: bank.name,
       amount: fallbackAmount,
       type: isIncome ? 'income' : 'expense',
+      accountNumber: accountNo,
       balanceAfter: balanceAfter,
       note: note,
       transactionCode: txCode,

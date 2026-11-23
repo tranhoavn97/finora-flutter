@@ -21,6 +21,7 @@ class HomeWidgetSyncService {
   static Map<String, dynamic> buildPayload({
     required DashboardData dashboardData,
     required int pendingCount,
+    int manualPendingCount = 0,
     required bool hideAmounts,
     DateTime? now,
   }) {
@@ -77,6 +78,7 @@ class HomeWidgetSyncService {
       'totalBalance': dashboardData.totalWalletBalance.toDouble(),
       'hideAmounts': hideAmounts,
       'pendingCount': pendingCount < 0 ? 0 : pendingCount,
+      'manualPendingCount': manualPendingCount < 0 ? 0 : manualPendingCount,
       'syncedAt': '$hh:$mm',
       'recent': recent,
     };
@@ -85,6 +87,7 @@ class HomeWidgetSyncService {
   Future<void> sync({
     required DashboardData dashboardData,
     required int pendingCount,
+    int manualPendingCount = 0,
     required bool hideAmounts,
     bool force = false,
   }) async {
@@ -92,6 +95,7 @@ class HomeWidgetSyncService {
     final payload = buildPayload(
       dashboardData: dashboardData,
       pendingCount: pendingCount,
+      manualPendingCount: manualPendingCount,
       hideAmounts: hideAmounts,
     );
     final signature = jsonEncode(<String, dynamic>{
@@ -102,6 +106,7 @@ class HomeWidgetSyncService {
       'totalBalance': payload['totalBalance'],
       'hideAmounts': payload['hideAmounts'],
       'pendingCount': payload['pendingCount'],
+      'manualPendingCount': payload['manualPendingCount'],
       'recent': payload['recent'],
     });
     if (!force && signature == _lastSignature) return;

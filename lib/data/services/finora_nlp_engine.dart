@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../../core/services/bank_notification_parser.dart';
 import '../models/category.dart';
 import '../models/wallet.dart';
 import '../models/finance_models.dart';
@@ -212,6 +213,15 @@ class FinoraNlpEngine {
         norm.contains('nhan luong') ||
         norm.contains('duoc tang')) {
       return 'income';
+    }
+    if (norm.contains('gui tiet kiem') ||
+        norm.contains('bo tiet kiem') ||
+        norm.contains('nap tiet kiem') ||
+        norm.contains('so tiet kiem') ||
+        norm.contains('bo heo') ||
+        norm.contains('nuoi heo') ||
+        norm.contains('tich luy')) {
+      return 'saving';
     }
     if (norm.contains('chuyen tien') ||
         norm.contains('chuyen sang') ||
@@ -579,21 +589,19 @@ class FinoraNlpEngine {
       final norm = normalize(phrase);
       String? owner;
       String? ownerName;
-      if (norm.contains('chong') ||
-          norm.contains('cho anh') ||
-          norm.contains('cua anh') ||
-          norm.contains('cua chong')) {
+      final tokenHint = BankNotificationParser.detectMemberHint(phrase);
+      final hasHusbandPhrase = tokenHint == 'husband' ||
+          RegExp(r'\b(?:cho anh|cua anh|cua chong|cho chong)\b').hasMatch(norm);
+      final hasWifePhrase = tokenHint == 'wife' ||
+          RegExp(r'\b(?:cho em|cua em|cua vo|cho vo)\b').hasMatch(norm);
+      if (hasHusbandPhrase && !hasWifePhrase) {
         owner = 'husband';
         ownerName = 'Chồng';
-      } else if (norm.contains('vo') ||
-          norm.contains('cho em') ||
-          norm.contains('cua em') ||
-          norm.contains('cua vo')) {
+      } else if (hasWifePhrase && !hasHusbandPhrase) {
         owner = 'wife';
         ownerName = 'Vợ';
-      } else if (norm.contains('chung') ||
-          norm.contains('ca nha') ||
-          norm.contains('gia dinh')) {
+      } else if (RegExp(r'\b(?:chung|ca nha|gia dinh)\b').hasMatch(norm) ||
+          (hasHusbandPhrase && hasWifePhrase)) {
         owner = 'joint';
         ownerName = 'Chung';
       }

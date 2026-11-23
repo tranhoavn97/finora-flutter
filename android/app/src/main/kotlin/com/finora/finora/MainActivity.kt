@@ -143,12 +143,17 @@ class MainActivity : FlutterActivity() {
         bankSyncChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "consumeBankInboxRequest" -> {
-                    val requested = intent?.getBooleanExtra("from_bank_sync", false) == true
+                    val launchedFromHistory =
+                        ((intent?.flags ?: 0) and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+                    val requested = !launchedFromHistory &&
+                        intent?.getBooleanExtra("from_bank_sync", false) == true
                     intent?.removeExtra("from_bank_sync")
                     result.success(requested)
                 }
                 "consumeLaunchAction" -> {
-                    val action = intent?.getStringExtra("finora_action")
+                    val launchedFromHistory =
+                        ((intent?.flags ?: 0) and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+                    val action = if (launchedFromHistory) null else intent?.getStringExtra("finora_action")
                     intent?.removeExtra("finora_action")
                     result.success(action)
                 }
@@ -249,7 +254,7 @@ class MainActivity : FlutterActivity() {
                     val title = call.argument<String>("title") ?: "FINORA"
                     val body = call.argument<String>("body") ?: ""
                     val channelType = call.argument<String>("channel") ?: "activity"
-                    val notifId = call.argument<Int>("id") ?: ((System.currentTimeMillis() % 90000L) + 1000L).toInt()
+                    val notifId = call.argument<Int>("id") ?: ((System.currentTimeMillis() % 70000L) + 1000L).toInt()
                     val fromBankSync = call.argument<Boolean>("fromBankSync") ?: false
                     val action = call.argument<String>("action")
                     val channelId = if (channelType == "bank") {
@@ -367,6 +372,7 @@ class MainActivity : FlutterActivity() {
         homeWidgetChannel = null
         pendingNotificationPermResult = null
         FinoraBankNotificationListenerService.onNotificationReceivedListener = null
+        FinoraBankNotificationListenerService.onConnectionStatusChanged = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

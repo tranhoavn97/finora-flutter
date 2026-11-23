@@ -158,11 +158,15 @@ void main() {
       expect(find.text('Kế hoạch'), findsNothing);
       expect(find.text('Cá nhân'), findsNothing);
 
-      // Tooltips exist for accessibility
-      expect(find.byTooltip('Trang chủ'), findsOneWidget);
-      expect(find.byTooltip('Tài sản'), findsOneWidget);
-      expect(find.byTooltip('Kế hoạch'), findsOneWidget);
-      expect(find.byTooltip('Cá nhân'), findsOneWidget);
+      // Dock tabs expose accessible Semantics labels without long-press Tooltips
+      Finder tabSemantics(String label) => find.byWidgetPredicate(
+            (w) => w is Semantics && w.properties.label == label,
+          );
+      expect(find.byType(Tooltip), findsNothing);
+      expect(tabSemantics('Trang chủ'), findsOneWidget);
+      expect(tabSemantics('Tài sản'), findsOneWidget);
+      expect(tabSemantics('Kế hoạch'), findsOneWidget);
+      expect(tabSemantics('Cá nhân'), findsOneWidget);
 
       // Floating CTA Button (+) exists
       expect(find.byIcon(Icons.add_rounded), findsOneWidget);
@@ -170,8 +174,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(addPressed, isTrue);
 
-      // Tap tab 1 (Tài sản) via tooltip
-      await tester.tap(find.byTooltip('Tài sản'));
+      // Tap tab 1 (Tài sản) via Semantics label
+      await tester.tap(tabSemantics('Tài sản'));
       await tester.pumpAndSettle();
       expect(activeIndex, 1);
       expect(find.text('Tài sản'), findsOneWidget);
@@ -205,7 +209,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Giao diện'), findsOneWidget);
-      expect(find.text('Sáng trong & Xanh tươi'), findsOneWidget);
+      expect(find.text('Sáng trong & Đồng bộ toàn hệ thống'), findsOneWidget);
       expect(find.text('Giảm chuyển động'), findsOneWidget);
       expect(find.text('NỀN PHA MÀU GRADIENT BLUR'), findsNothing);
       expect(find.text('Theo thiết bị'), findsOneWidget);

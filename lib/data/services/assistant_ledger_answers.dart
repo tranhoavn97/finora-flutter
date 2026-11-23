@@ -1,5 +1,6 @@
 import '../../core/utils/formatters.dart';
 import '../../domain/finance/finance_summary.dart';
+import '../../domain/finance/transaction_member.dart';
 import '../models/category.dart';
 import '../models/finance_models.dart';
 import '../models/transaction.dart';
@@ -125,13 +126,15 @@ class AssistantLedgerAnswers {
     final titleScope = '${period.label}${filter.isEmpty ? '' : ' · $filter'}';
     final context =
         '${typeIncome ? 'Thu nhập' : typeExpense ? 'Chi tiêu' : 'Thu chi'} ${period.canonical} $filter ${owner == null ? '' : owner == 'wife' ? 'của vợ' : 'của chồng'}';
+    final walletMap = {for (final w in wallets) w.id: w};
     List<TransactionModel> rows(_Period scope) => transactions
         .where((t) =>
             FinanceScope(
                     start: scope.start,
                     end: scope.end,
                     walletId: wallet?.id,
-                    owner: owner)
+                    owner: owner,
+                    walletMap: walletMap)
                 .contains(t) &&
             (category == null ||
                 norm(t.categoryName ?? '') == norm(category)) &&
@@ -171,7 +174,8 @@ class AssistantLedgerAnswers {
               FinanceScope(
                       start: activePeriod.start,
                       end: activePeriod.end,
-                      walletId: wallet?.id)
+                      walletId: wallet?.id,
+                      walletMap: walletMap)
                   .contains(t) &&
               (category == null ||
                   norm(t.categoryName ?? '') == norm(category)))
@@ -179,13 +183,14 @@ class AssistantLedgerAnswers {
       final husbandExp = allInPeriod
           .where((t) =>
               FinanceSummary.isExpense(t) &&
-              (t.owner == 'husband' ||
-                  norm(t.creatorTag ?? '').contains('chong')))
+              resolveTransactionMember(t, walletMap: walletMap) ==
+                  TransactionMember.husband)
           .fold<int>(0, (s, t) => s + t.amount);
       final wifeExp = allInPeriod
           .where((t) =>
               FinanceSummary.isExpense(t) &&
-              (t.owner == 'wife' || norm(t.creatorTag ?? '').contains('vo')))
+              resolveTransactionMember(t, walletMap: walletMap) ==
+                  TransactionMember.wife)
           .fold<int>(0, (s, t) => s + t.amount);
       final jointExp = (FinanceSummary.from(allInPeriod).expense -
               husbandExp -

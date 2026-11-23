@@ -12,10 +12,10 @@ import 'bank_icon.dart';
 import 'finora_modal_scope.dart';
 import 'finora_notice.dart';
 import 'glass_widgets.dart';
-import 'premium_widgets.dart';
 import '../../data/models/category.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
+import '../../domain/finance/transaction_member.dart';
 import '../../state/more_provider.dart';
 import '../../state/transaction_provider.dart';
 import '../../state/wallet_provider.dart';
@@ -29,6 +29,14 @@ class BankTransactionPromptSheet extends StatefulWidget {
     required this.tx,
     required this.userId,
   });
+
+  static ({String owner, String ownerName}) resolveOwnerForWallet(
+          Wallet wallet) =>
+      _BankTransactionPromptSheetState.resolveOwnerForWallet(wallet);
+
+  static Wallet? selectBestWallet(
+          List<Wallet> wallets, ParsedBankTransaction tx) =>
+      _BankTransactionPromptSheetState.selectBestWallet(wallets, tx);
 
   static Future<bool?> show(
     BuildContext context, {
@@ -65,6 +73,7 @@ class BankTransactionPromptSheet extends StatefulWidget {
 class _BankTransactionPromptSheetState
     extends State<BankTransactionPromptSheet> {
   late TextEditingController _amountCtrl;
+  late TextEditingController _balanceAfterCtrl;
   late TextEditingController _bankCodeCtrl;
   late TextEditingController _noteCtrl;
   late String _selectedType; // 'expense' | 'income' | 'transfer'
@@ -78,20 +87,98 @@ class _BankTransactionPromptSheetState
   String? _validationError;
   bool _showRawText = true;
   bool _syncBalanceToBank = false;
+  ({
+    String transactionId,
+    String walletId,
+    String walletName,
+    String? toWalletId,
+    String? toWalletName,
+    int amount,
+    String type,
+    String? categoryName,
+    bool syncedBalance,
+    double? syncedBalanceValue,
+  })? _pendingImportMeta;
+  VoidCallback? _bankListener;
 
-  Wallet? _findBestWallet(List<Wallet> wallets, ParsedBankTransaction tx) {
+  static ({String owner, String ownerName}) resolveOwnerForWallet(Wallet wallet) {
+    final explicitOwner = wallet.hasExplicitOwner
+        ? parseTransactionMember(wallet.owner)
+        : null;
+    if (explicitOwner == TransactionMember.husband) {
+      return (owner: 'husband', ownerName: 'Chồng');
+    }
+    if (explicitOwner == TransactionMember.wife) {
+      return (owner: 'wife', ownerName: 'Vợ');
+    }
+
+    final explicitName = wallet.hasExplicitOwnerName
+        ? parseTransactionMember(wallet.ownerName)
+        : null;
+    if (explicitOwner == null && explicitName == TransactionMember.husband) {
+      return (owner: 'husband', ownerName: 'Chồng');
+    }
+    if (explicitOwner == null && explicitName == TransactionMember.wife) {
+      return (owner: 'wife', ownerName: 'Vợ');
+    }
+
+    final nameHint = BankNotificationParser.detectMemberHint(wallet.name);
+    if (nameHint == 'husband') return (owner: 'husband', ownerName: 'Chồng');
+    if (nameHint == 'wife') return (owner: 'wife', ownerName: 'Vợ');
+
+    if (explicitOwner == TransactionMember.joint ||
+        explicitName == TransactionMember.joint) {
+      return (owner: 'joint', ownerName: 'Chung');
+    }
+    final fallbackOwner = wallet.owner.trim().isNotEmpty ? wallet.owner : 'joint';
+    final fallbackName =
+        wallet.ownerName.trim().isNotEmpty ? wallet.ownerName : 'Chung';
+    return (owner: fallbackOwner, ownerName: fallbackName);
+  }
+
+  static List<Wallet> _narrowCandidatesByContext(
+    List<Wallet> pool,
+    ParsedBankTransaction tx,
+  ) {
+    var refined = pool;
+    final contextText = '${tx.rawNotificationText} ${tx.note}';
+    if (BankNotificationParser.isSavingsContext(contextText)) {
+      final savingsMatches = refined
+          .where((w) =>
+              w.type == 'saving' ||
+              BankNotificationParser.isSavingsContext(w.name))
+          .toList();
+      if (savingsMatches.isNotEmpty) refined = savingsMatches;
+    }
+    final memberHint = BankNotificationParser.detectMemberHint(contextText);
+    if (memberHint != null) {
+      final memberMatches = refined
+          .where((w) => resolveOwnerForWallet(w).owner == memberHint)
+          .toList();
+      if (memberMatches.isNotEmpty) refined = memberMatches;
+    }
+    return refined;
+  }
+
+  static Wallet? selectBestWallet(
+    List<Wallet> wallets,
+    ParsedBankTransaction tx,
+  ) {
     if (wallets.isEmpty) return null;
     if (wallets.length == 1) return wallets.first;
 
     // 1. Khớp chính xác hoặc phần đuôi số tài khoản ngân hàng
     final notifAcct = tx.accountNumber?.replaceAll(RegExp(r'\D'), '') ?? '';
     if (notifAcct.length >= 3) {
-      final acctMatch = wallets.where((w) {
+      final acctMatches = wallets.where((w) {
         final wAcct = (w.accountNumber ?? '').replaceAll(RegExp(r'\D'), '');
         return wAcct.isNotEmpty &&
             (wAcct.endsWith(notifAcct) || notifAcct.endsWith(wAcct));
-      }).firstOrNull;
-      if (acctMatch != null) return acctMatch;
+      }).toList();
+      if (acctMatches.length == 1) return acctMatches.first;
+      if (acctMatches.length > 1) {
+        return _narrowCandidatesByContext(acctMatches, tx).first;
+      }
     }
 
     // 2. Khớp chuẩn mã thương hiệu ngân hàng thông qua BankIconRegistry (hỗ trợ 38+ ngân hàng & ví điện tử)
@@ -107,11 +194,13 @@ class _BankTransactionPromptSheetState
       }).toList();
       if (brandMatches.length == 1) return brandMatches.first;
       if (brandMatches.length > 1) {
+        final refinedBrand = _narrowCandidatesByContext(brandMatches, tx);
+        if (refinedBrand.length == 1) return refinedBrand.first;
         final notifBal = tx.balanceAfter;
         if (notifBal != null) {
           Wallet? closest;
           double minDiff = double.infinity;
-          for (final w in brandMatches) {
+          for (final w in refinedBrand) {
             final wBal = w.balance.toDouble();
             final diffDirect = (wBal - notifBal).abs();
             final diffPreTx = tx.isExpense
@@ -125,7 +214,7 @@ class _BankTransactionPromptSheetState
           }
           if (closest != null) return closest;
         }
-        return brandMatches.first;
+        return refinedBrand.first;
       }
     }
 
@@ -190,7 +279,10 @@ class _BankTransactionPromptSheetState
           k.isNotEmpty && (wName.contains(k) || wBName.contains(k) || wBCode.contains(k)));
     }).toList();
 
-    final candidatePool = bankMatches.isNotEmpty ? bankMatches : wallets;
+    final candidatePool = _narrowCandidatesByContext(
+      bankMatches.isNotEmpty ? bankMatches : wallets,
+      tx,
+    );
 
     // 3. Khớp số dư gần đúng nhất với số dư sau giao dịch (SD / So du)
     final notifBal = tx.balanceAfter;
@@ -216,6 +308,7 @@ class _BankTransactionPromptSheetState
     if (tx.isCreditCardPayment) {
       final credit = candidatePool.where((w) =>
           w.type == 'credit' ||
+          w.type == 'credit_card' ||
           w.name.toLowerCase().contains('tín dụng') ||
           w.name.toLowerCase().contains('credit')).firstOrNull;
       if (credit != null) return credit;
@@ -223,6 +316,9 @@ class _BankTransactionPromptSheetState
 
     return candidatePool.first;
   }
+
+  Wallet? _findBestWallet(List<Wallet> wallets, ParsedBankTransaction tx) =>
+      selectBestWallet(wallets, tx);
 
   String _catKey(Category c) =>
       c.id.trim().isNotEmpty ? c.id.trim() : c.name.trim().toLowerCase();
@@ -238,6 +334,13 @@ class _BankTransactionPromptSheetState
           ? NumberFormat.decimalPattern('vi_VN').format(widget.tx.amount)
           : '',
     );
+    _balanceAfterCtrl = TextEditingController(
+      text: widget.tx.balanceAfter != null
+          ? NumberFormat.decimalPattern('vi_VN')
+              .format(widget.tx.balanceAfter!.round())
+          : '',
+    );
+    _syncBalanceToBank = widget.tx.balanceAfter != null;
     // Mã giao dịch chính lấy trực tiếp từ thông báo ngân hàng
     final mainBankRef = widget.tx.transactionCode.trim();
     _bankCodeCtrl = TextEditingController(text: mainBankRef);
@@ -246,6 +349,10 @@ class _BankTransactionPromptSheetState
     _selectedMerchantName = widget.tx.suggestedMerchant?.trim().isNotEmpty == true
         ? widget.tx.suggestedMerchant!.trim()
         : null;
+    _bankListener = () {
+      if (mounted) setState(() {});
+    };
+    BankSyncService().addListener(_bankListener!);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -454,7 +561,11 @@ class _BankTransactionPromptSheetState
 
   @override
   void dispose() {
+    if (_bankListener != null) {
+      BankSyncService().removeListener(_bankListener!);
+    }
     _amountCtrl.dispose();
+    _balanceAfterCtrl.dispose();
     _bankCodeCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
@@ -1648,17 +1759,52 @@ class _BankTransactionPromptSheetState
     );
   }
 
+  int? _parsedEndingBalance() {
+    final digits = _balanceAfterCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return null;
+    return int.tryParse(digits);
+  }
+
   Future<void> _saveTransaction() async {
     if (_saving) return;
+    final bankSync = BankSyncService();
     if (_savedAwaitingAck) {
       setState(() => _saving = true);
       try {
-        await BankSyncService().acknowledge(widget.tx.rawId);
+        final meta = _pendingImportMeta;
+        if (meta != null) {
+          await bankSync.markImported(
+            widget.tx.rawId,
+            transactionId: meta.transactionId,
+            walletId: meta.walletId,
+            walletName: meta.walletName,
+            toWalletId: meta.toWalletId,
+            toWalletName: meta.toWalletName,
+            amount: meta.amount,
+            type: meta.type,
+            categoryName: meta.categoryName,
+            syncedBalance: meta.syncedBalance,
+            syncedBalanceValue: meta.syncedBalanceValue,
+            fallbackTx: widget.tx,
+          );
+        } else {
+          await bankSync.acknowledge(widget.tx.rawId);
+        }
         if (!mounted) return;
         Navigator.of(context).pop(true);
       } finally {
         if (mounted) setState(() => _saving = false);
       }
+      return;
+    }
+
+    if (bankSync.isAlreadyImported(widget.tx.rawId)) {
+      final cloud = bankSync.cloudRecordFor(widget.tx.rawId);
+      final where = cloud?.importedFrom == 'web' ? 'trên Web' : 'trên thiết bị khác';
+      setState(() {
+        _validationError =
+            'Giao dịch này đã được nhập $where rồi nên không thể ghi trùng.';
+      });
       return;
     }
 
@@ -1713,6 +1859,10 @@ class _BankTransactionPromptSheetState
               : 'Chuyển khoản nội bộ')
           : category!.name;
 
+      final resolvedOwner = resolveOwnerForWallet(wallet);
+      final resolvedDestOwner =
+          destWallet != null ? resolveOwnerForWallet(destWallet) : null;
+
       final newTx = TransactionModel(
         id: 'bank_${widget.tx.rawId.isNotEmpty ? widget.tx.rawId : widget.tx.timestamp.millisecondsSinceEpoch}',
         userId: widget.userId,
@@ -1738,18 +1888,10 @@ class _BankTransactionPromptSheetState
         creditCardName: widget.tx.isCreditCardPayment
             ? (destWallet?.name ?? widget.tx.matchedTransferBankName)
             : null,
-        owner: (wallet.owner.isEmpty || wallet.owner == 'joint')
-            ? ((wallet.name.toLowerCase().contains('chồng') || wallet.name.toLowerCase().contains('chong'))
-                ? 'husband'
-                : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'wife' : wallet.owner))
-            : wallet.owner,
-        ownerName: (wallet.ownerName.isEmpty || wallet.ownerName == 'Chung')
-            ? ((wallet.name.toLowerCase().contains('chồng') || wallet.name.toLowerCase().contains('chong'))
-                ? 'Chồng'
-                : ((wallet.name.toLowerCase().contains('vợ') || wallet.name.toLowerCase().contains('vo')) ? 'Vợ' : wallet.ownerName))
-            : wallet.ownerName,
-        fromOwner: _selectedType == 'transfer' ? wallet.owner : null,
-        toOwner: destWallet?.owner,
+        owner: resolvedOwner.owner,
+        ownerName: resolvedOwner.ownerName,
+        fromOwner: _selectedType == 'transfer' ? resolvedOwner.owner : null,
+        toOwner: resolvedDestOwner?.owner,
         merchantId: _selectedMerchantId,
         merchantName: _selectedMerchantName?.trim(),
         date: widget.tx.timestamp.millisecondsSinceEpoch,
@@ -1763,13 +1905,18 @@ class _BankTransactionPromptSheetState
         createdAt: widget.tx.timestamp.millisecondsSinceEpoch,
       );
 
+      final parsedEndingBalance = _parsedEndingBalance();
+      final effectiveEndingBalance =
+          parsedEndingBalance ?? widget.tx.balanceAfter?.round();
+      var didSyncBalance = false;
+
       if (!_savedAwaitingAck) {
         await txProv.createTransaction(widget.userId, newTx);
         if (_syncBalanceToBank &&
-            widget.tx.balanceAfter != null &&
+            effectiveEndingBalance != null &&
             walletProv != null &&
             !wallet.isCreditCard) {
-          final targetEndBalance = widget.tx.balanceAfter!.round();
+          final targetEndBalance = effectiveEndingBalance;
           final txDelta = _selectedType == 'income' ? rawAmount : -rawAmount;
           final expectedAfter = wallet.balance + txDelta;
           final diff = targetEndBalance - expectedAfter;
@@ -1800,15 +1947,45 @@ class _BankTransactionPromptSheetState
             try {
               await walletProv.updateWallet(
                   widget.userId, wallet.id, updatedWallet);
+              didSyncBalance = true;
             } catch (_) {}
+          } else {
+            didSyncBalance = true;
           }
         }
+        _pendingImportMeta = (
+          transactionId: newTx.id,
+          walletId: wallet.id,
+          walletName: wallet.name,
+          toWalletId: destWallet?.id,
+          toWalletName: destWallet?.name,
+          amount: rawAmount,
+          type: _selectedType,
+          categoryName: resolvedCategoryName,
+          syncedBalance: didSyncBalance,
+          syncedBalanceValue:
+              didSyncBalance ? effectiveEndingBalance?.toDouble() : null,
+        );
         if (mounted) {
           setState(() => _savedAwaitingAck = true);
         }
       }
       try {
-        await BankSyncService().acknowledge(widget.tx.rawId);
+        final meta = _pendingImportMeta;
+        await bankSync.markImported(
+          widget.tx.rawId,
+          transactionId: meta?.transactionId ?? newTx.id,
+          walletId: meta?.walletId ?? wallet.id,
+          walletName: meta?.walletName ?? wallet.name,
+          toWalletId: meta?.toWalletId ?? destWallet?.id,
+          toWalletName: meta?.toWalletName ?? destWallet?.name,
+          amount: meta?.amount ?? rawAmount,
+          type: meta?.type ?? _selectedType,
+          categoryName: meta?.categoryName ?? resolvedCategoryName,
+          syncedBalance: meta?.syncedBalance ?? didSyncBalance,
+          syncedBalanceValue: meta?.syncedBalanceValue,
+          fallbackTx: widget.tx,
+        );
         if (!mounted) return;
         setState(() => _saving = false);
         Navigator.of(context).pop(true);
@@ -2251,123 +2428,46 @@ class _BankTransactionPromptSheetState
                       ),
                     ],
                   ),
-                  if (widget.tx.balanceAfter != null) ...[
-                    const SizedBox(height: 10),
+                  const SizedBox(height: 10),
+                  if (!_savedAwaitingAck &&
+                      BankSyncService().isAlreadyImported(widget.tx.rawId)) ...[
                     Container(
+                      margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 8,
+                        vertical: 9,
                       ),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF0F172A).withValues(alpha: 0.72)
-                            : Colors.white.withValues(alpha: 0.88),
+                        color: const Color(0xFF059669)
+                            .withValues(alpha: isDark ? 0.22 : 0.12),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: const Color(0xFF059669)
-                              .withValues(alpha: isDark ? 0.35 : 0.25),
-                          width: 1.0,
+                              .withValues(alpha: 0.45),
                         ),
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF059669)
-                                  .withValues(alpha: 0.16),
-                            ),
-                            child: const Icon(
-                              Icons.account_balance_wallet_rounded,
-                              size: 14,
-                              color: Color(0xFF059669),
-                            ),
+                          const Icon(
+                            Icons.verified_rounded,
+                            size: 18,
+                            color: Color(0xFF059669),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Số dư cuối nhận diện từ ${widget.tx.bankName}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 10.2,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? const Color(0xFF94A3B8)
-                                        : const Color(0xFF64748B),
-                                  ),
-                                ),
-                                Text(
-                                  formatVND(widget.tx.balanceAfter!.round()),
-                                  style: const TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF059669),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(999),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(
-                                () => _syncBalanceToBank = !_syncBalanceToBank,
-                              );
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5.5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _syncBalanceToBank
-                                    ? const Color(0xFF059669)
-                                    : (isDark
-                                        ? const Color(0xFF1E293B)
-                                        : const Color(0xFFF1F5F9)),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: _syncBalanceToBank
-                                      ? const Color(0xFF059669)
-                                      : const Color(0xFF059669)
-                                          .withValues(alpha: 0.35),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _syncBalanceToBank
-                                        ? Icons.check_circle_rounded
-                                        : Icons.sync_rounded,
-                                    size: 13,
-                                    color: _syncBalanceToBank
-                                        ? Colors.white
-                                        : const Color(0xFF059669),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _syncBalanceToBank
-                                        ? 'Đã đồng bộ'
-                                        : 'Đồng bộ số dư',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: _syncBalanceToBank
-                                          ? Colors.white
-                                          : const Color(0xFF059669),
-                                    ),
-                                  ),
-                                ],
+                            child: Text(
+                              BankSyncService()
+                                          .cloudRecordFor(widget.tx.rawId)
+                                          ?.importedFrom ==
+                                      'web'
+                                  ? 'Giao dịch này đã được nhập trên bản Web. Bạn có thể đóng lại để tránh ghi trùng.'
+                                  : 'Giao dịch này đã được ghi vào sổ trước đó.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? const Color(0xFF6EE7B7)
+                                    : const Color(0xFF047857),
                               ),
                             ),
                           ),
@@ -2375,6 +2475,160 @@ class _BankTransactionPromptSheetState
                       ),
                     ),
                   ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF0F172A).withValues(alpha: 0.72)
+                          : Colors.white.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFF059669)
+                            .withValues(alpha: isDark ? 0.35 : 0.25),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF059669)
+                                .withValues(alpha: 0.16),
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            size: 14,
+                            color: Color(0xFF059669),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.tx.balanceAfter != null
+                                    ? 'Số dư cuối nhận diện từ ${widget.tx.bankName}'
+                                    : 'Nhập số dư cuối sau GD (tùy chọn)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10.2,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                              TextField(
+                                controller: _balanceAfterCtrl,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: const [
+                                  DotSeparatorTextInputFormatter(),
+                                ],
+                                onChanged: (val) {
+                                  final hasDigits = val
+                                      .replaceAll(RegExp(r'[^0-9]'), '')
+                                      .isNotEmpty;
+                                  if (hasDigits && !_syncBalanceToBank) {
+                                    setState(() => _syncBalanceToBank = true);
+                                  } else if (!hasDigits && _syncBalanceToBank) {
+                                    setState(() => _syncBalanceToBank = false);
+                                  }
+                                },
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF059669),
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Nhập số dư thực tế...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? const Color(0xFF64748B)
+                                        : const Color(0xFF94A3B8),
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding:
+                                      const EdgeInsets.only(top: 1),
+                                  suffixText: 'đ',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(999),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(
+                              () => _syncBalanceToBank = !_syncBalanceToBank,
+                            );
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _syncBalanceToBank
+                                  ? const Color(0xFF059669)
+                                  : (isDark
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: _syncBalanceToBank
+                                    ? const Color(0xFF059669)
+                                    : const Color(0xFF059669)
+                                        .withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _syncBalanceToBank
+                                      ? Icons.check_circle_rounded
+                                      : Icons.sync_rounded,
+                                  size: 13,
+                                  color: _syncBalanceToBank
+                                      ? Colors.white
+                                      : const Color(0xFF059669),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _syncBalanceToBank
+                                      ? 'Đồng bộ ví'
+                                      : 'Đồng bộ số dư',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: _syncBalanceToBank
+                                        ? Colors.white
+                                        : const Color(0xFF059669),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

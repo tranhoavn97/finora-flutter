@@ -68,12 +68,18 @@ class _ReportScreenState extends State<ReportScreen>
     );
   }
 
-  bool _isIncome(TransactionModel t) =>
-      const {'income', 'borrowing', 'loan_repayment_received'}.contains(t.type);
+  bool _isIncome(TransactionModel t) => const {
+        'income',
+        'interest_income',
+        'borrowing',
+        'loan_repayment_received',
+      }.contains(t.type);
 
+  // Per FinancialMetrics, 'saving' is an internal transfer/allocation and must
+  // NEVER be counted as consumer expense on Reports.
   bool _isExpense(TransactionModel t) => const {
         'expense',
-        'saving',
+        'interest_expense',
         'lending',
         'debt_repayment',
         'credit_card_payment',

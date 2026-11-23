@@ -2218,20 +2218,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     draft.categoryName ?? ''),
                             orElse: () => txProvider.categories.first,
                           );
+                          final ownerPool = (draft.owner == 'husband' ||
+                                  draft.owner == 'wife')
+                              ? txProvider.wallets
+                                  .where((w) => w.owner == draft.owner)
+                                  .toList()
+                              : txProvider.wallets;
+                          final fallbackWallets = ownerPool.isNotEmpty
+                              ? ownerPool
+                              : txProvider.wallets;
                           final wal = txProvider.wallets.firstWhere(
                             (w) =>
                                 FinoraNlpEngine.normalize(w.name) ==
                                 FinoraNlpEngine.normalize(
                                     draft.walletName ?? ''),
                             orElse: () =>
-                                txProvider.wallets
+                                (draft.type == 'saving'
+                                    ? fallbackWallets
+                                        .where((w) => w.type == 'saving')
+                                        .firstOrNull
+                                    : null) ??
+                                fallbackWallets
                                     .where((w) =>
                                         !w.isCreditCard && w.type == 'cash')
                                     .firstOrNull ??
-                                txProvider.wallets
+                                fallbackWallets
                                     .where((w) => !w.isCreditCard)
                                     .firstOrNull ??
-                                txProvider.wallets.first,
+                                fallbackWallets.first,
                           );
                           await txProvider.createTransaction(
                             widget.userId,

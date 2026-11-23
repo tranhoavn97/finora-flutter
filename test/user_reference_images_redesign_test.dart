@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:finora/core/widgets/date_filter_modal.dart';
+import 'package:finora/core/widgets/finora_member_filter.dart';
 import 'package:finora/core/utils/date_filter.dart';
 import 'package:finora/data/models/transaction.dart';
 import 'package:finora/data/models/wallet.dart';
@@ -50,8 +51,9 @@ void main() {
       expect(find.text('Hôm qua'), findsOneWidget);
       expect(find.text('Tuần này'), findsOneWidget);
       expect(find.text('Tháng này'), findsOneWidget);
-      expect(find.text('Năm nay'), findsOneWidget);
-      expect(find.text('Chọn ngày cụ thể...'), findsOneWidget);
+      expect(find.text('Năm ${DateTime.now().year}'), findsOneWidget);
+      expect(find.text('1 ngày cụ thể'), findsOneWidget);
+      expect(find.text('Khoảng ngày'), findsOneWidget);
 
       // Tap 'Hôm nay'
       await tester.tap(find.text('Hôm nay'));
@@ -77,7 +79,7 @@ void main() {
         owner: 'wife',
       );
 
-      final testWallet = Wallet(
+      const testWallet = Wallet(
         id: 'w1',
         name: 'Chi tiêu Vợ',
         type: 'bank',
@@ -120,8 +122,8 @@ void main() {
       await tester.tap(find.text('Open Detail'));
       await tester.pumpAndSettle();
 
-      // Verify Image 2 Hero gradient elements
-      expect(find.text('TIỀN RA (CHI TIÊU)'), findsOneWidget);
+      // Verify Hero gradient elements
+      expect(find.text('TIỀN RA · CHI TIÊU'), findsOneWidget);
       expect(
         find.byWidgetPredicate(
           (w) => w is RichText && w.text.toPlainText().contains('50.000'),
@@ -131,14 +133,14 @@ void main() {
       expect(find.textContaining('20:39'), findsOneWidget);
       expect(find.textContaining('26/10/2026'), findsOneWidget);
 
-      // Verify Image 2 Inset card 4 rows
+      // Verify Inset card 4 rows
       expect(find.text('Nội dung'), findsOneWidget);
       expect(find.text('Danh mục'), findsOneWidget);
       expect(find.text('Tài khoản / Ví'), findsOneWidget);
-      expect(find.text('Người ghi chép'), findsOneWidget);
+      expect(find.text('Thành viên'), findsOneWidget);
 
-      // Verify Image 2 ♀ Vợ badge
-      expect(find.text('♀'), findsOneWidget);
+      // Verify Member avatar + Vợ badge
+      expect(find.byType(FinoraMemberAvatar), findsOneWidget);
       expect(find.text('Vợ'), findsOneWidget);
 
       // Verify Image 2 Action buttons: Xóa and Chỉnh sửa

@@ -115,6 +115,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void didUpdateWidget(covariant MainScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.user?.uid != widget.user?.uid) {
+      unawaited(BankSyncService().bindUser(widget.user?.uid));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _checkPendingQrDrafts();
       });
@@ -249,7 +250,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (target != null && target.amount <= 0) return;
     if (target != null &&
         (_promptedBankIds.contains(target.rawId) ||
-            bank.wasAutoPrompted(target.rawId))) return;
+            bank.wasAutoPrompted(target.rawId))) {
+      return;
+    }
     if (target == null) {
       for (final tx in bank.pending) {
         if (tx.amount > 0 &&
@@ -279,12 +282,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // Other items remain in the inbox. Never chain popups after dismissal.
   }
 
-  Future<void> _openBankInbox() async {
+  Future<void> _openBankInbox({int initialTab = 0}) async {
     if (!mounted || widget.user == null || _showingBankInbox) return;
     _showingBankInbox = true;
     try {
       await Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => NotificationScreen(userId: widget.user!.uid)));
+          builder: (_) => NotificationScreen(
+                userId: widget.user!.uid,
+                initialTab: initialTab,
+              )));
     } finally {
       _showingBankInbox = false;
     }
@@ -293,7 +299,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _handleLaunchAction(String action) async {
     if (!mounted || widget.user == null) return;
     if (action == 'open_bank_inbox') {
-      await _openBankInbox();
+      await _openBankInbox(initialTab: 0);
+    } else if (action == 'open_activity_notifications') {
+      await _openBankInbox(initialTab: 1);
+    } else if (action == 'open_dashboard') {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      if (mounted && _currentIndex != 0) {
+        setState(() => _currentIndex = 0);
+      }
     } else if (action == 'add_transaction') {
       if (_openingQuickAdd) return;
       _openingQuickAdd = true;
@@ -340,6 +353,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     await HomeWidgetSyncService().sync(
       dashboardData: dash.data,
       pendingCount: bank.pending.length + bank.unrecognizedCount,
+      manualPendingCount: bank.manualPendingCount,
       hideAmounts: studio?.isPrivacyShieldActive ?? false,
     );
   }
@@ -384,7 +398,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               body: body,
               channel: 'activity',
               id: (item.id.hashCode & 0x7FFF) + 5000,
-              fromBankSync: true,
+              fromBankSync: false,
+              action: 'open_activity_notifications',
             );
             shown.add(item.id);
           }
@@ -433,6 +448,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       WidgetsBinding.instance.ensureVisualUpdate();
     });
     BankSyncService().initialize().then((_) {
+      unawaited(BankSyncService().bindUser(widget.user?.uid));
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

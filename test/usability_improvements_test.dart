@@ -330,7 +330,16 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.byTooltip('Thành viên: Tất cả'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Vợ (1)'));
+      final wifeMenuItem = find.ancestor(
+        of: find.text('Vợ'),
+        matching: find.byType(PopupMenuItem<String>),
+      );
+      expect(wifeMenuItem, findsOneWidget);
+      expect(
+        find.descendant(of: wifeMenuItem, matching: find.text('1')),
+        findsOneWidget,
+      );
+      await tester.tap(wifeMenuItem);
       await tester.pumpAndSettle();
       expect(find.text('Đang lọc: Vợ'), findsOneWidget);
       expect(tester.takeException(), isNull);

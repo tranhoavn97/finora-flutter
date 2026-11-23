@@ -176,6 +176,49 @@ void main() {
     expect(badgeCalls.last['count'], 4);
     expect(badgeCalls.last['extraCount'], 3);
 
+    // Unrecognized native notifications must NOT be double-counted in native extraCount
+    await service.acknowledgeAll();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(bankChannel, (call) async {
+      switch (call.method) {
+        case 'isPostNotificationsGranted':
+          return postGranted;
+        case 'updateAppBadge':
+          badgeCalls.add(Map<String, dynamic>.from(call.arguments as Map));
+          return true;
+        case 'showSystemNotification':
+          notifCalls.add(Map<String, dynamic>.from(call.arguments as Map));
+          return true;
+        case 'consumeLaunchAction':
+          return null;
+        case 'consumeBankInboxRequest':
+          return false;
+        case 'updateScanSettings':
+          return true;
+        case 'getPendingNotifications':
+          return [
+            jsonEncode({
+              'id': 'ncb-unrec-1',
+              'package': 'com.ncb.izimobile',
+              'title': 'NCB iziMobile',
+              'text': 'Thông báo bảo trì hệ thống định kỳ',
+              'timestamp': DateTime.now().millisecondsSinceEpoch,
+            }),
+          ];
+        case 'getSyncStatus':
+          return {'connected': true, 'lastReceivedAt': 0};
+        case 'acknowledgeNotifications':
+          return true;
+      }
+      return null;
+    });
+    await service.checkPendingNotifications();
+    expect(service.unrecognizedCount, 1);
+    expect(service.totalBadgeCount, 4); // 1 unrecognized + 3 unread activity
+    expect(badgeCalls.last['count'], 4);
+    // Native queue already holds ncb-unrec-1, so extraCount must only include unread activity (3)
+    expect(badgeCalls.last['extraCount'], 3);
+
     final shown = await service.showSystemNotification(
       title: 'Test',
       body: 'Body',
@@ -188,8 +231,10 @@ void main() {
 
     await service.acknowledgeAll();
     expect(service.pending, isEmpty);
+    expect(service.unrecognizedCount, 0);
     expect(service.totalBadgeCount, 3);
     expect(badgeCalls.last['count'], 3);
+    expect(badgeCalls.last['extraCount'], 3);
 
     postGranted = false;
     expect(await service.isPostNotificationsGranted(), isFalse);

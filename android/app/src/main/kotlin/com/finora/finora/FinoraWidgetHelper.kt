@@ -61,6 +61,17 @@ object FinoraWidgetHelper {
         updateAllWidgets(context)
     }
 
+    fun syncNativePendingCount(context: Context, nativeCount: Int) {
+        try {
+            val prefs = context.getSharedPreferences(PREFS_WIDGET, Context.MODE_PRIVATE)
+            val raw = prefs.getString(KEY_PAYLOAD, null) ?: return
+            val obj = JSONObject(raw)
+            val manualCount = obj.optInt("manualPendingCount", 0).coerceAtLeast(0)
+            obj.put("pendingCount", nativeCount.coerceAtLeast(0) + manualCount)
+            prefs.edit().putString(KEY_PAYLOAD, obj.toString()).commit()
+        } catch (_: Exception) {}
+    }
+
     fun updateAllWidgets(context: Context) {
         val manager = AppWidgetManager.getInstance(context)
         val ids5x2 = manager.getAppWidgetIds(
@@ -125,6 +136,15 @@ object FinoraWidgetHelper {
                 views.setTextViewText(
                     R.id.widget_pending_sub,
                     if (snap.hideAmounts) "${snap.pendingCount} biến động đang chờ ghi sổ" else sub.ifBlank { "Chạm để kiểm tra & ghi sổ" }
+                )
+            } else if (snap.pendingCount > 0) {
+                views.setTextViewText(
+                    R.id.widget_pending_headline,
+                    "${snap.pendingCount} biến động chờ ghi"
+                )
+                views.setTextViewText(
+                    R.id.widget_pending_sub,
+                    "Chạm để kiểm tra & ghi sổ →"
                 )
             } else {
                 views.setTextViewText(
@@ -203,7 +223,9 @@ object FinoraWidgetHelper {
                 views.setViewVisibility(R.id.widget_pending_empty, View.VISIBLE)
                 views.setTextViewText(
                     R.id.widget_pending_empty,
-                    if (snap.listenerEnabled) {
+                    if (snap.pendingCount > 0) {
+                        "Có ${snap.pendingCount} biến động đang chờ ghi chép. Chạm để mở hộp thư số dư."
+                    } else if (snap.listenerEnabled) {
                         "Mọi biến động số dư đã được ghi chép đầy đủ. Chạm để mở hộp thư số dư."
                     } else {
                         "Bật quyền đọc thông báo ngân hàng trong FINORA để theo dõi số dư chờ tại đây."
@@ -227,7 +249,7 @@ object FinoraWidgetHelper {
                 views.setViewVisibility(R.id.widget_pending_row_2, View.GONE)
             }
 
-            val remaining = snap.pendingCount - 2
+            val remaining = if (p1 != null) snap.pendingCount - 2 else 0
             if (remaining > 0) {
                 views.setViewVisibility(R.id.widget_pending_more, View.VISIBLE)
                 views.setTextViewText(
@@ -308,11 +330,15 @@ object FinoraWidgetHelper {
         if (snap.pendingCount > 0) {
             views.setInt(R.id.widget_pending_card, "setBackgroundResource", R.drawable.finora_widget_amber_card_bg)
             views.setInt(R.id.widget_pending_badge_pill, "setBackgroundResource", R.drawable.finora_widget_pill_amber)
+            views.setInt(R.id.widget_pending_bell, "setColorFilter", Color.parseColor("#FBBF24"))
+            views.setTextColor(R.id.widget_pending_label, Color.parseColor("#FCD34D"))
             views.setTextColor(R.id.widget_pending_badge_pill, Color.parseColor("#FEF3C7"))
             views.setTextViewText(R.id.widget_pending_badge_pill, "${snap.pendingCount} chờ ghi")
         } else {
             views.setInt(R.id.widget_pending_card, "setBackgroundResource", R.drawable.finora_widget_emerald_card_bg)
             views.setInt(R.id.widget_pending_badge_pill, "setBackgroundResource", R.drawable.finora_widget_pill_emerald)
+            views.setInt(R.id.widget_pending_bell, "setColorFilter", Color.parseColor("#34D399"))
+            views.setTextColor(R.id.widget_pending_label, Color.parseColor("#34D399"))
             views.setTextColor(R.id.widget_pending_badge_pill, Color.parseColor("#D1FAE5"))
             views.setTextViewText(
                 R.id.widget_pending_badge_pill,
@@ -361,8 +387,10 @@ object FinoraWidgetHelper {
             return
         }
         views.setViewVisibility(rowId, View.VISIBLE)
-        val isIncome = item.type.equals("income", ignoreCase = true) || item.amount > 0
         val isTransfer = item.type.equals("transfer", ignoreCase = true)
+        val isIncome = !isTransfer &&
+            (item.type.equals("income", ignoreCase = true) ||
+                (!item.type.equals("expense", ignoreCase = true) && item.amount > 0))
         val dotColor = when {
             isTransfer -> Color.parseColor("#38BDF8")
             isIncome -> Color.parseColor("#34D399")
@@ -433,9 +461,17 @@ object FinoraWidgetHelper {
             }
         }
 
-        // Also allow Flutter payload to pass unrecognized count or fallback queue count
-        val flutterPendingCount = payload.optInt("pendingCount", 0)
-        val effectivePendingCount = maxOf(nativePending.size, flutterPendingCount)
+        // Native bank_sync queue is the source of truth on Android; include manual-only Flutter items.
+        val hasManualField = payload.has("manualPendingCount")
+        val manualPendingCount = payload.optInt("manualPendingCount", 0).coerceAtLeast(0)
+        val flutterPendingCount = payload.optInt("pendingCount", 0).coerceAtLeast(0)
+        val effectivePendingCount = if (hasManualField) {
+            nativePending.size + manualPendingCount
+        } else if (bankPrefs.contains(FinoraBankNotificationListenerService.KEY_PENDING_NOTIFICATIONS)) {
+            nativePending.size
+        } else {
+            maxOf(nativePending.size, flutterPendingCount)
+        }
         val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
         val fallbackSynced = timeFmt.format(Date())
 

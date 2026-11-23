@@ -276,7 +276,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
             title: String,
             body: String,
             channelId: String = CHANNEL_ACTIVITY,
-            notifId: Int = ((System.currentTimeMillis() % 90000L) + 1000L).toInt(),
+            notifId: Int = ((System.currentTimeMillis() % 70000L) + 1000L).toInt(),
             fromBankSync: Boolean = false,
             finoraAction: String? = null
         ): Boolean {
@@ -285,6 +285,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
                     return false
                 }
+                val safeNotifId = if (notifId == BADGE_NOTIFICATION_ID) BADGE_NOTIFICATION_ID - 1 else notifId
                 val notificationManager =
                     context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 val launchIntent = Intent(context, MainActivity::class.java).apply {
@@ -298,7 +299,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 }
                 val pendingIntent = PendingIntent.getActivity(
                     context,
-                    notifId,
+                    safeNotifId,
                     launchIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or
                         (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
@@ -317,7 +318,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                     .setAutoCancel(true)
                     .setContentIntent(pendingIntent)
 
-                notificationManager.notify(notifId, builder.build())
+                notificationManager.notify(safeNotifId, builder.build())
                 true
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to show system notification: ${e.message}")
@@ -375,6 +376,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 .putStringSet(KEY_HANDLED, handled).commit()
             if (ok) {
                 refreshCombinedBadge(context)
+                FinoraWidgetHelper.syncNativePendingCount(context, keep.length())
                 FinoraWidgetHelper.updateAllWidgets(context)
             }
             ok
@@ -617,6 +619,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 .putLong("lastReceivedAt", jsonObj.getLong("timestamp")).commit()
             if (ok) {
                 refreshCombinedBadge(context)
+                FinoraWidgetHelper.syncNativePendingCount(context, array.length())
                 FinoraWidgetHelper.updateAllWidgets(context)
             }
             ok
@@ -769,7 +772,7 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 builder.setContentIntent(pendingIntent)
             }
 
-            val notifId = (System.currentTimeMillis() % 100000).toInt()
+            val notifId = ((System.currentTimeMillis() % 70000L) + 1000L).toInt()
             notificationManager.notify(notifId, builder.build())
         } catch (e: Exception) {
             Log.e(TAG, "Failed to show captured notification: ${e.message}")

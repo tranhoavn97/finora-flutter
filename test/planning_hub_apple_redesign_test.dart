@@ -175,7 +175,7 @@ void main() {
     expect(find.text('Tháng này'), findsOneWidget);
     await tester.tap(find.text('Tháng này'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Năm nay'));
+    await tester.tap(find.text('Năm ${DateTime.now().year}'));
     await tester.pumpAndSettle();
     expect(find.text('Năm nay'), findsOneWidget);
     expect(find.textContaining('DÒNG TIỀN THÁNG'), findsNothing);

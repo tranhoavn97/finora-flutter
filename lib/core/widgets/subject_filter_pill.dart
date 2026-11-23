@@ -3,6 +3,7 @@ import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
 import '../../data/models/finance_models.dart';
 import '../../domain/finance/transaction_member.dart';
+import '../services/bank_notification_parser.dart';
 import 'finora_member_filter.dart';
 
 enum OwnerFilter {
@@ -58,14 +59,23 @@ enum OwnerFilter {
             walletMap.containsKey(targetWalletId))
         ? walletMap[targetWalletId]
         : null;
-    final raw = (w?.owner ?? '').toLowerCase().trim();
-    final name = (w?.ownerName ?? '').toLowerCase().trim();
-    final isWife = raw == 'wife' ||
-        name == 'vợ' ||
-        asset.name.toLowerCase().contains('vợ');
-    if (this == OwnerFilter.wife) return isWife;
-    if (this == OwnerFilter.husband) return !isWife;
-    return true;
+    final walletMember = w != null
+        ? (parseTransactionMember(w.hasExplicitOwner ? w.owner : null) ??
+            resolveWalletMember(w))
+        : TransactionMember.unknown;
+    if (walletMember == TransactionMember.husband) {
+      return this == OwnerFilter.husband;
+    }
+    if (walletMember == TransactionMember.wife) {
+      return this == OwnerFilter.wife;
+    }
+    if (walletMember == TransactionMember.joint) {
+      return this == OwnerFilter.joint;
+    }
+    final nameHint = BankNotificationParser.detectMemberHint(asset.name);
+    if (nameHint == 'wife') return this == OwnerFilter.wife;
+    if (nameHint == 'husband') return this == OwnerFilter.husband;
+    return this == OwnerFilter.husband;
   }
 
   bool matchLoan(Loan loan, {Map<String, Wallet>? walletMap}) {
@@ -75,14 +85,23 @@ enum OwnerFilter {
             walletMap.containsKey(loan.walletId))
         ? walletMap[loan.walletId]
         : null;
-    final raw = (w?.owner ?? '').toLowerCase().trim();
-    final name = (w?.ownerName ?? '').toLowerCase().trim();
-    final isWife = raw == 'wife' ||
-        name == 'vợ' ||
-        loan.personName.toLowerCase().contains('vợ');
-    if (this == OwnerFilter.wife) return isWife;
-    if (this == OwnerFilter.husband) return !isWife;
-    return true;
+    final walletMember = w != null
+        ? (parseTransactionMember(w.hasExplicitOwner ? w.owner : null) ??
+            resolveWalletMember(w))
+        : TransactionMember.unknown;
+    if (walletMember == TransactionMember.husband) {
+      return this == OwnerFilter.husband;
+    }
+    if (walletMember == TransactionMember.wife) {
+      return this == OwnerFilter.wife;
+    }
+    if (walletMember == TransactionMember.joint) {
+      return this == OwnerFilter.joint;
+    }
+    final nameHint = BankNotificationParser.detectMemberHint(loan.personName);
+    if (nameHint == 'wife') return this == OwnerFilter.wife;
+    if (nameHint == 'husband') return this == OwnerFilter.husband;
+    return this == OwnerFilter.husband;
   }
 }
 

@@ -34,7 +34,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="FINORA • Theo dõi trực tiếp"
+                android:text="FINORA"
                 android:textColor="#FFFFFFFF"
                 android:textSize="13.5sp"
                 android:textStyle="bold" />
@@ -47,7 +47,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="Đồng bộ dữ liệu thực"
+                android:text="Theo dõi trực tiếp"
                 android:textColor="#94A3B8"
                 android:textSize="10sp" />
         </LinearLayout>
@@ -95,11 +95,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
+        android:baselineAligned="false"
         android:orientation="horizontal">
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:background="@drawable/finora_widget_tile_bg"
@@ -110,9 +111,11 @@
             android:paddingBottom="8dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
                 android:includeFontPadding="false"
+                android:maxLines="1"
                 android:text="CHI HÔM NAY"
                 android:textColor="#94A3B8"
                 android:textSize="9sp"
@@ -146,7 +149,7 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
             android:layout_weight="1"
@@ -158,10 +161,12 @@
             android:paddingBottom="8dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
                 android:includeFontPadding="false"
-                android:text="CHI THÁNG NÀY"
+                android:maxLines="1"
+                android:text="THÁNG NÀY"
                 android:textColor="#94A3B8"
                 android:textSize="9sp"
                 android:textStyle="bold" />
@@ -194,7 +199,7 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_marginStart="4dp"
             android:layout_weight="1"
             android:background="@drawable/finora_widget_tile_bg"
@@ -205,9 +210,11 @@
             android:paddingBottom="8dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
                 android:includeFontPadding="false"
+                android:maxLines="1"
                 android:text="TỔNG SỐ DƯ"
                 android:textColor="#94A3B8"
                 android:textSize="9sp"
@@ -245,7 +252,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="9dp"
-        android:background="@drawable/finora_widget_amber_card_bg"
+        android:background="@drawable/finora_widget_emerald_card_bg"
         android:orientation="vertical"
         android:paddingStart="11dp"
         android:paddingTop="8dp"
@@ -259,12 +266,15 @@
             android:orientation="horizontal">
 
             <ImageView
+                android:id="@+id/widget_pending_bell"
                 android:layout_width="13dp"
                 android:layout_height="13dp"
                 android:contentDescription="Số dư cần ghi chép"
-                android:src="@drawable/ic_widget_bell" />
+                android:src="@drawable/ic_widget_bell"
+                android:tint="#34D399" />
 
             <TextView
+                android:id="@+id/widget_pending_label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="5dp"
@@ -273,7 +283,7 @@
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:text="SỐ DƯ CẦN GHI CHÉP"
-                android:textColor="#FCD34D"
+                android:textColor="#34D399"
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
@@ -281,14 +291,14 @@
                 android:id="@+id/widget_pending_badge_pill"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/finora_widget_pill_amber"
+                android:background="@drawable/finora_widget_pill_emerald"
                 android:includeFontPadding="false"
                 android:paddingStart="8dp"
                 android:paddingTop="2.5dp"
                 android:paddingEnd="8dp"
                 android:paddingBottom="2.5dp"
-                android:text="0 chờ xử lý"
-                android:textColor="#FEF3C7"
+                android:text="Đã ghi đủ"
+                android:textColor="#D1FAE5"
                 android:textSize="9.5sp"
                 android:textStyle="bold" />
 

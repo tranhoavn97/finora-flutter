@@ -1,4 +1,6 @@
 import '../../data/models/transaction.dart';
+import '../../data/models/wallet.dart';
+import 'transaction_member.dart';
 
 /// Reporting semantics, independent of persistence and wallet ledger effects.
 class FinanceSummary {
@@ -28,16 +30,32 @@ class FinanceScope {
   final DateTime? end;
   final String? walletId;
   final String? owner;
-  const FinanceScope({this.start, this.end, this.walletId, this.owner});
+  final Map<String, Wallet>? walletMap;
+  const FinanceScope({
+    this.start,
+    this.end,
+    this.walletId,
+    this.owner,
+    this.walletMap,
+  });
   factory FinanceScope.month(DateTime date) => FinanceScope(
       start: DateTime(date.year, date.month),
       end: DateTime(date.year, date.month + 1));
-  bool contains(TransactionModel tx) =>
-      (start == null || tx.date >= start!.millisecondsSinceEpoch) &&
-      (end == null || tx.date < end!.millisecondsSinceEpoch) &&
-      (walletId == null ||
-          [tx.walletId, tx.fromWalletId, tx.toWalletId, tx.creditCardId]
-              .contains(walletId)) &&
-      (owner == null ||
-          [tx.owner, tx.fromOwner, tx.toOwner, tx.cardOwner].contains(owner));
+  bool contains(TransactionModel tx) {
+    if (start != null && tx.date < start!.millisecondsSinceEpoch) return false;
+    if (end != null && tx.date >= end!.millisecondsSinceEpoch) return false;
+    if (walletId != null &&
+        ![tx.walletId, tx.fromWalletId, tx.toWalletId, tx.creditCardId]
+            .contains(walletId)) {
+      return false;
+    }
+    if (owner != null) {
+      final resolved = resolveTransactionMember(tx, walletMap: walletMap);
+      if (resolved != TransactionMember.unknown) {
+        return resolved.value == owner;
+      }
+      return [tx.owner, tx.fromOwner, tx.cardOwner].contains(owner);
+    }
+    return true;
+  }
 }

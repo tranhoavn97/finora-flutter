@@ -79,21 +79,21 @@ void main() {
         ),
       );
 
-      // The current design uses an avatar-only button with an accessible tooltip.
+      // The current design uses an avatar-only button with a filter-only tooltip.
       expect(find.byType(FinoraMemberAvatar), findsOneWidget);
       expect(
-          find.byTooltip('Đang lọc: Chồng (Chạm để đổi hoặc tải ảnh avatar)'),
+          find.byTooltip('Đang lọc: Chồng (Chạm để đổi)'),
           findsOneWidget);
       await tester.tap(find.byType(FinoraUnifiedMemberPill));
       await tester.pumpAndSettle();
 
       // Check bottom sheet options
-      expect(find.text('Phân loại theo thành viên'), findsOneWidget);
-      expect(find.text('Chồng'), findsOneWidget);
-      expect(find.text('Vợ'), findsOneWidget);
+      expect(find.text('Thành viên gia đình'), findsOneWidget);
+      expect(find.text('Chồng'), findsAtLeastNWidgets(1));
+      expect(find.text('Vợ'), findsAtLeastNWidgets(1));
 
       // Select 'wife'
-      await tester.tap(find.text('Vợ'));
+      await tester.tap(find.text('Vợ').first);
       await tester.pumpAndSettle();
 
       expect(selectedMember, 'wife');

@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../core/widgets/adaptive_glass_surface.dart';
 import '../../core/widgets/finora_notice.dart';
 import 'package:flutter/foundation.dart';
@@ -6,13 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/services/bank_notification_cloud_sync.dart';
 import '../../core/services/bank_notification_parser.dart';
 import '../../core/services/bank_sync_service.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/bank_transaction_prompt_sheet.dart';
+import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/transaction.dart';
+import '../../data/models/wallet.dart';
 import '../../state/transaction_provider.dart';
+import '../../state/wallet_provider.dart';
 
 class BankInboxView extends StatefulWidget {
   final String userId;
@@ -33,7 +38,16 @@ class _BankInboxViewState extends State<BankInboxView>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_bank.bindUser(widget.userId));
     _refresh();
+  }
+
+  @override
+  void didUpdateWidget(covariant BankInboxView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      unawaited(_bank.bindUser(widget.userId));
+    }
   }
 
   @override
@@ -69,9 +83,65 @@ class _BankInboxViewState extends State<BankInboxView>
     );
   }
 
+  Wallet? _matchWalletForQuickSave(
+    List<Wallet> wallets,
+    ParsedBankTransaction tx,
+  ) {
+    if (wallets.isEmpty) return null;
+    if (wallets.length == 1) return wallets.first;
+
+    // 1. Khớp đuôi số tài khoản nếu có
+    final notifAcct = tx.accountNumber?.replaceAll(RegExp(r'\D'), '') ?? '';
+    if (notifAcct.length >= 3) {
+      final acctMatches = wallets.where((w) {
+        final wAcct = (w.accountNumber ?? '').replaceAll(RegExp(r'\D'), '');
+        return wAcct.isNotEmpty &&
+            (wAcct.endsWith(notifAcct) || notifAcct.endsWith(wAcct));
+      }).toList();
+      if (acctMatches.length == 1) return acctMatches.first;
+    }
+
+    // 2. Khớp theo mã thương hiệu chuẩn BankIconRegistry
+    final txBrand =
+        BankIconRegistry.resolve(tx.bankCode, bankName: tx.bankName);
+    if (txBrand.code != 'cash') {
+      final brandMatches = wallets.where((w) {
+        final wBrand = BankIconRegistry.resolve(
+          w.bankCode,
+          bankName: w.bankName ?? w.name,
+        );
+        return wBrand.code == txBrand.code;
+      }).toList();
+      if (brandMatches.length == 1) return brandMatches.first;
+    }
+
+    // 3. Khớp theo tên ngân hàng trực tiếp
+    final bankNorm = tx.bankName.trim().toLowerCase();
+    final codeNorm = tx.bankCode.trim().toLowerCase();
+    final nameMatches = wallets.where((w) {
+      final wn = w.name.trim().toLowerCase();
+      return (bankNorm.isNotEmpty &&
+              (wn.contains(bankNorm) || bankNorm.contains(wn))) ||
+          (codeNorm.isNotEmpty && wn.contains(codeNorm));
+    }).toList();
+    if (nameMatches.length == 1) return nameMatches.first;
+    return null;
+  }
+
   Future<void> _quickSave(ParsedBankTransaction tx) async {
+    if (_bank.isAlreadyImported(tx.rawId)) {
+      if (mounted) {
+        FinoraNotice.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Giao dịch này đã được nhập trước đó.'),
+            backgroundColor: Color(0xFF059669),
+          ),
+        );
+      }
+      return;
+    }
     final txProv = Provider.of<TransactionProvider?>(context, listen: false);
-    if (txProv == null) {
+    if (txProv == null || tx.isTransfer) {
       await _review(tx);
       return;
     }
@@ -80,13 +150,11 @@ class _BankInboxViewState extends State<BankInboxView>
       await _review(tx);
       return;
     }
-    final bankNorm = tx.bankName.toLowerCase();
-    final matchedWallet = wallets.firstWhere(
-      (w) =>
-          w.name.toLowerCase().contains(bankNorm) ||
-          bankNorm.contains(w.name.toLowerCase()),
-      orElse: () => wallets.first,
-    );
+    final matchedWallet = _matchWalletForQuickSave(wallets, tx);
+    if (matchedWallet == null) {
+      await _review(tx);
+      return;
+    }
     final isIncome = tx.type == 'income';
     final categories = txProv.categories
         .where((c) =>
@@ -96,10 +164,10 @@ class _BankInboxViewState extends State<BankInboxView>
     final matchedCat = categories.isNotEmpty ? categories.first : null;
     final cleanCode = tx.transactionCode.trim();
     final newTx = TransactionModel(
-      id: 'bank_quick_${DateTime.now().microsecondsSinceEpoch}',
+      id: 'bank_${tx.rawId.isNotEmpty ? tx.rawId : DateTime.now().microsecondsSinceEpoch}',
       userId: widget.userId,
       amount: tx.amount.round(),
-      type: tx.isTransfer ? 'transfer' : (isIncome ? 'income' : 'expense'),
+      type: isIncome ? 'income' : 'expense',
       categoryId: matchedCat?.id ?? (isIncome ? 'cat_salary' : 'cat_food'),
       categoryName: matchedCat?.name ?? (isIncome ? 'Thu nhập' : 'Ăn uống'),
       categoryIcon: matchedCat?.icon ?? (isIncome ? '💰' : '🍜'),
@@ -110,16 +178,28 @@ class _BankInboxViewState extends State<BankInboxView>
       date: tx.timestamp.millisecondsSinceEpoch,
       note: tx.note.trim().isNotEmpty ? tx.note.trim() : tx.bankName,
       bankTransactionCode: cleanCode.isNotEmpty ? cleanCode : null,
+      rawBankNotification: tx.rawNotificationText.isNotEmpty
+          ? tx.rawNotificationText
+          : tx.note,
       owner: matchedWallet.owner,
       ownerName: matchedWallet.ownerName,
     );
     try {
       await txProv.createTransaction(widget.userId, newTx);
-      await _bank.acknowledge(tx.rawId);
+      await _bank.markImported(
+        tx.rawId,
+        transactionId: newTx.id,
+        walletId: matchedWallet.id,
+        walletName: matchedWallet.name,
+        amount: newTx.amount,
+        type: newTx.type,
+        categoryName: newTx.categoryName,
+        fallbackTx: tx,
+      );
       if (mounted) {
         FinoraNotice.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Đã ghi nhanh giao dịch vào sổ.'),
+            content: Text('Đã ghi nhanh giao dịch vào sổ & đồng bộ lên Web.'),
             backgroundColor: Color(0xFF059669),
           ),
         );
@@ -131,6 +211,574 @@ class _BankInboxViewState extends State<BankInboxView>
     }
   }
 
+  Future<void> _openManualBalanceEntrySheet() async {
+    HapticFeedback.selectionClick();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final walletProv = Provider.of<WalletProvider?>(context, listen: false);
+    final txProv = Provider.of<TransactionProvider?>(context, listen: false);
+    final wallets = (walletProv?.wallets.isNotEmpty == true)
+        ? walletProv!.wallets
+        : (txProv?.wallets ?? const <Wallet>[]);
+
+    final pasteCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final balanceCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    var mode = 'paste'; // 'paste' | 'manual'
+    var txType = 'expense';
+    String? selectedWalletId = wallets.isNotEmpty ? wallets.first.id : null;
+    String? errorMsg;
+
+    final result = await showModalBottomSheet<({ParsedBankTransaction tx, bool openReview})>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final selectedWallet = wallets
+                .where((w) => w.id == selectedWalletId)
+                .firstOrNull;
+            final previewParsed = mode == 'paste' && pasteCtrl.text.trim().isNotEmpty
+                ? BankNotificationParser.parse(
+                    rawId: 'preview',
+                    packageName: 'manual.bank',
+                    title: selectedWallet?.bankName ?? selectedWallet?.name ?? '',
+                    text: pasteCtrl.text.trim(),
+                  )
+                : null;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF111827) : Colors.white,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(28)),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.10)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white24
+                                  : const Color(0xFFCBD5E1),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF059669)
+                                    .withValues(alpha: isDark ? 0.22 : 0.12),
+                              ),
+                              child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                size: 18,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Nhập / Dán biến động số dư',
+                                    style: TextStyle(
+                                      fontFamily: 'BeVietnamPro',
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Tự động đồng bộ giữa điện thoại và bản Web',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          height: 40,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setSheetState(() {
+                                    mode = 'paste';
+                                    errorMsg = null;
+                                  }),
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: mode == 'paste'
+                                          ? const Color(0xFF059669)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      'Dán SMS / Thông báo',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: mode == 'paste'
+                                            ? Colors.white
+                                            : (isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF475569)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setSheetState(() {
+                                    mode = 'manual';
+                                    errorMsg = null;
+                                  }),
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: mode == 'manual'
+                                          ? const Color(0xFF059669)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      'Nhập biến động số dư',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: mode == 'manual'
+                                            ? Colors.white
+                                            : (isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF475569)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (mode == 'paste') ...[
+                          TextField(
+                            controller: pasteCtrl,
+                            maxLines: 4,
+                            onChanged: (_) => setSheetState(() => errorMsg = null),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Dán nội dung biến động số dư (VD: NCB TK 1000xxx -150,000 VND. SD khả dụng: 12,450,000 VND. ND: Ăn trưa)...',
+                              hintStyle: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                              filled: true,
+                              fillColor: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF8FAFC),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? Colors.white12
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (previewParsed != null) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF059669)
+                                    .withValues(alpha: isDark ? 0.16 : 0.08),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFF059669)
+                                      .withValues(alpha: 0.30),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Nhận diện: ${previewParsed.bankName} · ${previewParsed.isIncome ? '+' : '-'}${formatVND(previewParsed.amount.round())}',
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF059669),
+                                    ),
+                                  ),
+                                  if (previewParsed.balanceAfter != null)
+                                    Text(
+                                      'Số dư cuối: ${formatVND(previewParsed.balanceAfter!.round())}',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? const Color(0xFF6EE7B7)
+                                            : const Color(0xFF047857),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ] else ...[
+                          if (wallets.isNotEmpty) ...[
+                            DropdownButtonFormField<String>(
+                              initialValue: selectedWalletId,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                labelText: 'Ví / Tài khoản ngân hàng',
+                                filled: true,
+                                fillColor: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF8FAFC),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              items: wallets
+                                  .map((w) => DropdownMenuItem(
+                                        value: w.id,
+                                        child: Text(
+                                          '${w.name} (${formatVND(w.balance)})',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) =>
+                                  setSheetState(() => selectedWalletId = v),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          Row(
+                            children: [
+                              for (final opt in const [
+                                ('expense', 'Chi tiêu', Color(0xFFE11D48)),
+                                ('income', 'Thu nhập', Color(0xFF059669)),
+                                ('transfer', 'Chuyển khoản', Color(0xFF0284C7)),
+                              ])
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 3),
+                                    child: GestureDetector(
+                                      onTap: () =>
+                                          setSheetState(() => txType = opt.$1),
+                                      child: Container(
+                                        height: 36,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: txType == opt.$1
+                                              ? opt.$3
+                                              : (isDark
+                                                  ? const Color(0xFF1E293B)
+                                                  : const Color(0xFFF1F5F9)),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          opt.$2,
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: txType == opt.$1
+                                                ? Colors.white
+                                                : (isDark
+                                                    ? Colors.white70
+                                                    : const Color(0xFF475569)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: amountCtrl,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: const [
+                              DotSeparatorTextInputFormatter(),
+                            ],
+                            decoration: InputDecoration(
+                              labelText: 'Số tiền biến động (đ)',
+                              hintText: 'Ví dụ: 150.000',
+                              filled: true,
+                              fillColor: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF8FAFC),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: balanceCtrl,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: const [
+                              DotSeparatorTextInputFormatter(),
+                            ],
+                            decoration: InputDecoration(
+                              labelText: 'Số dư cuối sau giao dịch (đ)',
+                              hintText: 'Ví dụ: 12.450.000 (tùy chọn)',
+                              filled: true,
+                              fillColor: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF8FAFC),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: noteCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Nội dung / Ghi chú',
+                              hintText: 'Ví dụ: Ăn trưa, lương tháng...',
+                              filled: true,
+                              fillColor: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF8FAFC),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (errorMsg != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            errorMsg!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFE11D48),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  final built = _submitManualEntry(
+                                    mode: mode,
+                                    pasteText: pasteCtrl.text,
+                                    amountText: amountCtrl.text,
+                                    balanceText: balanceCtrl.text,
+                                    noteText: noteCtrl.text,
+                                    txType: txType,
+                                    wallet: selectedWallet,
+                                    onError: (msg) =>
+                                        setSheetState(() => errorMsg = msg),
+                                  );
+                                  if (built != null) {
+                                    Navigator.pop(
+                                        ctx, (tx: built, openReview: false));
+                                  }
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(44),
+                                  shape: const StadiumBorder(),
+                                ),
+                                child: const Text(
+                                  'Lưu hàng chờ',
+                                  style: TextStyle(fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () {
+                                  final built = _submitManualEntry(
+                                    mode: mode,
+                                    pasteText: pasteCtrl.text,
+                                    amountText: amountCtrl.text,
+                                    balanceText: balanceCtrl.text,
+                                    noteText: noteCtrl.text,
+                                    txType: txType,
+                                    wallet: selectedWallet,
+                                    onError: (msg) =>
+                                        setSheetState(() => errorMsg = msg),
+                                  );
+                                  if (built != null) {
+                                    Navigator.pop(
+                                        ctx, (tx: built, openReview: true));
+                                  }
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF059669),
+                                  minimumSize: const Size.fromHeight(44),
+                                  shape: const StadiumBorder(),
+                                ),
+                                child: const Text(
+                                  'Ghi sổ ngay',
+                                  style: TextStyle(fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    pasteCtrl.dispose();
+    amountCtrl.dispose();
+    balanceCtrl.dispose();
+    noteCtrl.dispose();
+
+    if (result != null && mounted) {
+      if (result.openReview) {
+        await _review(result.tx);
+      } else {
+        FinoraNotice.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã thêm vào hộp chờ & đồng bộ lên bản Web.'),
+            backgroundColor: Color(0xFF059669),
+          ),
+        );
+      }
+    }
+  }
+
+  ParsedBankTransaction? _submitManualEntry({
+    required String mode,
+    required String pasteText,
+    required String amountText,
+    required String balanceText,
+    required String noteText,
+    required String txType,
+    required Wallet? wallet,
+    required void Function(String) onError,
+  }) {
+    if (mode == 'paste') {
+      final trimmed = pasteText.trim();
+      if (trimmed.isEmpty) {
+        onError('Vui lòng dán nội dung thông báo số dư ngân hàng.');
+        return null;
+      }
+      final folded = BankNotificationParser.foldVietnamese(trimmed);
+      if (folded.contains('otp') ||
+          folded.contains('ma xac thuc') ||
+          folded.contains('verification code')) {
+        onError('Không lưu tin nhắn chứa mã OTP để bảo vệ tài khoản của bạn.');
+        return null;
+      }
+      return _bank.injectManualNotification(
+        title: wallet?.bankName ?? wallet?.name ?? '',
+        text: trimmed,
+      );
+    }
+
+    final amount =
+        int.tryParse(amountText.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final balDigits = balanceText.replaceAll(RegExp(r'[^0-9]'), '');
+    final balanceAfter = balDigits.isNotEmpty ? double.tryParse(balDigits) : null;
+    if (amount <= 0) {
+      onError('Vui lòng nhập số tiền giao dịch lớn hơn 0.');
+      return null;
+    }
+    final bankName = (wallet?.bankName?.isNotEmpty == true)
+        ? wallet!.bankName!
+        : (wallet?.name ?? 'Ngân hàng');
+    final bankCode = (wallet?.bankCode?.isNotEmpty == true)
+        ? wallet!.bankCode!
+        : 'bank';
+    final note = noteText.trim().isNotEmpty
+        ? noteText.trim()
+        : (txType == 'income'
+            ? 'Thu tiền $bankName'
+            : (txType == 'transfer'
+                ? 'Chuyển khoản $bankName'
+                : 'Chi tiêu $bankName'));
+    final rawText =
+        '$bankName ${txType == 'income' ? '+' : '-'}${formatVND(amount)}${balanceAfter != null ? ' • Số dư cuối: ${formatVND(balanceAfter.round())}' : ''} • $note';
+    return _bank.injectManualNotification(
+      title: bankName,
+      text: rawText,
+      manualAmount: amount.toDouble(),
+      manualType: txType,
+      manualBalanceAfter: balanceAfter,
+      bankCode: bankCode,
+      bankName: bankName,
+      accountNumber: wallet?.accountNumber,
+      manualNote: note,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -140,6 +788,7 @@ class _BankInboxViewState extends State<BankInboxView>
       builder: (context, _) {
         final pending = _bank.pending;
         final unrecognized = _bank.unrecognized;
+        final importedHistory = _bank.importedHistory;
         final totalCount = pending.length + unrecognized.length;
 
         return RefreshIndicator(
@@ -299,32 +948,37 @@ class _BankInboxViewState extends State<BankInboxView>
                     ],
                   ),
                 ),
-              if (totalCount > 0) ...[
-                // Action toolbar moved out of header: Xoá tất cả giao dịch chờ
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
+              // Unified quick toolbar: Nhập / Dán số dư (đồng bộ Web & ĐT) + Xoá tất cả
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B).withValues(alpha: 0.80)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
                     color: isDark
-                        ? const Color(0xFF1E293B).withValues(alpha: 0.80)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : const Color(0xFFE2E8F0),
-                    ),
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : const Color(0xFFE2E8F0),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 15,
-                        color: Color(0xFF059669),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Đã bóc tách $totalCount biến động',
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.sync_rounded,
+                      size: 15,
+                      color: Color(0xFF059669),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        totalCount > 0
+                            ? 'Đã bóc tách $totalCount biến động'
+                            : 'Đồng bộ số dư Web & ĐT',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontFamily: 'BeVietnamPro',
                           fontSize: 12.5,
@@ -332,15 +986,60 @@ class _BankInboxViewState extends State<BankInboxView>
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
-                      const Spacer(),
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: _openManualBalanceEntrySheet,
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        height: 28,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF059669)
+                              .withValues(alpha: isDark ? 0.24 : 0.10),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: const Color(0xFF059669)
+                                .withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 14,
+                              color: isDark
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFF059669),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Nhập số dư',
+                              style: TextStyle(
+                                fontFamily: 'BeVietnamPro',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: isDark
+                                    ? const Color(0xFF34D399)
+                                    : const Color(0xFF059669),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (totalCount > 0) ...[
+                      const SizedBox(width: 6),
                       InkWell(
                         onTap: () async {
                           HapticFeedback.heavyImpact();
                           final ok = await showDialog<bool>(
                             context: context,
                             builder: (c) => AlertDialog(
-                              backgroundColor:
-                                  isDark ? const Color(0xFF1E293B) : Colors.white,
+                              backgroundColor: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24)),
                               title: const Text('Xoá tất cả giao dịch chờ?'),
@@ -405,12 +1104,12 @@ class _BankInboxViewState extends State<BankInboxView>
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-              if (totalCount == 0)
+              ),
+              if (totalCount == 0 && importedHistory.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 60),
+                  padding: const EdgeInsets.only(top: 48),
                   child: Column(
                     children: [
                       Container(
@@ -441,7 +1140,7 @@ class _BankInboxViewState extends State<BankInboxView>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Khi ngân hàng hoặc ví điện tử báo biến động số dư, Finora sẽ tự bóc tách Mã GD và giữ lại ở đây để bạn kiểm tra.',
+                        'Khi ngân hàng hoặc ví điện tử báo biến động số dư, Finora sẽ tự bóc tách Mã GD và đồng bộ lên bản Web để bạn ghi sổ trên mọi thiết bị.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'BeVietnamPro',
@@ -458,6 +1157,7 @@ class _BankInboxViewState extends State<BankInboxView>
               ...pending.map(
                 (tx) => _PendingTile(
                   tx: tx,
+                  fromWeb: _bank.isFromWeb(tx.rawId),
                   onQuickSave: () => _quickSave(tx),
                   onReview: () => _review(tx),
                   onDismiss: () => _bank.acknowledge(tx.rawId),
@@ -506,563 +1206,59 @@ class _BankInboxViewState extends State<BankInboxView>
                   ),
                 ),
               ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StatusCard extends StatelessWidget {
-  final bool? granted;
-  final bool connected;
-  final String? error;
-  final VoidCallback onRefresh;
-  final VoidCallback onOpenPasteModal;
-  const _StatusCard({
-    required this.granted,
-    required this.connected,
-    required this.error,
-    required this.onRefresh,
-    required this.onOpenPasteModal,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bank = BankSyncService();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final needsPermission = !kIsWeb && granted == false;
-    final Color statusColor = kIsWeb
-        ? const Color(0xFF059669)
-        : (needsPermission
-            ? const Color(0xFFE11D48)
-            : (connected ? const Color(0xFF059669) : const Color(0xFFD97706)));
-
-    final title = kIsWeb
-        ? 'Đồng bộ Mã giao dịch Ngân hàng (Web & Mobile)'
-        : (needsPermission
-            ? 'Chưa bật quyền đọc thông báo ngân hàng'
-            : connected
-                ? 'Đang lắng nghe Ngân hàng · Ví điện tử'
-                : 'Dịch vụ đọc thông báo chưa kết nối');
-    final subtitle = error ??
-        (kIsWeb
-            ? 'Dán nhanh nội dung SMS/thông báo ngân hàng để tự động gán Mã giao dịch chính & ghi chú riêng.'
-            : (needsPermission
-                ? 'Bật quyền Thông báo thiết bị & ứng dụng cho Finora để tự nhận biến động số dư.'
-                : connected
-                    ? 'Tự động nhận diện Thu/Chi, Chuyển khoản cùng máy, Trả thẻ tín dụng.'
-                    : 'Nếu Android vừa khởi động lại hoặc chặn dịch vụ chạy nền, hãy chạm kết nối lại.'));
-
-    return AdaptiveGlassSurface(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: statusColor.withValues(alpha: isDark ? 0.40 : 0.28),
-          width: 1.1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: statusColor.withValues(alpha: isDark ? 0.12 : 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                  border: Border.all(
-                    color: statusColor.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Icon(
-                  needsPermission
-                      ? Icons.notifications_paused_rounded
-                      : (connected || kIsWeb
-                          ? Icons.verified_user_rounded
-                          : Icons.sync_problem_rounded),
-                  color: statusColor,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.35,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  if (kIsWeb) {
-                    onOpenPasteModal();
-                  } else if (needsPermission) {
-                    bank.requestPermission();
-                  } else if (!connected) {
-                    bank.openAppInfo();
-                  } else {
-                    onRefresh();
-                  }
-                },
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: isDark ? 0.22 : 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.40),
-                    ),
-                  ),
-                  child: Text(
-                    kIsWeb
-                        ? 'Dán thông báo'
-                        : (needsPermission
-                            ? 'Cấp quyền'
-                            : connected
-                                ? 'Làm mới'
-                                : 'Mở cài đặt'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (!kIsWeb && needsPermission) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF0F172A).withValues(alpha: 0.65)
-                    : const Color(0xFFFFF1F2).withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFE11D48).withValues(alpha: 0.28),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              if (importedHistory.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
                     children: [
                       const Icon(
-                        Icons.security_update_good_rounded,
+                        Icons.verified_rounded,
                         size: 16,
-                        color: Color(0xFFE11D48),
+                        color: Color(0xFF059669),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Bị báo "Ứng dụng bị hạn chế" trên Android 13+?',
+                          'Đã nhập gần đây (${importedHistory.length})',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontFamily: 'BeVietnamPro',
+                            fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF881337),
-                          ),
-                        ),
-                      ),
-                      InkWell(
-                        borderRadius: BorderRadius.circular(999),
-                        onTap: () =>
-                            _showRestrictedSettingsGuide(context, isDark),
-                        child: const Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          child: Text(
-                            'Xem 3 bước ›',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFE11D48),
-                            ),
+                            color: isDark
+                                ? const Color(0xFF6EE7B7)
+                                : const Color(0xFF047857),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Do cài file APK ngoài CH Play, Android khóa tạm nút gạt. Bạn chỉ cần bấm Bước 1 → chọn menu ⋮ góc trên phải (hoặc kéo xuống cuối) → bật "Cho phép cài đặt bị hạn chế", sau đó bấm Bước 2.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 1.38,
-                      color: isDark
-                          ? const Color(0xFFCBD5E1)
-                          : const Color(0xFF475569),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(999),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            bank.openAppInfo();
-                          },
-                          child: AdaptiveGlassSurface(
-                            height: 36,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: const Color(0xFFE11D48)
-                                    .withValues(alpha: 0.45),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.settings_applications_rounded,
-                                  size: 15,
-                                  color: Color(0xFFE11D48),
-                                ),
-                                const SizedBox(width: 5),
-                                Flexible(
-                                  child: Text(
-                                    'Bước 1: Mở TT Ứng dụng',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 11.2,
-                                      fontWeight: FontWeight.w800,
-                                      color: isDark
-                                          ? Colors.white
-                                          : const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(999),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            bank.requestPermission();
-                          },
-                          child: Container(
-                            height: 36,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
-                              ),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.notifications_active_rounded,
-                                  size: 15,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(width: 5),
-                                Flexible(
-                                  child: Text(
-                                    'Bước 2: Bật Thông báo',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 11.2,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (!kIsWeb) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: onOpenPasteModal,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF059669)
-                        .withValues(alpha: isDark ? 0.16 : 0.08),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: const Color(0xFF059669).withValues(alpha: 0.30),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.content_paste_go_rounded,
-                        size: 14,
-                        color: Color(0xFF059669),
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Dán nhanh thông báo Ngân hàng / Ví điện tử',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF059669),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  void _showRestrictedSettingsGuide(BuildContext context, bool isDark) {
-    final bank = BankSyncService();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return AdaptiveGlassSurface(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Cách gỡ "Ứng dụng bị hạn chế" (Android 13+)',
-                  style: TextStyle(
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Từ Android 13 trở lên, khi cài ứng dụng bằng file APK, hệ điều hành sẽ làm mờ nút "Cho phép truy cập thông báo" cho tới khi bạn xác nhận 1 lần duy nhất trong Thông tin ứng dụng:',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.4,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF475569),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _buildStepRow(
-                  isDark: isDark,
-                  step: '1',
-                  title: 'Mở trang Thông tin ứng dụng (App Info) của Finora',
-                  desc:
-                      'Bấm nút "Bước 1: Mở TT Ứng dụng" bên dưới (hoặc vào Cài đặt máy → Ứng dụng → Finora).',
-                ),
-                const SizedBox(height: 10),
-                _buildStepRow(
-                  isDark: isDark,
-                  step: '2',
-                  title: 'Bật "Cho phép cài đặt bị hạn chế"',
-                  desc:
-                      '• Máy Samsung / OPPO / Vivo / Pixel: Bấm biểu tượng 3 chấm (⋮) ở góc trên bên phải màn hình → chọn "Cho phép cài đặt bị hạn chế" (Allow restricted settings).\n• Máy Xiaomi / HyperOS: Kéo xuống dưới cùng trang Thông tin ứng dụng → bật "Cho phép cài đặt bị hạn chế" và xác nhận vân tay/mật khẩu.',
-                ),
-                const SizedBox(height: 10),
-                _buildStepRow(
-                  isDark: isDark,
-                  step: '3',
-                  title: 'Quay lại bật "Cho phép truy cập thông báo"',
-                  desc:
-                      'Bấm nút "Bước 2: Bật Thông báo" → gạt công tắc Finora sang BẬT. Từ lúc này Finora sẽ tự động đọc biến động số dư 100%.',
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          bank.openAppInfo();
-                        },
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(44),
-                          shape: const StadiumBorder(),
-                        ),
-                        icon: const Icon(Icons.settings_applications_rounded,
-                            size: 18),
-                        label: const Text('Bước 1: Mở TT App'),
+                const SizedBox(height: 8),
+                ...importedHistory.take(15).map(
+                      (item) => _ImportedHistoryTile(
+                        item: item,
+                        onDelete: () => _bank.deleteCloudHistoryItem(item.id),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          bank.requestPermission();
-                        },
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(44),
-                          backgroundColor: const Color(0xFF059669),
-                          shape: const StadiumBorder(),
-                        ),
-                        icon: const Icon(Icons.notifications_active_rounded,
-                            size: 18),
-                        label: const Text('Bước 2: Bật quyền'),
-                      ),
-                    ),
-                  ],
-                ),
               ],
-            ),
+            ],
           ),
         );
       },
-    );
-  }
-
-  Widget _buildStepRow({
-    required bool isDark,
-    required String step,
-    required String title,
-    required String desc,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: Color(0xFFE11D48),
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            step,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                desc,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  height: 1.4,
-                  color: isDark
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF475569),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
 
 class _PendingTile extends StatelessWidget {
   final ParsedBankTransaction tx;
+  final bool fromWeb;
   final VoidCallback? onQuickSave;
   final VoidCallback onReview;
   final VoidCallback onDismiss;
   const _PendingTile({
     required this.tx,
+    this.fromWeb = false,
     this.onQuickSave,
     required this.onReview,
     required this.onDismiss,
@@ -1230,33 +1426,97 @@ class _PendingTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                if (txCode.isNotEmpty) ...[
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: isDark ? 0.16 : 0.08),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.tag_rounded, size: 13, color: color),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            'Mã GD chính: $txCode',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: color,
-                            ),
+                if (txCode.isNotEmpty ||
+                    tx.balanceAfter != null ||
+                    fromWeb) ...[
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      if (fromWeb)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB)
+                                .withValues(alpha: isDark ? 0.22 : 0.10),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.laptop_mac_rounded,
+                                  size: 12.5, color: Color(0xFF2563EB)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Nhập từ Web',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF2563EB),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      if (tx.balanceAfter != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF059669)
+                                .withValues(alpha: isDark ? 0.20 : 0.10),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.account_balance_wallet_rounded,
+                                  size: 12.5, color: Color(0xFF059669)),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Số dư cuối: ${formatVND(tx.balanceAfter!.round())}',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF059669),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (txCode.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color:
+                                color.withValues(alpha: isDark ? 0.16 : 0.08),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.tag_rounded, size: 13, color: color),
+                              const SizedBox(width: 4),
+                              ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 190),
+                                child: Text(
+                                  'Mã GD: $txCode',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -1653,6 +1913,183 @@ class _UnrecognizedTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportedHistoryTile extends StatelessWidget {
+  final CloudBankNotification item;
+  final VoidCallback onDelete;
+  const _ImportedHistoryTile({
+    required this.item,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fromWeb = item.importedFrom == 'web';
+    final effectiveType = item.importedType ?? item.type;
+    final isIncome = effectiveType == 'income';
+    final isTransfer = effectiveType == 'transfer';
+    final amount = item.importedAmount ?? item.amount.round();
+    final sign = isTransfer ? '⇄ ' : (isIncome ? '+' : '-');
+    final amountColor = isTransfer
+        ? const Color(0xFF0284C7)
+        : (isIncome ? const Color(0xFF059669) : const Color(0xFFE11D48));
+    final badgeColor =
+        fromWeb ? const Color(0xFF2563EB) : const Color(0xFF059669);
+    final importedTime = DateTime.fromMillisecondsSinceEpoch(
+      item.importedAtMs ?? item.timestampMs,
+    );
+    final timeStr = DateFormat('HH:mm · dd/MM').format(importedTime);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AdaptiveGlassSurface(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF0F172A).withValues(alpha: 0.72)
+              : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: badgeColor.withValues(alpha: isDark ? 0.34 : 0.24),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: ClipOval(
+                    child: BankIcon(
+                      bankCode: item.bankCode,
+                      bankName: item.bankName,
+                      size: 36,
+                      fullBleed: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.bankName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.importedWalletName?.isNotEmpty == true
+                            ? '${item.importedWalletName} • $timeStr'
+                            : timeStr,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$sign${formatVND(amount)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: amountColor,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Xoá khỏi lịch sử đồng bộ',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onDelete,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 9, vertical: 3.5),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: isDark ? 0.22 : 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        fromWeb
+                            ? Icons.laptop_mac_rounded
+                            : Icons.smartphone_rounded,
+                        size: 12,
+                        color: badgeColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        fromWeb
+                            ? 'Đã nhập từ bản Web'
+                            : 'Đã nhập trên điện thoại',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: badgeColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (item.syncedBalance && item.syncedBalanceValue != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 9, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF059669)
+                          .withValues(alpha: isDark ? 0.20 : 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Đã đồng bộ số dư: ${formatVND(item.syncedBalanceValue!.round())}',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF059669),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

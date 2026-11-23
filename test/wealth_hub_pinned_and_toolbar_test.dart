@@ -164,7 +164,7 @@ void main() {
 
     // Tab 3 Sổ nợ pinned selector & content
     expect(find.text('Cho vay'), findsAtLeastNWidgets(1));
-    expect(find.text('Vay nợ'), findsOneWidget);
+    expect(find.text('Đi vay'), findsOneWidget);
     expect(find.text('Anh Tuấn'), findsOneWidget);
   });
 }

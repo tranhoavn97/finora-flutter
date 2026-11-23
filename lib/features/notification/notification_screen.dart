@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -6,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../core/services/bank_sync_service.dart';
 import '../../core/widgets/glass_widgets.dart';
-import '../../core/widgets/premium_widgets.dart';
 import '../../data/models/finance_models.dart';
 import '../../state/family_provider.dart';
 import '../../state/more_provider.dart';
@@ -79,6 +77,7 @@ class _NotificationScreenState extends State<NotificationScreen>
   ) async {
     HapticFeedback.heavyImpact();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final messenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -145,7 +144,7 @@ class _NotificationScreenState extends State<NotificationScreen>
       await _bank.acknowledgeAll();
       await _bank.setUnreadActivityCount(0);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: const Row(
               children: [
@@ -169,7 +168,6 @@ class _NotificationScreenState extends State<NotificationScreen>
     final items = more?.notifications ?? const <AppNotification>[];
     final unread = items.where((n) => !n.isRead).length;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final topPad = MediaQuery.of(context).padding.top;
 
     return AnimatedBuilder(
       animation: _bank,
@@ -814,13 +812,16 @@ class _ActivityTab extends StatelessWidget {
               const Spacer(),
               if (unreadCount > 0) ...[
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
                     HapticFeedback.selectionClick();
                     for (final n in itemsList) {
                       if (!n.isRead && n.id.isNotEmpty) {
-                        more.markNotificationAsRead(userId, n.id);
+                        await more.markNotificationAsRead(userId, n.id);
                       }
                     }
+                    await BankSyncService().setUnreadActivityCount(
+                      more.notifications.where((n) => !n.isRead).length,
+                    );
                   },
                   borderRadius: BorderRadius.circular(999),
                   child: Container(
@@ -840,9 +841,7 @@ class _ActivityTab extends StatelessWidget {
                         Icon(
                           Icons.done_all_rounded,
                           size: 13,
-                          color: isDark
-                              ? const Color(0xFF34D399)
-                              : const Color(0xFF059669),
+                          color: brandPrimary,
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -851,9 +850,7 @@ class _ActivityTab extends StatelessWidget {
                             fontFamily: 'BeVietnamPro',
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? const Color(0xFF34D399)
-                                : const Color(0xFF059669),
+                            color: brandPrimary,
                           ),
                         ),
                       ],
@@ -892,6 +889,7 @@ class _ActivityTab extends StatelessWidget {
                   );
                   if (ok == true) {
                     await more.clearAllNotifications(userId);
+                    await BankSyncService().setUnreadActivityCount(0);
                   }
                 },
                 borderRadius: BorderRadius.circular(999),
@@ -935,26 +933,29 @@ class _ActivityTab extends StatelessWidget {
             ],
           ),
         ),
-        ...itemsList.asMap().entries.map((entry) {
-          final index = entry.key;
-          final item = entry.value;
-        final meta = _styleForType(item.type ?? 'info');
-        final isUnread = !item.isRead;
-        final title = (item.title?.trim().isNotEmpty == true)
-            ? item.title!.trim()
-            : 'Thông báo';
-        final message = item.message?.trim() ?? '';
+        ...itemsList.map((item) {
+          final meta = _styleForType(item.type ?? 'info');
+          final isUnread = !item.isRead;
+          final title = (item.title?.trim().isNotEmpty == true)
+              ? item.title!.trim()
+              : 'Thông báo';
+          final message = item.message?.trim() ?? '';
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () {
-              HapticFeedback.selectionClick();
-              if (isUnread && item.id.isNotEmpty) {
-                more.markNotificationAsRead(userId, item.id);
-              }
-            },
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  if (isUnread && item.id.isNotEmpty) {
+                    await more.markNotificationAsRead(userId, item.id);
+                    await BankSyncService().setUnreadActivityCount(
+                      more.notifications.where((n) => !n.isRead).length,
+                    );
+                  }
+                },
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -1081,7 +1082,8 @@ class _ActivityTab extends StatelessWidget {
               ),
             ),
           ),
-        );
+            ),
+          );
         }),
       ],
     );

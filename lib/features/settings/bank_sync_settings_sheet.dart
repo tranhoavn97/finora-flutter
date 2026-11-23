@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -8,7 +7,6 @@ import '../../core/services/bank_sync_service.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/finora_home_widget_card.dart';
 import '../../core/widgets/finora_modal_scope.dart';
-import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/finora_notice.dart';
 import '../../state/theme_studio_controller.dart';
 
@@ -755,7 +753,7 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
           if (_service.lastReceivedAt != null) ...[
             const SizedBox(height: 10),
             Text(
-              'Thông báo gần nhất: ',
+              'Thông báo gần nhất: ${DateFormat('HH:mm • dd/MM/yyyy').format(_service.lastReceivedAt!)}',
               style: TextStyle(
                 fontFamily: 'BeVietnamPro',
                 fontSize: 11,
@@ -969,7 +967,8 @@ class _BankSyncSettingsSheetState extends State<BankSyncSettingsSheet>
         const SizedBox(width: 12),
         Switch.adaptive(
           value: value,
-          activeColor: const Color(0xFF059669),
+          activeThumbColor: const Color(0xFF059669),
+          activeTrackColor: const Color(0xFF059669).withValues(alpha: 0.45),
           onChanged: onChanged == null
               ? null
               : (v) {

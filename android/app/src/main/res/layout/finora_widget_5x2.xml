@@ -171,7 +171,7 @@
             android:layout_height="match_parent"
             android:layout_marginStart="5dp"
             android:layout_weight="1.15"
-            android:background="@drawable/finora_widget_amber_card_bg"
+            android:background="@drawable/finora_widget_emerald_card_bg"
             android:gravity="center_vertical"
             android:orientation="vertical"
             android:paddingStart="11dp"
@@ -186,12 +186,15 @@
                 android:orientation="horizontal">
 
                 <ImageView
+                    android:id="@+id/widget_pending_bell"
                     android:layout_width="12dp"
                     android:layout_height="12dp"
                     android:contentDescription="Số dư chờ"
-                    android:src="@drawable/ic_widget_bell" />
+                    android:src="@drawable/ic_widget_bell"
+                    android:tint="#34D399" />
 
                 <TextView
+                    android:id="@+id/widget_pending_label"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
@@ -200,7 +203,7 @@
                     android:includeFontPadding="false"
                     android:maxLines="1"
                     android:text="CẦN GHI CHÉP"
-                    android:textColor="#FCD34D"
+                    android:textColor="#34D399"
                     android:textSize="9.5sp"
                     android:textStyle="bold" />
 
@@ -208,15 +211,15 @@
                     android:id="@+id/widget_pending_badge_pill"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/finora_widget_pill_amber"
+                    android:background="@drawable/finora_widget_pill_emerald"
                     android:includeFontPadding="false"
                     android:paddingStart="7dp"
                     android:paddingTop="2dp"
                     android:paddingEnd="7dp"
                     android:paddingBottom="2dp"
-                    android:text="0"
-                    android:textColor="#FEF3C7"
-                    android:textSize="9.5sp"
+                    android:text="Đã ghi đủ"
+                    android:textColor="#D1FAE5"
+                    android:textSize="9sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -230,7 +233,7 @@
                 android:maxLines="1"
                 android:text="Không có biến động chờ"
                 android:textColor="#FFFFFFFF"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -240,10 +243,10 @@
                 android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:text="Chạm để mở hộp thư số dư →"
                 android:textColor="#CBD5E1"
-                android:textSize="10.5sp" />
+                android:textSize="10sp" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

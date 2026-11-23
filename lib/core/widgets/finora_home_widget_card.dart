@@ -48,10 +48,12 @@ class _FinoraHomeWidgetCardState extends State<FinoraHomeWidgetCard> {
 
     final dash = Provider.of<DashboardProvider?>(context, listen: false);
     final studio = Provider.of<ThemeStudioController?>(context, listen: false);
+    final accent = studio?.resolvedPrimary ?? const Color(0xFF059669);
     if (dash != null) {
       await _widgetSync.sync(
         dashboardData: dash.data,
         pendingCount: _bank.pending.length + _bank.unrecognizedCount,
+        manualPendingCount: _bank.manualPendingCount,
         hideAmounts: studio?.isPrivacyShieldActive ?? false,
         force: true,
       );
@@ -70,7 +72,7 @@ class _FinoraHomeWidgetCardState extends State<FinoraHomeWidgetCard> {
           content: Text(
             'Đã gửi yêu cầu ghim Widget FINORA $widgetType ra màn hình chính!',
           ),
-          backgroundColor: const Color(0xFF059669),
+          backgroundColor: accent,
           behavior: SnackBarBehavior.floating,
         ),
       );

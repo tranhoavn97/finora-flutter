@@ -3,7 +3,7 @@
     android:description="@string/finora_widget_5x2_desc"
     android:initialLayout="@layout/finora_widget_5x2"
     android:previewLayout="@layout/finora_widget_5x2"
-    android:minWidth="290dp"
+    android:minWidth="320dp"
     android:minHeight="110dp"
     android:minResizeWidth="220dp"
     android:minResizeHeight="96dp"

@@ -15,6 +15,7 @@ import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/premium_widgets.dart';
 import '../../data/models/wallet.dart';
+import '../../domain/finance/transaction_member.dart';
 import '../../state/theme_studio_controller.dart';
 import '../../state/wallet_provider.dart';
 
@@ -22,6 +23,26 @@ class AddWalletPage extends StatefulWidget {
   final String userId;
   final Wallet? wallet;
   const AddWalletPage({super.key, required this.userId, this.wallet});
+
+  /// Canonicalize wallet owner so UI selection and saved `ownerName` never diverge.
+  static String normalizeWalletOwner(String? owner, String? ownerName) {
+    final fromOwner = parseTransactionMember(owner);
+    if (fromOwner != null) return fromOwner.value;
+    final fromName = parseTransactionMember(ownerName);
+    if (fromName != null) return fromName.value;
+    return 'husband';
+  }
+
+  static String ownerLabelFor(String owner) {
+    switch (normalizeWalletOwner(owner, null)) {
+      case 'wife':
+        return 'Vợ';
+      case 'joint':
+        return 'Chung';
+      default:
+        return 'Chồng';
+    }
+  }
 
   @override
   State<AddWalletPage> createState() => _AddWalletPageState();
@@ -82,7 +103,10 @@ class _AddWalletPageState extends State<AddWalletPage> {
       _nameCtrl.text = w.name;
       _bankCodeCtrl.text = w.bankCode ?? '';
       _accountCtrl.text = w.accountNumber ?? '';
-      _owner = w.owner;
+      _owner = AddWalletPage.normalizeWalletOwner(
+        w.hasExplicitOwner ? w.owner : null,
+        w.hasExplicitOwnerName ? w.ownerName : null,
+      );
       _type = w.type;
       _themeColor = w.themeColor ?? 'blue';
       _customIconUrl = w.iconUrl;
@@ -547,12 +571,15 @@ class _AddWalletPageState extends State<AddWalletPage> {
         final editedCurrentDebt =
             targetDebt == w.currentDebt ? w.currentDebt : targetDebt;
 
+        final normalizedOwner = AddWalletPage.normalizeWalletOwner(_owner, null);
+        final normalizedOwnerName =
+            AddWalletPage.ownerLabelFor(normalizedOwner);
         final updatedWallet = Wallet(
           id: w.id,
           name: name,
           type: _type,
-          owner: _owner,
-          ownerName: _owner == 'husband' ? 'Chồng' : 'Vợ',
+          owner: normalizedOwner,
+          ownerName: normalizedOwnerName,
           bankCode: bankCode.isNotEmpty ? bankCode : null,
           bankName: selectedBrand?.name,
           accountNumber: account.isNotEmpty ? account : null,
@@ -578,12 +605,15 @@ class _AddWalletPageState extends State<AddWalletPage> {
         final initialBalance = _parseAmount(_balanceCtrl.text);
         final creditLimit = _parseAmount(_limitCtrl.text);
         final initialDebt = _parseAmount(_debtCtrl.text);
+        final normalizedOwner = AddWalletPage.normalizeWalletOwner(_owner, null);
+        final normalizedOwnerName =
+            AddWalletPage.ownerLabelFor(normalizedOwner);
 
         final wallet = Wallet(
           name: name,
           type: _type,
-          owner: _owner,
-          ownerName: _owner == 'husband' ? 'Chồng' : 'Vợ',
+          owner: normalizedOwner,
+          ownerName: normalizedOwnerName,
           bankCode: bankCode.isNotEmpty ? bankCode : null,
           bankName: selectedBrand?.name,
           accountNumber: account.isNotEmpty ? account : null,
@@ -784,7 +814,11 @@ class _AddWalletPageState extends State<AddWalletPage> {
                               const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
-                                  _owner == 'wife' ? 'Ví của Vợ' : 'Ví của Chồng',
+                                  _owner == 'wife'
+                                      ? 'Ví của Vợ'
+                                      : (_owner == 'joint'
+                                          ? 'Ví chung'
+                                          : 'Ví của Chồng'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -938,23 +972,30 @@ class _AddWalletPageState extends State<AddWalletPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Owner Selector (Chồng / Vợ)
+                        // Owner Selector (Chồng / Vợ / Chung)
                         _buildSectionHeader('CHỦ SỞ HỮU TÀI KHOẢN', isDark),
                         const SizedBox(height: 8),
                         FinoraSegmentedTabs(
-                          labels: const ['Chồng', 'Vợ'],
+                          labels: const ['Chồng', 'Vợ', 'Chung'],
                           icons: const [
                             Icons.face_rounded,
-                            Icons.face_3_rounded
+                            Icons.face_3_rounded,
+                            Icons.people_alt_rounded,
                           ],
-                          colors: const [Color(0xFF0284C7), Color(0xFFDB2777)],
-                          selectedIndex: _owner == 'wife' ? 1 : 0,
+                          colors: const [
+                            Color(0xFF0284C7),
+                            Color(0xFFDB2777),
+                            Color(0xFF059669),
+                          ],
+                          selectedIndex:
+                              _owner == 'wife' ? 1 : (_owner == 'joint' ? 2 : 0),
                           height: 42,
                           fontSize: 12.5,
                           onChanged: (idx) {
                             HapticFeedback.selectionClick();
-                            setState(
-                                () => _owner = idx == 0 ? 'husband' : 'wife');
+                            setState(() => _owner = idx == 1
+                                ? 'wife'
+                                : (idx == 2 ? 'joint' : 'husband'));
                           },
                         ),
                         const SizedBox(height: 16),
@@ -1858,7 +1899,9 @@ class _AddWalletPageState extends State<AddWalletPage> {
                           borderRadius: BorderRadius.circular(100),
                         ),
                         child: Text(
-                          _owner == 'wife' ? 'VỢ' : 'CHỒNG',
+                          _owner == 'wife'
+                              ? 'VỢ'
+                              : (_owner == 'joint' ? 'CHUNG' : 'CHỒNG'),
                           style: const TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w800,

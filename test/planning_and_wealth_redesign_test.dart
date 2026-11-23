@@ -78,12 +78,15 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    // Image 4 design: Active tab displays label text, all tabs provide Tooltip & Semantics
+    // Active tab displays label text, all tabs provide Semantics labels without Tooltip popups
+    Finder tabSemantics(String label) => find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == label,
+        );
     expect(find.text('Kế hoạch'), findsOneWidget);
-    expect(find.byTooltip('Trang chủ'), findsOneWidget);
-    expect(find.byTooltip('Tài sản'), findsOneWidget);
-    expect(find.byTooltip('Kế hoạch'), findsOneWidget);
-    expect(find.byTooltip('Cá nhân'), findsOneWidget);
+    expect(tabSemantics('Trang chủ'), findsOneWidget);
+    expect(tabSemantics('Tài sản'), findsOneWidget);
+    expect(tabSemantics('Kế hoạch'), findsOneWidget);
+    expect(tabSemantics('Cá nhân'), findsOneWidget);
   });
 
   testWidgets('BudgetScreen hides old hero card when isTab is true', (tester) async {

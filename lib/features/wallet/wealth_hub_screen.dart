@@ -49,6 +49,8 @@ import '../../data/models/wallet.dart';
 
 import '../../data/models/transaction.dart';
 
+import '../../domain/finance/transaction_member.dart';
+
 import '../../state/wallet_provider.dart';
 
 import '../../state/more_provider.dart';
@@ -7401,19 +7403,24 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       (t) => FinoraMemberAvatar.normalizeMember(t) != null,
       orElse: () => '',
     );
-    final ownerRole = FinoraMemberAvatar.normalizeMember(
-          tx.owner ??
-              tx.fromOwner ??
-              tx.toOwner ??
-              tx.ownerName ??
-              tx.creatorTag ??
-              (rawTagOwner != null && rawTagOwner.isNotEmpty
-                  ? rawTagOwner
-                  : null) ??
-              matchingWallet?.owner ??
-              walletDisplayName,
-        ) ??
-        'all';
+    final resolvedMember = resolveTransactionMember(
+      tx,
+      walletMap: matchingWallet != null ? {matchingWallet.id: matchingWallet} : null,
+    );
+    final ownerRole = resolvedMember != TransactionMember.unknown
+        ? resolvedMember.value
+        : (FinoraMemberAvatar.normalizeMember(
+              tx.owner ??
+                  tx.fromOwner ??
+                  tx.ownerName ??
+                  tx.creatorTag ??
+                  (rawTagOwner != null && rawTagOwner.isNotEmpty
+                      ? rawTagOwner
+                      : null) ??
+                  matchingWallet?.owner ??
+                  matchingWallet?.ownerName,
+            ) ??
+            'all');
     final ownerLabel = switch (ownerRole) {
       'husband' => studio?.husbandDisplayLabel ?? 'Chồng',
       'wife' => studio?.wifeDisplayLabel ?? 'Vợ',

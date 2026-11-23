@@ -165,7 +165,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Loans content is active and visible
-    expect(find.textContaining('DANH SÁCH CHO VAY'), findsOneWidget);
+    expect(find.textContaining('DANH SÁCH KHOẢN CHO VAY'), findsOneWidget);
     expect(find.text('Anh Tuấn'), findsOneWidget);
   });
 
