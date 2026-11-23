@@ -197,7 +197,7 @@ class _BankTransactionPromptSheetState
         final refinedBrand = _narrowCandidatesByContext(brandMatches, tx);
         if (refinedBrand.length == 1) return refinedBrand.first;
         final notifBal = tx.balanceAfter;
-        if (notifBal != null) {
+        if (notifBal != null && notifBal > 0) {
           Wallet? closest;
           double minDiff = double.infinity;
           for (final w in refinedBrand) {
@@ -212,7 +212,8 @@ class _BankTransactionPromptSheetState
               closest = w;
             }
           }
-          if (closest != null) return closest;
+          final maxTolerance = math.max(5000000.0, notifBal * 0.30);
+          if (closest != null && minDiff <= maxTolerance) return closest;
         }
         return refinedBrand.first;
       }
@@ -284,7 +285,7 @@ class _BankTransactionPromptSheetState
       tx,
     );
 
-    // 3. Khớp số dư gần đúng nhất với số dư sau giao dịch (SD / So du)
+    // 3. Khớp số dư gần đúng nhất với số dư sau giao dịch (SD / So du) trong ngưỡng hợp lý
     final notifBal = tx.balanceAfter;
     if (notifBal != null && notifBal > 0) {
       Wallet? closest;
@@ -301,7 +302,8 @@ class _BankTransactionPromptSheetState
           closest = w;
         }
       }
-      if (closest != null) return closest;
+      final maxTolerance = math.max(5000000.0, notifBal * 0.30);
+      if (closest != null && minDiff <= maxTolerance) return closest;
     }
 
     // 4. Nếu là thanh toán thẻ tín dụng, ưu tiên ví loại credit/thẻ tín dụng
@@ -340,7 +342,8 @@ class _BankTransactionPromptSheetState
               .format(widget.tx.balanceAfter!.round())
           : '',
     );
-    _syncBalanceToBank = widget.tx.balanceAfter != null;
+    // Mặc định tắt đồng bộ số dư ví cho tới khi xác minh khớp STK ví và mức lệch an toàn.
+    _syncBalanceToBank = false;
     // Mã giao dịch chính lấy trực tiếp từ thông báo ngân hàng
     final mainBankRef = widget.tx.transactionCode.trim();
     _bankCodeCtrl = TextEditingController(text: mainBankRef);
@@ -370,6 +373,23 @@ class _BankTransactionPromptSheetState
     });
   }
 
+  bool _defaultSyncEnabledFor(Wallet? wallet) {
+    if (wallet == null || wallet.isCreditCard) return false;
+    final endingBal =
+        _parsedEndingBalance()?.toDouble() ?? widget.tx.balanceAfter;
+    final rawAmt =
+        int.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
+            widget.tx.amount.round();
+    return BankNotificationParser.shouldAutoEnableBalanceSync(
+      walletAccountNumber: wallet.accountNumber,
+      notifAccountNumber: widget.tx.accountNumber,
+      balanceAfter: endingBal,
+      currentWalletBalance: wallet.balance,
+      txType: _selectedType,
+      txAmount: rawAmt,
+    );
+  }
+
   void _autoMatchSelections() {
     final walletProv = context.read<WalletProvider?>();
     final txProv = context.read<TransactionProvider?>();
@@ -379,10 +399,11 @@ class _BankTransactionPromptSheetState
     final wallets = fromWalletProv.isNotEmpty ? fromWalletProv : fromTxProv;
     final categories = _availableCategories(txProv, moreProv);
 
-    // 1. Auto-match source wallet by bank name / code and closest balance
+    // 1. Auto-match source wallet by bank name / code and safe context
     if (wallets.isNotEmpty && _selectedWalletId == null) {
-      final best = _findBestWallet(wallets, widget.tx);
-      _selectedWalletId = best?.id ?? wallets.first.id;
+      final best = _findBestWallet(wallets, widget.tx) ?? wallets.first;
+      _selectedWalletId = best.id;
+      _syncBalanceToBank = _defaultSyncEnabledFor(best);
     }
 
     // 2. Auto-match destination wallet if internal transfer or credit card payment
@@ -764,9 +785,23 @@ class _BankTransactionPromptSheetState
                             itemBuilder: (_, index) {
                               final w = filteredWallets[index];
                               final selected = w.id == currentId;
-                              final ownerIsWife =
-                                  w.owner.toLowerCase() == 'wife' ||
-                                      w.ownerName.toLowerCase().contains('vợ');
+                              final resolved = resolveOwnerForWallet(w);
+                              final ownerIsWife = resolved.owner == 'wife';
+                              final ownerIsJoint = resolved.owner == 'joint';
+                              final acctDigits = (w.accountNumber ?? '')
+                                  .replaceAll(RegExp(r'\D'), '');
+                              final acctSuffix = acctDigits.length >= 4
+                                  ? ' • ••${acctDigits.substring(acctDigits.length - 4)}'
+                                  : (acctDigits.isNotEmpty
+                                      ? ' • $acctDigits'
+                                      : '');
+                              final typeLabel = w.isCreditCard
+                                  ? 'Thẻ tín dụng'
+                                  : (w.type == 'saving'
+                                      ? 'Tiết kiệm'
+                                      : (w.type == 'bank'
+                                          ? 'Ngân hàng'
+                                          : 'Tiền mặt'));
                               return Material(
                                 color: Colors.transparent,
                                 child: InkWell(
@@ -822,21 +857,22 @@ class _BankTransactionPromptSheetState
                                               const SizedBox(height: 3),
                                               Row(
                                                 children: [
-                                                  Text(
-                                                    w.isCreditCard
-                                                        ? 'Thẻ tín dụng'
-                                                        : (w.type == 'bank'
-                                                            ? 'Ngân hàng'
-                                                            : 'Tiền mặt'),
-                                                    style: TextStyle(
-                                                      fontSize: 11.5,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: isDark
-                                                          ? const Color(
-                                                              0xFF94A3B8)
-                                                          : const Color(
-                                                              0xFF64748B),
+                                                  Flexible(
+                                                    child: Text(
+                                                      '$typeLabel$acctSuffix',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 11.5,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: isDark
+                                                            ? const Color(
+                                                                0xFF94A3B8)
+                                                            : const Color(
+                                                                0xFF64748B),
+                                                      ),
                                                     ),
                                                   ),
                                                   const SizedBox(width: 6),
@@ -853,11 +889,17 @@ class _BankTransactionPromptSheetState
                                                                   0xFF500724)
                                                               : const Color(
                                                                   0xFFFCE7F3))
-                                                          : (isDark
-                                                              ? const Color(
-                                                                  0xFF082F49)
-                                                              : const Color(
-                                                                  0xFFE0F2FE)),
+                                                          : (ownerIsJoint
+                                                              ? (isDark
+                                                                  ? const Color(
+                                                                      0xFF064E3B)
+                                                                  : const Color(
+                                                                      0xFFD1FAE5))
+                                                              : (isDark
+                                                                  ? const Color(
+                                                                      0xFF082F49)
+                                                                  : const Color(
+                                                                      0xFFE0F2FE))),
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               999),
@@ -865,7 +907,9 @@ class _BankTransactionPromptSheetState
                                                     child: Text(
                                                       ownerIsWife
                                                           ? 'Vợ'
-                                                          : 'Chồng',
+                                                          : (ownerIsJoint
+                                                              ? 'Chung'
+                                                              : 'Chồng'),
                                                       style: TextStyle(
                                                         fontSize: 10,
                                                         fontWeight:
@@ -873,8 +917,11 @@ class _BankTransactionPromptSheetState
                                                         color: ownerIsWife
                                                             ? const Color(
                                                                 0xFFDB2777)
-                                                            : const Color(
-                                                                0xFF0284C7),
+                                                            : (ownerIsJoint
+                                                                ? const Color(
+                                                                    0xFF059669)
+                                                                : const Color(
+                                                                    0xFF0284C7)),
                                                       ),
                                                     ),
                                                   ),
@@ -944,6 +991,8 @@ class _BankTransactionPromptSheetState
           }
         } else {
           _selectedWalletId = chosen;
+          final nextWallet = wallets.where((w) => w.id == chosen).firstOrNull;
+          _syncBalanceToBank = _defaultSyncEnabledFor(nextWallet);
           if (_selectedType == 'transfer' &&
               _selectedToWalletId == chosen &&
               wallets.length > 1) {
@@ -1911,12 +1960,66 @@ class _BankTransactionPromptSheetState
       var didSyncBalance = false;
 
       if (!_savedAwaitingAck) {
-        await txProv.createTransaction(widget.userId, newTx);
-        if (_syncBalanceToBank &&
+        var applyBalanceSync = _syncBalanceToBank &&
             effectiveEndingBalance != null &&
             walletProv != null &&
-            !wallet.isCreditCard) {
+            !wallet.isCreditCard;
+
+        if (applyBalanceSync) {
           final targetEndBalance = effectiveEndingBalance;
+          final txDelta = _selectedType == 'income' ? rawAmount : -rawAmount;
+          final expectedAfter = wallet.balance + txDelta;
+          final diff = targetEndBalance - expectedAfter;
+          final acctMatched = BankNotificationParser.isWalletAccountMatched(
+            wallet.accountNumber,
+            widget.tx.accountNumber,
+          );
+          final isLargeDiff = BankNotificationParser.isLargeBalanceSyncDiff(
+            currentBalance: wallet.balance,
+            expectedAfter: expectedAfter,
+            targetBalance: targetEndBalance,
+          );
+          if (diff != 0 && (isLargeDiff || !acctMatched)) {
+            final decision = await showDialog<String>(
+              context: context,
+              builder: (dlgCtx) => AlertDialog(
+                title: const Text('Xác nhận đồng bộ số dư ví?'),
+                content: Text(
+                  'Ví đang chọn: ${wallet.name} (${resolvedOwner.ownerName})\n'
+                  'Số dư hiện tại: ${formatVND(wallet.balance)}\n'
+                  'Sau giao dịch: ${formatVND(expectedAfter)}\n'
+                  'Sẽ đồng bộ thành: ${formatVND(targetEndBalance)} '
+                  '(lệch ${diff > 0 ? '+' : ''}${formatVND(diff)})\n\n'
+                  '${!acctMatched ? '⚠️ Thông báo chưa khớp số tài khoản với ví này. ' : ''}'
+                  'Hãy chắc chắn bạn đã chọn đúng ví Chồng/Vợ để tránh ghi đè nhầm số dư.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dlgCtx).pop('cancel'),
+                    child: const Text('Huỷ'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(dlgCtx).pop('tx_only'),
+                    child: const Text('Chỉ lưu GD'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(dlgCtx).pop('sync'),
+                    child: const Text('Đúng ví, đồng bộ'),
+                  ),
+                ],
+              ),
+            );
+            if (decision == null || decision == 'cancel') {
+              if (mounted) setState(() => _saving = false);
+              return;
+            }
+            applyBalanceSync = decision == 'sync';
+          }
+        }
+
+        await txProv.createTransaction(widget.userId, newTx);
+        if (applyBalanceSync) {
+          final targetEndBalance = effectiveEndingBalance!;
           final txDelta = _selectedType == 'income' ? rawAmount : -rawAmount;
           final expectedAfter = wallet.balance + txDelta;
           final diff = targetEndBalance - expectedAfter;
@@ -1925,19 +2028,23 @@ class _BankTransactionPromptSheetState
               id: wallet.id,
               name: wallet.name,
               type: wallet.type,
-              owner: wallet.owner,
-              ownerName: wallet.ownerName,
-              hasExplicitOwner: wallet.hasExplicitOwner,
-              hasExplicitOwnerName: wallet.hasExplicitOwnerName,
+              owner: resolvedOwner.owner,
+              ownerName: resolvedOwner.ownerName,
+              hasExplicitOwner: true,
+              hasExplicitOwnerName: true,
               bankCode: wallet.bankCode,
               bankName: wallet.bankName,
               accountNumber: wallet.accountNumber,
               themeColor: wallet.themeColor,
-              initialBalance: wallet.initialBalance + diff,
-              hasInitialBalance: true,
+              iconUrl: wallet.iconUrl,
+              initialBalance: wallet.hasInitialBalance
+                  ? wallet.initialBalance + diff
+                  : wallet.initialBalance,
+              hasInitialBalance: wallet.hasInitialBalance,
               balance: targetEndBalance,
               creditLimit: wallet.creditLimit,
               initialDebt: wallet.initialDebt,
+              hasInitialDebt: wallet.hasInitialDebt,
               currentDebt: wallet.currentDebt,
               statementDay: wallet.statementDay,
               paymentDueDay: wallet.paymentDueDay,
@@ -1945,7 +2052,7 @@ class _BankTransactionPromptSheetState
               createdAt: wallet.createdAt,
             );
             try {
-              await walletProv.updateWallet(
+              await walletProv!.updateWallet(
                   widget.userId, wallet.id, updatedWallet);
               didSyncBalance = true;
             } catch (_) {}
@@ -2032,8 +2139,9 @@ class _BankTransactionPromptSheetState
     if (wallets.isNotEmpty &&
         (_selectedWalletId == null ||
             !wallets.any((w) => w.id == _selectedWalletId))) {
-      final best = _findBestWallet(wallets, widget.tx);
-      _selectedWalletId = best?.id ?? wallets.first.id;
+      final best = _findBestWallet(wallets, widget.tx) ?? wallets.first;
+      _selectedWalletId = best.id;
+      _syncBalanceToBank = _defaultSyncEnabledFor(best);
     }
     if (wallets.isNotEmpty &&
         (_selectedToWalletId == null ||
@@ -2491,141 +2599,211 @@ class _BankTransactionPromptSheetState
                         width: 1.0,
                       ),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF059669)
-                                .withValues(alpha: 0.16),
-                          ),
-                          child: const Icon(
-                            Icons.account_balance_wallet_rounded,
-                            size: 14,
-                            color: Color(0xFF059669),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.tx.balanceAfter != null
-                                    ? 'Số dư cuối nhận diện từ ${widget.tx.bankName}'
-                                    : 'Nhập số dư cuối sau GD (tùy chọn)',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 10.2,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
-                                ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF059669)
+                                    .withValues(alpha: 0.16),
                               ),
-                              TextField(
-                                controller: _balanceAfterCtrl,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: const [
-                                  DotSeparatorTextInputFormatter(),
-                                ],
-                                onChanged: (val) {
-                                  final hasDigits = val
-                                      .replaceAll(RegExp(r'[^0-9]'), '')
-                                      .isNotEmpty;
-                                  if (hasDigits && !_syncBalanceToBank) {
-                                    setState(() => _syncBalanceToBank = true);
-                                  } else if (!hasDigits && _syncBalanceToBank) {
-                                    setState(() => _syncBalanceToBank = false);
-                                  }
-                                },
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF059669),
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Nhập số dư thực tế...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? const Color(0xFF64748B)
-                                        : const Color(0xFF94A3B8),
+                              child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                size: 14,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.tx.balanceAfter != null
+                                        ? 'Số dư cuối nhận diện từ ${widget.tx.bankName}'
+                                        : 'Nhập số dư cuối sau GD (tùy chọn)',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10.2,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                    ),
                                   ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding:
-                                      const EdgeInsets.only(top: 1),
-                                  suffixText: 'đ',
-                                ),
+                                  TextField(
+                                    controller: _balanceAfterCtrl,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: const [
+                                      DotSeparatorTextInputFormatter(),
+                                    ],
+                                    onChanged: (val) {
+                                      final hasDigits = val
+                                          .replaceAll(RegExp(r'[^0-9]'), '')
+                                          .isNotEmpty;
+                                      setState(() {
+                                        if (!hasDigits) {
+                                          _syncBalanceToBank = false;
+                                        }
+                                      });
+                                    },
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF059669),
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'Nhập số dư thực tế...',
+                                      hintStyle: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? const Color(0xFF64748B)
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.only(top: 1),
+                                      suffixText: 'đ',
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(999),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(
-                              () => _syncBalanceToBank = !_syncBalanceToBank,
-                            );
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5.5,
                             ),
-                            decoration: BoxDecoration(
-                              color: _syncBalanceToBank
-                                  ? const Color(0xFF059669)
-                                  : (isDark
-                                      ? const Color(0xFF1E293B)
-                                      : const Color(0xFFF1F5F9)),
+                            const SizedBox(width: 6),
+                            InkWell(
                               borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: _syncBalanceToBank
-                                    ? const Color(0xFF059669)
-                                    : const Color(0xFF059669)
-                                        .withValues(alpha: 0.35),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(
+                                  () =>
+                                      _syncBalanceToBank = !_syncBalanceToBank,
+                                );
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _syncBalanceToBank
+                                      ? const Color(0xFF059669)
+                                      : (isDark
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFF1F5F9)),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: _syncBalanceToBank
+                                        ? const Color(0xFF059669)
+                                        : const Color(0xFF059669)
+                                            .withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _syncBalanceToBank
+                                          ? Icons.check_circle_rounded
+                                          : Icons.sync_rounded,
+                                      size: 13,
+                                      color: _syncBalanceToBank
+                                          ? Colors.white
+                                          : const Color(0xFF059669),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _syncBalanceToBank
+                                          ? 'Đồng bộ ví'
+                                          : 'Đồng bộ số dư',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: _syncBalanceToBank
+                                            ? Colors.white
+                                            : const Color(0xFF059669),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _syncBalanceToBank
-                                      ? Icons.check_circle_rounded
-                                      : Icons.sync_rounded,
-                                  size: 13,
-                                  color: _syncBalanceToBank
-                                      ? Colors.white
-                                      : const Color(0xFF059669),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _syncBalanceToBank
-                                      ? 'Đồng bộ ví'
-                                      : 'Đồng bộ số dư',
+                          ],
+                        ),
+                        if (selectedWallet != null &&
+                            !selectedWallet.isCreditCard &&
+                            (_parsedEndingBalance() ??
+                                    widget.tx.balanceAfter?.round()) !=
+                                null) ...[
+                          const SizedBox(height: 6),
+                          Builder(
+                            builder: (_) {
+                              final targetBal = _parsedEndingBalance() ??
+                                  widget.tx.balanceAfter!.round();
+                              final curAmt = int.tryParse(_amountCtrl.text
+                                      .replaceAll(RegExp(r'[^0-9]'), '')) ??
+                                  widget.tx.amount.round();
+                              final delta = _selectedType == 'income'
+                                  ? curAmt
+                                  : -curAmt;
+                              final expectedAfter =
+                                  selectedWallet.balance + delta;
+                              final diff = targetBal - expectedAfter;
+                              final acctOk = BankNotificationParser
+                                  .isWalletAccountMatched(
+                                selectedWallet.accountNumber,
+                                widget.tx.accountNumber,
+                              );
+                              final largeDiff = BankNotificationParser
+                                  .isLargeBalanceSyncDiff(
+                                currentBalance: selectedWallet.balance,
+                                expectedAfter: expectedAfter,
+                                targetBalance: targetBal,
+                              );
+                              final ownerLabel =
+                                  resolveOwnerForWallet(selectedWallet)
+                                      .ownerName;
+                              if (!_syncBalanceToBank) {
+                                return Text(
+                                  acctOk
+                                      ? 'Đang tắt đồng bộ ví ($ownerLabel) — bật nếu muốn cập nhật số dư ví.'
+                                      : 'Tự tắt đồng bộ vì chưa khớp STK với ví ${selectedWallet.name} ($ownerLabel). Kiểm tra đúng ví trước khi bật.',
                                   style: TextStyle(
                                     fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: _syncBalanceToBank
-                                        ? Colors.white
-                                        : const Color(0xFF059669),
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
                                   ),
+                                );
+                              }
+                              final warn = diff != 0 && (largeDiff || !acctOk);
+                              return Text(
+                                '${warn ? '⚠️ ' : ''}Ví ${selectedWallet.name} ($ownerLabel): '
+                                '${formatVND(selectedWallet.balance)} → ${formatVND(targetBal)}'
+                                '${diff != 0 ? ' (lệch ${diff > 0 ? '+' : ''}${formatVND(diff)})' : ' (khớp)'}'
+                                '${warn ? ' — Kiểm tra kỹ đúng ví Chồng/Vợ!' : ''}',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: warn
+                                      ? const Color(0xFFE11D48)
+                                      : const Color(0xFF059669),
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -2729,7 +2907,7 @@ class _BankTransactionPromptSheetState
                                       const SizedBox(height: 1),
                                       Text(
                                         selectedWallet != null
-                                            ? formatVND(selectedWallet.balance)
+                                            ? '${resolveOwnerForWallet(selectedWallet).ownerName} · ${formatVND(selectedWallet.balance)}'
                                             : 'Chạm để chọn ví',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -2774,6 +2952,11 @@ class _BankTransactionPromptSheetState
                             final oldTo = _selectedToWalletId;
                             _selectedWalletId = oldTo;
                             _selectedToWalletId = oldFrom;
+                            final nextWallet = wallets
+                                .where((w) => w.id == _selectedWalletId)
+                                .firstOrNull;
+                            _syncBalanceToBank =
+                                _defaultSyncEnabledFor(nextWallet);
                           });
                         },
                         child: Container(
@@ -3103,7 +3286,13 @@ class _BankTransactionPromptSheetState
                             .toList(),
                         onChanged: (v) {
                           if (v != null) {
-                            setState(() => _selectedWalletId = v);
+                            setState(() {
+                              _selectedWalletId = v;
+                              final nextWallet =
+                                  wallets.where((w) => w.id == v).firstOrNull;
+                              _syncBalanceToBank =
+                                  _defaultSyncEnabledFor(nextWallet);
+                            });
                           }
                         },
                       ),

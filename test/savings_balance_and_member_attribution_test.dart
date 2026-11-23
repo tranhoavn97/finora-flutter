@@ -257,5 +257,59 @@ void main() {
         isFalse,
       );
     });
+
+    test('Balance sync safety guards prevent cross-spouse wallet overwrite', () {
+      expect(
+        BankNotificationParser.isWalletAccountMatched('108542480958', '480958'),
+        isTrue,
+      );
+      expect(
+        BankNotificationParser.isWalletAccountMatched(null, '480958'),
+        isFalse,
+      );
+      expect(
+        BankNotificationParser.isWalletAccountMatched('108542480958', '999999'),
+        isFalse,
+      );
+
+      // Without STK match, auto-sync MUST stay OFF even if balanceAfter is present
+      expect(
+        BankNotificationParser.shouldAutoEnableBalanceSync(
+          walletAccountNumber: null,
+          notifAccountNumber: '480958',
+          balanceAfter: 50000000,
+          currentWalletBalance: 10000000,
+          txType: 'expense',
+          txAmount: 200000,
+        ),
+        isFalse,
+      );
+
+      // With matching STK AND large jump (e.g. +40M), auto-sync MUST stay OFF
+      expect(
+        BankNotificationParser.shouldAutoEnableBalanceSync(
+          walletAccountNumber: '108542480958',
+          notifAccountNumber: '480958',
+          balanceAfter: 50000000,
+          currentWalletBalance: 10000000,
+          txType: 'expense',
+          txAmount: 200000,
+        ),
+        isFalse,
+      );
+
+      // With matching STK AND small/exact adjustment, auto-sync IS enabled
+      expect(
+        BankNotificationParser.shouldAutoEnableBalanceSync(
+          walletAccountNumber: '108542480958',
+          notifAccountNumber: '480958',
+          balanceAfter: 9800000,
+          currentWalletBalance: 10000000,
+          txType: 'expense',
+          txAmount: 200000,
+        ),
+        isTrue,
+      );
+    });
   });
 }

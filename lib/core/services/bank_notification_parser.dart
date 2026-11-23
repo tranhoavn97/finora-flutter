@@ -1344,6 +1344,58 @@ class BankNotificationParser {
     ).hasMatch(folded);
   }
 
+  /// True ONLY when both wallet and notification supply >= 3 account digits and one ends with the other.
+  static bool isWalletAccountMatched(
+    String? walletAccountNumber,
+    String? notifAccountNumber,
+  ) {
+    final wDigits =
+        (walletAccountNumber ?? '').replaceAll(RegExp(r'\D'), '');
+    final nDigits =
+        (notifAccountNumber ?? '').replaceAll(RegExp(r'\D'), '');
+    if (wDigits.length < 3 || nDigits.length < 3) return false;
+    return wDigits.endsWith(nDigits) || nDigits.endsWith(wDigits);
+  }
+
+  /// Flags abnormally large balance sync adjustments (>= 5,000,000đ or >= 25% & >= 500,000đ)
+  /// so a mis-selected spouse wallet never silently overwrites another wallet's baseline.
+  static bool isLargeBalanceSyncDiff({
+    required num currentBalance,
+    required num expectedAfter,
+    required num targetBalance,
+  }) {
+    final diff = (targetBalance - expectedAfter).abs();
+    if (diff >= 5000000) return true;
+    if (currentBalance > 0 && diff >= currentBalance * 0.25 && diff >= 500000) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Only auto-enable wallet balance overwrite when account number matches AND the adjustment is safe.
+  static bool shouldAutoEnableBalanceSync({
+    String? walletAccountNumber,
+    String? notifAccountNumber,
+    double? balanceAfter,
+    required num currentWalletBalance,
+    required String txType,
+    required num txAmount,
+  }) {
+    if (balanceAfter == null || !balanceAfter.isFinite || balanceAfter < 0) {
+      return false;
+    }
+    if (!isWalletAccountMatched(walletAccountNumber, notifAccountNumber)) {
+      return false;
+    }
+    final delta = txType == 'income' ? txAmount.abs() : -txAmount.abs();
+    final expectedAfter = currentWalletBalance + delta;
+    return !isLargeBalanceSyncDiff(
+      currentBalance: currentWalletBalance,
+      expectedAfter: expectedAfter,
+      targetBalance: balanceAfter.round(),
+    );
+  }
+
   /// Build a fallback [ParsedBankTransaction] from an unrecognized bank notification
   /// so the user can still tap it, pick a category, adjust amount if needed, and save.
   static ParsedBankTransaction fromUnrecognized({
