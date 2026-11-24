@@ -38,6 +38,7 @@ import '../../core/widgets/ai_context_button.dart';
 import '../../core/widgets/finora_privacy_mask.dart';
 
 import '../../core/widgets/bank_icon.dart';
+import '../../core/widgets/bank_transaction_prompt_sheet.dart';
 
 import '../../core/widgets/date_filter_modal.dart';
 
@@ -617,21 +618,27 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    items: wallets
-                        .map(
-                          (w) => DropdownMenuItem(
-                            value: w.id,
-                            child: Text(
-                              '${w.name} (${formatVND(w.balance)})',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                    items: wallets.map((w) {
+                      final ownerLabel = BankTransactionPromptSheet
+                              .resolveOwnerForWallet(w)
+                          .ownerName;
+                      final digits = (w.accountNumber ?? '')
+                          .replaceAll(RegExp(r'\D'), '');
+                      final acctTag = digits.length >= 4
+                          ? ' · ••${digits.substring(digits.length - 4)}'
+                          : '';
+                      return DropdownMenuItem(
+                        value: w.id,
+                        child: Text(
+                          '[$ownerLabel] ${w.name}$acctTag (${formatVND(w.balance)})',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
                           ),
-                        )
-                        .toList(),
+                        ),
+                      );
+                    }).toList(),
                     onChanged: (val) {
                       if (val != null) {
                         setDialogState(() => selectedWalletId = val);
@@ -653,35 +660,55 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                             : const Color(0xFF475569),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        controller.text =
-                            DotSeparatorTextInputFormatter.formatDigits(
-                          loan.remainingPrincipal.toString(),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                        child: Text(
-                          'Tất toán 100%',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: accentColor,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final pct in const [
+                      (label: '25%', ratio: 0.25),
+                      (label: '50%', ratio: 0.50),
+                      (label: '75%', ratio: 0.75),
+                      (label: 'Tất toán 100%', ratio: 1.0),
+                    ])
+                      GestureDetector(
+                        onTap: () {
+                          final val = (loan.remainingPrincipal * pct.ratio)
+                              .round()
+                              .clamp(1, loan.remainingPrincipal);
+                          controller.text =
+                              DotSeparatorTextInputFormatter.formatDigits(
+                            val.toString(),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: accentColor.withValues(alpha: 0.25),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            pct.label,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: accentColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: controller,
                   keyboardType: TextInputType.number,

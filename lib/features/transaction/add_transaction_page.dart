@@ -22,6 +22,7 @@ import '../../core/widgets/glass_widgets.dart';
 import '../../core/widgets/premium_widgets.dart';
 
 import '../../core/widgets/bank_icon.dart';
+import '../../core/widgets/bank_transaction_prompt_sheet.dart';
 import '../../core/widgets/transaction_calculator_sheet.dart';
 
 import '../../core/design_system/app_colors.dart';
@@ -246,22 +247,16 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       familyProv = context.read<FamilyProvider>();
     } catch (_) {}
 
-    final ownerLower = w.owner.toLowerCase();
-
-    final ownerNameLower = w.ownerName.toLowerCase();
-
-    final nameLower = w.name.toLowerCase();
+    final resolvedOwner = BankTransactionPromptSheet.resolveOwnerForWallet(w);
 
     String detectedTag = 'Chồng';
 
-    if (ownerLower == 'wife' ||
-        ownerNameLower.contains('vợ') ||
-        nameLower.contains('vợ')) {
+    if (resolvedOwner.owner == 'wife') {
       detectedTag = 'Vợ';
-    } else if (ownerLower == 'husband' ||
-        ownerNameLower.contains('chồng') ||
-        nameLower.contains('chồng')) {
+    } else if (resolvedOwner.owner == 'husband') {
       detectedTag = 'Chồng';
+    } else if (resolvedOwner.owner == 'joint') {
+      detectedTag = familyProv?.defaultMemberTag ?? 'Chung';
     } else if (w.ownerName.isNotEmpty && w.ownerName != 'default') {
       detectedTag = w.ownerName;
     } else if (familyProv?.defaultMemberTag != null) {

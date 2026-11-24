@@ -11,6 +11,51 @@ import 'package:finora/domain/finance/finance_summary.dart';
 import 'package:finora/features/wallet/add_wallet_page.dart';
 
 void main() {
+  test(
+      'Masked bank accounts preserve prefix and suffix, never pick another wallet',
+      () {
+    expect(
+        BankNotificationParser.isWalletAccountMatched('101686666', '10xxx666'),
+        isTrue);
+    expect(
+        BankNotificationParser.isWalletAccountMatched('991686666', '10xxx666'),
+        isFalse);
+    expect(
+        BankNotificationParser.isWalletAccountMatched(
+            '99101686666', '101686666'),
+        isFalse);
+    const wallets = [
+      Wallet(
+          id: 'h',
+          name: 'Chồng MB',
+          type: 'bank',
+          bankCode: 'mbbank',
+          accountNumber: '101686666',
+          balance: 29623742),
+      Wallet(
+          id: 'w', name: 'Vợ MB', type: 'bank', bankCode: 'mbbank', balance: 1),
+    ];
+    final unknown = BankNotificationParser.parse(
+        rawId: 'unknown',
+        packageName: 'com.mbmobile',
+        title: 'MB Bank',
+        text: 'TK 00xxx509|GD: +1VND 22/11/26 01:04|SD: 1VND|ND: Tra lai');
+    expect(unknown, isNotNull);
+    expect(
+        BankTransactionPromptSheet.selectBestWallet(wallets, unknown!), isNull);
+    expect(BankTransactionPromptSheet.selectBestWallet([wallets[1]], unknown),
+        isNull);
+    final known = BankNotificationParser.parse(
+        rawId: 'known',
+        packageName: 'com.mbmobile',
+        title: 'MB Bank',
+        text:
+            'TK 10xxx666|GD: -24,000VND 23/11/26 16:57|SD: 29,623,742VND|ND: Rau');
+    expect(known, isNotNull);
+    expect(
+        BankTransactionPromptSheet.selectBestWallet(wallets, known!)?.id, 'h');
+  });
+
   group('Savings balance notifications never become wife expenses', () {
     test('Static savings balance notices are never parsed as expenses', () {
       const staticNotices = [
@@ -54,7 +99,9 @@ void main() {
       }
     });
 
-    test('Extracts account number from Tài khoản tiết kiệm without mistaking balance', () {
+    test(
+        'Extracts account number from Tài khoản tiết kiệm without mistaking balance',
+        () {
       expect(
         BankNotificationParser.extractAccountNumber(
           'Tài khoản tiết kiệm 108542480958: 50,000,000 VND',
@@ -84,7 +131,9 @@ void main() {
       expect(parsed.accountNumber, '108542480958');
     });
 
-    test('Wallet selection prefers husband savings wallet over wife bank wallet', () {
+    test(
+        'Wallet selection prefers husband savings wallet over wife bank wallet',
+        () {
       final wallets = [
         const Wallet(
           id: 'w_wife_vcb',
@@ -120,11 +169,15 @@ void main() {
       expect(selected?.id, 'w_husband_sav');
     });
 
-    test('Word-boundary member detection never maps "vốn", "với", "vô" to wife', () {
+    test('Word-boundary member detection never maps "vốn", "với", "vô" to wife',
+        () {
       expect(BankNotificationParser.detectMemberHint('Quỹ vốn đầu tư'), isNull);
-      expect(BankNotificationParser.detectMemberHint('Tiết kiệm với ngân hàng'), isNull);
-      expect(BankNotificationParser.detectMemberHint('Nạp vô tài khoản'), isNull);
-      expect(BankNotificationParser.detectMemberHint('Quỹ tiết kiệm chồng'), 'husband');
+      expect(BankNotificationParser.detectMemberHint('Tiết kiệm với ngân hàng'),
+          isNull);
+      expect(
+          BankNotificationParser.detectMemberHint('Nạp vô tài khoản'), isNull);
+      expect(BankNotificationParser.detectMemberHint('Quỹ tiết kiệm chồng'),
+          'husband');
       expect(BankNotificationParser.detectMemberHint('Ví của vợ'), 'wife');
 
       const jointCapitalWallet = Wallet(
@@ -141,7 +194,9 @@ void main() {
   });
 
   group('Wallet editor, NLP, and member attribution regressions', () {
-    test('AddWalletPage owner normalization never flips non-husband wallets to Vợ', () {
+    test(
+        'AddWalletPage owner normalization never flips non-husband wallets to Vợ',
+        () {
       expect(AddWalletPage.normalizeWalletOwner('husband', 'Vợ'), 'husband');
       expect(AddWalletPage.ownerLabelFor('husband'), 'Chồng');
       expect(AddWalletPage.normalizeWalletOwner('family', ''), 'joint');
@@ -154,7 +209,9 @@ void main() {
       expect(AddWalletPage.ownerLabelFor('wife'), 'Vợ');
     });
 
-    test('FinoraNlpEngine detects savings as saving and avoids "vo" substring false positives', () {
+    test(
+        'FinoraNlpEngine detects savings as saving and avoids "vo" substring false positives',
+        () {
       expect(
         FinoraNlpEngine.detectTransactionType('Gửi tiết kiệm 5tr vào quỹ vốn'),
         'saving',
@@ -169,7 +226,9 @@ void main() {
       expect(parsed.first.owner, isNull);
     });
 
-    test('FinanceScope and AssistantLedgerAnswers exclude savings from expense and respect wallet owner', () {
+    test(
+        'FinanceScope and AssistantLedgerAnswers exclude savings from expense and respect wallet owner',
+        () {
       final now = DateTime(2026, 11, 20);
       const husbandWallet = Wallet(
         id: 'w_h_sav',
@@ -233,7 +292,9 @@ void main() {
       expect(ans.text, isNot(contains('50.000.000')));
     });
 
-    test('OwnerFilter.matchAsset prioritizes explicit wallet owner over stale ownerName', () {
+    test(
+        'OwnerFilter.matchAsset prioritizes explicit wallet owner over stale ownerName',
+        () {
       const corruptedWallet = Wallet(
         id: 'w_corrupt',
         name: 'Sổ tiết kiệm',
@@ -258,7 +319,8 @@ void main() {
       );
     });
 
-    test('Balance sync safety guards prevent cross-spouse wallet overwrite', () {
+    test('Balance sync safety guards prevent cross-spouse wallet overwrite',
+        () {
       expect(
         BankNotificationParser.isWalletAccountMatched('108542480958', '480958'),
         isTrue,
@@ -309,6 +371,62 @@ void main() {
           txAmount: 200000,
         ),
         isTrue,
+      );
+    });
+
+    test(
+        'Transfer destination wallet selection avoids arbitrary first-wallet fallback when ambiguous',
+        () {
+      const wallets = [
+        Wallet(
+          id: 'src_tcb_h',
+          name: 'TCB Chồng',
+          type: 'bank',
+          bankCode: 'tcb',
+          owner: 'husband',
+          ownerName: 'Chồng',
+        ),
+        Wallet(
+          id: 'dst_mb_w',
+          name: 'MB Vợ',
+          type: 'bank',
+          bankCode: 'mbbank',
+          owner: 'wife',
+          ownerName: 'Vợ',
+        ),
+        Wallet(
+          id: 'dst_mb_h_sav',
+          name: 'Tiết kiệm MB Chồng',
+          type: 'saving',
+          bankCode: 'mbbank',
+          owner: 'husband',
+          ownerName: 'Chồng',
+        ),
+      ];
+
+      final ambiguousTx = BankNotificationParser.fromUnrecognized(
+        rawId: 'tr_amb',
+        packageName: 'com.tcb',
+        title: 'Techcombank',
+        text: 'Chuyển khoản 5,000,000 VND',
+      );
+      expect(
+        BankTransactionPromptSheet.selectBestTransferDestination(
+          wallets,
+          ambiguousTx,
+          sourceWalletId: 'src_tcb_h',
+        ),
+        isNull,
+      );
+
+      final twoWalletsOnly = wallets.sublist(0, 2);
+      expect(
+        BankTransactionPromptSheet.selectBestTransferDestination(
+          twoWalletsOnly,
+          ambiguousTx,
+          sourceWalletId: 'src_tcb_h',
+        )?.id,
+        'dst_mb_w',
       );
     });
   });

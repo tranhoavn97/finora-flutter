@@ -38,6 +38,17 @@ class BankTransactionPromptSheet extends StatefulWidget {
           List<Wallet> wallets, ParsedBankTransaction tx) =>
       _BankTransactionPromptSheetState.selectBestWallet(wallets, tx);
 
+  static Wallet? selectBestTransferDestination(
+    List<Wallet> wallets,
+    ParsedBankTransaction tx, {
+    String? sourceWalletId,
+  }) =>
+      _BankTransactionPromptSheetState.selectBestTransferDestination(
+        wallets,
+        tx,
+        sourceWalletId: sourceWalletId,
+      );
+
   static Future<bool?> show(
     BuildContext context, {
     required ParsedBankTransaction transaction,
@@ -101,10 +112,10 @@ class _BankTransactionPromptSheetState
   })? _pendingImportMeta;
   VoidCallback? _bankListener;
 
-  static ({String owner, String ownerName}) resolveOwnerForWallet(Wallet wallet) {
-    final explicitOwner = wallet.hasExplicitOwner
-        ? parseTransactionMember(wallet.owner)
-        : null;
+  static ({String owner, String ownerName}) resolveOwnerForWallet(
+      Wallet wallet) {
+    final explicitOwner =
+        wallet.hasExplicitOwner ? parseTransactionMember(wallet.owner) : null;
     if (explicitOwner == TransactionMember.husband) {
       return (owner: 'husband', ownerName: 'Chồng');
     }
@@ -130,7 +141,8 @@ class _BankTransactionPromptSheetState
         explicitName == TransactionMember.joint) {
       return (owner: 'joint', ownerName: 'Chung');
     }
-    final fallbackOwner = wallet.owner.trim().isNotEmpty ? wallet.owner : 'joint';
+    final fallbackOwner =
+        wallet.owner.trim().isNotEmpty ? wallet.owner : 'joint';
     final fallbackName =
         wallet.ownerName.trim().isNotEmpty ? wallet.ownerName : 'Chung';
     return (owner: fallbackOwner, ownerName: fallbackName);
@@ -165,162 +177,74 @@ class _BankTransactionPromptSheetState
     ParsedBankTransaction tx,
   ) {
     if (wallets.isEmpty) return null;
-    if (wallets.length == 1) return wallets.first;
-
-    // 1. Khớp chính xác hoặc phần đuôi số tài khoản ngân hàng
-    final notifAcct = tx.accountNumber?.replaceAll(RegExp(r'\D'), '') ?? '';
-    if (notifAcct.length >= 3) {
-      final acctMatches = wallets.where((w) {
-        final wAcct = (w.accountNumber ?? '').replaceAll(RegExp(r'\D'), '');
-        return wAcct.isNotEmpty &&
-            (wAcct.endsWith(notifAcct) || notifAcct.endsWith(wAcct));
-      }).toList();
-      if (acctMatches.length == 1) return acctMatches.first;
-      if (acctMatches.length > 1) {
-        return _narrowCandidatesByContext(acctMatches, tx).first;
-      }
-    }
-
-    // 2. Khớp chuẩn mã thương hiệu ngân hàng thông qua BankIconRegistry (hỗ trợ 38+ ngân hàng & ví điện tử)
-    final resolvedTxBrand =
-        BankIconRegistry.resolve(tx.bankCode, bankName: tx.bankName);
-    if (resolvedTxBrand.code != 'cash') {
-      final brandMatches = wallets.where((w) {
-        final wBrand = BankIconRegistry.resolve(
-          w.bankCode,
-          bankName: w.bankName ?? w.name,
-        );
-        return wBrand.code == resolvedTxBrand.code;
-      }).toList();
-      if (brandMatches.length == 1) return brandMatches.first;
-      if (brandMatches.length > 1) {
-        final refinedBrand = _narrowCandidatesByContext(brandMatches, tx);
-        if (refinedBrand.length == 1) return refinedBrand.first;
-        final notifBal = tx.balanceAfter;
-        if (notifBal != null && notifBal > 0) {
-          Wallet? closest;
-          double minDiff = double.infinity;
-          for (final w in refinedBrand) {
-            final wBal = w.balance.toDouble();
-            final diffDirect = (wBal - notifBal).abs();
-            final diffPreTx = tx.isExpense
-                ? (wBal - (notifBal + tx.amount)).abs()
-                : (wBal - (notifBal - tx.amount)).abs();
-            final diff = math.min(diffDirect, diffPreTx);
-            if (diff < minDiff) {
-              minDiff = diff;
-              closest = w;
-            }
-          }
-          final maxTolerance = math.max(5000000.0, notifBal * 0.30);
-          if (closest != null && minDiff <= maxTolerance) return closest;
-        }
-        return refinedBrand.first;
-      }
-    }
-
-    // 3. Lọc các ví khớp tên ngân hàng hoặc mã ngân hàng (bao gồm NCB Quốc Dân và toàn bộ 66+ ngân hàng / ví điện tử)
-    final bankKeywords = <String>{
-      tx.bankCode.toLowerCase(),
-      tx.bankName.toLowerCase(),
-    };
-    final bLower = '${tx.bankName} ${tx.bankCode}'.toLowerCase();
-    if (bLower.contains('ncb') || bLower.contains('quốc dân') || bLower.contains('quoc dan') || bLower.contains('izimobile')) {
-      bankKeywords.addAll(['ncb', 'quốc dân', 'quoc dan', 'izimobile']);
-    }
-    if (bLower.contains('mb') || bLower.contains('mbbank')) {
-      bankKeywords.addAll(['mb', 'mbbank', 'quân đội', 'quan doi']);
-    }
-    if (bLower.contains('tech') || bLower.contains('tcb')) {
-      bankKeywords.addAll(['tech', 'techcom', 'techcombank', 'tcb']);
-    }
-    if (bLower.contains('vietcom') || bLower.contains('vcb')) {
-      bankKeywords.addAll(['vietcom', 'vietcombank', 'vcb']);
-    }
-    if (bLower.contains('vietin') || bLower.contains('vtb') || bLower.contains('ctg')) {
-      bankKeywords.addAll(['vietin', 'vietinbank', 'vtb', 'ctg']);
-    }
-    if (bLower.contains('acb')) {
-      bankKeywords.addAll(['acb', 'á châu', 'a chau']);
-    }
-    if (bLower.contains('vpbank') || bLower.contains('vpb')) {
-      bankKeywords.addAll(['vpbank', 'vpb', 'vp']);
-    }
-    if (bLower.contains('bidv')) {
-      bankKeywords.addAll(['bidv']);
-    }
-    if (bLower.contains('tpbank') || bLower.contains('tpb')) {
-      bankKeywords.addAll(['tpbank', 'tpb', 'tiên phong', 'tien phong']);
-    }
-    if (bLower.contains('agribank') || bLower.contains('agri')) {
-      bankKeywords.addAll(['agribank', 'agri', 'nông nghiệp', 'nong nghiep', 'vba']);
-    }
-    if (bLower.contains('sacom') || bLower.contains('stb')) {
-      bankKeywords.addAll(['sacom', 'sacombank', 'stb']);
-    }
-    if (bLower.contains('momo')) {
-      bankKeywords.addAll(['momo']);
-    }
-    if (bLower.contains('zalo')) {
-      bankKeywords.addAll(['zalo', 'zalopay']);
-    }
-    if (bLower.contains('viettel')) {
-      bankKeywords.addAll(['viettel', 'viettel money', 'vtpay']);
-    }
-    if (resolvedTxBrand.code != 'cash') {
-      bankKeywords.add(resolvedTxBrand.code.toLowerCase());
-      bankKeywords.add(resolvedTxBrand.name.toLowerCase());
-    }
-
-    final bankMatches = wallets.where((w) {
-      final wName = w.name.toLowerCase();
-      final wBName = (w.bankName ?? '').toLowerCase();
-      final wBCode = (w.bankCode ?? '').toLowerCase();
-      return bankKeywords.any((k) =>
-          k.isNotEmpty && (wName.contains(k) || wBName.contains(k) || wBCode.contains(k)));
+    final brand = BankIconRegistry.resolve(tx.bankCode, bankName: tx.bankName);
+    final candidates = wallets.where((w) {
+      final walletBrand =
+          BankIconRegistry.resolve(w.bankCode, bankName: w.bankName ?? w.name);
+      return brand.code != 'cash' && walletBrand.code == brand.code;
     }).toList();
-
-    final candidatePool = _narrowCandidatesByContext(
-      bankMatches.isNotEmpty ? bankMatches : wallets,
-      tx,
-    );
-
-    // 3. Khớp số dư gần đúng nhất với số dư sau giao dịch (SD / So du) trong ngưỡng hợp lý
-    final notifBal = tx.balanceAfter;
-    if (notifBal != null && notifBal > 0) {
-      Wallet? closest;
-      double minDiff = double.infinity;
-      for (final w in candidatePool) {
-        final wBal = w.balance.toDouble();
-        final diffDirect = (wBal - notifBal).abs();
-        final diffPreTx = tx.isExpense
-            ? (wBal - (notifBal + tx.amount)).abs()
-            : (wBal - (notifBal - tx.amount)).abs();
-        final diff = math.min(diffDirect, diffPreTx);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closest = w;
-        }
-      }
-      final maxTolerance = math.max(5000000.0, notifBal * 0.30);
-      if (closest != null && minDiff <= maxTolerance) return closest;
+    final hasAccount =
+        (tx.accountNumber ?? '').replaceAll(RegExp(r'\D'), '').length >= 3;
+    if (hasAccount) {
+      final matches = candidates
+          .where((w) => BankNotificationParser.isWalletAccountMatched(
+              w.accountNumber, tx.accountNumber))
+          .toList();
+      return matches.length == 1 ? matches.single : null;
     }
-
-    // 4. Nếu là thanh toán thẻ tín dụng, ưu tiên ví loại credit/thẻ tín dụng
-    if (tx.isCreditCardPayment) {
-      final credit = candidatePool.where((w) =>
-          w.type == 'credit' ||
-          w.type == 'credit_card' ||
-          w.name.toLowerCase().contains('tín dụng') ||
-          w.name.toLowerCase().contains('credit')).firstOrNull;
-      if (credit != null) return credit;
-    }
-
-    return candidatePool.first;
+    // Balance proximity and recipient names cannot establish wallet ownership.
+    final refined = _narrowCandidatesByContext(candidates, tx);
+    return refined.length == 1 ? refined.single : null;
   }
 
   Wallet? _findBestWallet(List<Wallet> wallets, ParsedBankTransaction tx) =>
       selectBestWallet(wallets, tx);
+
+  static Wallet? selectBestTransferDestination(
+    List<Wallet> wallets,
+    ParsedBankTransaction tx, {
+    String? sourceWalletId,
+  }) {
+    final otherWallets =
+        wallets.where((w) => w.id != sourceWalletId).toList();
+    if (otherWallets.isEmpty) return null;
+
+    if (tx.matchedTransferBankCode != null &&
+        tx.matchedTransferBankCode!.trim().isNotEmpty) {
+      final targetCode = tx.matchedTransferBankCode!.toLowerCase();
+      final targetName = (tx.matchedTransferBankName ?? '').toLowerCase();
+      var matchedDest = otherWallets.where((w) {
+        final n = w.name.toLowerCase();
+        final bc = (w.bankCode ?? '').toLowerCase();
+        final bn = (w.bankName ?? '').toLowerCase();
+        return n.contains(targetCode) ||
+            (targetName.isNotEmpty && n.contains(targetName)) ||
+            bc.contains(targetCode) ||
+            (targetName.isNotEmpty && bn.contains(targetName));
+      }).toList();
+      if (matchedDest.length > 1) {
+        matchedDest = _narrowCandidatesByContext(matchedDest, tx);
+      }
+      return matchedDest.length == 1 ? matchedDest.single : null;
+    }
+
+    if (tx.isCreditCardPayment) {
+      var creditWallets = otherWallets.where((w) {
+        final n = w.name.toLowerCase();
+        return w.type == 'credit' ||
+            w.type == 'credit_card' ||
+            n.contains('tín dụng') ||
+            n.contains('tin dung') ||
+            n.contains('credit');
+      }).toList();
+      if (creditWallets.length > 1) {
+        creditWallets = _narrowCandidatesByContext(creditWallets, tx);
+      }
+      return creditWallets.length == 1 ? creditWallets.single : null;
+    }
+
+    return otherWallets.length == 1 ? otherWallets.single : null;
+  }
 
   String _catKey(Category c) =>
       c.id.trim().isNotEmpty ? c.id.trim() : c.name.trim().toLowerCase();
@@ -349,9 +273,10 @@ class _BankTransactionPromptSheetState
     _bankCodeCtrl = TextEditingController(text: mainBankRef);
     // Ghi chú riêng của người dùng tách biệt hoàn toàn
     _noteCtrl = TextEditingController(text: '');
-    _selectedMerchantName = widget.tx.suggestedMerchant?.trim().isNotEmpty == true
-        ? widget.tx.suggestedMerchant!.trim()
-        : null;
+    _selectedMerchantName =
+        widget.tx.suggestedMerchant?.trim().isNotEmpty == true
+            ? widget.tx.suggestedMerchant!.trim()
+            : null;
     _bankListener = () {
       if (mounted) setState(() {});
     };
@@ -401,49 +326,18 @@ class _BankTransactionPromptSheetState
 
     // 1. Auto-match source wallet by bank name / code and safe context
     if (wallets.isNotEmpty && _selectedWalletId == null) {
-      final best = _findBestWallet(wallets, widget.tx) ?? wallets.first;
-      _selectedWalletId = best.id;
-      _syncBalanceToBank = _defaultSyncEnabledFor(best);
+      final best = _findBestWallet(wallets, widget.tx);
+      _selectedWalletId = best?.id;
+      _syncBalanceToBank = best != null && _defaultSyncEnabledFor(best);
     }
 
-    // 2. Auto-match destination wallet if internal transfer or credit card payment
+    // 2. Auto-match destination wallet only when unambiguous
     if (wallets.length > 1 && _selectedToWalletId == null) {
-      if (widget.tx.matchedTransferBankCode != null) {
-        final targetCode = widget.tx.matchedTransferBankCode!.toLowerCase();
-        final targetName =
-            (widget.tx.matchedTransferBankName ?? '').toLowerCase();
-        final matchedDest = wallets.where((w) {
-          if (w.id == _selectedWalletId) return false;
-          final n = w.name.toLowerCase();
-          final bc = (w.bankCode ?? '').toLowerCase();
-          final bn = (w.bankName ?? '').toLowerCase();
-          return n.contains(targetCode) ||
-              (targetName.isNotEmpty && n.contains(targetName)) ||
-              bc.contains(targetCode) ||
-              (targetName.isNotEmpty && bn.contains(targetName));
-        }).toList();
-        if (matchedDest.isNotEmpty) {
-          _selectedToWalletId = matchedDest.first.id;
-        }
-      } else if (widget.tx.isCreditCardPayment) {
-        final creditWallets = wallets.where((w) {
-          if (w.id == _selectedWalletId) return false;
-          final n = w.name.toLowerCase();
-          return w.type == 'credit' ||
-              n.contains('tín dụng') ||
-              n.contains('tin dung') ||
-              n.contains('credit');
-        }).toList();
-        if (creditWallets.isNotEmpty) {
-          _selectedToWalletId = creditWallets.first.id;
-        }
-      }
-      _selectedToWalletId ??= wallets
-          .firstWhere(
-            (w) => w.id != _selectedWalletId,
-            orElse: () => wallets.first,
-          )
-          .id;
+      _selectedToWalletId = selectBestTransferDestination(
+        wallets,
+        widget.tx,
+        sourceWalletId: _selectedWalletId,
+      )?.id;
     }
 
     // 3. Auto-match category by keywords and type
@@ -452,7 +346,9 @@ class _BankTransactionPromptSheetState
     // 4. Auto-match merchant from user's merchant categories
     final merchants = _availableMerchants(txProv, moreProv);
     if (_selectedMerchantName == null && merchants.isNotEmpty) {
-      final notifFull = '${widget.tx.rawNotificationText} ${widget.tx.note} ${widget.tx.suggestedMerchant ?? ''}'.toLowerCase();
+      final notifFull =
+          '${widget.tx.rawNotificationText} ${widget.tx.note} ${widget.tx.suggestedMerchant ?? ''}'
+              .toLowerCase();
       for (final m in merchants) {
         if (m.name.length >= 2 && notifFull.contains(m.name.toLowerCase())) {
           _selectedMerchantId = m.id;
@@ -460,8 +356,13 @@ class _BankTransactionPromptSheetState
           break;
         }
       }
-    } else if (_selectedMerchantName != null && _selectedMerchantId == null && merchants.isNotEmpty) {
-      final match = merchants.where((m) => m.name.toLowerCase() == _selectedMerchantName!.toLowerCase()).firstOrNull;
+    } else if (_selectedMerchantName != null &&
+        _selectedMerchantId == null &&
+        merchants.isNotEmpty) {
+      final match = merchants
+          .where((m) =>
+              m.name.toLowerCase() == _selectedMerchantName!.toLowerCase())
+          .firstOrNull;
       if (match != null) {
         _selectedMerchantId = match.id;
         _selectedMerchantName = match.name;
@@ -600,8 +501,7 @@ class _BankTransactionPromptSheetState
     if (wallets.isEmpty) return;
     HapticFeedback.selectionClick();
     final isTransferMode = _selectedType == 'transfer';
-    final oppositeId =
-        isDestination ? _selectedWalletId : _selectedToWalletId;
+    final oppositeId = isDestination ? _selectedWalletId : _selectedToWalletId;
     final selectableWallets =
         (isTransferMode && wallets.length > 1 && oppositeId != null)
             ? wallets.where((w) => w.id != oppositeId).toList()
@@ -981,23 +881,20 @@ class _BankTransactionPromptSheetState
     );
     if (chosen != null && mounted) {
       setState(() {
+        final remaining = wallets.where((w) => w.id != chosen).toList();
         if (isDestination) {
           _selectedToWalletId = chosen;
-          if (_selectedType == 'transfer' &&
-              _selectedWalletId == chosen &&
-              wallets.length > 1) {
+          if (_selectedType == 'transfer' && _selectedWalletId == chosen) {
             _selectedWalletId =
-                wallets.firstWhere((w) => w.id != chosen).id;
+                remaining.length == 1 ? remaining.single.id : null;
           }
         } else {
           _selectedWalletId = chosen;
           final nextWallet = wallets.where((w) => w.id == chosen).firstOrNull;
           _syncBalanceToBank = _defaultSyncEnabledFor(nextWallet);
-          if (_selectedType == 'transfer' &&
-              _selectedToWalletId == chosen &&
-              wallets.length > 1) {
+          if (_selectedType == 'transfer' && _selectedToWalletId == chosen) {
             _selectedToWalletId =
-                wallets.firstWhere((w) => w.id != chosen).id;
+                remaining.length == 1 ? remaining.single.id : null;
           }
         }
       });
@@ -1332,8 +1229,8 @@ class _BankTransactionPromptSheetState
                                                 ? accent.withValues(
                                                     alpha: isDark ? 0.24 : 0.14)
                                                 : (isDark
-                                                    ? Colors.white.withValues(
-                                                        alpha: 0.06)
+                                                    ? Colors.white
+                                                        .withValues(alpha: 0.06)
                                                     : const Color(0xFFF8FAFC)),
                                             borderRadius:
                                                 BorderRadius.circular(20),
@@ -1404,7 +1301,6 @@ class _BankTransactionPromptSheetState
       setState(() => _selectedCategoryId = chosen);
     }
   }
-
 
   Future<void> _pickMerchant(List<Category> merchants, bool isDark) async {
     HapticFeedback.selectionClick();
@@ -1542,8 +1438,9 @@ class _BankTransactionPromptSheetState
                             style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w600,
-                              color:
-                                  isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                             decoration: InputDecoration(
                               icon: Icon(
@@ -1577,225 +1474,227 @@ class _BankTransactionPromptSheetState
                             shrinkWrap: true,
                             physics: const BouncingScrollPhysics(),
                             children: [
-                          // 1. Option: Custom input from search query if not matching existing
-                          if (query.isNotEmpty && !hasExactMatch)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF059669)
-                                    .withValues(alpha: isDark ? 0.20 : 0.10),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFF059669)
-                                      .withValues(alpha: 0.35),
-                                ),
-                              ),
-                              child: ListTile(
-                                leading: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF059669),
-                                    shape: BoxShape.circle,
+                              // 1. Option: Custom input from search query if not matching existing
+                              if (query.isNotEmpty && !hasExactMatch)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF059669).withValues(
+                                        alpha: isDark ? 0.20 : 0.10),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: const Color(0xFF059669)
+                                          .withValues(alpha: 0.35),
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.add_location_alt_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                                title: Text(
-                                  'Sử dụng: "$searchQuery"',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13.5,
-                                    color: Color(0xFF059669),
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Lưu nơi mua mới này cho giao dịch',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark
-                                        ? const Color(0xFF94A3B8)
-                                        : const Color(0xFF64748B),
-                                  ),
-                                ),
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() {
-                                    _selectedMerchantId = null;
-                                    _selectedMerchantName = searchQuery.trim();
-                                  });
-                                  Navigator.pop(ctx);
-                                },
-                              ),
-                            ),
-
-                          // 2. Option: Clear / Không chọn nơi mua
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF0F172A)
-                                  : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.08)
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            child: ListTile(
-                              leading: Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  color: (isDark ? Colors.white : Colors.black)
-                                      .withValues(alpha: 0.06),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.block_rounded,
-                                  color: isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
-                                  size: 18,
-                                ),
-                              ),
-                              title: Text(
-                                'Không chọn nơi mua',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? const Color(0xFFCBD5E1)
-                                      : const Color(0xFF334155),
-                                ),
-                              ),
-                              trailing: (_selectedMerchantId == null &&
-                                      (_selectedMerchantName == null ||
-                                          _selectedMerchantName!.isEmpty))
-                                  ? Icon(
-                                      Icons.check_circle_rounded,
-                                      color: accent,
-                                      size: 20,
-                                    )
-                                  : null,
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() {
-                                  _selectedMerchantId = null;
-                                  _selectedMerchantName = null;
-                                });
-                                Navigator.pop(ctx);
-                              },
-                            ),
-                          ),
-
-                          // 3. Merchants from categories
-                          ...filtered.map((m) {
-                            final isSel = (_selectedMerchantId == m.id) ||
-                                (_selectedMerchantName?.toLowerCase() ==
-                                    m.name.toLowerCase());
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: isSel
-                                    ? accent.withValues(
-                                        alpha: isDark ? 0.22 : 0.10)
-                                    : (isDark
-                                        ? const Color(0xFF0F172A)
-                                        : const Color(0xFFF8FAFC)),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSel
-                                      ? accent
-                                      : (isDark
-                                          ? Colors.white
-                                              .withValues(alpha: 0.08)
-                                          : const Color(0xFFE2E8F0)),
-                                  width: isSel ? 1.5 : 1.0,
-                                ),
-                              ),
-                              child: ListTile(
-                                leading: CategoryIconBadge(
-                                  icon: m.icon,
-                                  categoryName: m.name,
-                                  colorHex: m.color,
-                                  size: 38,
-                                  isDark: isDark,
-                                ),
-                                title: Text(
-                                  m.name,
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: isSel
-                                        ? FontWeight.w800
-                                        : FontWeight.w600,
-                                    color: isSel
-                                        ? (isDark
-                                            ? Colors.white
-                                            : const Color(0xFF0F172A))
-                                        : (isDark
-                                            ? const Color(0xFFE2E8F0)
-                                            : const Color(0xFF1E293B)),
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Danh mục nơi mua',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark
-                                        ? const Color(0xFF94A3B8)
-                                        : const Color(0xFF64748B),
-                                  ),
-                                ),
-                                trailing: isSel
-                                    ? Icon(
-                                        Icons.check_circle_rounded,
-                                        color: accent,
+                                  child: ListTile(
+                                    leading: Container(
+                                      width: 38,
+                                      height: 38,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF059669),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.add_location_alt_rounded,
+                                        color: Colors.white,
                                         size: 20,
-                                      )
-                                    : null,
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() {
-                                    _selectedMerchantId = m.id;
-                                    _selectedMerchantName = m.name;
-                                  });
-                                  Navigator.pop(ctx);
-                                },
+                                      ),
+                                    ),
+                                    title: Text(
+                                      'Sử dụng: "$searchQuery"',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13.5,
+                                        color: Color(0xFF059669),
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Lưu nơi mua mới này cho giao dịch',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() {
+                                        _selectedMerchantId = null;
+                                        _selectedMerchantName =
+                                            searchQuery.trim();
+                                      });
+                                      Navigator.pop(ctx);
+                                    },
+                                  ),
+                                ),
+
+                              // 2. Option: Clear / Không chọn nơi mua
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF0F172A)
+                                      : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.08)
+                                        : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: ListTile(
+                                  leading: Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (isDark ? Colors.white : Colors.black)
+                                              .withValues(alpha: 0.06),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.block_rounded,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    'Không chọn nơi mua',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? const Color(0xFFCBD5E1)
+                                          : const Color(0xFF334155),
+                                    ),
+                                  ),
+                                  trailing: (_selectedMerchantId == null &&
+                                          (_selectedMerchantName == null ||
+                                              _selectedMerchantName!.isEmpty))
+                                      ? Icon(
+                                          Icons.check_circle_rounded,
+                                          color: accent,
+                                          size: 20,
+                                        )
+                                      : null,
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      _selectedMerchantId = null;
+                                      _selectedMerchantName = null;
+                                    });
+                                    Navigator.pop(ctx);
+                                  },
+                                ),
                               ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => Navigator.pop(ctx),
-                        borderRadius: BorderRadius.circular(100),
-                        child: Container(
-                          height: 46,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: accent,
-                            borderRadius: BorderRadius.circular(100),
+
+                              // 3. Merchants from categories
+                              ...filtered.map((m) {
+                                final isSel = (_selectedMerchantId == m.id) ||
+                                    (_selectedMerchantName?.toLowerCase() ==
+                                        m.name.toLowerCase());
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSel
+                                        ? accent.withValues(
+                                            alpha: isDark ? 0.22 : 0.10)
+                                        : (isDark
+                                            ? const Color(0xFF0F172A)
+                                            : const Color(0xFFF8FAFC)),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isSel
+                                          ? accent
+                                          : (isDark
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.08)
+                                              : const Color(0xFFE2E8F0)),
+                                      width: isSel ? 1.5 : 1.0,
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    leading: CategoryIconBadge(
+                                      icon: m.icon,
+                                      categoryName: m.name,
+                                      colorHex: m.color,
+                                      size: 38,
+                                      isDark: isDark,
+                                    ),
+                                    title: Text(
+                                      m.name,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: isSel
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: isSel
+                                            ? (isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A))
+                                            : (isDark
+                                                ? const Color(0xFFE2E8F0)
+                                                : const Color(0xFF1E293B)),
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Danh mục nơi mua',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    trailing: isSel
+                                        ? Icon(
+                                            Icons.check_circle_rounded,
+                                            color: accent,
+                                            size: 20,
+                                          )
+                                        : null,
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() {
+                                        _selectedMerchantId = m.id;
+                                        _selectedMerchantName = m.name;
+                                      });
+                                      Navigator.pop(ctx);
+                                    },
+                                  ),
+                                );
+                              }),
+                            ],
                           ),
-                          child: const Text(
-                            'Xong',
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                        ),
+                        const SizedBox(height: 10),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => Navigator.pop(ctx),
+                            borderRadius: BorderRadius.circular(100),
+                            child: Container(
+                              height: 46,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: accent,
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: const Text(
+                                'Xong',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
                       ],
                     ),
                   ),
@@ -1849,7 +1748,8 @@ class _BankTransactionPromptSheetState
 
     if (bankSync.isAlreadyImported(widget.tx.rawId)) {
       final cloud = bankSync.cloudRecordFor(widget.tx.rawId);
-      final where = cloud?.importedFrom == 'web' ? 'trên Web' : 'trên thiết bị khác';
+      final where =
+          cloud?.importedFrom == 'web' ? 'trên Web' : 'trên thiết bị khác';
       setState(() {
         _validationError =
             'Giao dịch này đã được nhập $where rồi nên không thể ghi trùng.';
@@ -2052,8 +1952,8 @@ class _BankTransactionPromptSheetState
               createdAt: wallet.createdAt,
             );
             try {
-              await walletProv!.updateWallet(
-                  widget.userId, wallet.id, updatedWallet);
+              await walletProv!
+                  .updateWallet(widget.userId, wallet.id, updatedWallet);
               didSyncBalance = true;
             } catch (_) {}
           } else {
@@ -2139,9 +2039,9 @@ class _BankTransactionPromptSheetState
     if (wallets.isNotEmpty &&
         (_selectedWalletId == null ||
             !wallets.any((w) => w.id == _selectedWalletId))) {
-      final best = _findBestWallet(wallets, widget.tx) ?? wallets.first;
-      _selectedWalletId = best.id;
-      _syncBalanceToBank = _defaultSyncEnabledFor(best);
+      final best = _findBestWallet(wallets, widget.tx);
+      _selectedWalletId = best?.id;
+      _syncBalanceToBank = best != null && _defaultSyncEnabledFor(best);
     }
     if (wallets.isNotEmpty &&
         (_selectedToWalletId == null ||
@@ -2219,975 +2119,714 @@ class _BankTransactionPromptSheetState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 1. Bank Source Header Row
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isDark
-                        ? const Color(0xFF1E293B)
-                        : const Color(0xFFF8FAFC),
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.10)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Center(
-                    child: BankIcon(
-                      bankCode: widget.tx.bankCode,
-                      bankName: widget.tx.bankName,
-                      size: 28,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2.5),
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              widget.tx.isCreditCardPayment
-                                  ? 'TRẢ THẺ TÍN DỤNG'
-                                  : (widget.tx.isTransfer
-                                      ? 'CHUYỂN KHOẢN CÙNG MÁY'
-                                      : 'TỰ ĐỘNG BÓC TÁCH'),
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.4,
-                                color: accentColor,
-                              ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF8FAFC),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : const Color(0xFFE2E8F0),
                             ),
                           ),
-                          if (widget.tx.suggestedMerchant != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2.5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFD97706)
-                                    .withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(999),
+                          child: Center(
+                            child: BankIcon(
+                              bankCode: widget.tx.bankCode,
+                              bankName: widget.tx.bankName,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2.5),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          accentColor.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      widget.tx.isCreditCardPayment
+                                          ? 'TRẢ THẺ TÍN DỤNG'
+                                          : (widget.tx.isTransfer
+                                              ? 'CHUYỂN KHOẢN CÙNG MÁY'
+                                              : 'TỰ ĐỘNG BÓC TÁCH'),
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.4,
+                                        color: accentColor,
+                                      ),
+                                    ),
+                                  ),
+                                  if (widget.tx.suggestedMerchant != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2.5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFD97706)
+                                            .withValues(alpha: 0.14),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        widget.tx.suggestedMerchant!,
+                                        style: const TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFD97706),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
-                              child: Text(
-                                widget.tx.suggestedMerchant!,
-                                style: const TextStyle(
-                                  fontSize: 9.5,
+                              const SizedBox(height: 3),
+                              Text(
+                                '${widget.tx.bankName}${acct.isNotEmpty ? " • TK $acct" : ""}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15.5,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFFD97706),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${widget.tx.bankName}${acct.isNotEmpty ? " • TK $acct" : ""}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF0F172A),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Xem nội dung thông báo gốc',
-                  onPressed: () => setState(() => _showRawText = !_showRawText),
-                  icon: Icon(
-                    _showRawText
-                        ? Icons.expand_less_rounded
-                        : Icons.receipt_long_rounded,
-                    size: 20,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-
-            // Centered Transaction Time Pill
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF1E293B).withValues(alpha: 0.7)
-                    : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    size: 14,
-                    color: accentColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      timeStr,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFFE2E8F0)
-                            : const Color(0xFF334155),
-                      ),
+                        IconButton(
+                          tooltip: 'Xem nội dung thông báo gốc',
+                          onPressed: () =>
+                              setState(() => _showRawText = !_showRawText),
+                          icon: Icon(
+                            _showRawText
+                                ? Icons.expand_less_rounded
+                                : Icons.receipt_long_rounded,
+                            size: 20,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
 
-            if (_showRawText &&
-                (widget.tx.rawNotificationText.isNotEmpty ||
-                    widget.tx.note.isNotEmpty)) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF1E293B).withValues(alpha: 0.7)
-                      : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : const Color(0xFFE2E8F0),
-                  ),
-                ),
-                child: SelectableText(
-                  widget.tx.rawNotificationText.isNotEmpty
-                      ? widget.tx.rawNotificationText
-                      : widget.tx.note,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.35,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 12),
-
-            // 2. Expense / Income / Transfer 3-Way Pill Switcher
-            Container(
-              height: 44,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color:
-                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: Row(
-                children: [
-                  _buildTypeTab(
-                    label: 'Chi tiêu',
-                    typeValue: 'expense',
-                    activeColor: const Color(0xFFE11D48),
-                    allCategories: allCategories,
-                    isDark: isDark,
-                  ),
-                  _buildTypeTab(
-                    label: 'Thu nhập',
-                    typeValue: 'income',
-                    activeColor: const Color(0xFF059669),
-                    allCategories: allCategories,
-                    isDark: isDark,
-                  ),
-                  _buildTypeTab(
-                    label: 'Chuyển khoản',
-                    typeValue: 'transfer',
-                    activeColor: const Color(0xFF0284C7),
-                    allCategories: allCategories,
-                    isDark: isDark,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // 3. Amount Display & Recognized Bank Balance Box
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: isDark ? 0.14 : 0.07),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: isDark ? 0.38 : 0.24),
-                  width: 1.2,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: accentColor.withValues(alpha: 0.18),
-                          border: Border.all(
-                            color: accentColor.withValues(alpha: 0.35),
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            isTransfer ? '⇄' : (isIncome ? '+' : '-'),
-                            style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w900,
-                              color: accentColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isTransfer
-                                  ? 'Số tiền chuyển khoản / trả thẻ'
-                                  : (isIncome
-                                      ? 'Số tiền thu vào nhận diện'
-                                      : 'Số tiền chi ra nhận diện'),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: isDark
-                                    ? const Color(0xFF94A3B8)
-                                    : const Color(0xFF64748B),
-                              ),
-                            ),
-                            TextField(
-                              controller: _amountCtrl,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: const [
-                                DotSeparatorTextInputFormatter(),
-                              ],
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: accentColor,
-                                letterSpacing: -0.4,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Nhập số tiền...',
-                                hintStyle: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: accentColor.withValues(alpha: 0.45),
-                                ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.only(top: 2),
-                                suffixText: 'đ',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (!_savedAwaitingAck &&
-                      BankSyncService().isAlreadyImported(widget.tx.rawId)) ...[
+                    // Centered Transaction Time Pill
+                    const SizedBox(height: 10),
                     Container(
-                      margin: const EdgeInsets.only(bottom: 10),
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 9,
-                      ),
+                          horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF059669)
-                            .withValues(alpha: isDark ? 0.22 : 0.12),
-                        borderRadius: BorderRadius.circular(14),
+                        color: isDark
+                            ? const Color(0xFF1E293B).withValues(alpha: 0.7)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: const Color(0xFF059669)
-                              .withValues(alpha: 0.45),
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.verified_rounded,
-                            size: 18,
-                            color: Color(0xFF059669),
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 14,
+                            color: accentColor,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
+                          const SizedBox(width: 6),
+                          Flexible(
                             child: Text(
-                              BankSyncService()
-                                          .cloudRecordFor(widget.tx.rawId)
-                                          ?.importedFrom ==
-                                      'web'
-                                  ? 'Giao dịch này đã được nhập trên bản Web. Bạn có thể đóng lại để tránh ghi trùng.'
-                                  : 'Giao dịch này đã được ghi vào sổ trước đó.',
+                              timeStr,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
                                 color: isDark
-                                    ? const Color(0xFF6EE7B7)
-                                    : const Color(0xFF047857),
+                                    ? const Color(0xFFE2E8F0)
+                                    : const Color(0xFF334155),
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF0F172A).withValues(alpha: 0.72)
-                          : Colors.white.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFF059669)
-                            .withValues(alpha: isDark ? 0.35 : 0.25),
-                        width: 1.0,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF059669)
-                                    .withValues(alpha: 0.16),
-                              ),
-                              child: const Icon(
-                                Icons.account_balance_wallet_rounded,
-                                size: 14,
-                                color: Color(0xFF059669),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    widget.tx.balanceAfter != null
-                                        ? 'Số dư cuối nhận diện từ ${widget.tx.bankName}'
-                                        : 'Nhập số dư cuối sau GD (tùy chọn)',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 10.2,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? const Color(0xFF94A3B8)
-                                          : const Color(0xFF64748B),
-                                    ),
-                                  ),
-                                  TextField(
-                                    controller: _balanceAfterCtrl,
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: const [
-                                      DotSeparatorTextInputFormatter(),
-                                    ],
-                                    onChanged: (val) {
-                                      final hasDigits = val
-                                          .replaceAll(RegExp(r'[^0-9]'), '')
-                                          .isNotEmpty;
-                                      setState(() {
-                                        if (!hasDigits) {
-                                          _syncBalanceToBank = false;
-                                        }
-                                      });
-                                    },
-                                    style: const TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFF059669),
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: 'Nhập số dư thực tế...',
-                                      hintStyle: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark
-                                            ? const Color(0xFF64748B)
-                                            : const Color(0xFF94A3B8),
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      isDense: true,
-                                      contentPadding:
-                                          const EdgeInsets.only(top: 1),
-                                      suffixText: 'đ',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            InkWell(
-                              borderRadius: BorderRadius.circular(999),
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(
-                                  () =>
-                                      _syncBalanceToBank = !_syncBalanceToBank,
-                                );
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _syncBalanceToBank
-                                      ? const Color(0xFF059669)
-                                      : (isDark
-                                          ? const Color(0xFF1E293B)
-                                          : const Color(0xFFF1F5F9)),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: _syncBalanceToBank
-                                        ? const Color(0xFF059669)
-                                        : const Color(0xFF059669)
-                                            .withValues(alpha: 0.35),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _syncBalanceToBank
-                                          ? Icons.check_circle_rounded
-                                          : Icons.sync_rounded,
-                                      size: 13,
-                                      color: _syncBalanceToBank
-                                          ? Colors.white
-                                          : const Color(0xFF059669),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      _syncBalanceToBank
-                                          ? 'Đồng bộ ví'
-                                          : 'Đồng bộ số dư',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: _syncBalanceToBank
-                                            ? Colors.white
-                                            : const Color(0xFF059669),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+
+                    if (_showRawText &&
+                        (widget.tx.rawNotificationText.isNotEmpty ||
+                            widget.tx.note.isNotEmpty)) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF1E293B).withValues(alpha: 0.7)
+                              : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : const Color(0xFFE2E8F0),
+                          ),
                         ),
-                        if (selectedWallet != null &&
-                            !selectedWallet.isCreditCard &&
-                            (_parsedEndingBalance() ??
-                                    widget.tx.balanceAfter?.round()) !=
-                                null) ...[
-                          const SizedBox(height: 6),
-                          Builder(
-                            builder: (_) {
-                              final targetBal = _parsedEndingBalance() ??
-                                  widget.tx.balanceAfter!.round();
-                              final curAmt = int.tryParse(_amountCtrl.text
-                                      .replaceAll(RegExp(r'[^0-9]'), '')) ??
-                                  widget.tx.amount.round();
-                              final delta = _selectedType == 'income'
-                                  ? curAmt
-                                  : -curAmt;
-                              final expectedAfter =
-                                  selectedWallet.balance + delta;
-                              final diff = targetBal - expectedAfter;
-                              final acctOk = BankNotificationParser
-                                  .isWalletAccountMatched(
-                                selectedWallet.accountNumber,
-                                widget.tx.accountNumber,
-                              );
-                              final largeDiff = BankNotificationParser
-                                  .isLargeBalanceSyncDiff(
-                                currentBalance: selectedWallet.balance,
-                                expectedAfter: expectedAfter,
-                                targetBalance: targetBal,
-                              );
-                              final ownerLabel =
-                                  resolveOwnerForWallet(selectedWallet)
-                                      .ownerName;
-                              if (!_syncBalanceToBank) {
-                                return Text(
-                                  acctOk
-                                      ? 'Đang tắt đồng bộ ví ($ownerLabel) — bật nếu muốn cập nhật số dư ví.'
-                                      : 'Tự tắt đồng bộ vì chưa khớp STK với ví ${selectedWallet.name} ($ownerLabel). Kiểm tra đúng ví trước khi bật.',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? const Color(0xFF94A3B8)
-                                        : const Color(0xFF64748B),
-                                  ),
-                                );
-                              }
-                              final warn = diff != 0 && (largeDiff || !acctOk);
-                              return Text(
-                                '${warn ? '⚠️ ' : ''}Ví ${selectedWallet.name} ($ownerLabel): '
-                                '${formatVND(selectedWallet.balance)} → ${formatVND(targetBal)}'
-                                '${diff != 0 ? ' (lệch ${diff > 0 ? '+' : ''}${formatVND(diff)})' : ' (khớp)'}'
-                                '${warn ? ' — Kiểm tra kỹ đúng ví Chồng/Vợ!' : ''}',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: warn
-                                      ? const Color(0xFFE11D48)
-                                      : const Color(0xFF059669),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // 4. Custom Bento Selector Cards for Wallet & Category (or Source -> Dest Wallet)
-            Row(
-              children: [
-                // Source Wallet Bento Picker Card
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4, bottom: 5),
-                        child: Text(
-                          isTransfer
-                              ? 'Từ ví chuyển'
-                              : (isIncome ? 'Ví nhận tiền' : 'Ví thanh toán'),
+                        child: SelectableText(
+                          widget.tx.rawNotificationText.isNotEmpty
+                              ? widget.tx.rawNotificationText
+                              : widget.tx.note,
                           style: TextStyle(
                             fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
+                            height: 1.35,
                             color: isDark
                                 ? const Color(0xFF94A3B8)
                                 : const Color(0xFF64748B),
                           ),
                         ),
                       ),
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: () => _pickWallet(wallets, isDark),
-                          child: Container(
-                            height: 60,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E293B)
-                                  : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.10)
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                AdaptiveGlassSurface(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isDark
-                                        ? const Color(0xFF0F172A)
-                                        : Colors.white,
-                                    border: Border.all(
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: 0.10)
-                                          : const Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: BankIcon(
-                                      bankCode: selectedWallet?.bankCode ??
-                                          selectedWallet?.type ??
-                                          widget.tx.bankCode,
-                                      bankName: selectedWallet?.bankName ??
-                                          selectedWallet?.name ??
-                                          widget.tx.bankName,
-                                      customIconUrl: selectedWallet?.iconUrl,
-                                      size: 32,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        selectedWallet?.name ??
-                                            widget.tx.bankName,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                          color: isDark
-                                              ? Colors.white
-                                              : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 1),
-                                      Text(
-                                        selectedWallet != null
-                                            ? '${resolveOwnerForWallet(selectedWallet).ownerName} · ${formatVND(selectedWallet.balance)}'
-                                            : 'Chạm để chọn ví',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? const Color(0xFF94A3B8)
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
-                                  color: isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
-                                ),
-                              ],
-                            ),
-                          ),
+                    ],
+
+                    const SizedBox(height: 12),
+
+                    // 2. Expense / Income / Transfer 3-Way Pill Switcher
+                    Container(
+                      height: 44,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFFE2E8F0),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                if (isTransfer)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, right: 4, top: 20),
-                    child: Material(
-                      color: Colors.transparent,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() {
-                            final oldFrom = _selectedWalletId;
-                            final oldTo = _selectedToWalletId;
-                            _selectedWalletId = oldTo;
-                            _selectedToWalletId = oldFrom;
-                            final nextWallet = wallets
-                                .where((w) => w.id == _selectedWalletId)
-                                .firstOrNull;
-                            _syncBalanceToBank =
-                                _defaultSyncEnabledFor(nextWallet);
-                          });
-                        },
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDark
-                                ? const Color(0xFF1E293B)
-                                : Colors.white,
-                            border: Border.all(
-                              color: const Color(0xFF0284C7)
-                                  .withValues(alpha: isDark ? 0.50 : 0.35),
-                            ),
+                      child: Row(
+                        children: [
+                          _buildTypeTab(
+                            label: 'Chi tiêu',
+                            typeValue: 'expense',
+                            activeColor: const Color(0xFFE11D48),
+                            allCategories: allCategories,
+                            isDark: isDark,
                           ),
-                          child: const Icon(
-                            Icons.swap_horiz_rounded,
-                            size: 17,
-                            color: Color(0xFF0284C7),
+                          _buildTypeTab(
+                            label: 'Thu nhập',
+                            typeValue: 'income',
+                            activeColor: const Color(0xFF059669),
+                            allCategories: allCategories,
+                            isDark: isDark,
                           ),
-                        ),
+                          _buildTypeTab(
+                            label: 'Chuyển khoản',
+                            typeValue: 'transfer',
+                            activeColor: const Color(0xFF0284C7),
+                            allCategories: allCategories,
+                            isDark: isDark,
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                else
-                  const SizedBox(width: 10),
-                // Destination Wallet (if transfer) OR Category Bento Picker Card
-                Expanded(
-                  child: isTransfer
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 4, bottom: 5),
-                              child: Text(
-                                widget.tx.isCreditCardPayment
-                                    ? 'Thẻ / Ví nhận'
-                                    : 'Đến ví nhận',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
+
+                    const SizedBox(height: 12),
+
+                    // 3. Amount Display & Recognized Bank Balance Box
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color:
+                            accentColor.withValues(alpha: isDark ? 0.14 : 0.07),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: accentColor.withValues(
+                              alpha: isDark ? 0.38 : 0.24),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: accentColor.withValues(alpha: 0.18),
+                                  border: Border.all(
+                                    color: accentColor.withValues(alpha: 0.35),
+                                    width: 1.0,
+                                  ),
                                 ),
-                              ),
-                            ),
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(18),
-                                onTap: () => _pickWallet(
-                                  wallets,
-                                  isDark,
-                                  isDestination: true,
-                                ),
-                                child: Container(
-                                  height: 60,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? const Color(0xFF1E293B)
-                                        : const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: 0.10)
-                                          : const Color(0xFFE2E8F0),
+                                child: Center(
+                                  child: Text(
+                                    isTransfer ? '⇄' : (isIncome ? '+' : '-'),
+                                    style: TextStyle(
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w900,
+                                      color: accentColor,
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      AdaptiveGlassSurface(
-                                        width: 36,
-                                        height: 36,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: isDark
-                                              ? const Color(0xFF0F172A)
-                                              : Colors.white,
-                                          border: Border.all(
-                                            color: isDark
-                                                ? Colors.white
-                                                    .withValues(alpha: 0.10)
-                                                : const Color(0xFFE2E8F0),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: BankIcon(
-                                            bankCode: selectedDestWallet
-                                                    ?.bankCode ??
-                                                selectedDestWallet?.type ??
-                                                (widget.tx
-                                                        .matchedTransferBankCode ??
-                                                    'bank'),
-                                            bankName: selectedDestWallet
-                                                    ?.bankName ??
-                                                selectedDestWallet?.name ??
-                                                (widget.tx
-                                                        .matchedTransferBankName ??
-                                                    'Ví nhận'),
-                                            customIconUrl:
-                                                selectedDestWallet?.iconUrl,
-                                            size: 32,
-                                          ),
-                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isTransfer
+                                          ? 'Số tiền chuyển khoản / trả thẻ'
+                                          : (isIncome
+                                              ? 'Số tiền thu vào nhận diện'
+                                              : 'Số tiền chi ra nhận diện'),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              selectedDestWallet?.name ??
-                                                  (widget.tx
-                                                          .matchedTransferBankName ??
-                                                      'Chọn ví nhận'),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w800,
-                                                color: isDark
-                                                    ? Colors.white
-                                                    : const Color(0xFF0F172A),
-                                              ),
+                                    ),
+                                    TextField(
+                                      controller: _amountCtrl,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: const [
+                                        DotSeparatorTextInputFormatter(),
+                                      ],
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        color: accentColor,
+                                        letterSpacing: -0.4,
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: 'Nhập số tiền...',
+                                        hintStyle: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: accentColor.withValues(
+                                              alpha: 0.45),
+                                        ),
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.only(top: 2),
+                                        suffixText: 'đ',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          if (!_savedAwaitingAck &&
+                              BankSyncService()
+                                  .isAlreadyImported(widget.tx.rawId)) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF059669)
+                                    .withValues(alpha: isDark ? 0.22 : 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFF059669)
+                                      .withValues(alpha: 0.45),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.verified_rounded,
+                                    size: 18,
+                                    color: Color(0xFF059669),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      BankSyncService()
+                                                  .cloudRecordFor(
+                                                      widget.tx.rawId)
+                                                  ?.importedFrom ==
+                                              'web'
+                                          ? 'Giao dịch này đã được nhập trên bản Web. Bạn có thể đóng lại để tránh ghi trùng.'
+                                          : 'Giao dịch này đã được ghi vào sổ trước đó.',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? const Color(0xFF6EE7B7)
+                                            : const Color(0xFF047857),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF0F172A)
+                                      .withValues(alpha: 0.72)
+                                  : Colors.white.withValues(alpha: 0.88),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFF059669)
+                                    .withValues(alpha: isDark ? 0.35 : 0.25),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color(0xFF059669)
+                                            .withValues(alpha: 0.16),
+                                      ),
+                                      child: const Icon(
+                                        Icons.account_balance_wallet_rounded,
+                                        size: 14,
+                                        color: Color(0xFF059669),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            widget.tx.balanceAfter != null
+                                                ? 'Số dư cuối nhận diện từ ${widget.tx.bankName}'
+                                                : 'Nhập số dư cuối sau GD (tùy chọn)',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 10.2,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark
+                                                  ? const Color(0xFF94A3B8)
+                                                  : const Color(0xFF64748B),
                                             ),
-                                            const SizedBox(height: 1),
+                                          ),
+                                          TextField(
+                                            controller: _balanceAfterCtrl,
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: const [
+                                              DotSeparatorTextInputFormatter(),
+                                            ],
+                                            onChanged: (val) {
+                                              final hasDigits = val
+                                                  .replaceAll(
+                                                      RegExp(r'[^0-9]'), '')
+                                                  .isNotEmpty;
+                                              setState(() {
+                                                if (!hasDigits) {
+                                                  _syncBalanceToBank = false;
+                                                }
+                                              });
+                                            },
+                                            style: const TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF059669),
+                                            ),
+                                            decoration: InputDecoration(
+                                              hintText: 'Nhập số dư thực tế...',
+                                              hintStyle: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark
+                                                    ? const Color(0xFF64748B)
+                                                    : const Color(0xFF94A3B8),
+                                              ),
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                              isDense: true,
+                                              contentPadding:
+                                                  const EdgeInsets.only(top: 1),
+                                              suffixText: 'đ',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(999),
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        setState(
+                                          () => _syncBalanceToBank =
+                                              !_syncBalanceToBank,
+                                        );
+                                      },
+                                      child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 180),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5.5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _syncBalanceToBank
+                                              ? const Color(0xFF059669)
+                                              : (isDark
+                                                  ? const Color(0xFF1E293B)
+                                                  : const Color(0xFFF1F5F9)),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: _syncBalanceToBank
+                                                ? const Color(0xFF059669)
+                                                : const Color(0xFF059669)
+                                                    .withValues(alpha: 0.35),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              _syncBalanceToBank
+                                                  ? Icons.check_circle_rounded
+                                                  : Icons.sync_rounded,
+                                              size: 13,
+                                              color: _syncBalanceToBank
+                                                  ? Colors.white
+                                                  : const Color(0xFF059669),
+                                            ),
+                                            const SizedBox(width: 4),
                                             Text(
-                                              selectedDestWallet != null
-                                                  ? formatVND(selectedDestWallet
-                                                      .balance)
-                                                  : 'Chạm để chọn ví',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+                                              _syncBalanceToBank
+                                                  ? 'Đồng bộ ví'
+                                                  : 'Đồng bộ số dư',
                                               style: TextStyle(
                                                 fontSize: 10.5,
-                                                fontWeight: FontWeight.w600,
-                                                color: accentColor,
+                                                fontWeight: FontWeight.w800,
+                                                color: _syncBalanceToBank
+                                                    ? Colors.white
+                                                    : const Color(0xFF059669),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        size: 18,
-                                        color: isDark
-                                            ? const Color(0xFF94A3B8)
-                                            : const Color(0xFF64748B),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 4, bottom: 5),
-                              child: Text(
-                                'Danh mục',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ),
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(18),
-                                onTap: () => _pickCategory(categories, isDark),
-                                child: Container(
-                                  height: 60,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? const Color(0xFF1E293B)
-                                        : const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: 0.10)
-                                          : const Color(0xFFE2E8F0),
                                     ),
+                                  ],
+                                ),
+                                if (selectedWallet != null &&
+                                    !selectedWallet.isCreditCard &&
+                                    (_parsedEndingBalance() ??
+                                            widget.tx.balanceAfter?.round()) !=
+                                        null) ...[
+                                  const SizedBox(height: 6),
+                                  Builder(
+                                    builder: (_) {
+                                      final targetBal =
+                                          _parsedEndingBalance() ??
+                                              widget.tx.balanceAfter!.round();
+                                      final curAmt = int.tryParse(
+                                              _amountCtrl.text.replaceAll(
+                                                  RegExp(r'[^0-9]'), '')) ??
+                                          widget.tx.amount.round();
+                                      final delta = _selectedType == 'income'
+                                          ? curAmt
+                                          : -curAmt;
+                                      final expectedAfter =
+                                          selectedWallet.balance + delta;
+                                      final diff = targetBal - expectedAfter;
+                                      final acctOk = BankNotificationParser
+                                          .isWalletAccountMatched(
+                                        selectedWallet.accountNumber,
+                                        widget.tx.accountNumber,
+                                      );
+                                      final largeDiff = BankNotificationParser
+                                          .isLargeBalanceSyncDiff(
+                                        currentBalance: selectedWallet.balance,
+                                        expectedAfter: expectedAfter,
+                                        targetBalance: targetBal,
+                                      );
+                                      final ownerLabel =
+                                          resolveOwnerForWallet(selectedWallet)
+                                              .ownerName;
+                                      if (!_syncBalanceToBank) {
+                                        return Text(
+                                          acctOk
+                                              ? 'Đang tắt đồng bộ ví ($ownerLabel) — bật nếu muốn cập nhật số dư ví.'
+                                              : 'Tự tắt đồng bộ vì chưa khớp STK với ví ${selectedWallet.name} ($ownerLabel). Kiểm tra đúng ví trước khi bật.',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF64748B),
+                                          ),
+                                        );
+                                      }
+                                      final warn =
+                                          diff != 0 && (largeDiff || !acctOk);
+                                      return Text(
+                                        '${warn ? '⚠️ ' : ''}Ví ${selectedWallet.name} ($ownerLabel): '
+                                        '${formatVND(selectedWallet.balance)} → ${formatVND(targetBal)}'
+                                        '${diff != 0 ? ' (lệch ${diff > 0 ? '+' : ''}${formatVND(diff)})' : ' (khớp)'}'
+                                        '${warn ? ' — Kiểm tra kỹ đúng ví Chồng/Vợ!' : ''}',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: warn
+                                              ? const Color(0xFFE11D48)
+                                              : const Color(0xFF059669),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  child: Row(
-                                    children: [
-                                      CategoryIconBadge(
-                                        icon:
-                                            selectedCategory?.icon ?? 'wallet',
-                                        categoryName: selectedCategory?.name ??
-                                            (isIncome
-                                                ? 'Thu nhập'
-                                                : 'Chi tiêu'),
-                                        colorHex: selectedCategory?.color ??
-                                            (isIncome ? '#10B981' : '#EF4444'),
-                                        size: 36,
-                                        isDark: isDark,
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 4. Custom Bento Selector Cards for Wallet & Category (or Source -> Dest Wallet)
+                    Row(
+                      children: [
+                        // Source Wallet Bento Picker Card
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 4, bottom: 5),
+                                child: Text(
+                                  isTransfer
+                                      ? 'Từ ví chuyển'
+                                      : (isIncome
+                                          ? 'Ví nhận tiền'
+                                          : 'Ví thanh toán'),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: () => _pickWallet(wallets, isDark),
+                                  child: Container(
+                                    height: 60,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.white
+                                                .withValues(alpha: 0.10)
+                                            : const Color(0xFFE2E8F0),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            FittedBox(
-                                              fit: BoxFit.scaleDown,
-                                              alignment: Alignment.centerLeft,
-                                              child: Text(
-                                                selectedCategory?.name ??
-                                                    (isIncome
-                                                        ? 'Thu nhập khác'
-                                                        : 'Chi tiêu khác'),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        AdaptiveGlassSurface(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: isDark
+                                                ? const Color(0xFF0F172A)
+                                                : Colors.white,
+                                            border: Border.all(
+                                              color: isDark
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.10)
+                                                  : const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: BankIcon(
+                                              bankCode:
+                                                  selectedWallet?.bankCode ??
+                                                      selectedWallet?.type ??
+                                                      widget.tx.bankCode,
+                                              bankName:
+                                                  selectedWallet?.bankName ??
+                                                      selectedWallet?.name ??
+                                                      widget.tx.bankName,
+                                              customIconUrl:
+                                                  selectedWallet?.iconUrl,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                selectedWallet?.name ??
+                                                    widget.tx.bankName,
                                                 maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w800,
@@ -3196,524 +2835,869 @@ class _BankTransactionPromptSheetState
                                                       : const Color(0xFF0F172A),
                                                 ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 1),
-                                            Text(
-                                              isIncome
-                                                  ? 'Khoản thu'
-                                                  : 'Khoản chi',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w600,
-                                                color: accentColor,
+                                              const SizedBox(height: 1),
+                                              Text(
+                                                selectedWallet != null
+                                                    ? '${resolveOwnerForWallet(selectedWallet).ownerName} · ${formatVND(selectedWallet.balance)}'
+                                                    : 'Chạm để chọn ví',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark
+                                                      ? const Color(0xFF94A3B8)
+                                                      : const Color(0xFF64748B),
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        size: 18,
-                                        color: isDark
-                                            ? const Color(0xFF94A3B8)
-                                            : const Color(0xFF64748B),
-                                      ),
-                                    ],
+                                        Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          size: 18,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            if (_validationError != null) ...[
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 10),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE11D48).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0xFFE11D48).withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Text(
-                  _validationError!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFE11D48),
-                  ),
-                ),
-              ),
-            ],
-
-            // Accessible Form Field Bindings for Programmatic & Automated Selection
-            SizedBox(
-              height: 24,
-              child: Opacity(
-                opacity: 0.01,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue:
-                            wallets.any((w) => w.id == _selectedWalletId)
-                                ? _selectedWalletId
-                                : null,
-                        decoration:
-                            const InputDecoration.collapsed(hintText: ''),
-                        items: wallets
-                            .map(
-                              (w) => DropdownMenuItem<String>(
-                                value: w.id,
-                                child: Text(
-                                  w.name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) {
-                            setState(() {
-                              _selectedWalletId = v;
-                              final nextWallet =
-                                  wallets.where((w) => w.id == v).firstOrNull;
-                              _syncBalanceToBank =
-                                  _defaultSyncEnabledFor(nextWallet);
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: categories
-                                .any((c) => _catKey(c) == _selectedCategoryId)
-                            ? _selectedCategoryId
-                            : null,
-                        decoration:
-                            const InputDecoration.collapsed(hintText: ''),
-                        items: categories
-                            .map(
-                              (c) => DropdownMenuItem<String>(
-                                value: _catKey(c),
-                                child: Text(
-                                  c.name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) {
-                            setState(() => _selectedCategoryId = v);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 4b. Nơi mua sắm / Đơn vị chi tiêu (Dropdown / Select đồng bộ danh mục)
-            if (!isTransfer) ...[
-              () {
-                final merchants = _availableMerchants(txProv, moreProv);
-                final selectedMerchantCategory = _selectedMerchantId != null
-                    ? merchants
-                        .where((m) => m.id == _selectedMerchantId)
-                        .firstOrNull
-                    : (_selectedMerchantName != null
-                        ? merchants
-                            .where((m) =>
-                                m.name.toLowerCase() ==
-                                _selectedMerchantName!.toLowerCase())
-                            .firstOrNull
-                        : null);
-
-                final hasMerchant = _selectedMerchantName != null &&
-                    _selectedMerchantName!.trim().isNotEmpty;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4, bottom: 5),
-                        child: Text(
-                          'Nơi mua sắm / Đơn vị',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B),
+                            ],
                           ),
                         ),
-                      ),
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: () => _pickMerchant(merchants, isDark),
-                          child: Container(
-                            height: 60,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E293B)
-                                  : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: hasMerchant
-                                    ? accentColor.withValues(
-                                        alpha: isDark ? 0.35 : 0.25)
-                                    : (isDark
-                                        ? Colors.white.withValues(alpha: 0.10)
-                                        : const Color(0xFFE2E8F0)),
-                                width: hasMerchant ? 1.2 : 1.0,
+                        if (isTransfer)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                left: 4, right: 4, top: 20),
+                            child: Material(
+                              color: Colors.transparent,
+                              shape: const CircleBorder(),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    final oldFrom = _selectedWalletId;
+                                    final oldTo = _selectedToWalletId;
+                                    _selectedWalletId = oldTo;
+                                    _selectedToWalletId = oldFrom;
+                                    final nextWallet = wallets
+                                        .where((w) => w.id == _selectedWalletId)
+                                        .firstOrNull;
+                                    _syncBalanceToBank =
+                                        _defaultSyncEnabledFor(nextWallet);
+                                  });
+                                },
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark
+                                        ? const Color(0xFF1E293B)
+                                        : Colors.white,
+                                    border: Border.all(
+                                      color: const Color(0xFF0284C7).withValues(
+                                          alpha: isDark ? 0.50 : 0.35),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.swap_horiz_rounded,
+                                    size: 17,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                ),
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                if (selectedMerchantCategory != null)
-                                  CategoryIconBadge(
-                                    icon: selectedMerchantCategory.icon,
-                                    categoryName: selectedMerchantCategory.name,
-                                    colorHex: selectedMerchantCategory.color,
-                                    size: 36,
-                                    isDark: isDark,
-                                  )
-                                else if (hasMerchant)
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: const Color(0xFF059669)
-                                          .withValues(
-                                              alpha: isDark ? 0.22 : 0.12),
-                                      border: Border.all(
-                                        color: const Color(0xFF059669)
-                                            .withValues(alpha: 0.30),
-                                      ),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.storefront_rounded,
-                                        size: 20,
-                                        color: Color(0xFF059669),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: (isDark
-                                              ? Colors.white
-                                              : Colors.black)
-                                          .withValues(alpha: 0.05),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? Colors.white
-                                                .withValues(alpha: 0.08)
-                                            : const Color(0xFFE2E8F0),
-                                      ),
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.storefront_outlined,
-                                        size: 19,
-                                        color: isDark
-                                            ? const Color(0xFF94A3B8)
-                                            : const Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        hasMerchant
-                                            ? _selectedMerchantName!
-                                            : 'Chọn nơi mua sắm (Tùy chọn)',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                          )
+                        else
+                          const SizedBox(width: 10),
+                        // Destination Wallet (if transfer) OR Category Bento Picker Card
+                        Expanded(
+                          child: isTransfer
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 4, bottom: 5),
+                                      child: Text(
+                                        widget.tx.isCreditCardPayment
+                                            ? 'Thẻ / Ví nhận'
+                                            : 'Đến ví nhận',
                                         style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: hasMerchant
-                                              ? FontWeight.w800
-                                              : FontWeight.w600,
-                                          color: hasMerchant
-                                              ? (isDark
-                                                  ? Colors.white
-                                                  : const Color(0xFF0F172A))
-                                              : (isDark
-                                                  ? const Color(0xFF94A3B8)
-                                                  : const Color(0xFF64748B)),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 1),
-                                      Text(
-                                        selectedMerchantCategory != null
-                                            ? 'Danh mục nơi mua'
-                                            : (hasMerchant
-                                                ? 'Nơi mua tùy chỉnh'
-                                                : 'Chạm để chọn hoặc thêm mới'),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w500,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
                                           color: isDark
-                                              ? const Color(0xFF64748B)
-                                              : const Color(0xFF94A3B8),
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                if (hasMerchant)
-                                  InkWell(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setState(() {
-                                        _selectedMerchantId = null;
-                                        _selectedMerchantName = null;
-                                      });
-                                    },
-                                    borderRadius: BorderRadius.circular(999),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(5),
-                                      child: Icon(
-                                        Icons.cancel_rounded,
-                                        size: 17,
-                                        color: isDark
-                                            ? const Color(0xFF94A3B8)
-                                            : const Color(0xFF64748B),
+                                    ),
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(18),
+                                        onTap: () => _pickWallet(
+                                          wallets,
+                                          isDark,
+                                          isDestination: true,
+                                        ),
+                                        child: Container(
+                                          height: 60,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10),
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? const Color(0xFF1E293B)
+                                                : const Color(0xFFF8FAFC),
+                                            borderRadius:
+                                                BorderRadius.circular(18),
+                                            border: Border.all(
+                                              color: isDark
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.10)
+                                                  : const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              AdaptiveGlassSurface(
+                                                width: 36,
+                                                height: 36,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: isDark
+                                                      ? const Color(0xFF0F172A)
+                                                      : Colors.white,
+                                                  border: Border.all(
+                                                    color: isDark
+                                                        ? Colors.white
+                                                            .withValues(
+                                                                alpha: 0.10)
+                                                        : const Color(
+                                                            0xFFE2E8F0),
+                                                  ),
+                                                ),
+                                                child: Center(
+                                                  child: BankIcon(
+                                                    bankCode: selectedDestWallet
+                                                            ?.bankCode ??
+                                                        selectedDestWallet
+                                                            ?.type ??
+                                                        (widget.tx
+                                                                .matchedTransferBankCode ??
+                                                            'bank'),
+                                                    bankName: selectedDestWallet
+                                                            ?.bankName ??
+                                                        selectedDestWallet
+                                                            ?.name ??
+                                                        (widget.tx
+                                                                .matchedTransferBankName ??
+                                                            'Ví nhận'),
+                                                    customIconUrl:
+                                                        selectedDestWallet
+                                                            ?.iconUrl,
+                                                    size: 32,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      selectedDestWallet
+                                                              ?.name ??
+                                                          (widget.tx
+                                                                  .matchedTransferBankName ??
+                                                              'Chọn ví nhận'),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: isDark
+                                                            ? Colors.white
+                                                            : const Color(
+                                                                0xFF0F172A),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 1),
+                                                    Text(
+                                                      selectedDestWallet != null
+                                                          ? formatVND(
+                                                              selectedDestWallet
+                                                                  .balance)
+                                                          : 'Chạm để chọn ví',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 10.5,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: accentColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Icon(
+                                                Icons
+                                                    .keyboard_arrow_down_rounded,
+                                                size: 18,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
-                                  color: isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 4, bottom: 5),
+                                      child: Text(
+                                        'Danh mục',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ),
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(18),
+                                        onTap: () =>
+                                            _pickCategory(categories, isDark),
+                                        child: Container(
+                                          height: 60,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10),
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? const Color(0xFF1E293B)
+                                                : const Color(0xFFF8FAFC),
+                                            borderRadius:
+                                                BorderRadius.circular(18),
+                                            border: Border.all(
+                                              color: isDark
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.10)
+                                                  : const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              CategoryIconBadge(
+                                                icon: selectedCategory?.icon ??
+                                                    'wallet',
+                                                categoryName:
+                                                    selectedCategory?.name ??
+                                                        (isIncome
+                                                            ? 'Thu nhập'
+                                                            : 'Chi tiêu'),
+                                                colorHex:
+                                                    selectedCategory?.color ??
+                                                        (isIncome
+                                                            ? '#10B981'
+                                                            : '#EF4444'),
+                                                size: 36,
+                                                isDark: isDark,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: Text(
+                                                        selectedCategory
+                                                                ?.name ??
+                                                            (isIncome
+                                                                ? 'Thu nhập khác'
+                                                                : 'Chi tiêu khác'),
+                                                        maxLines: 1,
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          color: isDark
+                                                              ? Colors.white
+                                                              : const Color(
+                                                                  0xFF0F172A),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 1),
+                                                    Text(
+                                                      isIncome
+                                                          ? 'Khoản thu'
+                                                          : 'Khoản chi',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 10.5,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: accentColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Icon(
+                                                Icons
+                                                    .keyboard_arrow_down_rounded,
+                                                size: 18,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    if (_validationError != null) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFFE11D48).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color:
+                                const Color(0xFFE11D48).withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Text(
+                          _validationError!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE11D48),
                           ),
                         ),
                       ),
                     ],
-                  ),
-                );
-              }(),
-            ],
-            // 5. Mã giao dịch chính (Gán trực tiếp từ thông báo ngân hàng)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF1E293B).withValues(alpha: 0.85)
-                    : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: isDark ? 0.28 : 0.18),
-                ),
-              ),
-              child: TextField(
-                controller: _bankCodeCtrl,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Mã giao dịch chính (Từ thông báo Ngân hàng)',
-                  labelStyle: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: accentColor,
-                  ),
-                  prefixIcon: Icon(
-                    Icons.tag_rounded,
-                    size: 19,
-                    color: accentColor,
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                ),
-              ),
-            ),
 
-            const SizedBox(height: 10),
-
-            // 6. Ghi chú riêng của người dùng (Tự động viết hoa chữ đầu)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                color:
-                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.10)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: TextField(
-                controller: _noteCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                inputFormatters: const [
-                  FinoraCapitalizeFirstFormatter(),
-                ],
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Ghi chú riêng (Tùy chọn · Tự viết hoa chữ đầu)',
-                  hintText: 'Ví dụ: Ăn trưa cùng đồng nghiệp...',
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                  prefixIcon: Icon(
-                    Icons.edit_note_rounded,
-                    size: 20,
-                    color: accentColor,
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 7. Action Buttons Row (Standardized Equal-Width Pill Shape, Height 48px)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _saving
-                        ? null
-                        : () async {
-                            setState(() => _saving = true);
-                            try {
-                              await BankSyncService()
-                                  .acknowledge(widget.tx.rawId);
-                              if (context.mounted) {
-                                Navigator.of(context).pop(false);
-                              }
-                            } catch (_) {
-                              if (mounted) {
-                                setState(() {
-                                  _saving = false;
-                                  _validationError =
-                                      'Chưa thể bỏ qua. Thông báo vẫn được giữ để thử lại.';
-                                });
-                              }
-                            }
-                          },
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 13),
-                      side: BorderSide(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.14)
-                            : const Color(0xFFCBD5E1),
-                      ),
-                      shape: const StadiumBorder(),
-                    ),
-                    child: Text(
-                      'Bỏ qua',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: isDark
-                            ? const Color(0xFFCBD5E1)
-                            : const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _saving ? null : _saveTransaction,
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                    // Accessible Form Field Bindings for Programmatic & Automated Selection
+                    SizedBox(
+                      height: 24,
+                      child: Opacity(
+                        opacity: 0.01,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue: wallets
+                                        .any((w) => w.id == _selectedWalletId)
+                                    ? _selectedWalletId
+                                    : null,
+                                decoration: const InputDecoration.collapsed(
+                                    hintText: ''),
+                                items: wallets
+                                    .map(
+                                      (w) => DropdownMenuItem<String>(
+                                        value: w.id,
+                                        child: Text(
+                                          w.name,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    setState(() {
+                                      _selectedWalletId = v;
+                                      final nextWallet = wallets
+                                          .where((w) => w.id == v)
+                                          .firstOrNull;
+                                      _syncBalanceToBank =
+                                          _defaultSyncEnabledFor(nextWallet);
+                                    });
+                                  }
+                                },
+                              ),
                             ),
-                          )
-                        : const Icon(Icons.check_circle_rounded, size: 17),
-                    label: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        _saving
-                            ? 'Đang lưu...'
-                            : (_savedAwaitingAck
-                                ? 'Hoàn tất'
-                                : 'Ghi vào sổ'),
-                        maxLines: 1,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13.5,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue: categories.any((c) =>
+                                        _catKey(c) == _selectedCategoryId)
+                                    ? _selectedCategoryId
+                                    : null,
+                                decoration: const InputDecoration.collapsed(
+                                    hintText: ''),
+                                items: categories
+                                    .map(
+                                      (c) => DropdownMenuItem<String>(
+                                        value: _catKey(c),
+                                        child: Text(
+                                          c.name,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    setState(() => _selectedCategoryId = v);
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: accentColor,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
+
+                    // 4b. Nơi mua sắm / Đơn vị chi tiêu (Dropdown / Select đồng bộ danh mục)
+                    if (!isTransfer) ...[
+                      () {
+                        final merchants = _availableMerchants(txProv, moreProv);
+                        final selectedMerchantCategory = _selectedMerchantId !=
+                                null
+                            ? merchants
+                                .where((m) => m.id == _selectedMerchantId)
+                                .firstOrNull
+                            : (_selectedMerchantName != null
+                                ? merchants
+                                    .where((m) =>
+                                        m.name.toLowerCase() ==
+                                        _selectedMerchantName!.toLowerCase())
+                                    .firstOrNull
+                                : null);
+
+                        final hasMerchant = _selectedMerchantName != null &&
+                            _selectedMerchantName!.trim().isNotEmpty;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 4, bottom: 5),
+                                child: Text(
+                                  'Nơi mua sắm / Đơn vị',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: () => _pickMerchant(merchants, isDark),
+                                  child: Container(
+                                    height: 60,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: hasMerchant
+                                            ? accentColor.withValues(
+                                                alpha: isDark ? 0.35 : 0.25)
+                                            : (isDark
+                                                ? Colors.white
+                                                    .withValues(alpha: 0.10)
+                                                : const Color(0xFFE2E8F0)),
+                                        width: hasMerchant ? 1.2 : 1.0,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        if (selectedMerchantCategory != null)
+                                          CategoryIconBadge(
+                                            icon: selectedMerchantCategory.icon,
+                                            categoryName:
+                                                selectedMerchantCategory.name,
+                                            colorHex:
+                                                selectedMerchantCategory.color,
+                                            size: 36,
+                                            isDark: isDark,
+                                          )
+                                        else if (hasMerchant)
+                                          Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: const Color(0xFF059669)
+                                                  .withValues(
+                                                      alpha:
+                                                          isDark ? 0.22 : 0.12),
+                                              border: Border.all(
+                                                color: const Color(0xFF059669)
+                                                    .withValues(alpha: 0.30),
+                                              ),
+                                            ),
+                                            child: const Center(
+                                              child: Icon(
+                                                Icons.storefront_rounded,
+                                                size: 20,
+                                                color: Color(0xFF059669),
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: (isDark
+                                                      ? Colors.white
+                                                      : Colors.black)
+                                                  .withValues(alpha: 0.05),
+                                              border: Border.all(
+                                                color: isDark
+                                                    ? Colors.white
+                                                        .withValues(alpha: 0.08)
+                                                    : const Color(0xFFE2E8F0),
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Icon(
+                                                Icons.storefront_outlined,
+                                                size: 19,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                hasMerchant
+                                                    ? _selectedMerchantName!
+                                                    : 'Chọn nơi mua sắm (Tùy chọn)',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: hasMerchant
+                                                      ? FontWeight.w800
+                                                      : FontWeight.w600,
+                                                  color: hasMerchant
+                                                      ? (isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF0F172A))
+                                                      : (isDark
+                                                          ? const Color(
+                                                              0xFF94A3B8)
+                                                          : const Color(
+                                                              0xFF64748B)),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 1),
+                                              Text(
+                                                selectedMerchantCategory != null
+                                                    ? 'Danh mục nơi mua'
+                                                    : (hasMerchant
+                                                        ? 'Nơi mua tùy chỉnh'
+                                                        : 'Chạm để chọn hoặc thêm mới'),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: isDark
+                                                      ? const Color(0xFF64748B)
+                                                      : const Color(0xFF94A3B8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (hasMerchant)
+                                          InkWell(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              setState(() {
+                                                _selectedMerchantId = null;
+                                                _selectedMerchantName = null;
+                                              });
+                                            },
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(5),
+                                              child: Icon(
+                                                Icons.cancel_rounded,
+                                                size: 17,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ),
+                                        Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          size: 18,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }(),
+                    ],
+                    // 5. Mã giao dịch chính (Gán trực tiếp từ thông báo ngân hàng)
+                    Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 13),
-                      shape: const StadiumBorder(),
+                          horizontal: 14, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF1E293B).withValues(alpha: 0.85)
+                            : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: accentColor.withValues(
+                              alpha: isDark ? 0.28 : 0.18),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _bankCodeCtrl,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        decoration: InputDecoration(
+                          labelText:
+                              'Mã giao dịch chính (Từ thông báo Ngân hàng)',
+                          labelStyle: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: accentColor,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.tag_rounded,
+                            size: 19,
+                            color: accentColor,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ),
+
+                    const SizedBox(height: 10),
+
+                    // 6. Ghi chú riêng của người dùng (Tự động viết hoa chữ đầu)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.10)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _noteCtrl,
+                        textCapitalization: TextCapitalization.sentences,
+                        inputFormatters: const [
+                          FinoraCapitalizeFirstFormatter(),
+                        ],
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        decoration: InputDecoration(
+                          labelText:
+                              'Ghi chú riêng (Tùy chọn · Tự viết hoa chữ đầu)',
+                          hintText: 'Ví dụ: Ăn trưa cùng đồng nghiệp...',
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.edit_note_rounded,
+                            size: 20,
+                            color: accentColor,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // 7. Action Buttons Row (Standardized Equal-Width Pill Shape, Height 48px)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _saving
+                                ? null
+                                : () async {
+                                    setState(() => _saving = true);
+                                    try {
+                                      await BankSyncService()
+                                          .acknowledge(widget.tx.rawId);
+                                      if (context.mounted) {
+                                        Navigator.of(context).pop(false);
+                                      }
+                                    } catch (_) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _saving = false;
+                                          _validationError =
+                                              'Chưa thể bỏ qua. Thông báo vẫn được giữ để thử lại.';
+                                        });
+                                      }
+                                    }
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 13),
+                              side: BorderSide(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.14)
+                                    : const Color(0xFFCBD5E1),
+                              ),
+                              shape: const StadiumBorder(),
+                            ),
+                            child: Text(
+                              'Bỏ qua',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _saving ? null : _saveTransaction,
+                            icon: _saving
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.check_circle_rounded,
+                                    size: 17),
+                            label: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                _saving
+                                    ? 'Đang lưu...'
+                                    : (_savedAwaitingAck
+                                        ? 'Hoàn tất'
+                                        : 'Ghi vào sổ'),
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13.5,
+                                ),
+                              ),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(48),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 13),
+                              shape: const StadiumBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

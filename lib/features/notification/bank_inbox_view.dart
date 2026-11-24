@@ -87,45 +87,7 @@ class _BankInboxViewState extends State<BankInboxView>
     List<Wallet> wallets,
     ParsedBankTransaction tx,
   ) {
-    if (wallets.isEmpty) return null;
-    if (wallets.length == 1) return wallets.first;
-
-    // 1. Khớp đuôi số tài khoản nếu có
-    final notifAcct = tx.accountNumber?.replaceAll(RegExp(r'\D'), '') ?? '';
-    if (notifAcct.length >= 3) {
-      final acctMatches = wallets.where((w) {
-        final wAcct = (w.accountNumber ?? '').replaceAll(RegExp(r'\D'), '');
-        return wAcct.isNotEmpty &&
-            (wAcct.endsWith(notifAcct) || notifAcct.endsWith(wAcct));
-      }).toList();
-      if (acctMatches.length == 1) return acctMatches.first;
-    }
-
-    // 2. Khớp theo mã thương hiệu chuẩn BankIconRegistry
-    final txBrand =
-        BankIconRegistry.resolve(tx.bankCode, bankName: tx.bankName);
-    if (txBrand.code != 'cash') {
-      final brandMatches = wallets.where((w) {
-        final wBrand = BankIconRegistry.resolve(
-          w.bankCode,
-          bankName: w.bankName ?? w.name,
-        );
-        return wBrand.code == txBrand.code;
-      }).toList();
-      if (brandMatches.length == 1) return brandMatches.first;
-    }
-
-    // 3. Khớp theo tên ngân hàng trực tiếp
-    final bankNorm = tx.bankName.trim().toLowerCase();
-    final codeNorm = tx.bankCode.trim().toLowerCase();
-    final nameMatches = wallets.where((w) {
-      final wn = w.name.trim().toLowerCase();
-      return (bankNorm.isNotEmpty &&
-              (wn.contains(bankNorm) || bankNorm.contains(wn))) ||
-          (codeNorm.isNotEmpty && wn.contains(codeNorm));
-    }).toList();
-    if (nameMatches.length == 1) return nameMatches.first;
-    return null;
+    return BankTransactionPromptSheet.selectBestWallet(wallets, tx);
   }
 
   Future<void> _quickSave(ParsedBankTransaction tx) async {
@@ -161,7 +123,18 @@ class _BankInboxViewState extends State<BankInboxView>
             !c.isArchived &&
             c.categoryGroup == (isIncome ? 'income' : 'expense'))
         .toList();
-    final matchedCat = categories.isNotEmpty ? categories.first : null;
+    final suggestedId = tx.suggestedCategoryId.trim().toLowerCase();
+    final suggestedName = tx.suggestedCategoryName.trim().toLowerCase();
+    final matchedCat = categories
+            .where((c) =>
+                (suggestedId.isNotEmpty &&
+                    c.id.trim().toLowerCase() == suggestedId) ||
+                (suggestedName.isNotEmpty &&
+                    c.name.trim().toLowerCase() == suggestedName))
+            .firstOrNull ??
+        (categories.isNotEmpty ? categories.first : null);
+    final ownerInfo =
+        BankTransactionPromptSheet.resolveOwnerForWallet(matchedWallet);
     final cleanCode = tx.transactionCode.trim();
     final newTx = TransactionModel(
       id: 'bank_${tx.rawId.isNotEmpty ? tx.rawId : DateTime.now().microsecondsSinceEpoch}',
@@ -178,11 +151,10 @@ class _BankInboxViewState extends State<BankInboxView>
       date: tx.timestamp.millisecondsSinceEpoch,
       note: tx.note.trim().isNotEmpty ? tx.note.trim() : tx.bankName,
       bankTransactionCode: cleanCode.isNotEmpty ? cleanCode : null,
-      rawBankNotification: tx.rawNotificationText.isNotEmpty
-          ? tx.rawNotificationText
-          : tx.note,
-      owner: matchedWallet.owner,
-      ownerName: matchedWallet.ownerName,
+      rawBankNotification:
+          tx.rawNotificationText.isNotEmpty ? tx.rawNotificationText : tx.note,
+      owner: ownerInfo.owner,
+      ownerName: ownerInfo.ownerName,
     );
     try {
       await txProv.createTransaction(widget.userId, newTx);
@@ -226,27 +198,30 @@ class _BankInboxViewState extends State<BankInboxView>
     final noteCtrl = TextEditingController();
     var mode = 'paste'; // 'paste' | 'manual'
     var txType = 'expense';
-    String? selectedWalletId = wallets.isNotEmpty ? wallets.first.id : null;
+    String? selectedWalletId;
     String? errorMsg;
 
-    final result = await showModalBottomSheet<({ParsedBankTransaction tx, bool openReview})>(
+    final result = await showModalBottomSheet<
+        ({ParsedBankTransaction tx, bool openReview})>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final selectedWallet = wallets
-                .where((w) => w.id == selectedWalletId)
-                .firstOrNull;
-            final previewParsed = mode == 'paste' && pasteCtrl.text.trim().isNotEmpty
-                ? BankNotificationParser.parse(
-                    rawId: 'preview',
-                    packageName: 'manual.bank',
-                    title: selectedWallet?.bankName ?? selectedWallet?.name ?? '',
-                    text: pasteCtrl.text.trim(),
-                  )
-                : null;
+            final selectedWallet =
+                wallets.where((w) => w.id == selectedWalletId).firstOrNull;
+            final previewParsed =
+                mode == 'paste' && pasteCtrl.text.trim().isNotEmpty
+                    ? BankNotificationParser.parse(
+                        rawId: 'preview',
+                        packageName: 'manual.bank',
+                        title: selectedWallet?.bankName ??
+                            selectedWallet?.name ??
+                            '',
+                        text: pasteCtrl.text.trim(),
+                      )
+                    : null;
 
             return Padding(
               padding: EdgeInsets.only(
@@ -412,7 +387,8 @@ class _BankInboxViewState extends State<BankInboxView>
                           TextField(
                             controller: pasteCtrl,
                             maxLines: 4,
-                            onChanged: (_) => setSheetState(() => errorMsg = null),
+                            onChanged: (_) =>
+                                setSheetState(() => errorMsg = null),
                             style: TextStyle(
                               fontSize: 13,
                               color: isDark
@@ -746,7 +722,8 @@ class _BankInboxViewState extends State<BankInboxView>
     final amount =
         int.tryParse(amountText.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     final balDigits = balanceText.replaceAll(RegExp(r'[^0-9]'), '');
-    final balanceAfter = balDigits.isNotEmpty ? double.tryParse(balDigits) : null;
+    final balanceAfter =
+        balDigits.isNotEmpty ? double.tryParse(balDigits) : null;
     if (amount <= 0) {
       onError('Vui lòng nhập số tiền giao dịch lớn hơn 0.');
       return null;
@@ -754,9 +731,8 @@ class _BankInboxViewState extends State<BankInboxView>
     final bankName = (wallet?.bankName?.isNotEmpty == true)
         ? wallet!.bankName!
         : (wallet?.name ?? 'Ngân hàng');
-    final bankCode = (wallet?.bankCode?.isNotEmpty == true)
-        ? wallet!.bankCode!
-        : 'bank';
+    final bankCode =
+        (wallet?.bankCode?.isNotEmpty == true) ? wallet!.bankCode! : 'bank';
     final note = noteText.trim().isNotEmpty
         ? noteText.trim()
         : (txType == 'income'
@@ -893,8 +869,7 @@ class _BankInboxViewState extends State<BankInboxView>
                                   await _bank.updateAppBadge();
                                   await _refresh();
                                 },
-                                icon: const Icon(
-                                    Icons.notifications_on_rounded,
+                                icon: const Icon(Icons.notifications_on_rounded,
                                     size: 16),
                                 label: const Text(
                                   'Bật thông báo & Badge',
@@ -983,7 +958,8 @@ class _BankInboxViewState extends State<BankInboxView>
                           fontFamily: 'BeVietnamPro',
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                     ),
@@ -999,8 +975,8 @@ class _BankInboxViewState extends State<BankInboxView>
                               .withValues(alpha: isDark ? 0.24 : 0.10),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: const Color(0xFF059669)
-                                .withValues(alpha: 0.35),
+                            color:
+                                const Color(0xFF059669).withValues(alpha: 0.35),
                           ),
                         ),
                         child: Row(
@@ -1798,9 +1774,16 @@ class _UnrecognizedTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            BankNotificationParser.resolveBank(rawId, title, text).code != 'bank'
-                                ? BankNotificationParser.resolveBank(rawId, title, text).name
-                                : (title.isEmpty ? 'Thông báo ngân hàng' : title),
+                            BankNotificationParser.resolveBank(
+                                            rawId, title, text)
+                                        .code !=
+                                    'bank'
+                                ? BankNotificationParser.resolveBank(
+                                        rawId, title, text)
+                                    .name
+                                : (title.isEmpty
+                                    ? 'Thông báo ngân hàng'
+                                    : title),
                             style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w800,
@@ -1988,9 +1971,8 @@ class _ImportedHistoryTile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -2039,8 +2021,8 @@ class _ImportedHistoryTile extends StatelessWidget {
               runSpacing: 6,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 9, vertical: 3.5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
                   decoration: BoxDecoration(
                     color: badgeColor.withValues(alpha: isDark ? 0.22 : 0.12),
                     borderRadius: BorderRadius.circular(999),

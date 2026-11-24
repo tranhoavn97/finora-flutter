@@ -134,22 +134,77 @@ class BankNotificationParser {
   static String foldVietnamese(String input) {
     if (input.isEmpty) return '';
     // Strip Unicode combining diacritical marks (NFD decomposed accents from Android/iOS notifications)
-    var s = input.replaceAll(RegExp(r'[\u0300-\u036f\u1dc0-\u1dff\u20d0-\u20ff]'), '');
+    var s = input.replaceAll(
+        RegExp(r'[\u0300-\u036f\u1dc0-\u1dff\u20d0-\u20ff]'), '');
     s = s.toLowerCase();
     const map = <String, String>{
-      'à': 'a', 'á': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
-      'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ẳ': 'a', 'ẵ': 'a', 'ặ': 'a',
-      'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ậ': 'a',
+      'à': 'a',
+      'á': 'a',
+      'ả': 'a',
+      'ã': 'a',
+      'ạ': 'a',
+      'ă': 'a',
+      'ằ': 'a',
+      'ắ': 'a',
+      'ẳ': 'a',
+      'ẵ': 'a',
+      'ặ': 'a',
+      'â': 'a',
+      'ầ': 'a',
+      'ấ': 'a',
+      'ẩ': 'a',
+      'ẫ': 'a',
+      'ậ': 'a',
       'đ': 'd',
-      'è': 'e', 'é': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ẹ': 'e',
-      'ê': 'e', 'ề': 'e', 'ế': 'e', 'ể': 'e', 'ễ': 'e', 'ệ': 'e',
-      'ì': 'i', 'í': 'i', 'ỉ': 'i', 'ĩ': 'i', 'ị': 'i',
-      'ò': 'o', 'ó': 'o', 'ỏ': 'o', 'õ': 'o', 'ọ': 'o',
-      'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ổ': 'o', 'ỗ': 'o', 'ộ': 'o',
-      'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ở': 'o', 'ỡ': 'o', 'ợ': 'o',
-      'ù': 'u', 'ú': 'u', 'ủ': 'u', 'ũ': 'u', 'ụ': 'u',
-      'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ử': 'u', 'ữ': 'u', 'ự': 'u',
-      'ỳ': 'y', 'ý': 'y', 'ỷ': 'y', 'ỹ': 'y', 'ỵ': 'y',
+      'è': 'e',
+      'é': 'e',
+      'ẻ': 'e',
+      'ẽ': 'e',
+      'ẹ': 'e',
+      'ê': 'e',
+      'ề': 'e',
+      'ế': 'e',
+      'ể': 'e',
+      'ễ': 'e',
+      'ệ': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'ỉ': 'i',
+      'ĩ': 'i',
+      'ị': 'i',
+      'ò': 'o',
+      'ó': 'o',
+      'ỏ': 'o',
+      'õ': 'o',
+      'ọ': 'o',
+      'ô': 'o',
+      'ồ': 'o',
+      'ố': 'o',
+      'ổ': 'o',
+      'ỗ': 'o',
+      'ộ': 'o',
+      'ơ': 'o',
+      'ờ': 'o',
+      'ớ': 'o',
+      'ở': 'o',
+      'ỡ': 'o',
+      'ợ': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'ủ': 'u',
+      'ũ': 'u',
+      'ụ': 'u',
+      'ư': 'u',
+      'ừ': 'u',
+      'ứ': 'u',
+      'ử': 'u',
+      'ữ': 'u',
+      'ự': 'u',
+      'ỳ': 'y',
+      'ý': 'y',
+      'ỷ': 'y',
+      'ỹ': 'y',
+      'ỵ': 'y',
     };
     final sb = StringBuffer();
     for (var i = 0; i < s.length; i++) {
@@ -218,9 +273,8 @@ class BankNotificationParser {
   /// Extract post-transaction account balance (Số dư cuối / SD khả dụng / SD / NCB / all VN banks) from notification text.
   static double? extractBalanceAfter(String raw) {
     // Normalize dashes and fold Vietnamese accents (handles both NFC and NFD combining marks from NCB iziMobile, etc.)
-    final normalized = foldVietnamese(raw)
-        .replaceAll('−', '-')
-        .replaceAll('–', '-');
+    final normalized =
+        foldVietnamese(raw).replaceAll('−', '-').replaceAll('–', '-');
 
     // Mask out balance-change title/intro phrases so they don't get mistaken for ending balance
     final masked = normalized
@@ -306,8 +360,9 @@ class BankNotificationParser {
       final fullMatch = m.group(0) ?? '';
       // Skip if this matched "SD TK <account_number>" where the captured number is the account number
       final afterMatch = masked.substring(m.start);
-      if (RegExp(r'^(?:sd|so\s*du)\s+(?:tk|tai\s*khoan|so)\b', caseSensitive: false)
-          .hasMatch(afterMatch) ||
+      if (RegExp(r'^(?:sd|so\s*du)\s+(?:tk|tai\s*khoan|so)\b',
+                  caseSensitive: false)
+              .hasMatch(afterMatch) ||
           RegExp(r'^(?:sd|so\s*du)\s+tk\b', caseSensitive: false)
               .hasMatch(fullMatch)) {
         continue;
@@ -642,7 +697,13 @@ class BankNotificationParser {
         code: 'vietinbank',
         name: 'VietinBank',
         pkgs: ['vietinbank', 'ipay'],
-        keywords: ['vietinbank ipay', 'vietinbank', 'vietin', r'\bctg\b', r'\bvtb\b']
+        keywords: [
+          'vietinbank ipay',
+          'vietinbank',
+          'vietin',
+          r'\bctg\b',
+          r'\bvtb\b'
+        ]
       ),
       (
         code: 'tpbank',
@@ -762,7 +823,13 @@ class BankNotificationParser {
         code: 'ncb',
         name: 'NCB (Quốc Dân)',
         pkgs: ['com.ncb.bank', 'ncb', 'izimobile'],
-        keywords: ['ncb izimobile', 'izimobile', 'ngan hang quoc dan', 'quoc dan', r'\bncb\b']
+        keywords: [
+          'ncb izimobile',
+          'izimobile',
+          'ngan hang quoc dan',
+          'quoc dan',
+          r'\bncb\b'
+        ]
       ),
       (
         code: 'kienlongbank',
@@ -798,7 +865,12 @@ class BankNotificationParser {
         code: 'oceanbank',
         name: 'MBV (OceanBank)',
         pkgs: ['oceanbank', 'com.mbv.mobilebanking'],
-        keywords: ['oceanbank', 'ngan hang dai duong', 'modern bank of vietnam', r'\bmbv\b']
+        keywords: [
+          'oceanbank',
+          'ngan hang dai duong',
+          'modern bank of vietnam',
+          r'\bmbv\b'
+        ]
       ),
       (
         code: 'gpbank',
@@ -854,12 +926,7 @@ class BankNotificationParser {
         pkgs: ['woori', 'wonvn'],
         keywords: ['woori bank', 'woori won', 'woori']
       ),
-      (
-        code: 'hsbc',
-        name: 'HSBC',
-        pkgs: ['hsbc'],
-        keywords: [r'\bhsbc\b']
-      ),
+      (code: 'hsbc', name: 'HSBC', pkgs: ['hsbc'], keywords: [r'\bhsbc\b']),
       (
         code: 'uob',
         name: 'UOB',
@@ -914,12 +981,7 @@ class BankNotificationParser {
         pkgs: ['vpbank.ubank', 'ubank'],
         keywords: ['ubank by vpbank', r'\bubank\b']
       ),
-      (
-        code: 'tnex',
-        name: 'TNEX',
-        pkgs: ['tnex'],
-        keywords: [r'\btnex\b']
-      ),
+      (code: 'tnex', name: 'TNEX', pkgs: ['tnex'], keywords: [r'\btnex\b']),
       (
         code: 'momo',
         name: 'Ví MoMo',
@@ -1134,8 +1196,7 @@ class BankNotificationParser {
             r'(?<![\d/.-])([+-])\s*(\d(?:[\d.,\s]*\d)?)\s*(?:vnd|d\b|dong)(?![a-z])',
             caseSensitive: false)
         .firstMatch(amountTarget);
-    final signedBefore = RegExp(
-            r'(?:vnd|d\b)\s*([+-])\s*(\d(?:[\d.,\s]*\d)?)',
+    final signedBefore = RegExp(r'(?:vnd|d\b)\s*([+-])\s*(\d(?:[\d.,\s]*\d)?)',
             caseSensitive: false)
         .firstMatch(amountTarget);
     final signedContext = RegExp(
@@ -1306,7 +1367,8 @@ class BankNotificationParser {
       caseSensitive: false,
     ).allMatches(combined);
     for (final m in matches) {
-      final candidate = (m.group(1) ?? '').replaceAll(RegExp(r'^[.]+|[.]+$'), '');
+      final candidate =
+          (m.group(1) ?? '').replaceAll(RegExp(r'^[.]+|[.]+$'), '');
       if (candidate.isEmpty) continue;
       // Reject thousands-grouped amounts like 50.000.000 or 8.500.000
       if (RegExp(r'^\d{1,3}(?:\.\d{3})+$').hasMatch(candidate)) continue;
@@ -1344,17 +1406,42 @@ class BankNotificationParser {
     ).hasMatch(folded);
   }
 
-  /// True ONLY when both wallet and notification supply >= 3 account digits and one ends with the other.
+  /// Match a masked prefix/suffix or short tail without concatenating masked digits.
   static bool isWalletAccountMatched(
     String? walletAccountNumber,
     String? notifAccountNumber,
   ) {
-    final wDigits =
-        (walletAccountNumber ?? '').replaceAll(RegExp(r'\D'), '');
-    final nDigits =
-        (notifAccountNumber ?? '').replaceAll(RegExp(r'\D'), '');
-    if (wDigits.length < 3 || nDigits.length < 3) return false;
-    return wDigits.endsWith(nDigits) || nDigits.endsWith(wDigits);
+    String normalize(String? value) => (value ?? '')
+        .replaceAll(RegExp(r'[\s.\-]'), '')
+        .replaceAll(RegExp(r'[xX*•●]'), 'x');
+    final wallet = normalize(walletAccountNumber);
+    final notification = normalize(notifAccountNumber);
+    if (wallet.replaceAll(RegExp(r'\D'), '').length < 3 ||
+        notification.replaceAll(RegExp(r'\D'), '').length < 3) {
+      return false;
+    }
+    bool maskedMatches(String pattern, String full) {
+      if (!RegExp(r'^\d+$').hasMatch(full) ||
+          !RegExp(r'^\d*x+\d+$').hasMatch(pattern)) {
+        return false;
+      }
+      final parts = pattern.split(RegExp(r'x+'));
+      return full.length > parts[0].length + parts[1].length &&
+          full.startsWith(parts[0]) &&
+          full.endsWith(parts[1]);
+    }
+
+    if (wallet.contains('x') || notification.contains('x')) {
+      return maskedMatches(wallet, notification) ||
+          maskedMatches(notification, wallet);
+    }
+    if (!RegExp(r'^\d+$').hasMatch(wallet) ||
+        !RegExp(r'^\d+$').hasMatch(notification)) {
+      return false;
+    }
+    return wallet == notification ||
+        ((wallet.length <= 6 || notification.length <= 6) &&
+            (wallet.endsWith(notification) || notification.endsWith(wallet)));
   }
 
   /// Flags abnormally large balance sync adjustments (>= 5,000,000đ or >= 25% & >= 500,000đ)
@@ -1424,7 +1511,8 @@ class BankNotificationParser {
       title,
       text,
     );
-    final balanceAfter = extractBalanceAfter(combined.replaceAll('−', '-').replaceAll('–', '-'));
+    final balanceAfter =
+        extractBalanceAfter(combined.replaceAll('−', '-').replaceAll('–', '-'));
     final accountNo = extractAccountNumber(combined);
     final isStaticBalance = isStaticBalanceOnlyMessage(foldedCombined);
     final isIncome = RegExp(
@@ -1444,7 +1532,9 @@ class BankNotificationParser {
           RegExp(r'(\d{1,3}(?:[.,]\d{3})+|\d{4,12})').allMatches(scanTarget);
       for (final m in numMatches) {
         final candidate = parseAmount(m.group(0) ?? '');
-        if (candidate != null && candidate >= 1000 && candidate <= 100000000000) {
+        if (candidate != null &&
+            candidate >= 1000 &&
+            candidate <= 100000000000) {
           fallbackAmount = candidate.abs();
           break;
         }

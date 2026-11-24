@@ -260,7 +260,7 @@ class WalletRepository {
               ? ownerKey(w.owner) == key
               : (w.hasExplicitOwnerName && ownerKey(w.ownerName) == key))
           .toList();
-      return matching.isNotEmpty ? matching.first : null;
+      return matching.length == 1 ? matching.single : null;
     }
 
     String? nonEmpty(String? value) =>
