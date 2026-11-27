@@ -385,14 +385,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
       if (toPost.isNotEmpty) {
         final granted = await bank.isPostNotificationsGranted();
+        final notifPrefs = await HomeWidgetSyncService().loadPreferences();
         if (granted) {
           for (final item in toPost.take(3)) {
+            if (!notifPrefs.allowsActivityNotification(item)) {
+              shown.add(item.id);
+              continue;
+            }
             final title = (item.title ?? '').trim().isNotEmpty
                 ? item.title!.trim()
                 : 'FINORA Thông báo';
-            final body = (item.message ?? '').trim().isNotEmpty
-                ? item.message!.trim()
-                : 'Bạn có thông báo tài chính mới.';
+            final body = !notifPrefs.notifyShowAmount
+                ? 'Bạn có thông báo tài chính mới trong FINORA • Chạm để xem.'
+                : ((item.message ?? '').trim().isNotEmpty
+                    ? item.message!.trim()
+                    : 'Bạn có thông báo tài chính mới.');
             await bank.showSystemNotification(
               title: title,
               body: body,

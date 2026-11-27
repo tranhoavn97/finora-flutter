@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:finora/core/services/bank_sync_service.dart';
 import 'package:finora/core/services/home_widget_sync_service.dart';
 import 'package:finora/core/widgets/finora_home_widget_card.dart';
+import 'package:finora/data/models/finance_models.dart';
 import 'package:finora/data/models/transaction.dart';
 import 'package:finora/features/settings/bank_sync_settings_sheet.dart';
 import 'package:finora/state/dashboard_provider.dart';
@@ -273,8 +274,10 @@ void main() {
         findsOneWidget,
       );
 
+      await tester.ensureVisible(find.text('Ghim 5×2'));
       await tester.tap(find.text('Ghim 5×2'));
       await tester.pump();
+      await tester.ensureVisible(find.text('Ghim 5×4'));
       await tester.tap(find.text('Ghim 5×4'));
       await tester.pump();
 
@@ -348,6 +351,122 @@ void main() {
       expect(openedSettings, isTrue);
 
       postEnabled = false;
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  test('HomeWidgetPreferences resolves mascot moods, glass payload, and notification filters',
+      () {
+    const base = HomeWidgetPreferences(
+      glassStyle: 'glass_crystal',
+      showMascot: true,
+      mascotMood: 'auto',
+      showRecentTx: false,
+      notifyBudgetAlert: false,
+      notifyLoanReminder: true,
+      notifyShowAmount: false,
+    );
+
+    expect(base.isLightGlass, isTrue);
+    expect(
+      base.resolveMascotAsset(pendingCount: 2, todayExpense: 50000),
+      'assets/mascot/mascot_focused.png',
+    );
+    expect(
+      base.resolveMascotAsset(pendingCount: 0, todayExpense: 0),
+      'assets/mascot/mascot_celebrate.png',
+    );
+    expect(
+      base.resolveMascotAsset(pendingCount: 0, todayExpense: 120000),
+      'assets/mascot/mascot_happy.png',
+    );
+
+    final payload = HomeWidgetSyncService.buildPayload(
+      dashboardData: const DashboardData(),
+      pendingCount: 1,
+      hideAmounts: false,
+      preferences: base,
+    );
+    final styleMap = payload['widgetStyle'] as Map<String, dynamic>;
+    expect(styleMap['glassStyle'], 'glass_crystal');
+    expect(styleMap['showMascot'], isTrue);
+    expect(styleMap['showRecentTx'], isFalse);
+
+    const budgetNotif = AppNotification(
+      id: 'n1',
+      type: 'budget_warning',
+      title: 'Cảnh báo ngân sách Ăn uống',
+      message: 'Đã vượt 90% hạn mức',
+    );
+    const loanNotif = AppNotification(
+      id: 'n2',
+      type: 'loan_reminder',
+      title: 'Nhắc lịch thu nợ',
+      message: 'Đến hạn thu nợ hôm nay',
+    );
+    expect(base.allowsActivityNotification(budgetNotif), isFalse);
+    expect(base.allowsActivityNotification(loanNotif), isTrue);
+
+    final roundTripped = HomeWidgetPreferences.fromJson(base.toJson());
+    expect(roundTripped.glassStyle, 'glass_crystal');
+    expect(roundTripped.showRecentTx, isFalse);
+    expect(roundTripped.notifyBudgetAlert, isFalse);
+    expect(roundTripped.notifyShowAmount, isFalse);
+  });
+
+  testWidgets('FinoraHomeWidgetCard allows customizing glass style and notification filters',
+      (tester) async {
+    try {
+      final notifPrefCalls = <Map<String, dynamic>>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(widgetChannel, (call) async {
+        if (call.method == 'canPinWidgets') return true;
+        if (call.method == 'updateNotificationPrefs') {
+          notifPrefCalls.add(Map<String, dynamic>.from(call.arguments as Map));
+          return true;
+        }
+        return true;
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: FinoraHomeWidgetCard(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Switch glass style to Kính pha lê
+      await tester.ensureVisible(find.text('Kính pha lê'));
+      await tester.tap(find.text('Kính pha lê'));
+      await tester.pumpAndSettle();
+      expect(HomeWidgetSyncService().preferences.glassStyle, 'glass_crystal');
+
+      // Switch to Notification customization tab
+      await tester.ensureVisible(find.text('Tuỳ chỉnh thông báo'));
+      await tester.tap(find.text('Tuỳ chỉnh thông báo'));
+      await tester.pumpAndSettle();
+      expect(find.text('CHỌN LOẠI THÔNG BÁO MUỐN NHẬN'), findsOneWidget);
+      expect(find.text('Biến động trừ tiền / chi tiêu'), findsOneWidget);
+      expect(find.text('Hiển thị rõ số tiền trên thông báo'), findsOneWidget);
+
+      // Toggle the first switch (Biến động trừ tiền / chi tiêu)
+      final firstSwitch = find.byType(Switch).first;
+      await tester.ensureVisible(firstSwitch);
+      await tester.tap(firstSwitch);
+      await tester.pumpAndSettle();
+      expect(HomeWidgetSyncService().preferences.notifyBankExpense, isFalse);
+      expect(notifPrefCalls.isNotEmpty, isTrue);
+      expect(notifPrefCalls.last['notifyBankExpense'], isFalse);
+
+      // Restore defaults so later tests aren't affected
+      await HomeWidgetSyncService()
+          .updatePreferences(const HomeWidgetPreferences());
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;

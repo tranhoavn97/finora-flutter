@@ -3,11 +3,11 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/finora_widget_bg_dark"
+    android:background="@drawable/finora_widget_bg_glass_frost"
     android:orientation="vertical"
     android:padding="13dp">
 
-    <!-- Header bar -->
+    <!-- Frosted Glass Hero Header with Prominent Crisp Mascot & Speech Pill -->
     <LinearLayout
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
@@ -15,83 +15,136 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
+        <FrameLayout
+            android:id="@+id/widget_mascot_wrap"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/finora_widget_mascot_halo_dark"
+            android:padding="2.5dp">
+
+            <ImageView
+                android:id="@+id/widget_mascot_image"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Linh thú FINORA"
+                android:scaleType="fitCenter"
+                android:src="@drawable/finora_widget_mascot_happy" />
+        </FrameLayout>
+
         <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:id="@+id/widget_brand_icon"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             android:contentDescription="FINORA"
-            android:src="@mipmap/ic_launcher_round" />
+            android:src="@mipmap/ic_launcher_round"
+            android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="10dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:text="FINORA"
-                android:textColor="#FFFFFFFF"
-                android:textSize="13.5sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/widget_brand_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="FINORA"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_sync_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="• Trực tiếp"
+                    android:textColor="#94A3B8"
+                    android:textSize="10sp" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/widget_sync_time"
+                android:id="@+id/widget_mascot_speech_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/finora_widget_speech_dark"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="Theo dõi trực tiếp"
-                android:textColor="#94A3B8"
-                android:textSize="10sp" />
+                android:paddingStart="8dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="3dp"
+                android:text="Tuyệt vời! Sổ sách đã gọn ✓"
+                android:textColor="#E2E8F0"
+                android:textSize="10sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/widget_btn_refresh"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_marginEnd="6dp"
-            android:background="@drawable/finora_widget_pill_glass"
-            android:contentDescription="Làm mới"
-            android:padding="6.5dp"
-            android:src="@drawable/ic_widget_refresh" />
-
         <LinearLayout
-            android:id="@+id/widget_btn_quick_add"
+            android:id="@+id/widget_actions_group"
             android:layout_width="wrap_content"
-            android:layout_height="30dp"
-            android:background="@drawable/finora_widget_pill_primary"
+            android:layout_height="wrap_content"
             android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="11dp"
-            android:paddingEnd="13dp">
+            android:orientation="horizontal">
 
             <ImageView
-                android:layout_width="13dp"
-                android:layout_height="13dp"
-                android:contentDescription="Ghi nhanh"
-                android:src="@drawable/ic_widget_plus" />
+                android:id="@+id/widget_btn_refresh"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/finora_widget_pill_glass"
+                android:contentDescription="Làm mới"
+                android:padding="6.5dp"
+                android:src="@drawable/ic_widget_refresh" />
 
-            <TextView
+            <LinearLayout
+                android:id="@+id/widget_btn_quick_add"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:includeFontPadding="false"
-                android:text="Ghi nhanh"
-                android:textColor="#FFFFFFFF"
-                android:textSize="11.5sp"
-                android:textStyle="bold" />
+                android:layout_height="30dp"
+                android:background="@drawable/finora_widget_pill_primary"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
+                    android:contentDescription="Ghi nhanh"
+                    android:src="@drawable/ic_widget_plus" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:includeFontPadding="false"
+                    android:text="Ghi"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="11.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Top 3 KPI strip: Today Spend | Month Spend | Wallet Balance -->
+    <!-- Top 3 Frosted Glass KPI Strip -->
     <LinearLayout
+        android:id="@+id/widget_kpi_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
@@ -99,11 +152,12 @@
         android:orientation="horizontal">
 
         <LinearLayout
+            android:id="@+id/widget_kpi_today"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginEnd="4dp"
             android:layout_weight="1"
-            android:background="@drawable/finora_widget_tile_bg"
+            android:background="@drawable/finora_widget_tile_glass_dark"
             android:orientation="vertical"
             android:paddingStart="10dp"
             android:paddingTop="8dp"
@@ -111,6 +165,7 @@
             android:paddingBottom="8dp">
 
             <TextView
+                android:id="@+id/widget_kpi_today_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
@@ -148,12 +203,13 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/widget_kpi_month"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
             android:layout_weight="1"
-            android:background="@drawable/finora_widget_tile_bg"
+            android:background="@drawable/finora_widget_tile_glass_dark"
             android:orientation="vertical"
             android:paddingStart="10dp"
             android:paddingTop="8dp"
@@ -161,6 +217,7 @@
             android:paddingBottom="8dp">
 
             <TextView
+                android:id="@+id/widget_kpi_month_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
@@ -198,11 +255,12 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/widget_kpi_balance"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="4dp"
             android:layout_weight="1"
-            android:background="@drawable/finora_widget_tile_bg"
+            android:background="@drawable/finora_widget_tile_glass_dark"
             android:orientation="vertical"
             android:paddingStart="10dp"
             android:paddingTop="8dp"
@@ -210,6 +268,7 @@
             android:paddingBottom="8dp">
 
             <TextView
+                android:id="@+id/widget_kpi_balance_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
@@ -234,6 +293,7 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/widget_balance_sub"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
@@ -246,7 +306,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Middle section: Pending Bank Notifications ("Số dư cần ghi chép") -->
+    <!-- Middle Section: Pending Bank Notifications ("Số dư cần ghi chép") -->
     <LinearLayout
         android:id="@+id/widget_pending_card"
         android:layout_width="match_parent"
@@ -303,6 +363,7 @@
                 android:textStyle="bold" />
 
             <ImageView
+                android:id="@+id/widget_pending_arrow"
                 android:layout_width="14dp"
                 android:layout_height="14dp"
                 android:layout_marginStart="4dp"
@@ -493,14 +554,14 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <!-- Bottom section: Recent transactions ("Chi tiêu gần đây") -->
+    <!-- Bottom Section: Recent Transactions ("Chi tiêu gần đây") -->
     <LinearLayout
         android:id="@+id/widget_recent_section"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="9dp"
         android:layout_weight="1"
-        android:background="@drawable/finora_widget_tile_bg"
+        android:background="@drawable/finora_widget_tile_glass_dark"
         android:orientation="vertical"
         android:paddingStart="11dp"
         android:paddingTop="8dp"
@@ -514,6 +575,7 @@
             android:orientation="horizontal">
 
             <TextView
+                android:id="@+id/widget_recent_header_label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -524,6 +586,7 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/widget_recent_open_link"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:includeFontPadding="false"
@@ -719,7 +782,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:includeFontPadding="false"
-            android:text="Mở FINORA hoặc chạm + Ghi nhanh để đồng bộ giao dịch gần đây."
+            android:text="Mở FINORA hoặc chạm + Ghi để đồng bộ giao dịch gần đây."
             android:textColor="#CBD5E1"
             android:textSize="11sp" />
     </LinearLayout>

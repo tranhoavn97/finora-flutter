@@ -327,6 +327,19 @@ class MainActivity : FlutterActivity() {
                     FinoraWidgetHelper.savePayload(this, payload)
                     result.success(true)
                 }
+                "updateNotificationPrefs" -> {
+                    val prefs = getSharedPreferences(FinoraBankNotificationListenerService.PREFS_NAME, MODE_PRIVATE)
+                    prefs.edit()
+                        .putBoolean("finora_notify_bank_expense", call.argument<Boolean>("notifyBankExpense") ?: true)
+                        .putBoolean("finora_notify_bank_income", call.argument<Boolean>("notifyBankIncome") ?: true)
+                        .putBoolean("finora_notify_budget_alert", call.argument<Boolean>("notifyBudgetAlert") ?: true)
+                        .putBoolean("finora_notify_loan_reminder", call.argument<Boolean>("notifyLoanReminder") ?: true)
+                        .putBoolean("finora_notify_show_amount", call.argument<Boolean>("notifyShowAmount") ?: true)
+                        .putBoolean("finora_notify_app_badge", call.argument<Boolean>("notifyAppBadge") ?: true)
+                        .apply()
+                    FinoraBankNotificationListenerService.refreshCombinedBadge(this)
+                    result.success(true)
+                }
                 "refreshWidgets" -> {
                     FinoraWidgetHelper.updateAllWidgets(this)
                     result.success(true)

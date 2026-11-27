@@ -111,7 +111,9 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
         }
 
         fun updateAppBadge(context: Context, rawCount: Int) {
-            val count = rawCount.coerceAtLeast(0)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val badgeEnabled = prefs.getBoolean("finora_notify_app_badge", true)
+            val count = if (badgeEnabled) rawCount.coerceAtLeast(0) else 0
             try {
                 ensureNotificationChannels(context)
                 val notificationManager =
@@ -738,8 +740,27 @@ class FinoraBankNotificationListenerService : NotificationListenerService() {
                 else -> "Ngân hàng"
             }
 
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val notifyExpense = prefs.getBoolean("finora_notify_bank_expense", true)
+            val notifyIncome = prefs.getBoolean("finora_notify_bank_income", true)
+            val notifyShowAmount = prefs.getBoolean("finora_notify_show_amount", true)
+
+            val fullLower = "$title $text".lowercase()
+            val isLikelyIncome = fullLower.contains("+") ||
+                fullLower.contains("nhận") || fullLower.contains("nhan") ||
+                fullLower.contains("cộng") || fullLower.contains("cong") ||
+                fullLower.contains("chuyển đến") || fullLower.contains("chuyen den")
+            if (isLikelyIncome && !notifyIncome) return
+            if (!isLikelyIncome && !notifyExpense) return
+
             val notifTitle = "$bankName: Biến động số dư mới"
-            val notifContent = if (text.isNotBlank()) text.lines().firstOrNull()?.take(70) ?: "Mở FINORA để kiểm tra và ghi vào sổ." else "Mở FINORA để kiểm tra và ghi vào sổ."
+            val notifContent = if (!notifyShowAmount) {
+                "Có biến động mới từ $bankName • Chạm để mở FINORA xem chi tiết."
+            } else if (text.isNotBlank()) {
+                text.lines().firstOrNull()?.take(70) ?: "Mở FINORA để kiểm tra và ghi vào sổ."
+            } else {
+                "Mở FINORA để kiểm tra và ghi vào sổ."
+            }
 
             val builder = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.finora_bank_notification)
