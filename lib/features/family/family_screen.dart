@@ -1,11 +1,9 @@
 import 'dart:ui';
-import 'shared_family_screen.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/design_system/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/finora_mascot.dart';
 import '../../core/widgets/finora_member_filter.dart';

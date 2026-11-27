@@ -14,7 +14,6 @@ import '../../state/more_provider.dart';
 import '../../state/transaction_provider.dart';
 import 'add_transaction_page.dart';
 import '../../core/widgets/finora_swipeable_transaction_card.dart';
-import 'transaction_detail_sheet.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../state/theme_studio_controller.dart';
 

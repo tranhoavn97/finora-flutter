@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/design_system/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/finora_mascot.dart';
+import '../../core/widgets/finora_unified_pickers.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../data/services/local_assistant_service.dart';
 import 'assistant_response_body.dart';
@@ -1182,45 +1183,30 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                   ],
                 ),
               ),
-              DropdownButtonFormField<String>(
-                initialValue: wallet?.id,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Chọn ví'),
-                items: provider.wallets
-                    .map((w) =>
-                        DropdownMenuItem(value: w.id, child: Text(w.name)))
-                    .toList(),
-                onChanged: _savingDrafts
-                    ? null
-                    : (id) {
-                        final w = provider.wallets
-                            .where((w) => w.id == id)
-                            .firstOrNull;
-                        if (w != null)
-                          _updateDraft(draft,
-                              walletName: w.name, walletId: w.id);
-                      },
+              FinoraWalletPickerField(
+                label: 'Ví giao dịch',
+                wallets: provider.wallets,
+                selectedWalletId: wallet?.id,
+                placeholder: 'Chọn ví',
+                enabled: !_savingDrafts,
+                onSelected: (w) {
+                  _updateDraft(draft, walletName: w.name, walletId: w.id);
+                },
               ),
-              DropdownButtonFormField<String>(
-                initialValue: category?.id,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Chọn danh mục'),
-                items: provider.categories
+              const SizedBox(height: 10),
+              FinoraCategoryPickerField(
+                label: 'Danh mục',
+                categories: provider.categories
                     .where(
                         (c) => !c.isArchived && c.categoryGroup == draft.type)
-                    .map((c) =>
-                        DropdownMenuItem(value: c.id, child: Text(c.name)))
                     .toList(),
-                onChanged: _savingDrafts
-                    ? null
-                    : (id) {
-                        final c = provider.categories
-                            .where((c) => c.id == id)
-                            .firstOrNull;
-                        if (c != null)
-                          _updateDraft(draft,
-                              categoryName: c.name, categoryId: c.id);
-                      },
+                selectedCategoryId: category?.id,
+                placeholder: 'Chọn danh mục',
+                accent: statusColor,
+                enabled: !_savingDrafts,
+                onSelected: (c) {
+                  _updateDraft(draft, categoryName: c.name, categoryId: c.id);
+                },
               ),
               const SizedBox(height: 16),
             ]);

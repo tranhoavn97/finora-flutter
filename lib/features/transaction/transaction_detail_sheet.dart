@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/finora_tokens.dart';
-import '../../core/utils/formatters.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/transaction.dart';

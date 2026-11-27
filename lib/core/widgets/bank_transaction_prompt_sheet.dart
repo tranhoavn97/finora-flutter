@@ -8,9 +8,11 @@ import 'package:provider/provider.dart';
 import '../services/bank_notification_parser.dart';
 import '../services/bank_sync_service.dart';
 import '../utils/formatters.dart';
+import '../utils/search.dart';
 import 'bank_icon.dart';
 import 'finora_modal_scope.dart';
 import 'finora_notice.dart';
+import 'finora_unified_pickers.dart';
 import 'glass_widgets.dart';
 import '../../data/models/category.dart';
 import '../../data/models/transaction.dart';
@@ -516,15 +518,17 @@ class _BankTransactionPromptSheetState
         String searchQuery = '';
         return StatefulBuilder(
           builder: (ctx, setStateSheet) {
-            final q = searchQuery.trim().toLowerCase();
+            final q = normalizeSearch(searchQuery);
             final filteredWallets = q.isEmpty
                 ? pool
-                : pool
-                    .where((w) =>
-                        w.name.toLowerCase().contains(q) ||
-                        (w.bankName?.toLowerCase().contains(q) ?? false) ||
-                        (w.bankCode?.toLowerCase().contains(q) ?? false))
-                    .toList();
+                : pool.where((w) {
+                    final resolved = resolveOwnerForWallet(w);
+                    final haystack = normalizeSearch(
+                      '${w.name} ${w.bankName ?? ''} ${w.bankCode ?? ''} '
+                      '${resolved.ownerName} ${w.accountNumber ?? ''}',
+                    );
+                    return haystack.contains(q);
+                  }).toList();
 
             return AnimatedPadding(
               padding: EdgeInsets.only(
@@ -686,8 +690,6 @@ class _BankTransactionPromptSheetState
                               final w = filteredWallets[index];
                               final selected = w.id == currentId;
                               final resolved = resolveOwnerForWallet(w);
-                              final ownerIsWife = resolved.owner == 'wife';
-                              final ownerIsJoint = resolved.owner == 'joint';
                               final acctDigits = (w.accountNumber ?? '')
                                   .replaceAll(RegExp(r'\D'), '');
                               final acctSuffix = acctDigits.length >= 4
@@ -776,54 +778,11 @@ class _BankTransactionPromptSheetState
                                                     ),
                                                   ),
                                                   const SizedBox(width: 6),
-                                                  Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 1.5,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: ownerIsWife
-                                                          ? (isDark
-                                                              ? const Color(
-                                                                  0xFF500724)
-                                                              : const Color(
-                                                                  0xFFFCE7F3))
-                                                          : (ownerIsJoint
-                                                              ? (isDark
-                                                                  ? const Color(
-                                                                      0xFF064E3B)
-                                                                  : const Color(
-                                                                      0xFFD1FAE5))
-                                                              : (isDark
-                                                                  ? const Color(
-                                                                      0xFF082F49)
-                                                                  : const Color(
-                                                                      0xFFE0F2FE))),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              999),
-                                                    ),
-                                                    child: Text(
-                                                      ownerIsWife
-                                                          ? 'Vợ'
-                                                          : (ownerIsJoint
-                                                              ? 'Chung'
-                                                              : 'Chồng'),
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        color: ownerIsWife
-                                                            ? const Color(
-                                                                0xFFDB2777)
-                                                            : (ownerIsJoint
-                                                                ? const Color(
-                                                                    0xFF059669)
-                                                                : const Color(
-                                                                    0xFF0284C7)),
-                                                      ),
-                                                    ),
+                                                  FinoraOwnerPill(
+                                                    owner: resolved.owner,
+                                                    ownerName: resolved.ownerName,
+                                                    isDark: isDark,
+                                                    compact: true,
                                                   ),
                                                 ],
                                               ),
@@ -835,15 +794,23 @@ class _BankTransactionPromptSheetState
                                               CrossAxisAlignment.end,
                                           children: [
                                             Text(
-                                              formatVND(w.balance),
-                                              style: const TextStyle(
+                                              formatVND(w.isCreditCard
+                                                  ? w.currentDebt
+                                                  : w.balance),
+                                              style: TextStyle(
                                                 fontSize: 13.5,
                                                 fontWeight: FontWeight.w800,
-                                                color: Color(0xFF059669),
+                                                color: w.isCreditCard &&
+                                                        w.currentDebt > 0
+                                                    ? const Color(0xFFE11D48)
+                                                    : const Color(0xFF059669),
+                                                fontFeatures: const [
+                                                  FontFeature.tabularFigures(),
+                                                ],
                                               ),
                                             ),
                                             Text(
-                                              'Số dư',
+                                              w.isCreditCard ? 'Dư nợ' : 'Số dư',
                                               style: TextStyle(
                                                 fontSize: 10.5,
                                                 color: isDark
@@ -916,11 +883,11 @@ class _BankTransactionPromptSheetState
         bool isListView = false;
         return StatefulBuilder(
           builder: (ctx, setStateSheet) {
-            final q = searchQuery.trim().toLowerCase();
+            final q = normalizeSearch(searchQuery);
             final filtered = q.isEmpty
                 ? categories
                 : categories
-                    .where((c) => c.name.toLowerCase().contains(q))
+                    .where((c) => normalizeSearch(c.name).contains(q))
                     .toList();
 
             return AnimatedPadding(
@@ -1319,13 +1286,13 @@ class _BankTransactionPromptSheetState
         String searchQuery = '';
         return StatefulBuilder(
           builder: (context, setStateSheet) {
-            final query = searchQuery.trim().toLowerCase();
+            final query = normalizeSearch(searchQuery);
             final filtered = query.isEmpty
                 ? merchants
                 : merchants
                     .where((m) =>
-                        m.name.toLowerCase().contains(query) ||
-                        (m.id.toLowerCase().contains(query)))
+                        normalizeSearch(m.name).contains(query) ||
+                        normalizeSearch(m.id).contains(query))
                     .toList();
 
             final bool hasExactMatch =

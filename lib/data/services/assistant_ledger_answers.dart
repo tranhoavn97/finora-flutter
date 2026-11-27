@@ -168,7 +168,7 @@ class AssistantLedgerAnswers {
         '> Số liệu sổ FINORA · ${period.label} (chuyển khoản nội bộ không tính thu/chi).';
 
     if (has(q, 'vo va chong|vo chong|chong va vo|ai chi nhieu')) {
-      final activePeriod = period!;
+      final activePeriod = period;
       final allInPeriod = transactions
           .where((t) =>
               FinanceScope(

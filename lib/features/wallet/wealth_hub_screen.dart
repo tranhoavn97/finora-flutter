@@ -1,12 +1,6 @@
-import 'dart:ui' as ui;
 import '../../core/widgets/adaptive_glass_surface.dart';
-// ignore: unused_import
-
-import '../../core/widgets/fresh_design.dart';
-
 import '../../core/widgets/finora/financial_components.dart'
     show TransactionRow;
-
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -31,14 +25,11 @@ import '../../core/widgets/glass_widgets.dart';
 
 import '../../core/widgets/finora_mascot.dart';
 
-// ignore: unused_import
-
-import '../../core/widgets/ai_context_button.dart';
-
 import '../../core/widgets/finora_privacy_mask.dart';
 
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/bank_transaction_prompt_sheet.dart';
+import '../../core/widgets/finora_unified_pickers.dart';
 
 import '../../core/widgets/date_filter_modal.dart';
 
@@ -62,17 +53,7 @@ import '../../state/theme_studio_controller.dart';
 
 import 'add_wallet_page.dart';
 
-// ignore: unused_import
-
-import 'web_wallet_card.dart';
-
-// ignore: unused_import
-
-import 'swipeable_bank_card_deck.dart';
-
 import '../transaction/transaction_history_sheet.dart';
-
-import '../transaction/transaction_detail_sheet.dart';
 
 import '../asset/asset_screen.dart';
 
@@ -591,58 +572,15 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                 ),
                 const SizedBox(height: 14),
                 if (wallets.isNotEmpty) ...[
-                  Text(
-                    lent ? 'Ví nhận tiền thu nợ:' : 'Nguồn ví trích trả nợ:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: isDark
-                          ? const Color(0xFFA3B4D4)
-                          : const Color(0xFF475569),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedWalletId,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: isDark
-                          ? const Color(0xFF1E293B)
-                          : const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    items: wallets.map((w) {
-                      final ownerLabel = BankTransactionPromptSheet
-                              .resolveOwnerForWallet(w)
-                          .ownerName;
-                      final digits = (w.accountNumber ?? '')
-                          .replaceAll(RegExp(r'\D'), '');
-                      final acctTag = digits.length >= 4
-                          ? ' · ••${digits.substring(digits.length - 4)}'
-                          : '';
-                      return DropdownMenuItem(
-                        value: w.id,
-                        child: Text(
-                          '[$ownerLabel] ${w.name}$acctTag (${formatVND(w.balance)})',
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setDialogState(() => selectedWalletId = val);
-                      }
+                  FinoraWalletPickerField(
+                    label: lent
+                        ? 'Ví nhận tiền thu nợ'
+                        : 'Nguồn ví trích trả nợ',
+                    wallets: wallets,
+                    selectedWalletId: selectedWalletId,
+                    placeholder: 'Chọn ví thanh toán',
+                    onSelected: (w) {
+                      setDialogState(() => selectedWalletId = w.id);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -7423,10 +7361,10 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       );
     }
 
-    final fullWallet = (walletDisplayName != null && walletDisplayName.trim().isNotEmpty)
+    final fullWallet = walletDisplayName.trim().isNotEmpty
         ? walletDisplayName.trim()
         : 'Ví chính';
-    final rawTagOwner = tx.tags?.firstWhere(
+    final rawTagOwner = tx.tags.firstWhere(
       (t) => FinoraMemberAvatar.normalizeMember(t) != null,
       orElse: () => '',
     );
@@ -7441,9 +7379,7 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
                   tx.fromOwner ??
                   tx.ownerName ??
                   tx.creatorTag ??
-                  (rawTagOwner != null && rawTagOwner.isNotEmpty
-                      ? rawTagOwner
-                      : null) ??
+                  (rawTagOwner.isNotEmpty ? rawTagOwner : null) ??
                   matchingWallet?.owner ??
                   matchingWallet?.ownerName,
             ) ??
@@ -7453,7 +7389,6 @@ class _WealthHubScreenState extends State<WealthHubScreen> {
       'wife' => studio?.wifeDisplayLabel ?? 'Vợ',
       _ => 'Chung',
     };
-    final bankCode = tx.bankTransactionCode?.trim();
 
     Widget buildIconWithSpenderBadge({
       double size = 40,

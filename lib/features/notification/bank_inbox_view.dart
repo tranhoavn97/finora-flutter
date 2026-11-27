@@ -13,6 +13,7 @@ import '../../core/services/bank_sync_service.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/bank_icon.dart';
 import '../../core/widgets/bank_transaction_prompt_sheet.dart';
+import '../../core/widgets/finora_unified_pickers.dart';
 import '../../core/widgets/glass_widgets.dart';
 import '../../data/models/transaction.dart';
 import '../../data/models/wallet.dart';
@@ -459,39 +460,37 @@ class _BankInboxViewState extends State<BankInboxView>
                           ],
                         ] else ...[
                           if (wallets.isNotEmpty) ...[
-                            DropdownButtonFormField<String>(
-                              initialValue: selectedWalletId,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                labelText: 'Ví / Tài khoản ngân hàng',
-                                filled: true,
-                                fillColor: isDark
-                                    ? const Color(0xFF1E293B)
-                                    : const Color(0xFFF8FAFC),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              items: wallets
-                                  .map((w) => DropdownMenuItem(
-                                        value: w.id,
-                                        child: Text(
-                                          '${w.name} (${formatVND(w.balance)})',
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setSheetState(() => selectedWalletId = v),
+                            FinoraWalletPickerField(
+                              label: 'Ví / Tài khoản ngân hàng',
+                              wallets: wallets,
+                              selectedWalletId: selectedWalletId,
+                              placeholder: 'Chọn ví / Tài khoản ngân hàng',
+                              onSelected: (w) =>
+                                  setSheetState(() => selectedWalletId = w.id),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                           ],
                           Row(
                             children: [
                               for (final opt in const [
-                                ('expense', 'Chi tiêu', Color(0xFFE11D48)),
-                                ('income', 'Thu nhập', Color(0xFF059669)),
-                                ('transfer', 'Chuyển khoản', Color(0xFF0284C7)),
+                                (
+                                  'expense',
+                                  'Chi tiêu',
+                                  Color(0xFFE11D48),
+                                  Icons.trending_down_rounded
+                                ),
+                                (
+                                  'income',
+                                  'Thu nhập',
+                                  Color(0xFF059669),
+                                  Icons.trending_up_rounded
+                                ),
+                                (
+                                  'transfer',
+                                  'Chuyển khoản',
+                                  Color(0xFF0284C7),
+                                  Icons.swap_horiz_rounded
+                                ),
                               ])
                                 Expanded(
                                   child: Padding(
@@ -501,7 +500,7 @@ class _BankInboxViewState extends State<BankInboxView>
                                       onTap: () =>
                                           setSheetState(() => txType = opt.$1),
                                       child: Container(
-                                        height: 36,
+                                        height: 38,
                                         alignment: Alignment.center,
                                         decoration: BoxDecoration(
                                           color: txType == opt.$1
@@ -512,17 +511,40 @@ class _BankInboxViewState extends State<BankInboxView>
                                           borderRadius:
                                               BorderRadius.circular(999),
                                         ),
-                                        child: Text(
-                                          opt.$2,
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: txType == opt.$1
-                                                ? Colors.white
-                                                : (isDark
-                                                    ? Colors.white70
-                                                    : const Color(0xFF475569)),
-                                          ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              opt.$4,
+                                              size: 13.5,
+                                              color: txType == opt.$1
+                                                  ? Colors.white
+                                                  : (isDark
+                                                      ? Colors.white70
+                                                      : const Color(
+                                                          0xFF475569)),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                opt.$2,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: txType == opt.$1
+                                                      ? Colors.white
+                                                      : (isDark
+                                                          ? Colors.white70
+                                                          : const Color(
+                                                              0xFF475569)),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
